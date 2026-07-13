@@ -106,6 +106,10 @@ export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
   boardAspect: number;
   /** Column count for the scaffold's board-box sizing. */
   boardCols: number;
+  /** Optional hard cap on the rendered board WIDTH (px). Wide/short boards (e.g. the
+   *  8x4 banqi board) otherwise stretch to the full column width; a cap keeps them at
+   *  a sane size, matching the linear layout's boardMaxPx. Omit for square-ish boards. */
+  boardMaxPx?: number;
   /** Window event whose fire forces a full re-render (variants that render pieces
    *  inline as SVG need this on a piece-set change; variants that pick up their set
    *  via CSS omit it). */
@@ -434,6 +438,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     boards: [{ key: 'truth', el: boardWrap, tier: 'primary' }],
     boardAspect: presentation.boardAspect,
     boardCols: presentation.boardCols,
+    boardMaxPx: presentation.boardMaxPx,
     underboard:
       config.analysis || config.provenance || config.showCrosstable ? underboardEl : undefined,
     underboardOverflows: true,
@@ -572,18 +577,30 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'xiangqi-review__analyse';
-    button.textContent = source.requestLabel;
+    // Prominent lichess-style request button: a bar-chart glyph + the label. The
+    // label lives in its own span so progress updates don't clobber the icon.
+    const icon = document.createElement('span');
+    icon.className = 'xiangqi-review__analyse-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML =
+      '<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">' +
+      '<rect x="1" y="8" width="3" height="6" rx="0.6"/>' +
+      '<rect x="6.5" y="4" width="3" height="10" rx="0.6"/>' +
+      '<rect x="12" y="1" width="3" height="13" rx="0.6"/></svg>';
+    const label = document.createElement('span');
+    label.textContent = source.requestLabel;
+    button.replaceChildren(icon, label);
     button.addEventListener('click', () => {
       button.disabled = true;
-      button.textContent = 'Analysing the whole game…';
+      label.textContent = 'Analysing the whole game…';
       source
         .run((done, total) => {
-          button.textContent = `Analysing… ${done}/${total}`;
+          label.textContent = `Analysing… ${done}/${total}`;
         })
         .then(applyAnalysis)
         .catch(() => {
           button.disabled = false;
-          button.textContent = 'Analysis failed — retry';
+          label.textContent = 'Analysis failed — retry';
         });
     });
     underboardBody.replaceChildren(button);

@@ -96,6 +96,14 @@
   background: transparent;
 }
 
+/* Red seat (xiangqi family + jungle): a filled red disc so a red-vs-black game
+   reads as red/black rather than hollow/black. Matches the eval-bar / analysis
+   chart red (#c0563f). */
+.game-meta-card__disc--red {
+  background: #c0563f;
+  border-color: #8f3d2c;
+}
+
 .game-meta-card__bot {
   flex: 0 0 auto;
   font-size: 10px;

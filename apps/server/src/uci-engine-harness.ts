@@ -43,6 +43,29 @@ export type UciEnginePoolConfig = {
   defaultQueueTimeoutMs?: number;
   /** Error message when a waiter times out waiting for a slot. */
   queueTimeoutMessage: string;
+  /** Stable label for the per-engine breakdown in /api/server-status. Pools without
+   *  a name report as 'unnamed'. */
+  name?: string;
+};
+
+/** Point-in-time saturation snapshot for one pool (see #203). Cumulative counters
+ *  are monotonic over the process lifetime; `active`/`queueDepth` are instantaneous. */
+export type UciEnginePoolStats = {
+  name: string;
+  /** Subprocesses running right now. */
+  active: number;
+  /** Requests waiting for a slot right now. */
+  queueDepth: number;
+  /** Current concurrency cap (re-read from the env each acquire). */
+  maxProcesses: number;
+  /** Cumulative slots taken (immediate + after waiting). */
+  acquired: number;
+  /** Cumulative requests that had to queue (a leading saturation signal). */
+  waited: number;
+  /** Cumulative queue-wait timeouts (saturation that actually shed load). */
+  timedOut: number;
+  /** High-water mark of `queueDepth`. */
+  peakQueueDepth: number;
 };
 
 type QueueEntry = {
@@ -50,6 +73,33 @@ type QueueEntry = {
   resolve(release: () => void): void;
   timer: ReturnType<typeof setTimeout>;
 };
+
+// Every constructed pool registers here so /api/server-status can report web-side
+// engine-pool saturation — the least-instrumented signal we have, and the leading
+// indicator for the non-fog engine-service split (#203, memory:
+// architecture_engine_service_split). Pools are process-lifetime singletons, so
+// they never unregister.
+const poolRegistry = new Set<UciEnginePool>();
+
+/** Per-pool + summed saturation stats across every in-process UCI pool. */
+export function aggregateEnginePoolStats(): {
+  pools: UciEnginePoolStats[];
+  totals: { active: number; queueDepth: number; waited: number; timedOut: number };
+} {
+  const pools = [...poolRegistry]
+    .map((pool) => pool.stats())
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const totals = pools.reduce(
+    (sum, p) => ({
+      active: sum.active + p.active,
+      queueDepth: sum.queueDepth + p.queueDepth,
+      waited: sum.waited + p.waited,
+      timedOut: sum.timedOut + p.timedOut,
+    }),
+    { active: 0, queueDepth: 0, waited: 0, timedOut: 0 },
+  );
+  return { pools, totals };
+}
 
 /**
  * A tiny per-process concurrency gate: at most N `spawn`ed engine subprocesses run
@@ -61,23 +111,34 @@ type QueueEntry = {
 export class UciEnginePool {
   private active = 0;
   private readonly queue: QueueEntry[] = [];
+  // Cumulative saturation counters (monotonic over the process lifetime).
+  private acquired = 0;
+  private waited = 0;
+  private timedOut = 0;
+  private peakQueueDepth = 0;
 
-  constructor(private readonly config: UciEnginePoolConfig) {}
+  constructor(private readonly config: UciEnginePoolConfig) {
+    poolRegistry.add(this);
+  }
 
   /** Take a slot, returning a release function. Call it exactly once when done. */
   acquire(): Promise<() => void> {
     if (this.active < this.maxProcesses()) {
       this.active += 1;
+      this.acquired += 1;
       return Promise.resolve(this.release);
     }
+    this.waited += 1;
     return new Promise<() => void>((resolveSlot, reject) => {
       const timer = setTimeout(() => {
         const idx = this.queue.findIndex((entry) => entry.reject === reject);
         if (idx >= 0) this.queue.splice(idx, 1);
+        this.timedOut += 1;
         reject(new Error(this.config.queueTimeoutMessage));
       }, this.queueTimeoutMs());
       timer.unref();
       this.queue.push({ reject, resolve: resolveSlot, timer });
+      if (this.queue.length > this.peakQueueDepth) this.peakQueueDepth = this.queue.length;
     });
   }
 
@@ -87,9 +148,24 @@ export class UciEnginePool {
     if (next) {
       clearTimeout(next.timer);
       this.active += 1;
+      this.acquired += 1;
       next.resolve(this.release);
     }
   };
+
+  /** Point-in-time saturation snapshot (aggregated in /api/server-status). */
+  stats(): UciEnginePoolStats {
+    return {
+      name: this.config.name ?? 'unnamed',
+      active: this.active,
+      queueDepth: this.queue.length,
+      maxProcesses: this.maxProcesses(),
+      acquired: this.acquired,
+      waited: this.waited,
+      timedOut: this.timedOut,
+      peakQueueDepth: this.peakQueueDepth,
+    };
+  }
 
   private maxProcesses(): number {
     return boundedEnvInt(

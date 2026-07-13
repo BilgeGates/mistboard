@@ -141,22 +141,30 @@ function mean(values: number[]): number {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
-function analysisUrl(roomId: string): string {
-  return new URL(`/api/xiangqi/games/${encodeURIComponent(roomId)}/analysis`, window.location.href)
-    .pathname;
+// The analysis endpoint is per-variant (`/api/<variant>/games/:id/analysis`); the
+// wire shape + all derived-view math are variant-neutral, so only the URL segment
+// differs. Callers pass the game-spec route id ('xiangqi', 'fortress-xiangqi', …).
+function analysisUrl(variant: string, roomId: string): string {
+  return new URL(
+    `/api/${variant}/games/${encodeURIComponent(roomId)}/analysis`,
+    window.location.href,
+  ).pathname;
 }
 
 /** POST the analysis request for a finished game and compute the derived view. */
-export async function requestGameAnalysis(roomId: string): Promise<GameAnalysis> {
-  const response = await fetch(analysisUrl(roomId), { method: 'POST' });
+export async function requestGameAnalysis(variant: string, roomId: string): Promise<GameAnalysis> {
+  const response = await fetch(analysisUrl(variant, roomId), { method: 'POST' });
   if (!response.ok) throw new Error(`analysis_request_failed_${response.status}`);
   return computeGameAnalysis((await response.json()) as XiangqiGameAnalysisResponse);
 }
 
 /** GET the already-cached analysis, or null if it hasn't been computed yet (204).
  *  Never triggers an engine pass, so the postgame can auto-load on open. */
-export async function fetchCachedGameAnalysis(roomId: string): Promise<GameAnalysis | null> {
-  const response = await fetch(analysisUrl(roomId), { method: 'GET' });
+export async function fetchCachedGameAnalysis(
+  variant: string,
+  roomId: string,
+): Promise<GameAnalysis | null> {
+  const response = await fetch(analysisUrl(variant, roomId), { method: 'GET' });
   if (response.status === 204 || !response.ok) return null;
   return computeGameAnalysis((await response.json()) as XiangqiGameAnalysisResponse);
 }

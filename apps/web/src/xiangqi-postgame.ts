@@ -158,9 +158,9 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
       requestLabel: isLikelySignedIn()
         ? 'Request computer analysis'
         : 'Sign in to request analysis',
-      fetchCached: () => fetchCachedGameAnalysis(postgame.game.roomId),
+      fetchCached: () => fetchCachedGameAnalysis('xiangqi', postgame.game.roomId),
       run: isLikelySignedIn()
-        ? () => requestGameAnalysis(postgame.game.roomId)
+        ? () => requestGameAnalysis('xiangqi', postgame.game.roomId)
         : () => {
             window.location.assign('/account');
             return new Promise<never>(() => {});

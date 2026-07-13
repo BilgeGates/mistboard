@@ -48,6 +48,9 @@ function makeBanqiPresentation(
     // Discs sit inset within their cell, so capture tiles size a touch under one
     // cell (board width / 10), matching the linear postgame.
     boardCols: 10,
+    // Cap the width: an 8×4 board (aspect ~1.82) otherwise stretches to the full
+    // column, rendering as a long, short strip. ~its native SVG width keeps it sane.
+    boardMaxPx: 560,
     perspective: (flipped) => (flipped ? 'black' : 'red'),
     // Review plays BOTH sides: the interactive seat is the side to move.
     seatFor: (view) => (view.status.type === 'playing' ? view.status.turn : null),

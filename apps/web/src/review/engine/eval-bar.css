@@ -120,9 +120,11 @@
    bar whose two shades read identically to the graph (clear, not muddy). The
    red-ahead label then reads dark on the lighter fill (the default), so no
    per-variant label override is needed. */
-.xiangqi-review .review-eval-bar {
+.xiangqi-review .review-eval-bar,
+.fortress-xiangqi-review .review-eval-bar {
   background: color-mix(in srgb, #34302e 85%, var(--site-panel, #fff));
 }
-.xiangqi-review .review-eval-bar__fill {
+.xiangqi-review .review-eval-bar__fill,
+.fortress-xiangqi-review .review-eval-bar__fill {
   background: color-mix(in srgb, #c0563f 72%, var(--site-panel, #fff));
 }

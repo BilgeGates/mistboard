@@ -143,6 +143,7 @@ export function jungleEngineMove(
 
 // Per-process concurrency cap (mirrors banqi-engine.ts; shared harness).
 const enginePool = new UciEnginePool({
+  name: 'jungle',
   maxProcessesEnvVar: 'MISTBOARD_JUNGLE_MAX_PROCESSES',
   queueTimeoutEnvVar: 'MISTBOARD_JUNGLE_QUEUE_TIMEOUT_MS',
   queueTimeoutMessage: 'jungle-engine concurrency queue timed out',

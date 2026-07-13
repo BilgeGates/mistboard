@@ -280,6 +280,72 @@ export function fsfUciToFortressXiangqiMove(uci: string): FortressXiangqiMove | 
   return null;
 }
 
+// ── Engine FEN (Fairy-Stockfish) ──────────────────────────────────────────────
+
+// FSF FEN letter per role (red = uppercase, black = lowercase). The droppable roles
+// reuse the drop-dialect letters; the general (never droppable) is 'K'.
+const FORTRESS_ROLE_TO_FEN_LETTER: Record<FortressXiangqiPieceRole, string> = {
+  ...FORTRESS_DROP_ROLE_TO_FSF_LETTER,
+  general: 'K',
+};
+
+// Stable pocket ordering (FSF parses pockets order-independently, but a fixed order
+// keeps the FEN deterministic for the Share tab + the parity test).
+const FORTRESS_POCKET_ROLE_ORDER: FortressXiangqiDropRole[] = [
+  'chariot',
+  'horse',
+  'cannon',
+  'elephant',
+  'advisor',
+  'treasure',
+  'soldier',
+];
+
+function fortressHandFenLetters(hand: FortressXiangqiHand, color: FortressXiangqiColor): string {
+  let out = '';
+  for (const role of FORTRESS_POCKET_ROLE_ORDER) {
+    const count = hand[role] ?? 0;
+    const letter = FORTRESS_DROP_ROLE_TO_FSF_LETTER[role];
+    out += (color === 'red' ? letter : letter.toLowerCase()).repeat(count);
+  }
+  return out;
+}
+
+/** Fairy-Stockfish FEN for the fortressxiangqi variant, for the review Share tab:
+ *  the 7x8 placement (rank 8 down to 1, files a..g), a `[pocket]` of captured-in-hand
+ *  pieces (crazyhouse-style; omitted when both hands are empty, matching the .ini
+ *  startFen), side to move, and the move number. The engine is fed startpos+moves,
+ *  so this FEN is display-only — but it is a valid position FSF can load. */
+export function fortressXiangqiEngineFen(state: FortressXiangqiGameState): string {
+  const ranks: string[] = [];
+  for (let rank = RANKS; rank >= 1; rank -= 1) {
+    let row = '';
+    let empty = 0;
+    for (let f = 0; f < FILES; f += 1) {
+      const piece = state.board[fortressXiangqiSquareOf(f, rank)];
+      if (!piece) {
+        empty += 1;
+        continue;
+      }
+      if (empty > 0) {
+        row += String(empty);
+        empty = 0;
+      }
+      const letter = FORTRESS_ROLE_TO_FEN_LETTER[piece.role];
+      row += piece.color === 'red' ? letter : letter.toLowerCase();
+    }
+    if (empty > 0) row += String(empty);
+    ranks.push(row);
+  }
+  const placement = ranks.join('/');
+  const pocket =
+    fortressHandFenLetters(state.hands.red, 'red') +
+    fortressHandFenLetters(state.hands.black, 'black');
+  const board = pocket ? `${placement}[${pocket}]` : placement;
+  const turn = state.status.type === 'playing' && state.status.turn === 'black' ? 'b' : 'w';
+  return `${board} ${turn} - - 0 ${state.moveNumber}`;
+}
+
 // ── Initial position ────────────────────────────────────────────────────────
 
 export function createInitialFortressXiangqiBoard(): FortressXiangqiBoard {

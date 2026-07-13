@@ -2,21 +2,26 @@
 // generic tree-review controller (mountTreeReview). Fortress is perfect-information,
 // so the tree reconstructs every position (including drops) from the move list.
 //
-// SLICE 1 (this file): interactive BOARD moves + branching tree, no engine
-// (engine: null → no eval gauge / engine panel) and no reserve strips / drop
-// gesture. Fortress DOES have a ready Fairy-Stockfish engine (ceval
-// 'fortressxiangqi'); wiring the `engine` bundle + a server whole-game analysis
-// route is the next slice.
+// SLICE 2 (this file): interactive BOARD moves + branching tree + CLIENT CEVAL
+// engine (Fairy-Stockfish 'fortressxiangqi' — ceval loads the custom
+// fortress-xiangqi.ini). The eval gauge + engine panel + Share FEN are live; the
+// engine reads the tree's FSF move list (startpos + moves), so no server round-trip.
+// On-board PV arrows are deferred (the fortress board has no overlay layer yet), so
+// engineArrowsFromLines/bestMoveArrow return []. Still no reserve strips / drop
+// gesture (drops replay in the mainline but are not a user affordance yet).
 
 import {
   type FortressXiangqiColor,
   type FortressXiangqiGameState,
   type FortressXiangqiMove,
   type FortressXiangqiPlayerView,
+  fortressXiangqiEngineFen,
+  fsfUciToFortressXiangqiMove,
   isFortressXiangqiDropMove,
 } from '@mistboard/game';
 import { createFortressXiangqiInteractiveBoard } from '../fortress-xiangqi-board.js';
 import { animateFortressXiangqiBoardMove } from '../fortress-xiangqi-render.js';
+import { fortressXiangqiMoveLabel } from '../fortress-xiangqi-view.js';
 import { fortressXiangqiTreeAdapter } from './fortress-xiangqi-tree-adapter.js';
 import type { NodeShape } from './game-tree.js';
 import {
@@ -25,6 +30,14 @@ import {
   type TreeReviewConfig,
   type TreeReviewHandle,
 } from './tree-review.js';
+
+// Fairy-Stockfish fortress UCI back to our readable label for the PV lines (board
+// 'a1b2' → 'a1-b2', drop 'Q@e5' → the treasure-drop label); fall back to the raw
+// UCI if a PV token does not parse.
+function formatFortressEngineMove(uci: string): string {
+  const move = fsfUciToFortressXiangqiMove(uci);
+  return move ? fortressXiangqiMoveLabel(move) : uci;
+}
 
 /** Config for a Fortress Xiangqi review mount. */
 export type FortressXiangqiReviewConfig = TreeReviewConfig<FortressXiangqiMove>;
@@ -41,7 +54,15 @@ const fortressPresentation: TreePresentation<
   unknown
 > = {
   adapter: fortressXiangqiTreeAdapter,
-  engine: null,
+  engine: {
+    panelVariant: 'fortressxiangqi',
+    fen: fortressXiangqiEngineFen,
+    formatPvMove: formatFortressEngineMove,
+    // No board overlay layer yet, so PV lines are not drawn as on-board arrows; the
+    // eval gauge + engine panel still read from the ceval search.
+    engineArrowsFromLines: () => [],
+    bestMoveArrow: () => [],
+  },
   boardHostClassName: 'fortress-xiangqi-postgame-board fortress-xiangqi-live-board',
   boardWrapClassName: 'dxq-postgame__board-wrap review-board-host',
   defaultBoardAriaLabel: 'Fortress Xiangqi board',

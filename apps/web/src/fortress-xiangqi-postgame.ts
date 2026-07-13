@@ -9,7 +9,9 @@ import './game-route.css';
 import { fortressXiangqiEnabled } from './feature-flags.js';
 import { installFortressXiangqiBoardStyles } from './fortress-xiangqi-render.js';
 import { mountFortressXiangqiReview } from './review/fortress-xiangqi-review.js';
+import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
 import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
+import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
 
@@ -117,12 +119,26 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
   // Perfect-information: the tree reconstructs every position (including drops) from
   // the move list client-side. The server per-ply snapshots are used only by the
   // watch adapter (postgameViewAtPly below).
-  const moves = postgame.timeline
-    .filter(
-      (entry): entry is typeof entry & { move: FortressXiangqiMove } =>
-        entry.type === 'move-played' && !!entry.move,
-    )
-    .map((entry) => entry.move);
+  const moveEvents = postgame.timeline.filter(
+    (entry) => entry.type === 'move-played' && entry.move,
+  );
+  const moves = moveEvents.map((entry) => entry.move as FortressXiangqiMove);
+
+  // Per-ply elapsed time from consecutive event timestamps (the server persists no
+  // per-move clock, so the first ply's delta is measured from the earliest event).
+  let prevAt = postgame.timeline[0]?.at ?? moveEvents[0]?.at ?? 0;
+  const moveTimes = moveEvents.map((entry) => {
+    const delta = Math.max(0, entry.at - prevAt);
+    prevAt = entry.at;
+    return delta;
+  });
+  const hasMoveTimes = moveTimes.some((ms) => ms > 0);
+
+  const gamePlayers = postgame.game.players ?? [];
+  const playerNames = {
+    red: gamePlayers.find((p) => p.color === 'red')?.name,
+    black: gamePlayers.find((p) => p.color === 'black')?.name,
+  };
 
   const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
@@ -141,9 +157,26 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
     metaCard,
     details,
     moves,
-    // Board-moves-first interactive review: no engine analysis wired yet, and the
-    // drop reserves are not shown (drops still replay correctly in the mainline).
-    analysis: null,
+    moveTimes: hasMoveTimes ? moveTimes : undefined,
+    players: playerNames,
+    showCrosstable: true,
+    // Server whole-game FSF analysis, DB-cached: an already-analysed game loads from
+    // cache on open (a GET that never computes). Requesting a fresh compute is
+    // account-gated (the server rejects anon POSTs), so a signed-out visitor gets a
+    // sign-in CTA instead of a request that would 401. (The drop reserves are still
+    // not shown; drops replay in the mainline.)
+    analysis: {
+      requestLabel: isLikelySignedIn()
+        ? 'Request computer analysis'
+        : 'Sign in to request analysis',
+      fetchCached: () => fetchCachedGameAnalysis('fortress-xiangqi', postgame.game.roomId),
+      run: isLikelySignedIn()
+        ? () => requestGameAnalysis('fortress-xiangqi', postgame.game.roomId)
+        : () => {
+            window.location.assign('/account');
+            return new Promise<never>(() => {});
+          },
+    },
   });
 }
 

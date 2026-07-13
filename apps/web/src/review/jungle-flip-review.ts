@@ -51,6 +51,9 @@ function makeJungleFlipPresentation(
     boardAspect: rectangularGridAspect(JUNGLE_FLIP_BOARD_VIEW),
     // 4×4 board: keep capture tiles compact so the board grows to fill the box.
     boardCols: 8,
+    // Cap the width so four cells don't balloon to fill a large square area (the
+    // linear layout capped this at 560 too).
+    boardMaxPx: 560,
     perspective: (flipped) => (flipped ? 'black' : 'red'),
     seatFor: (view) => (view.status.type === 'playing' ? view.status.turn : null),
     createBoard: (opts) => createJungleFlipInteractiveBoard(opts),

@@ -61,6 +61,7 @@ const BANQI_ENGINE_BY_ID: ReadonlyMap<string, BanqiEngineTier> = new Map<string,
 
 // Small per-process slot pool (Tier-B UCI subprocess; shared harness).
 const enginePool = new UciEnginePool({
+  name: 'banqi',
   maxProcessesEnvVar: 'MISTBOARD_BANQI_MAX_PROCESSES',
   queueTimeoutEnvVar: 'MISTBOARD_BANQI_QUEUE_TIMEOUT_MS',
   queueTimeoutMessage: 'banqi-engine concurrency queue timed out',

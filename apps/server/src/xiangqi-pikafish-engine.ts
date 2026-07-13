@@ -148,6 +148,7 @@ const XIANGQI_ENGINE_BY_ID: ReadonlyMap<string, XiangqiEngineTier> = new Map(
 // Small per-process slot pool (Tier-B UCI subprocess; shared harness). Reuses the
 // same env knobs as the Jieqi Pikafish pool.
 const enginePool = new UciEnginePool({
+  name: 'pikafish-xiangqi',
   maxProcessesEnvVar: 'MISTBOARD_PIKAFISH_MAX_PROCESSES',
   queueTimeoutEnvVar: 'MISTBOARD_PIKAFISH_QUEUE_TIMEOUT_MS',
   queueTimeoutMessage: 'pikafish-xiangqi concurrency queue timed out',

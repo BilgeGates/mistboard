@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { after } from 'node:test';
 import {
+  aggregateEnginePoolStats,
   boundedEnvInt,
   buildFairyStockfishCommands,
   configuredUciOptionNames,
@@ -204,6 +205,53 @@ test('UciEnginePool rejects a queued waiter after the queue timeout', async () =
   } finally {
     clearInterval(keepAlive);
   }
+  release1();
+  delete process.env.TEST_POOL_MAX;
+  delete process.env.TEST_POOL_TIMEOUT;
+});
+
+test('UciEnginePool stats track active, queue depth, waits, and timeouts (#203)', async () => {
+  process.env.TEST_POOL_MAX = '1';
+  process.env.TEST_POOL_TIMEOUT = '80';
+  const pool = new UciEnginePool({
+    name: 'test-instrumented',
+    maxProcessesEnvVar: 'TEST_POOL_MAX',
+    queueTimeoutEnvVar: 'TEST_POOL_TIMEOUT',
+    queueTimeoutMessage: 'instrumented queue timed out',
+  });
+
+  const release1 = await pool.acquire();
+  let stats = pool.stats();
+  assert.equal(stats.name, 'test-instrumented');
+  assert.equal(stats.active, 1);
+  assert.equal(stats.acquired, 1);
+  assert.equal(stats.queueDepth, 0);
+
+  // A second acquire queues (over the cap): queue depth + wait counter rise.
+  const keepAlive = setInterval(() => {}, 20);
+  try {
+    const queued = assert.rejects(pool.acquire(), /instrumented queue timed out/);
+    await delay(10);
+    stats = pool.stats();
+    assert.equal(stats.queueDepth, 1);
+    assert.equal(stats.waited, 1);
+    assert.equal(stats.peakQueueDepth, 1);
+    assert.equal(stats.timedOut, 0);
+    await queued; // let the queued waiter hit the timeout
+  } finally {
+    clearInterval(keepAlive);
+  }
+  stats = pool.stats();
+  assert.equal(stats.queueDepth, 0);
+  assert.equal(stats.timedOut, 1);
+
+  // The pool is registered, so the aggregate reflects it (per-pool + totals).
+  const agg = aggregateEnginePoolStats();
+  const mine = agg.pools.find((p) => p.name === 'test-instrumented');
+  assert.ok(mine, 'registered pool appears in aggregate');
+  assert.equal(mine?.timedOut, 1);
+  assert.ok(agg.totals.timedOut >= 1);
+
   release1();
   delete process.env.TEST_POOL_MAX;
   delete process.env.TEST_POOL_TIMEOUT;

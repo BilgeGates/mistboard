@@ -85,6 +85,7 @@ const XIANGQI_FSF_ENGINE_BY_ID: ReadonlyMap<string, XiangqiFsfEngineTier> = new 
 );
 
 const fsfPool = new UciEnginePool({
+  name: 'xiangqi-fsf',
   maxProcessesEnvVar: 'MISTBOARD_XIANGQI_FSF_MAX_PROCESSES',
   queueTimeoutEnvVar: 'MISTBOARD_XIANGQI_FSF_QUEUE_TIMEOUT_MS',
   queueTimeoutMessage: 'fairy-stockfish-xiangqi concurrency queue timed out',
