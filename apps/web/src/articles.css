@@ -657,14 +657,6 @@
   white-space: nowrap;
 }
 
-.rules-playable-dot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 7px;
-  border-radius: 50%;
-  background: var(--site-success, #639b24);
-}
-
 .article-toc-nav a.article-variant-link:hover .articles-index-card-thumb,
 .article-toc-nav a.article-variant-link.active .articles-index-card-thumb {
   opacity: 1;

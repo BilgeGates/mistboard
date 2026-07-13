@@ -822,13 +822,6 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
     label.className = 'article-variant-label';
     label.textContent = variantNavLabel(localized.title);
     link.append(label);
-    if (entry.playableOnMistboard) {
-      const playable = document.createElement('span');
-      playable.className = 'rules-playable-dot';
-      playable.title = t('rules.playableHere', {}, locale);
-      playable.setAttribute('aria-label', t('rules.playableHere', {}, locale));
-      link.append(playable);
-    }
     if (entry.slug === currentSlug) {
       link.classList.add('active');
       link.setAttribute('aria-current', 'page');

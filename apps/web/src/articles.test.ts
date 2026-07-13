@@ -580,11 +580,11 @@ describe('article public listing gates', () => {
     }
   });
 
-  it('marks playable games on the rules index and desktop rail', () => {
+  it('marks playable games on rules tiles without adding dots to the desktop rail', () => {
     const index = buildRulesIndex();
     expect(index.querySelectorAll('.rules-playable-badge').length).toBeGreaterThan(0);
-    expect(index.querySelectorAll('.rules-playable-dot').length).toBeGreaterThan(0);
     expect(index.textContent).toContain('Playable here');
+    expect(index.querySelectorAll('.article-variant-sidebar .rules-playable-dot')).toHaveLength(0);
   });
 });
 
