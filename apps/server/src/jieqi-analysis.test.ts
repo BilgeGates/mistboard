@@ -6,7 +6,9 @@ import {
   getJieqiLegalMoves,
   type JieqiDeal,
   type JieqiMove,
+  type JieqiPieceRole,
   STANDARD_JIEQI_DEAL,
+  winPercent,
 } from '@mistboard/game';
 import type { SweepPlyEval } from './game-analysis-sweep.js';
 import { VacuousAnalysisError } from './game-analysis-sweep.js';
@@ -17,13 +19,14 @@ import {
   JIEQI_DECISIONS_ENGINE_ID,
   type JieqiAnalysisCache,
   type JieqiDecision,
+  type JieqiDecisionDeps,
   type JieqiDecisionsCache,
   type JieqiGameAnalysis,
   jieqiChancePlies,
   resolveJieqiAnalysis,
   resolveJieqiDecisions,
 } from './jieqi-analysis.js';
-import { jieqiMoveToPikafishUci } from './jieqi-fen.js';
+import { jieqiMoveToPikafishUci, jieqiStateToPikafishFen } from './jieqi-fen.js';
 import type { UciMultiPvLine } from './uci-engine-harness.js';
 
 // A real, deterministic game off the fixed standard deal. To guarantee the sequence contains
@@ -200,66 +203,116 @@ function mpvLine(index: number, move: string, cp: number): UciMultiPvLine {
   return { index, move, cp, mate: null, depth: 10 };
 }
 
-test('analyzeJieqiDecisions: played move found in the MultiPV table (best = rank 1)', async () => {
-  const { move, uci } = firstRevealMove(STANDARD_JIEQI_DEAL);
-  const otherUci = uci === 'a9a8' ? 'a0a1' : 'a9a8'; // any move id distinct from the played one
-  let moveEvCalls = 0;
-  const decisions = await analyzeJieqiDecisions(
-    [move],
-    STANDARD_JIEQI_DEAL,
-    // Layer-1 red-seat sweep: ply 1 is +200 for Red; mover of ply 1 is Red, so realized = +200.
-    [
-      { ply: 0, cp: 0, mate: null, best: null },
-      { ply: 1, cp: 200, mate: null, best: null },
-    ],
-    {
-      multiPv: async () => [mpvLine(1, otherUci, 300), mpvLine(2, uci, 120)],
-      moveEv: async () => {
-        moveEvCalls += 1;
-        return { cp: -999, mate: null };
-      },
-    },
+// Red's remaining hidden pool (role -> count) at the initial position.
+function redPool(deal: JieqiDeal): Map<JieqiPieceRole, number> {
+  const state = createInitialJieqiState('t', deal);
+  const pool = new Map<JieqiPieceRole, number>();
+  for (const piece of Object.values(state.board)) {
+    if (piece?.color === 'red' && piece.faceDown)
+      pool.set(piece.role, (pool.get(piece.role) ?? 0) + 1);
+  }
+  return pool;
+}
+
+test('analyzeJieqiDecisions: only reveal plies, per-mover POV, flat eval => zero luck/loss', async () => {
+  const { moves, chance } = playGame(STANDARD_JIEQI_DEAL, 8);
+  // Constant side-to-move eval (+100 for whoever is to move AFTER the reveal, i.e. the opponent);
+  // from the mover's POV that is winPercent(-100) for every possible reveal — identical, so the
+  // pool mean, realized, and best all collapse to one value: no decision loss, no luck.
+  const deps: JieqiDecisionDeps = {
+    multiPv: async () => [mpvLine(1, 'no-match', 0)],
+    evalPosition: async () => ({ cp: 100, mate: null }),
+  };
+  const decisions = await analyzeJieqiDecisions([...moves], STANDARD_JIEQI_DEAL, deps);
+  assert.deepEqual(
+    decisions.map((d) => d.ply),
+    chance,
   );
-  assert.equal(decisions.length, 1);
-  const d = decisions[0]!;
-  assert.equal(d.ply, 1);
-  assert.equal(d.mover, 'red');
-  assert.equal(d.best.cp, 300);
-  assert.equal(d.played.cp, 120);
-  assert.equal(d.playedRank, 2);
-  assert.equal(d.realized.cp, 200);
-  // Decision loss (best − played) is a non-negative ceiling; luck (realized − played) is signed.
-  assert.equal(d.best.cp! - d.played.cp!, 180);
-  assert.equal(moveEvCalls, 0); // found in the table, no fallback
+  const moverWin = winPercent(-100, null); // mover POV = negated opponent (post-move) score
+  for (const d of decisions) {
+    assert.equal(d.mover, d.ply % 2 === 1 ? 'red' : 'black');
+    assert.ok(Math.abs(d.playedWin - moverWin) < 1e-6);
+    assert.ok(Math.abs(d.realizedWin - moverWin) < 1e-6);
+    assert.ok(Math.abs(d.bestWin - moverWin) < 1e-6);
+    assert.equal(d.playedRank, 1);
+  }
 });
 
-test('analyzeJieqiDecisions: played move outside the table falls back to searchmoves', async () => {
-  const { move, uci } = firstRevealMove(STANDARD_JIEQI_DEAL);
-  let moveEvCalls = 0;
-  let askedMove: string | null = null;
-  const decisions = await analyzeJieqiDecisions(
-    [move],
-    STANDARD_JIEQI_DEAL,
-    [
-      { ply: 0, cp: 0, mate: null, best: null },
-      { ply: 1, cp: 0, mate: null, best: null },
-    ],
-    {
-      // A table that does NOT contain the played move.
-      multiPv: async () => [mpvLine(1, 'z9z8', 300), mpvLine(2, 'y9y8', 250)],
-      moveEv: async (_fen, m) => {
-        moveEvCalls += 1;
-        askedMove = m;
-        return { cp: 99, mate: null };
-      },
-    },
-  );
+test('analyzeJieqiDecisions: playedWin is the TRUE pool-weighted mean; realizedWin is the actual role', async () => {
+  const deal = STANDARD_JIEQI_DEAL;
+  const { move, uci } = firstRevealMove(deal); // red's first reveal (ply 1)
+  const state0 = createInitialJieqiState('t', deal);
+  const pool = redPool(deal);
+  const actualRole = state0.board[move.from]!.role;
+
+  // Distinct side-to-move cp per counterfactual role, keyed on the REAL post-move FEN the source
+  // builds (no FEN-format assumptions — we replay the same construction here).
+  const roleCp: Record<JieqiPieceRole, number> = {
+    chariot: -500,
+    advisor: -100,
+    cannon: -300,
+    soldier: -50,
+    horse: -200,
+    elephant: 100,
+    general: 0,
+  };
+  const fenToCp = new Map<string, number>();
+  for (const role of pool.keys()) {
+    const cf = {
+      ...state0,
+      board: { ...state0.board, [move.from]: { color: 'red' as const, role, faceDown: true } },
+    };
+    fenToCp.set(jieqiStateToPikafishFen(applyJieqiMove(cf, move)), roleCp[role]);
+  }
+
+  const decisions = await analyzeJieqiDecisions([move], deal, {
+    multiPv: async () => [mpvLine(1, uci, 0)], // played is the only candidate => best === played
+    evalPosition: async (fen) => ({ cp: fenToCp.get(fen) ?? 0, mate: null }),
+  });
   const d = decisions[0]!;
-  assert.equal(d.best.cp, 300);
-  assert.equal(d.played.cp, 99);
-  assert.equal(d.playedRank, null); // outside the table
-  assert.equal(moveEvCalls, 1);
-  assert.equal(askedMove, uci);
+
+  const total = [...pool.values()].reduce((a, b) => a + b, 0);
+  let expectedMean = 0;
+  for (const [role, count] of pool)
+    expectedMean += (count / total) * winPercent(-roleCp[role], null);
+  const expectedRealized = winPercent(-roleCp[actualRole], null);
+
+  assert.ok(
+    Math.abs(d.playedWin - expectedMean) < 1e-6,
+    `playedWin ${d.playedWin} vs ${expectedMean}`,
+  );
+  assert.ok(Math.abs(d.realizedWin - expectedRealized) < 1e-6);
+  assert.ok(Math.abs(d.bestWin - d.playedWin) < 1e-6); // only candidate
+  assert.equal(d.playedRank, 1);
+});
+
+test('analyzeJieqiDecisions: a better candidate lifts bestWin above playedWin (decision loss)', async () => {
+  const deal = STANDARD_JIEQI_DEAL;
+  const state0 = createInitialJieqiState('t', deal);
+  const reveals = getJieqiLegalMoves(state0).filter((m) => state0.board[m.from]?.faceDown === true);
+  const played = reveals[0]!;
+  const better = reveals[1]!;
+  const pool = redPool(deal);
+
+  // Every post-move FEN reachable by playing `better` (across the pool) scores well for the mover
+  // (very negative side-to-move cp -> high mover win% after negation); everything else scores low.
+  const betterFens = new Set<string>();
+  for (const role of pool.keys()) {
+    const cf = {
+      ...state0,
+      board: { ...state0.board, [better.from]: { color: 'red' as const, role, faceDown: true } },
+    };
+    betterFens.add(jieqiStateToPikafishFen(applyJieqiMove(cf, better)));
+  }
+  const decisions = await analyzeJieqiDecisions([played], deal, {
+    multiPv: async () => [mpvLine(1, jieqiMoveToPikafishUci(better), 0)],
+    evalPosition: async (fen) => ({ cp: betterFens.has(fen) ? -400 : -50, mate: null }),
+  });
+  const d = decisions[0]!;
+  assert.ok(d.bestWin > d.playedWin, `best ${d.bestWin} should beat played ${d.playedWin}`);
+  assert.ok(Math.abs(d.playedWin - winPercent(50, null)) < 1e-6); // played: winPercent(-(-50))
+  assert.ok(Math.abs(d.bestWin - winPercent(400, null)) < 1e-6); // better: winPercent(-(-400))
+  assert.equal(d.playedRank, 2); // one candidate strictly beat the played move
 });
 
 function decisionsMemoryCache(): JieqiDecisionsCache & { saves: number } {
@@ -280,9 +333,9 @@ function decisionsMemoryCache(): JieqiDecisionsCache & { saves: number } {
 const sampleDecision = (ply: number): JieqiDecision => ({
   ply,
   mover: ply % 2 === 1 ? 'red' : 'black',
-  best: { cp: 200, mate: null },
-  played: { cp: 120, mate: null },
-  realized: { cp: 90, mate: null },
+  bestWin: 62,
+  playedWin: 55,
+  realizedWin: 48,
   playedRank: 2,
 });
 
@@ -297,7 +350,6 @@ test('resolveJieqiDecisions: pure cache read misses without computing', async ()
     'room-d',
     [],
     STANDARD_JIEQI_DEAL,
-    [],
     cache,
     analyze,
     false,
@@ -314,13 +366,13 @@ test('resolveJieqiDecisions computes once, persists, then serves from cache', as
     computes += 1;
     return [sampleDecision(3)];
   };
-  const first = await resolveJieqiDecisions('room-e', [], STANDARD_JIEQI_DEAL, [], cache, analyze);
+  const first = await resolveJieqiDecisions('room-e', [], STANDARD_JIEQI_DEAL, cache, analyze);
   assert.ok(first);
   assert.equal(first!.engineId, JIEQI_DECISIONS_ENGINE_ID);
   assert.equal(computes, 1);
   assert.equal(cache.saves, 1);
 
-  const second = await resolveJieqiDecisions('room-e', [], STANDARD_JIEQI_DEAL, [], cache, analyze);
+  const second = await resolveJieqiDecisions('room-e', [], STANDARD_JIEQI_DEAL, cache, analyze);
   assert.equal(computes, 1);
   assert.deepEqual(second!.decisions, first!.decisions);
 });
@@ -337,8 +389,8 @@ test('resolveJieqiDecisions coalesces concurrent viewers into one compute', asyn
     await gate;
     return [sampleDecision(1)];
   };
-  const a = resolveJieqiDecisions('room-f', [], STANDARD_JIEQI_DEAL, [], cache, analyze);
-  const b = resolveJieqiDecisions('room-f', [], STANDARD_JIEQI_DEAL, [], cache, analyze);
+  const a = resolveJieqiDecisions('room-f', [], STANDARD_JIEQI_DEAL, cache, analyze);
+  const b = resolveJieqiDecisions('room-f', [], STANDARD_JIEQI_DEAL, cache, analyze);
   release();
   const [ra, rb] = await Promise.all([a, b]);
   assert.equal(computes, 1);
@@ -346,14 +398,14 @@ test('resolveJieqiDecisions coalesces concurrent viewers into one compute', asyn
   assert.deepEqual(ra!.decisions, rb!.decisions);
 });
 
-test('resolveJieqiDecisions fails closed when reveals exist but every bestEV is null', async () => {
+test('resolveJieqiDecisions fails closed when every win% collapses to the null-eval 50', async () => {
   const cache = decisionsMemoryCache();
   const analyze = async (): Promise<JieqiDecision[]> => [
-    { ...sampleDecision(1), best: { cp: null, mate: null } },
-    { ...sampleDecision(3), best: { cp: null, mate: null } },
+    { ply: 1, mover: 'red', bestWin: 50, playedWin: 50, realizedWin: 50, playedRank: 1 },
+    { ply: 3, mover: 'red', bestWin: 50, playedWin: 50, realizedWin: 50, playedRank: 1 },
   ];
   await assert.rejects(
-    resolveJieqiDecisions('room-vac', [], STANDARD_JIEQI_DEAL, [], cache, analyze),
+    resolveJieqiDecisions('room-vac', [], STANDARD_JIEQI_DEAL, cache, analyze),
     VacuousAnalysisError,
   );
   assert.equal(cache.saves, 0);
@@ -362,41 +414,8 @@ test('resolveJieqiDecisions fails closed when reveals exist but every bestEV is 
 test('resolveJieqiDecisions caches an empty result (a game with no reveal plies)', async () => {
   const cache = decisionsMemoryCache();
   const analyze = async (): Promise<JieqiDecision[]> => [];
-  const result = await resolveJieqiDecisions(
-    'room-empty',
-    [],
-    STANDARD_JIEQI_DEAL,
-    [],
-    cache,
-    analyze,
-  );
+  const result = await resolveJieqiDecisions('room-empty', [], STANDARD_JIEQI_DEAL, cache, analyze);
   assert.ok(result);
   assert.deepEqual(result!.decisions, []);
   assert.equal(cache.saves, 1); // empty is a valid, cacheable result — not vacuous
-});
-
-test('analyzeJieqiDecisions: only reveal plies, with per-mover POV on realized', async () => {
-  const { moves, chance } = playGame(STANDARD_JIEQI_DEAL, 8);
-  // Red-seat sweep with a distinct value per ply so the POV projection is checkable.
-  const realizedRedSeat: SweepPlyEval[] = Array.from({ length: moves.length + 1 }, (_, ply) => ({
-    ply,
-    cp: ply * 10,
-    mate: null,
-    best: null,
-  }));
-  const decisions = await analyzeJieqiDecisions([...moves], STANDARD_JIEQI_DEAL, realizedRedSeat, {
-    multiPv: async () => [mpvLine(1, 'no-match', 0)],
-    moveEv: async () => ({ cp: 0, mate: null }),
-  });
-  // Decisions land exactly on the reveal plies jieqiChancePlies reports.
-  assert.deepEqual(
-    decisions.map((d) => d.ply),
-    chance,
-  );
-  for (const d of decisions) {
-    const sign = d.mover === 'red' ? 1 : -1;
-    // realized is the red-seat sweep at this ply, reprojected onto the mover's POV.
-    assert.equal(d.realized.cp, sign * d.ply * 10);
-    assert.equal(d.mover, d.ply % 2 === 1 ? 'red' : 'black');
-  }
 });

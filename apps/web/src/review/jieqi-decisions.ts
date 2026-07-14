@@ -1,22 +1,21 @@
-// Client side of the jieqi decision-vs-luck decomposition (Layer 2). The server returns, per
-// REVEAL ply, three mover-POV eval points — best (the decision ceiling), played (the choice,
-// before the dice), realized (the truth, after the dice). Here we turn those into the two honest
-// numbers the UI shows: a DECISION-quality glyph (graded, feeds nothing but insight for now) and a
-// LUCK value (the reveal's variance, shown but never graded). This is the counterpart to
-// game-analysis.ts, kept separate because the decomposition is a heavier, opt-in tier.
-import { accuracyPercent, type MoveJudgment, moveJudgment, winPercent } from '@mistboard/game';
+// Client side of the jieqi decision-vs-luck decomposition (Layer 2). The server does the hard
+// part now: per REVEAL ply it returns three win% numbers (mover POV) — the played move's TRUE
+// pool-mean EV, the best move's pool-mean EV, and the realized outcome. Here we just turn those
+// into the display numbers: a DECISION-quality glyph (graded) and a LUCK value (shown per move,
+// never graded). Counterpart to game-analysis.ts; kept separate as a heavier, opt-in tier.
+import { accuracyPercent, type MoveJudgment, moveJudgment } from '@mistboard/game';
 
-/** One eval point from the server: {cp, mate} from the MOVER's POV. */
-export type JieqiDecisionEvalPoint = { cp: number | null; mate: number | null };
-
-/** One reveal ply's raw decomposition inputs (mirrors the server JieqiDecision). */
+/** One reveal ply's decomposition, all win% from the MOVER's POV (mirrors the server shape). */
 export type JieqiDecision = {
   ply: number;
   mover: 'red' | 'black';
-  best: JieqiDecisionEvalPoint;
-  played: JieqiDecisionEvalPoint;
-  realized: JieqiDecisionEvalPoint;
-  /** The played move's MultiPV rank (1 = it WAS the best), or null if it fell outside the table. */
+  /** True pool-mean EV (win%) of the best available move — the decision ceiling. */
+  bestWin: number;
+  /** True pool-mean EV (win%) of the played move — the decision, before the dice. */
+  playedWin: number;
+  /** Win% the reveal ACTUALLY produced — the truth, including luck. */
+  realizedWin: number;
+  /** Rank of the played move among candidates by true baseline (1 = it WAS the best). */
   playedRank: number | null;
 };
 
@@ -26,13 +25,13 @@ export type JieqiDecisionsResponse = {
   decisions: JieqiDecision[];
 };
 
-// Deadband in centipawns. Under jieqi's noisy no-net eval the top reveals cluster within ~30cp
-// (probe-verified), so a decision loss below this floor is engine noise, not a real mistake — we
-// leave it UNJUDGED. This is the same discipline that stopped the eval-swing over-flagging, now
-// applied to decision loss: never call a choice "wrong" when it's within the engine's own noise.
-const DECISION_NOISE_CP = 40;
+// Deadband in WIN POINTS. The top jieqi reveals cluster within a few win% under the noisy no-net
+// eval, so a decision loss below this floor is engine noise, not a real mistake — leave it
+// unjudged. Same discipline that stopped the eval-swing over-flagging, in win% space now that the
+// server averages the baseline itself.
+const DECISION_NOISE_WINPCT = 5;
 
-/** A reveal ply's derived, display-ready decision-vs-luck view (all in win% except the rank). */
+/** A reveal ply's derived, display-ready view. `luck` and `decisionLoss` are win% (points). */
 export type DecisionView = {
   ply: number;
   mover: 'red' | 'black';
@@ -40,29 +39,26 @@ export type DecisionView = {
   judgment: MoveJudgment;
   /** Win% the choice gave up vs the best move (>= 0). */
   decisionLoss: number;
-  /** Win% the reveal swung vs its own expectation (signed: + lucky, - unlucky). */
+  /** Win% the reveal swung vs its OWN pool-average expectation (signed: + lucky, - unlucky).
+   *  0 = the reveal came out exactly average — "the average piece still in the bag". */
   luck: number;
   /** Per-decision accuracy in [0, 100] (lila's win%-drop curve, best -> played). */
   accuracy: number;
-  /** The played move's rank among reveals (1 = best), or null when outside the MultiPV table. */
   playedRank: number | null;
 };
 
 export function decisionView(d: JieqiDecision): DecisionView {
-  const bestWin = winPercent(d.best.cp, d.best.mate);
-  const playedWin = winPercent(d.played.cp, d.played.mate);
-  const realizedWin = winPercent(d.realized.cp, d.realized.mate);
-  // cp-space deadband: near-even ranking noise must not flag. A mate/played-null case can't use
-  // cp, so it falls through to the win% judgment (missing a forced mate IS a real decision error).
-  const withinNoise =
-    d.best.cp != null && d.played.cp != null && d.best.cp - d.played.cp < DECISION_NOISE_CP;
+  const decisionLoss = Math.max(0, d.bestWin - d.playedWin);
+  // Deadband: a sub-noise decision loss is not a real mistake, so no glyph.
+  const judgment =
+    decisionLoss < DECISION_NOISE_WINPCT ? null : moveJudgment(d.bestWin, d.playedWin);
   return {
     ply: d.ply,
     mover: d.mover,
-    judgment: withinNoise ? null : moveJudgment(bestWin, playedWin),
-    decisionLoss: Math.max(0, bestWin - playedWin),
-    luck: realizedWin - playedWin,
-    accuracy: accuracyPercent(bestWin, playedWin),
+    judgment,
+    decisionLoss,
+    luck: d.realizedWin - d.playedWin,
+    accuracy: accuracyPercent(d.bestWin, d.playedWin),
     playedRank: d.playedRank,
   };
 }
@@ -70,10 +66,9 @@ export function decisionView(d: JieqiDecision): DecisionView {
 export type PlayerDecisionSummary = {
   /** How many reveal decisions this player made. */
   reveals: number;
-  /** Mean per-decision accuracy in [0, 100] (100 when the player made no reveals). */
+  /** Mean per-decision accuracy in [0, 100] (100 when the player made no reveals). Grades only
+   *  the choice, never the outcome — the only number here that could ever feed a rating. */
   decisionAccuracy: number;
-  /** Net win% swing this player's reveals produced vs their expectation (signed). */
-  netLuck: number;
 };
 
 export type JieqiDecisionSummary = {
@@ -91,21 +86,17 @@ export function summarizeDecisions(decisions: readonly JieqiDecision[]): JieqiDe
     return {
       reveals: mine.length,
       decisionAccuracy: mine.length ? mean(mine.map((v) => v.accuracy)) : 100,
-      netLuck: sum(mine.map((v) => v.luck)),
     };
   };
   return { byPly, red: summarize('red'), black: summarize('black') };
 }
 
 function mean(values: number[]): number {
-  return values.length === 0 ? 0 : sum(values) / values.length;
-}
-function sum(values: number[]): number {
-  return values.reduce((acc, v) => acc + v, 0);
+  return values.length === 0 ? 0 : values.reduce((a, v) => a + v, 0) / values.length;
 }
 
 // The decisions endpoint mirrors the analysis one: GET reads only the cache (204 = not computed
-// yet, INCLUDING when the basic analysis it depends on isn't cached), POST computes (account-gated).
+// yet, INCLUDING when the basic analysis it rides alongside isn't cached), POST computes (gated).
 function decisionsUrl(roomId: string): string {
   return new URL(`/api/jieqi/games/${encodeURIComponent(roomId)}/decisions`, window.location.href)
     .pathname;

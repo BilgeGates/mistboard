@@ -212,8 +212,8 @@ function toDecisionOverlay(summary: JieqiDecisionSummary): DecisionOverlay {
         { judgment: view.judgment, luck: view.luck, playedRank: view.playedRank },
       ]),
     ),
-    red: summary.red,
-    black: summary.black,
+    red: { reveals: summary.red.reveals, decisionAccuracy: summary.red.decisionAccuracy },
+    black: { reveals: summary.black.reveals, decisionAccuracy: summary.black.decisionAccuracy },
   };
 }
 

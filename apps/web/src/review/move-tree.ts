@@ -21,6 +21,10 @@ export interface MoveTreeAnnotation {
   suffixClass?: string;
   /** Formatted eval after the move (fixed POV), e.g. '+2.1', '#3'. */
   eval?: string;
+  /** Luck readout for a chance (reveal) move, e.g. '🎲 -11%'. Shown inline next to the move. */
+  luck?: string;
+  /** Tone hook for the luck badge → .review-move-list__luck--<tone>. */
+  luckTone?: 'lucky' | 'unlucky' | 'even';
 }
 
 export interface MoveTree {
@@ -129,11 +133,18 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
     const san = document.createElement('span');
     san.className = 'review-move-list__san';
     san.textContent = node.label;
+    const luckEl = document.createElement('span');
+    luckEl.className = 'review-move-list__luck';
     const evalEl = document.createElement('span');
     evalEl.className = 'review-move-list__eval';
-    button.append(san, evalEl);
+    button.append(san, luckEl, evalEl);
     const ann = annotations.get(key);
     if (ann?.suffix) appendGlyph(san, ann.suffix, ann.suffixClass);
+    // Inline luck badge for a reveal (chance) move — the reveal's variance, shown but never graded.
+    if (ann?.luck) {
+      luckEl.textContent = ann.luck;
+      if (ann.luckTone) luckEl.classList.add(`review-move-list__luck--${ann.luckTone}`);
+    }
     if (ann?.eval) evalEl.textContent = ann.eval;
     button.addEventListener('click', () => opts.onJump(pathOf(node)));
     if (opts.onPromote || opts.onDelete) {

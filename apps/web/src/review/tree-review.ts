@@ -170,8 +170,6 @@ export type DecisionPlayerSummary = {
   reveals: number;
   /** Mean decision accuracy in [0, 100] (grades only the choice, not the outcome). */
   decisionAccuracy: number;
-  /** Net win% swing this player's reveals produced vs expectation (signed). */
-  netLuck: number;
 };
 
 export type DecisionOverlay = {
@@ -623,12 +621,9 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     if (presentation.engine) shareFenInput.value = presentation.engine.fen(node.truth);
     shareMovesInput.value = uciTo(node).join(' ');
     chart?.setPly(node.ply);
-    const decisionInfo = decisionOverlay?.byPly.get(node.ply);
-    moveAdvice.update(
-      node.ply,
-      gameAnalysis,
-      decisionInfo ? { judgment: decisionInfo.judgment, luck: decisionInfo.luck } : null,
-    );
+    // Reveal plies show their decision glyph + luck inline in the move list, so the advice line
+    // stays the plain "was best" line for graded (non-chance) moves only.
+    moveAdvice.update(node.ply, gameAnalysis);
   }
 
   function applyAnalysis(analysis: GameAnalysis): void {
@@ -680,18 +675,22 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
         });
       }
       // Decision overlay (jieqi): a reveal ply carries no eval-swing judgment (it is a chance
-      // move), so its glyph comes from the DECISION quality instead — override just those plies,
-      // keeping the eval text from above. A fine decision has no glyph (lichess-consistent).
+      // move), so its glyph comes from the DECISION quality, and its LUCK shows inline as a badge
+      // next to the move — every reveal gets a luck readout, right where the move is. A fine
+      // decision has no glyph (lichess-consistent); luck is always shown, never graded.
       if (decisionOverlay) {
         for (const [ply, info] of decisionOverlay.byPly) {
           const node = nodes[ply];
           if (!node) continue;
           const key = pathKey(tree.pathTo(node));
           const glyph = judgmentGlyph(info.judgment);
+          const luck = Math.round(info.luck);
           byPathKey.set(key, {
             ...byPathKey.get(key),
             suffix: glyph?.suffix,
             suffixClass: glyph?.suffixClass,
+            luck: `🎲 ${luck > 0 ? '+' : ''}${luck}%`,
+            luckTone: luck > 0 ? 'lucky' : luck < 0 ? 'unlucky' : 'even',
           });
         }
       }
@@ -834,9 +833,10 @@ function truncationNotice(legal: number): HTMLElement {
   return panel;
 }
 
-// The two-number decision-vs-luck block (jieqi): Decision accuracy (skill, the only thing that
-// should ever feed a rating) and net Luck (the reveals' variance, shown but never graded), per
-// player. Deliberately separate from the accuracy summary so the two ideas don't blur.
+// The decision-quality rollup (jieqi): a single number per player — Decision accuracy — grading
+// only the CHOICE (never the outcome). Per-reveal luck lives inline on each move, not here, so
+// this stays a clean skill readout that could feed a rating. Only rendered for a player who made
+// reveals.
 function createDecisionSummary(
   overlay: DecisionOverlay,
   players?: { red?: string; black?: string },
@@ -846,37 +846,28 @@ function createDecisionSummary(
 
   const title = document.createElement('div');
   title.className = 'review-decision-summary__title';
-  title.textContent = 'Reveals: decision vs luck';
+  title.textContent = 'Reveal decisions';
   wrap.append(title);
 
-  const fmtLuck = (n: number): string => {
-    const r = Math.round(n);
-    return `${r > 0 ? '+' : ''}${r}%`;
-  };
-  const row = (label: string, redText: string, blackText: string): HTMLElement => {
+  const row = (name: string, summary: DecisionPlayerSummary): HTMLElement | null => {
+    if (summary.reveals === 0) return null;
     const r = document.createElement('div');
     r.className = 'review-decision-summary__row';
-    for (const [cls, text] of [
-      ['label', label],
-      ['red', redText],
-      ['black', blackText],
-    ] as const) {
-      const cell = document.createElement('span');
-      cell.className = `review-decision-summary__cell review-decision-summary__cell--${cls}`;
-      cell.textContent = text;
-      r.append(cell);
-    }
+    const label = document.createElement('span');
+    label.className = 'review-decision-summary__cell review-decision-summary__cell--label';
+    label.textContent = name;
+    const value = document.createElement('span');
+    value.className = 'review-decision-summary__cell review-decision-summary__cell--value';
+    value.textContent = `${Math.round(summary.decisionAccuracy)}% accuracy`;
+    r.append(label, value);
     return r;
   };
 
-  wrap.append(
-    row('', players?.red ?? 'Red', players?.black ?? 'Black'),
-    row(
-      'Decisions',
-      `${Math.round(overlay.red.decisionAccuracy)}%`,
-      `${Math.round(overlay.black.decisionAccuracy)}%`,
-    ),
-    row('Luck', fmtLuck(overlay.red.netLuck), fmtLuck(overlay.black.netLuck)),
-  );
+  for (const el of [
+    row(players?.red ?? 'Red', overlay.red),
+    row(players?.black ?? 'Black', overlay.black),
+  ]) {
+    if (el) wrap.append(el);
+  }
   return wrap;
 }

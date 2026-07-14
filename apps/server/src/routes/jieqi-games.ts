@@ -220,9 +220,10 @@ export async function tryHandle(
     }
     const compute = method === 'POST';
     try {
-      // The decomposition needs the basic red-seat sweep for `realized`. On POST we compute it if
-      // missing; on GET we read only the cache — a basic-analysis miss means decisions aren't
-      // available yet, so 204 (the client requests /analysis first).
+      // Compute the basic eval sweep too (the eval graph rides alongside the decomposition), and
+      // on GET use its cache as the readiness gate: a basic-analysis miss means analysis hasn't
+      // been requested yet, so 204. The decomposition itself is self-contained (it recomputes
+      // realized), so it does not consume the sweep — it just shares the "has analysis" lifecycle.
       const analysis = await resolveJieqiAnalysis(
         decisionsRoomId,
         inputs.moves,
@@ -239,7 +240,6 @@ export async function tryHandle(
         decisionsRoomId,
         inputs.moves,
         inputs.deal,
-        analysis.plies,
         undefined,
         undefined,
         compute,

@@ -12,21 +12,11 @@ const LABEL: Record<Exclude<MoveJudgment, null>, string> = {
   blunder: 'Blunder',
 };
 
-/** A reveal ply's decision-vs-luck readout for the advice line (jieqi). The reveal carries no
- *  "was best" line (its swing is a chance event), so instead we state the DECISION quality and the
- *  reveal's LUCK. `judgment` null = a fine choice (or within engine noise). */
-export type MoveAdviceDecision = {
-  judgment: MoveJudgment;
-  /** Signed win% the reveal swung vs its expectation (+ lucky, - unlucky). */
-  luck: number;
-};
-
 export interface MoveAdvice {
   el: HTMLElement;
   /** Show the advice for the move at `ply`; hidden when that move wasn't flagged
-   *  or analysis hasn't loaded. On a reveal ply, `decision` (if given) replaces the
-   *  "was best" line with a decision-quality + luck readout. Call on every ply change. */
-  update(ply: number, analysis: GameAnalysis | null, decision?: MoveAdviceDecision | null): void;
+   *  or analysis hasn't loaded. Call on every ply change. */
+  update(ply: number, analysis: GameAnalysis | null): void;
 }
 
 // Default best-move formatter: FSF/xiangqi coordinate pair. Correct for xiangqi, fortress,
@@ -74,17 +64,7 @@ export function createMoveAdvice(
   el.className = 'review-advice';
   el.hidden = true;
 
-  function update(
-    ply: number,
-    analysis: GameAnalysis | null,
-    decision?: MoveAdviceDecision | null,
-  ): void {
-    // A reveal ply owns the line: state the DECISION quality and the reveal's LUCK, not a "was
-    // best" alternative (the swing there is a chance event, and its best-move arrow is separate).
-    if (decision) {
-      renderReveal(decision);
-      return;
-    }
+  function update(ply: number, analysis: GameAnalysis | null): void {
     const move = analysis?.moves.find((m) => m.ply === ply);
     const judgment = move?.judgment;
     if (!analysis || !move || !judgment) {
@@ -100,23 +80,6 @@ export function createMoveAdvice(
     label.textContent = `${LABEL[judgment]}.`;
     el.replaceChildren(label);
     if (best) el.append(document.createTextNode(` ${formatBest(best)} was best.`));
-  }
-
-  function renderReveal(decision: MoveAdviceDecision): void {
-    el.hidden = false;
-    // Colour the row by the DECISION quality; a fine decision uses the neutral 'reveal' tone.
-    el.className = `review-advice review-advice--${decision.judgment ?? 'reveal'}`;
-    const label = document.createElement('span');
-    label.className = 'review-advice__label';
-    label.textContent = decision.judgment ? `${LABEL[decision.judgment]} choice.` : 'Reveal.';
-    // Luck is a neutral, ungraded readout: which way the dice fell vs the choice's expectation.
-    const luck = document.createElement('span');
-    const rounded = Math.round(decision.luck);
-    const tone = rounded > 0 ? 'lucky' : rounded < 0 ? 'unlucky' : 'even';
-    luck.className = `review-advice__luck review-advice__luck--${tone}`;
-    const sign = rounded > 0 ? '+' : '';
-    luck.textContent = `🎲 ${sign}${rounded}%`;
-    el.replaceChildren(label, document.createTextNode(' '), luck);
   }
 
   return { el, update };

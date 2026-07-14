@@ -40,8 +40,8 @@ function fakeAnalysis(plyCount: number) {
 function overlayWithFlaggedReveal(): DecisionOverlay {
   return {
     byPly: new Map([[1, { judgment: 'mistake', luck: -12, playedRank: 5 }]]),
-    red: { reveals: 1, decisionAccuracy: 71, netLuck: -12 },
-    black: { reveals: 0, decisionAccuracy: 100, netLuck: 0 },
+    red: { reveals: 1, decisionAccuracy: 71 },
+    black: { reveals: 0, decisionAccuracy: 100 },
   };
 }
 
@@ -72,25 +72,25 @@ describe('jieqi decision overlay wiring', () => {
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
 
-    // 1) The two-number summary block appears with both headings.
+    // 1) The decision-accuracy rollup appears (skill only; luck is NOT summed here anymore).
     const summary = root.querySelector('.review-decision-summary__inner');
     expect(summary).not.toBeNull();
-    expect(summary!.textContent).toContain('Decisions');
-    expect(summary!.textContent).toContain('Luck');
-    expect(summary!.textContent).toContain('71%'); // red decision accuracy
-    expect(summary!.textContent).toContain('-12%'); // red net luck (signed)
+    expect(summary!.textContent).toContain('Reveal decisions');
+    expect(summary!.textContent).toContain('71% accuracy'); // red decision accuracy
+    expect(summary!.textContent).not.toContain('Luck'); // net-luck row is gone
 
-    // 2) The flagged reveal (ply 1) shows the decision glyph (?? mistake) somewhere in the move list.
+    // 2) The flagged reveal (ply 1) shows the decision glyph (? mistake) in the move list.
     expect(root.textContent).toContain('?');
 
-    // 3) The advice line shows the per-move luck readout for the reveal ply. The advice element
-    //    updates on navigation; assert the reveal case renders the dice readout when present.
-    const advice = root.querySelector('.review-advice__luck');
-    // The advice line reflects the CURRENT ply; the mount lands on the last ply, so the luck span
-    // is only present if the current ply is the reveal. Instead assert the class is wired by
-    // checking the summary path above already proved the overlay applied; the luck span presence
-    // is exercised by the move-advice unit test. Here we just confirm no crash + summary rendered.
-    expect(advice === null || advice.textContent?.includes('%')).toBe(true);
+    // 3) Luck now shows INLINE on the reveal move: a per-move dice badge, not the advice line.
+    const luckBadges = [...root.querySelectorAll('.review-move-list__luck')].filter((el) =>
+      el.textContent?.includes('🎲'),
+    );
+    expect(luckBadges.length).toBeGreaterThan(0);
+    expect(luckBadges.some((el) => el.textContent?.includes('-12%'))).toBe(true);
+    expect(luckBadges.some((el) => el.classList.contains('review-move-list__luck--unlucky'))).toBe(
+      true,
+    );
 
     root.remove();
   });

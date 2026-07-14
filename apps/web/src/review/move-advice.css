@@ -23,27 +23,9 @@
 .review-advice--blunder .review-advice__label {
   color: #c0392b;
 }
-/* Reveal (jieqi chance-move) row: a fine decision uses a neutral tone; a flagged decision reuses
-   the inaccuracy/mistake/blunder label colours above. */
-.review-advice--reveal .review-advice__label {
-  color: var(--site-text-muted, #6b7280);
-}
-/* Luck is a neutral, ungraded readout — kept visually distinct from the decision-quality label. */
-.review-advice__luck {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-}
-.review-advice__luck--lucky {
-  color: #1e8449;
-}
-.review-advice__luck--unlucky {
-  color: #c0392b;
-}
-.review-advice__luck--even {
-  color: var(--site-text-muted, #6b7280);
-}
 
-/* Two-number decision-vs-luck summary block (jieqi), under the accuracy summary. */
+/* Decision-accuracy rollup (jieqi), under the accuracy summary. One row per player who made
+   reveals: "<name>   <NN>% accuracy". Per-reveal luck is inline in the move list, not here. */
 .review-decision-summary__inner {
   margin-top: 10px;
   padding: 10px 12px;
@@ -58,24 +40,15 @@
   margin-bottom: 6px;
 }
 .review-decision-summary__row {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 8px 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
   align-items: baseline;
-}
-.review-decision-summary__cell {
-  font-variant-numeric: tabular-nums;
 }
 .review-decision-summary__cell--label {
   color: var(--site-text-muted, #6b7280);
 }
-.review-decision-summary__cell--red,
-.review-decision-summary__cell--black {
-  min-width: 3.5em;
-  text-align: right;
-}
-/* Header row (empty label cell, player names) reads as a heading, not data. */
-.review-decision-summary__row:first-of-type .review-decision-summary__cell {
+.review-decision-summary__cell--value {
+  font-variant-numeric: tabular-nums;
   font-weight: 600;
-  color: var(--site-text-muted, #6b7280);
 }

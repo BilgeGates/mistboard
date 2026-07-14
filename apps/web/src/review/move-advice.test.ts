@@ -46,29 +46,6 @@ describe('createMoveAdvice', () => {
     // h3e3 is a board MOVE (from !== to): engine ranks are 0-indexed, so +1 each.
     expect(advice.el.textContent).toContain('h4-e4 was best.');
   });
-
-  it('renders a reveal decision + luck readout instead of the "was best" line', () => {
-    const advice = createMoveAdvice();
-    // A flagged reveal decision with bad luck: the line states the DECISION quality and the
-    // reveal's LUCK, not a best-move alternative.
-    advice.update(1, analysis, { judgment: 'mistake', luck: -12 });
-    expect(advice.el.hidden).toBe(false);
-    expect(advice.el.textContent).toContain('Mistake choice.');
-    expect(advice.el.textContent).toContain('🎲 -12%');
-    expect(advice.el.querySelector('.review-advice__luck--unlucky')).not.toBeNull();
-    // The reveal line does NOT show the "was best" alternative (that swing is a chance event).
-    expect(advice.el.textContent).not.toContain('was best');
-  });
-
-  it('renders a fine reveal (no glyph) with a positive luck readout', () => {
-    const advice = createMoveAdvice();
-    advice.update(1, analysis, { judgment: null, luck: 8 });
-    expect(advice.el.hidden).toBe(false);
-    expect(advice.el.textContent).toContain('Reveal.');
-    expect(advice.el.textContent).toContain('🎲 +8%');
-    expect(advice.el.querySelector('.review-advice__luck--lucky')).not.toBeNull();
-    expect(advice.el.className).toContain('review-advice--reveal');
-  });
 });
 
 describe('formatFlipVariantBestMove', () => {
