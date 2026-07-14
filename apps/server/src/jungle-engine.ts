@@ -17,7 +17,7 @@
 
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { runUciBestmove, UciEnginePool } from './uci-engine-harness.js';
+import { runUciBestmove, runUciEval, UciEnginePool, type UciEval } from './uci-engine-harness.js';
 
 // The binary self-reports "MistyJungle <version>" over UCI; bump on every shipped
 // eval/search change so the per-game configHash stays meaningful.
@@ -148,3 +148,33 @@ const enginePool = new UciEnginePool({
   queueTimeoutEnvVar: 'MISTBOARD_JUNGLE_QUEUE_TIMEOUT_MS',
   queueTimeoutMessage: 'jungle-engine concurrency queue timed out',
 });
+
+// Whole-game ANALYSIS eval (distinct from the playable move providers above): read the
+// engine's `info … score` for a full-board FEN, side-to-move POV. Same node-budget dial
+// as play (jungle has no `go depth`), so the eval is CPU-independent and reproducible —
+// which keeps the cached analysis stable. Gated through the shared pool so an analysis
+// sweep runs sequentially rather than stampeding the binary. Caller owns POV
+// normalization; the fog-free full board is sent as-is (jungle is perfect information).
+export async function evaluateJungleFenNodes(
+  fen: string,
+  opts: { nodes: number; movetimeCapMs: number },
+): Promise<UciEval> {
+  const commands = [
+    'uci',
+    'ucinewgame',
+    'isready',
+    `position fen ${fen}`,
+    `go nodes ${opts.nodes} movetime ${opts.movetimeCapMs}`,
+  ];
+  const release = await enginePool.acquire();
+  try {
+    return await runUciEval({
+      bin: jungleEnginePath(),
+      commands,
+      timeoutMs: opts.movetimeCapMs + 4_000,
+      timeoutMessage: 'jungle-engine eval timed out',
+    });
+  } finally {
+    release();
+  }
+}
