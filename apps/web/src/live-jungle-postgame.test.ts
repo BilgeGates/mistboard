@@ -65,6 +65,11 @@ describe('Jungle postgame page', () => {
     );
     // Shared lichess control bar (not the old ply-count scrubber).
     expect(root.querySelector('.review-controls')).not.toBeNull();
+    // Server-side computer analysis underboard is wired: a signed-out visitor sees
+    // the sign-in CTA (the account-gated compute button) rather than nothing.
+    const analyseButton = root.querySelector<HTMLButtonElement>('.xiangqi-review__analyse');
+    expect(analyseButton).not.toBeNull();
+    expect(analyseButton?.textContent).toContain('Sign in to request analysis');
   });
 
   it('steps through plies with the arrow keys', async () => {
