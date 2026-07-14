@@ -9,7 +9,7 @@ import {
   replayGameEvents,
 } from '@mistboard/game';
 import type { Seat } from './payloads.js';
-import type { UserAccount } from './persistence.js';
+import { DEFAULT_ACCOUNT_PREFERENCES, type UserAccount } from './persistence.js';
 import {
   ABORT_WINDOW_MS,
   appendEvent,
@@ -499,6 +499,7 @@ function makeAccount(overrides: Partial<UserAccount> = {}): UserAccount {
     location: '',
     profileLinks: [],
     displayPreferences: {},
+    accountPreferences: DEFAULT_ACCOUNT_PREFERENCES,
     profileVisibility: 'public',
     accountRole: 'player',
     title: null,

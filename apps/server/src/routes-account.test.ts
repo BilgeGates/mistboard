@@ -91,6 +91,100 @@ definePersistenceTests('account routes', () => {
     assert.deepEqual(JSON.parse(response.body), { error: 'invalid_locale' });
   });
 
+  test('account preferences route stores clock, behavior, and notification settings', async () => {
+    const now = new Date('2026-07-13T12:00:00.000Z');
+    const sessionToken = 'account-preference-route-token';
+    await createUser({
+      id: 'user_account_preference_route',
+      email: 'account-preference-route@example.com',
+      emailVerifiedAt: now,
+      handle: 'account-preference-route',
+      displayName: 'Account Preference Route',
+      now,
+    });
+    const expiresAt = new Date(Date.now() + 86_400_000);
+    await createAccountSession({
+      id: 'account-preference-route-session',
+      userId: 'user_account_preference_route',
+      tokenHash: hashSecret(sessionToken),
+      expiresAt,
+    });
+    const cookie = accountSessionCookie(
+      'account-preference-route-session',
+      sessionToken,
+      expiresAt,
+    ).split(';')[0];
+
+    for (const body of [
+      { clockTenths: 'always' },
+      { premoves: false },
+      { correspondenceDeadlineEmail: false },
+    ]) {
+      const response = captureResponse();
+      const handled = await tryHandle(
+        {},
+        jsonRequest(body, cookie),
+        response,
+        '/api/account/preferences',
+      );
+      assert.equal(handled, true);
+      assert.equal(response.status, 200);
+    }
+
+    const stored = await findUserByEmail('account-preference-route@example.com');
+    assert.deepEqual(stored?.accountPreferences, {
+      clockTenths: 'always',
+      lowTimeSound: true,
+      premoves: false,
+      confirmGameActions: true,
+      inboxBell: true,
+      correspondenceBell: true,
+      correspondenceDeadlineEmail: false,
+    });
+  });
+
+  test('account preferences route rejects invalid values and multi-key writes', async () => {
+    const now = new Date('2026-07-13T13:00:00.000Z');
+    const sessionToken = 'invalid-account-preference-route-token';
+    await createUser({
+      id: 'user_invalid_account_preference_route',
+      email: 'invalid-account-preference-route@example.com',
+      emailVerifiedAt: now,
+      handle: 'invalid-account-preference-route',
+      displayName: 'Invalid Account Preference Route',
+      now,
+    });
+    const expiresAt = new Date(Date.now() + 86_400_000);
+    await createAccountSession({
+      id: 'invalid-account-preference-route-session',
+      userId: 'user_invalid_account_preference_route',
+      tokenHash: hashSecret(sessionToken),
+      expiresAt,
+    });
+    const cookie = accountSessionCookie(
+      'invalid-account-preference-route-session',
+      sessionToken,
+      expiresAt,
+    ).split(';')[0];
+
+    for (const body of [
+      { clockTenths: 'sometimes' },
+      { premoves: 'no' },
+      { premoves: false, inboxBell: false },
+    ]) {
+      const response = captureResponse();
+      const handled = await tryHandle(
+        {},
+        jsonRequest(body, cookie),
+        response,
+        '/api/account/preferences',
+      );
+      assert.equal(handled, true);
+      assert.equal(response.status, 400);
+      assert.deepEqual(JSON.parse(response.body), { error: 'invalid_account_preferences' });
+    }
+  });
+
   test('account preferences route does not allow profiles to be hidden', async () => {
     const now = new Date('2026-07-05T12:00:00.000Z');
     const sessionToken = 'visibility-route-token';

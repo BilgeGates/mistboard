@@ -1,4 +1,5 @@
 import { type Color, clockRemainingMs, type GameEvent, type PlayerView } from '@mistboard/game';
+import { shouldShowClockTenths } from './account-preferences.js';
 import { isLive } from './live-replay.js';
 import { maybePlayLowTimeSound } from './live-sound.js';
 import { type LiveRefs, liveState } from './live-state.js';
@@ -131,7 +132,7 @@ export function renderClocks(refs: ClockRefs, view: PlayerView | null): void {
     time.textContent =
       daysPerMoveAllowance() !== null
         ? formatDayClock(remainingMs)
-        : formatClock(remainingMs, isActive && remainingMs < 10_000);
+        : formatClock(remainingMs, shouldShowClockTenths(remainingMs, isActive));
     const classes = ['clock-time-row'];
     if (isActive) classes.push('active');
     if (isActive && flashThisRender) classes.push('just-activated');
@@ -190,7 +191,7 @@ export function tickClockTimers(refs: ClockRefs, view: PlayerView | null): void 
     if (strong) {
       strong.textContent = dayScale
         ? formatDayClock(remainingMs)
-        : formatClock(remainingMs, isActive && remainingMs < 10_000);
+        : formatClock(remainingMs, shouldShowClockTenths(remainingMs, isActive));
     }
   }
 }

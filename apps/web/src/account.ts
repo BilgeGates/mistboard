@@ -9,6 +9,12 @@
 
 import './account-profile.css';
 import { setAccountNavUser } from './account-nav.js';
+import {
+  type AccountPreferenceId,
+  type AccountPreferences,
+  normalizeAccountPreferences,
+  replaceAccountPreferences,
+} from './account-preferences.js';
 import { identify, resetIdentity, track } from './analytics.js';
 import { requestedAuthReferrer } from './auth-redirect.js';
 import {
@@ -21,12 +27,16 @@ import {
 } from './display-preferences.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
+import { refreshNotifications } from './notification-nav.js';
 import { type AuthUser, buildLoadingState, buildNav, fetchCurrentUser } from './site-shell.js';
 
 type AccountSettingsSection =
   | 'profile'
   | 'display'
+  | 'clock'
+  | 'behavior'
   | 'privacy'
+  | 'notifications'
   | 'username'
   | 'account'
   | 'security'
@@ -34,7 +44,7 @@ type AccountSettingsSection =
 
 const accountSettingsSectionGroups: readonly (readonly AccountSettingsSection[])[] = [
   ['profile'],
-  ['display', 'privacy'],
+  ['display', 'clock', 'behavior', 'privacy', 'notifications'],
   ['username', 'account', 'security'],
   ['close'],
 ];
@@ -304,6 +314,7 @@ function buildAccountSettingsPage(
   section: AccountSettingsSection,
   locale: Locale = currentLocale(),
 ): DocumentFragment {
+  replaceAccountPreferences(user.accountPreferences);
   const fragment = document.createDocumentFragment();
   fragment.append(
     buildAccountSettingsRail(section, locale),
@@ -349,7 +360,10 @@ function buildAccountSettingsSection(
 ): HTMLElement {
   if (section === 'profile') return buildPublicProfileSettings(user, locale);
   if (section === 'display') return buildDisplaySettings(user, locale);
+  if (section === 'clock') return buildClockSettings(user, locale);
+  if (section === 'behavior') return buildGameBehaviorSettings(user, locale);
   if (section === 'privacy') return buildPrivacySettings(user, locale);
+  if (section === 'notifications') return buildNotificationSettings(user, locale);
   if (section === 'username') return buildUsernameSettings(user, locale);
   if (section === 'account') return buildAccountAccessSettings(user, locale);
   if (section === 'security') return buildSecuritySettings(locale);
@@ -583,6 +597,243 @@ function buildDisplaySettings(user: AuthUser, locale: Locale = currentLocale()):
   }
   panel.append(list);
   return panel;
+}
+
+function buildClockSettings(user: AuthUser, locale: Locale = currentLocale()): HTMLElement {
+  const panel = buildSettingsPanel('clock', t('account.settingsClock', {}, locale), '');
+  const list = document.createElement('div');
+  list.className = 'account-display-settings';
+  list.append(
+    buildAccountPreferenceOptions(
+      user,
+      'clockTenths',
+      t('account.clockTenths', {}, locale),
+      '',
+      [
+        { value: 'never', label: t('account.clockTenthsNever', {}, locale) },
+        { value: 'low-time', label: t('account.clockTenthsLowTime', {}, locale) },
+        { value: 'always', label: t('account.clockTenthsAlways', {}, locale) },
+      ],
+      locale,
+    ),
+    buildBooleanAccountPreference(
+      user,
+      'lowTimeSound',
+      t('account.lowTimeSound', {}, locale),
+      t('account.lowTimeSoundHelp', {}, locale),
+      locale,
+    ),
+  );
+  panel.append(list);
+  return panel;
+}
+
+function buildGameBehaviorSettings(user: AuthUser, locale: Locale = currentLocale()): HTMLElement {
+  const panel = buildSettingsPanel('behavior', t('account.settingsGameBehavior', {}, locale), '');
+  const list = document.createElement('div');
+  list.className = 'account-display-settings';
+  list.append(
+    buildBooleanAccountPreference(
+      user,
+      'premoves',
+      t('account.premoves', {}, locale),
+      t('account.premovesHelp', {}, locale),
+      locale,
+    ),
+    buildBooleanAccountPreference(
+      user,
+      'confirmGameActions',
+      t('account.confirmGameActions', {}, locale),
+      t('account.confirmGameActionsHelp', {}, locale),
+      locale,
+    ),
+  );
+  panel.append(list);
+  return panel;
+}
+
+function buildBooleanAccountPreference(
+  user: AuthUser,
+  id: Extract<AccountPreferenceId, 'lowTimeSound' | 'premoves' | 'confirmGameActions'>,
+  title: string,
+  help: string,
+  locale: Locale,
+): HTMLElement {
+  return buildAccountPreferenceOptions(
+    user,
+    id,
+    title,
+    help,
+    [
+      { value: true, label: t('account.optionYes', {}, locale) },
+      { value: false, label: t('account.optionNo', {}, locale) },
+    ],
+    locale,
+  );
+}
+
+function buildAccountPreferenceOptions<Id extends AccountPreferenceId>(
+  user: AuthUser,
+  id: Id,
+  title: string,
+  help: string,
+  options: ReadonlyArray<{ value: AccountPreferences[Id]; label: string }>,
+  locale: Locale,
+): HTMLElement {
+  const row = preferenceRow(title, help);
+  const preferences = normalizeAccountPreferences(user.accountPreferences);
+  const group = buildSegmentedPreference(
+    id,
+    options.map((option) => ({ value: String(option.value), label: option.label })),
+    String(preferences[id]),
+    (next) => {
+      const option = options.find((candidate) => String(candidate.value) === next);
+      if (option) void saveAccountPreference(user, id, option.value, group, row, locale);
+    },
+  );
+  const helpNode = row.querySelector('.account-preference-help');
+  row.insertBefore(group, helpNode);
+  return row;
+}
+
+function buildNotificationSettings(user: AuthUser, locale: Locale = currentLocale()): HTMLElement {
+  const panel = buildSettingsPanel(
+    'notifications',
+    t('account.settingsNotifications', {}, locale),
+    '',
+  );
+  const table = document.createElement('table');
+  table.className = 'account-notification-settings';
+  const head = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  headRow.append(
+    notificationHeading(''),
+    notificationHeading(t('account.notificationBell', {}, locale)),
+    notificationHeading(t('account.notificationEmail', {}, locale)),
+  );
+  head.append(headRow);
+  const body = document.createElement('tbody');
+  body.append(
+    buildNotificationPreferenceRow(
+      user,
+      t('account.notificationDirectMessages', {}, locale),
+      'inboxBell',
+      null,
+      locale,
+    ),
+    buildNotificationPreferenceRow(
+      user,
+      t('account.notificationCorrespondenceTurn', {}, locale),
+      'correspondenceBell',
+      null,
+      locale,
+    ),
+    buildNotificationPreferenceRow(
+      user,
+      t('account.notificationCorrespondenceDeadline', {}, locale),
+      null,
+      'correspondenceDeadlineEmail',
+      locale,
+    ),
+  );
+  table.append(head, body);
+  panel.append(table);
+  return panel;
+}
+
+function notificationHeading(text: string): HTMLTableCellElement {
+  const heading = document.createElement('th');
+  heading.scope = 'col';
+  heading.textContent = text;
+  return heading;
+}
+
+function buildNotificationPreferenceRow(
+  user: AuthUser,
+  labelText: string,
+  bell: 'inboxBell' | 'correspondenceBell' | null,
+  email: 'correspondenceDeadlineEmail' | null,
+  locale: Locale,
+): HTMLTableRowElement {
+  const row = document.createElement('tr');
+  const label = document.createElement('th');
+  label.scope = 'row';
+  label.textContent = labelText;
+  row.append(
+    label,
+    notificationPreferenceCell(user, bell, labelText, locale),
+    notificationPreferenceCell(user, email, labelText, locale),
+  );
+  return row;
+}
+
+function notificationPreferenceCell(
+  user: AuthUser,
+  id: 'inboxBell' | 'correspondenceBell' | 'correspondenceDeadlineEmail' | null,
+  labelText: string,
+  locale: Locale,
+): HTMLTableCellElement {
+  const cell = document.createElement('td');
+  if (!id) {
+    cell.className = 'account-notification-unavailable';
+    cell.textContent = '–';
+    return cell;
+  }
+  const control = document.createElement('label');
+  control.className = 'account-preference-switch';
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.name = id;
+  input.checked = normalizeAccountPreferences(user.accountPreferences)[id];
+  const channel = id === 'correspondenceDeadlineEmail' ? 'notificationEmail' : 'notificationBell';
+  input.setAttribute('aria-label', `${labelText}: ${t(`account.${channel}`, {}, locale)}`);
+  const track = document.createElement('span');
+  track.className = 'account-preference-switch-track';
+  control.append(input, track);
+  input.addEventListener('change', () => {
+    void saveAccountPreference(user, id, input.checked, control, cell, locale);
+  });
+  cell.append(control);
+  return cell;
+}
+
+async function saveAccountPreference<Id extends AccountPreferenceId>(
+  user: AuthUser,
+  id: Id,
+  value: AccountPreferences[Id],
+  group: HTMLElement,
+  statusHost: HTMLElement,
+  locale: Locale,
+): Promise<void> {
+  const previous = normalizeAccountPreferences(user.accountPreferences)[id];
+  setPreferenceGroupDisabled(group, true);
+  try {
+    const resp = await fetch('/api/account/preferences', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ [id]: value }),
+    });
+    if (!resp.ok) throw new Error(`account preference save failed: ${resp.status}`);
+    const data = (await resp.json()) as { user: AuthUser };
+    const next = normalizeAccountPreferences(data.user.accountPreferences);
+    user.accountPreferences = next;
+    replaceAccountPreferences(next);
+    setDisplayPreferenceStatus(statusHost, t('account.preferenceSaved', {}, locale));
+    if (id === 'inboxBell' || id === 'correspondenceBell') void refreshNotifications();
+  } catch (err) {
+    console.warn(err);
+    restorePreferenceGroup(group, previous);
+    setDisplayPreferenceStatus(statusHost, t('account.saveFailed', {}, locale));
+  } finally {
+    setPreferenceGroupDisabled(group, false);
+  }
+}
+
+function restorePreferenceGroup(group: HTMLElement, previous: string | boolean): void {
+  for (const input of group.querySelectorAll<HTMLInputElement>('input')) {
+    input.checked =
+      input.type === 'checkbox' ? Boolean(previous) : input.value === String(previous);
+  }
 }
 
 function buildBooleanDisplayPreference(
@@ -1257,7 +1508,10 @@ function accountSettingsSectionLabel(
   const keyBySection = {
     profile: 'account.settingsEditProfile',
     display: 'account.settingsDisplay',
+    clock: 'account.settingsClock',
+    behavior: 'account.settingsGameBehavior',
     privacy: 'account.settingsPrivacy',
+    notifications: 'account.settingsNotifications',
     username: 'account.settingsUsername',
     account: 'account.settingsAccount',
     security: 'account.settingsSecurity',

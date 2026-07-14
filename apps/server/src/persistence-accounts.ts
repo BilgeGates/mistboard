@@ -29,6 +29,39 @@ export function isProfileVisibility(value: unknown): value is ProfileVisibility 
 export type PieceAnimationPreference = 'none' | 'fast' | 'normal' | 'slow';
 export type AccountDisplayPreferences = { pieceAnimation?: PieceAnimationPreference };
 
+export type ClockTenthsPreference = 'never' | 'low-time' | 'always';
+export type AccountPreferenceKey =
+  | 'clockTenths'
+  | 'lowTimeSound'
+  | 'premoves'
+  | 'confirmGameActions'
+  | 'inboxBell'
+  | 'correspondenceBell'
+  | 'correspondenceDeadlineEmail';
+export type AccountPreferences = {
+  clockTenths: ClockTenthsPreference;
+  lowTimeSound: boolean;
+  premoves: boolean;
+  confirmGameActions: boolean;
+  inboxBell: boolean;
+  correspondenceBell: boolean;
+  correspondenceDeadlineEmail: boolean;
+};
+
+export const DEFAULT_ACCOUNT_PREFERENCES: AccountPreferences = {
+  clockTenths: 'low-time',
+  lowTimeSound: true,
+  premoves: true,
+  confirmGameActions: true,
+  inboxBell: true,
+  correspondenceBell: true,
+  correspondenceDeadlineEmail: true,
+};
+
+export function isClockTenthsPreference(value: unknown): value is ClockTenthsPreference {
+  return value === 'never' || value === 'low-time' || value === 'always';
+}
+
 export const PIECE_ANIMATION_PREFERENCES: readonly PieceAnimationPreference[] = [
   'none',
   'fast',
@@ -66,6 +99,7 @@ export type UserAccount = {
   location: string;
   profileLinks: string[];
   displayPreferences: AccountDisplayPreferences;
+  accountPreferences: AccountPreferences;
   profileVisibility: ProfileVisibility;
   accountRole: AccountRole;
   // Verified player title (088), granted only through the title-verification
@@ -342,6 +376,7 @@ const USER_COLUMNS = [
   'location',
   'profile_links',
   'display_preferences',
+  'account_preferences',
   'profile_visibility',
   'account_role',
   'title',
@@ -492,6 +527,7 @@ export async function closeUserAccount(
            location = '',
            profile_links = '{}'::text[],
            display_preferences = '{}'::jsonb,
+           account_preferences = '{}'::jsonb,
            profile_visibility = 'private',
            account_role = 'player',
            title = NULL,
@@ -636,6 +672,28 @@ export async function updateUserPieceAnimationPreference(
      WHERE id = $1
      RETURNING ${USER_COLUMNS}`,
     [userId, pieceAnimation, at],
+  );
+  return rows[0] ? userFromRow(rows[0]) : null;
+}
+
+export async function updateUserAccountPreference(
+  userId: string,
+  key: AccountPreferenceKey,
+  value: string | boolean,
+  at: Date,
+): Promise<UserAccount | null> {
+  const { rows } = await getPool().query<UserRow>(
+    `UPDATE users
+     SET account_preferences = jsonb_set(
+           account_preferences,
+           ARRAY[$2::text],
+           $3::jsonb,
+           true
+         ),
+         updated_at = $4
+     WHERE id = $1
+     RETURNING ${USER_COLUMNS}`,
+    [userId, key, JSON.stringify(value), at],
   );
   return rows[0] ? userFromRow(rows[0]) : null;
 }
@@ -1423,6 +1481,7 @@ type UserRow = {
   location: string;
   profile_links: string[];
   display_preferences: unknown;
+  account_preferences: unknown;
   profile_visibility: UserAccount['profileVisibility'];
   account_role: AccountRole;
   title: PlayerTitle | null;
@@ -1449,6 +1508,7 @@ function userFromRow(row: UserRow): UserAccount {
     location: row.location,
     profileLinks: row.profile_links,
     displayPreferences: displayPreferencesFromJson(row.display_preferences),
+    accountPreferences: accountPreferencesFromJson(row.account_preferences),
     profileVisibility: row.profile_visibility,
     accountRole: row.account_role,
     title: row.title,
@@ -1467,6 +1527,37 @@ function displayPreferencesFromJson(value: unknown): AccountDisplayPreferences {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const pieceAnimation = (value as Record<string, unknown>).pieceAnimation;
   return isPieceAnimationPreference(pieceAnimation) ? { pieceAnimation } : {};
+}
+
+function accountPreferencesFromJson(value: unknown): AccountPreferences {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { ...DEFAULT_ACCOUNT_PREFERENCES };
+  }
+  const parsed = value as Record<string, unknown>;
+  return {
+    clockTenths: isClockTenthsPreference(parsed.clockTenths)
+      ? parsed.clockTenths
+      : DEFAULT_ACCOUNT_PREFERENCES.clockTenths,
+    lowTimeSound: booleanOrDefault(parsed.lowTimeSound, DEFAULT_ACCOUNT_PREFERENCES.lowTimeSound),
+    premoves: booleanOrDefault(parsed.premoves, DEFAULT_ACCOUNT_PREFERENCES.premoves),
+    confirmGameActions: booleanOrDefault(
+      parsed.confirmGameActions,
+      DEFAULT_ACCOUNT_PREFERENCES.confirmGameActions,
+    ),
+    inboxBell: booleanOrDefault(parsed.inboxBell, DEFAULT_ACCOUNT_PREFERENCES.inboxBell),
+    correspondenceBell: booleanOrDefault(
+      parsed.correspondenceBell,
+      DEFAULT_ACCOUNT_PREFERENCES.correspondenceBell,
+    ),
+    correspondenceDeadlineEmail: booleanOrDefault(
+      parsed.correspondenceDeadlineEmail,
+      DEFAULT_ACCOUNT_PREFERENCES.correspondenceDeadlineEmail,
+    ),
+  };
+}
+
+function booleanOrDefault(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
 }
 
 function isUniqueViolation(err: unknown): boolean {

@@ -14,6 +14,15 @@ type TestUser = {
   displayPreferences: {
     pieceAnimation?: 'none' | 'fast' | 'normal' | 'slow';
   };
+  accountPreferences: {
+    clockTenths: 'never' | 'low-time' | 'always';
+    lowTimeSound: boolean;
+    premoves: boolean;
+    confirmGameActions: boolean;
+    inboxBell: boolean;
+    correspondenceBell: boolean;
+    correspondenceDeadlineEmail: boolean;
+  };
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
   locale: 'en' | 'zh-Hans' | 'zh-Hant' | 'ja' | null;
@@ -217,7 +226,10 @@ describe('account page auth flow', () => {
     ).toEqual([
       'Edit profile',
       'Display',
+      'Chess clock',
+      'Game behavior',
       'Privacy',
+      'Notifications',
       'Change username',
       'Email and sign-in',
       'Security',
@@ -241,6 +253,100 @@ describe('account page auth flow', () => {
     expect(document.querySelector('.account-preference-help')?.textContent).toBe(
       'Display preference saved.',
     );
+  });
+
+  it('syncs clock and game behavior preferences to the account and local cache', async () => {
+    window.history.replaceState(null, '', '/account/settings/behavior');
+    const user = testUser('misty');
+    const requests: unknown[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user });
+        if (url === '/api/account/preferences') {
+          const body = JSON.parse(String(init?.body)) as Partial<TestUser['accountPreferences']>;
+          requests.push(body);
+          Object.assign(user.accountPreferences, body);
+          return jsonResponse({ user });
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { accountPreferencesStorageKey } = await import('./account-preferences.js');
+    const { mountAccountSettings } = await import('./account.js');
+    const root = document.querySelector<HTMLElement>('#app') as HTMLElement;
+    await mountAccountSettings(root);
+    await flushDom();
+
+    expect(document.querySelector('h1')?.textContent).toBe('Game behavior');
+    const premovesOff = document.querySelector<HTMLInputElement>(
+      'input[name="premoves"][value="false"]',
+    );
+    if (!premovesOff) throw new Error('missing premoves preference');
+    premovesOff.checked = true;
+    premovesOff.dispatchEvent(new Event('change', { bubbles: true }));
+    await flushDom();
+
+    window.history.replaceState(null, '', '/account/settings/clock');
+    await mountAccountSettings(root);
+    await flushDom();
+    const tenthsAlways = document.querySelector<HTMLInputElement>(
+      'input[name="clockTenths"][value="always"]',
+    );
+    if (!tenthsAlways) throw new Error('missing clock tenths preference');
+    tenthsAlways.checked = true;
+    tenthsAlways.dispatchEvent(new Event('change', { bubbles: true }));
+    await flushDom();
+
+    expect(requests).toEqual([{ premoves: false }, { clockTenths: 'always' }]);
+    expect(
+      JSON.parse(window.localStorage.getItem(accountPreferencesStorageKey) ?? '{}'),
+    ).toMatchObject({ premoves: false, clockTenths: 'always' });
+  });
+
+  it('renders notification channels as a matrix and saves each available switch', async () => {
+    window.history.replaceState(null, '', '/account/settings/notifications');
+    const user = testUser('misty');
+    const requests: unknown[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user });
+        if (url === '/api/account/preferences') {
+          const body = JSON.parse(String(init?.body)) as Partial<TestUser['accountPreferences']>;
+          requests.push(body);
+          Object.assign(user.accountPreferences, body);
+          return jsonResponse({ user });
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { mountAccountSettings } = await import('./account.js');
+    await mountAccountSettings(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    expect(document.querySelector('h1')?.textContent).toBe('Notifications');
+    expect(
+      [...document.querySelectorAll('.account-notification-settings thead th')].map(
+        (heading) => heading.textContent,
+      ),
+    ).toEqual(['', 'Bell', 'Email']);
+    expect(document.querySelectorAll('.account-notification-unavailable')).toHaveLength(3);
+
+    const deadlineEmail = document.querySelector<HTMLInputElement>(
+      'input[name="correspondenceDeadlineEmail"]',
+    );
+    if (!deadlineEmail) throw new Error('missing correspondence deadline email preference');
+    deadlineEmail.checked = false;
+    deadlineEmail.dispatchEvent(new Event('change', { bubbles: true }));
+    await flushDom();
+
+    expect(requests).toEqual([{ correspondenceDeadlineEmail: false }]);
+    expect(deadlineEmail.checked).toBe(false);
   });
 
   it('hydrates piece animation from the signed-in account', async () => {
@@ -619,6 +725,15 @@ function testUser(handle: string): TestUser {
     location: '',
     profileLinks: [],
     displayPreferences: { pieceAnimation: 'normal' },
+    accountPreferences: {
+      clockTenths: 'low-time',
+      lowTimeSound: true,
+      premoves: true,
+      confirmGameActions: true,
+      inboxBell: true,
+      correspondenceBell: true,
+      correspondenceDeadlineEmail: true,
+    },
     profileVisibility: 'public',
     accountRole: 'player',
     locale: null,

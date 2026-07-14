@@ -106,6 +106,7 @@ export function publicUser(user: persistence.UserAccount): Record<string, unknow
     location: user.location,
     profileLinks: user.profileLinks,
     displayPreferences: user.displayPreferences,
+    accountPreferences: user.accountPreferences,
     profileVisibility: user.profileVisibility,
     accountRole: user.accountRole,
     locale: user.locale,

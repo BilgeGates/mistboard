@@ -227,6 +227,22 @@ describe('audio unlock and sticky activation', () => {
     mod.playSound('move');
     expect(audio.oscillatorCount()).toBeGreaterThan(0);
   });
+
+  it('suppresses the critical-time warning when the account preference is disabled', async () => {
+    const audio = installFakeAudio();
+    setUserActivation(true);
+    window.localStorage.setItem(
+      'mistboard.accountPreferences.v1',
+      JSON.stringify({ lowTimeSound: false }),
+    );
+    vi.resetModules();
+    const mod = await import('./live-sound.js');
+
+    mod.initLiveSound();
+    mod.maybePlayLowTimeSound('sound-pref-disabled', 5_000, 60_000);
+
+    expect(audio.oscillatorCount()).toBe(0);
+  });
 });
 
 function memoryStorage(): Storage {

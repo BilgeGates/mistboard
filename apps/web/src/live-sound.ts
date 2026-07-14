@@ -15,6 +15,7 @@ import {
   replayGameEvents,
   type Square,
 } from '@mistboard/game';
+import { readAccountPreferences } from './account-preferences.js';
 import {
   liveState,
   type RoomMode,
@@ -109,6 +110,7 @@ export function maybePlayLowTimeSound(
   remainingMs: number,
   initialMs: number | null,
 ): void {
+  if (!readAccountPreferences().lowTimeSound) return;
   if (lowTimeFiredGameId === gameId) return;
   const threshold = Math.min(30_000, Math.max(10_000, (initialMs ?? 150_000) * 0.1));
   if (remainingMs <= 0 || remainingMs > threshold) return;

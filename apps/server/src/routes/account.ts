@@ -24,6 +24,14 @@ const emailChangeStartRateLimiter = createAuthRateLimiter(5, emailChangeRateWind
 const emailChangeConfirmRateLimiter = createAuthRateLimiter(10, emailChangeRateWindowMs);
 const accountClosureStartRateLimiter = createAuthRateLimiter(3, emailChangeRateWindowMs);
 const accountClosureConfirmRateLimiter = createAuthRateLimiter(10, emailChangeRateWindowMs);
+const booleanAccountPreferenceKeys = new Set<persistence.AccountPreferenceKey>([
+  'lowTimeSound',
+  'premoves',
+  'confirmGameActions',
+  'inboxBell',
+  'correspondenceBell',
+  'correspondenceDeadlineEmail',
+]);
 
 export async function tryHandle(
   _ctx: unknown,
@@ -341,6 +349,7 @@ export async function tryHandle(
       return true;
     }
     const body = await readJsonBody(request);
+    const keys = Object.keys(body);
 
     // Profiles are public identities on Mistboard. Preserve historical values
     // in storage, but do not let the general account-preferences endpoint hide
@@ -350,9 +359,16 @@ export async function tryHandle(
       return true;
     }
 
+    if (keys.length !== 1) {
+      writeJson(response, 400, { error: 'invalid_account_preferences' });
+      return true;
+    }
+
+    const key = keys[0];
+
     // DM policy rides the same preferences PATCH as locale; branch on which
     // key the client sent so the two settings stay independently updatable.
-    if ('dmPolicy' in body) {
+    if (key === 'dmPolicy') {
       if (!persistence.isDmPolicy(body.dmPolicy)) {
         writeJson(response, 400, { error: 'invalid_dm_policy' });
         return true;
@@ -366,6 +382,36 @@ export async function tryHandle(
       return true;
     }
 
+    if (
+      key === 'clockTenths' ||
+      booleanAccountPreferenceKeys.has(key as persistence.AccountPreferenceKey)
+    ) {
+      const valid =
+        key === 'clockTenths'
+          ? persistence.isClockTenthsPreference(body[key])
+          : typeof body[key] === 'boolean';
+      if (!valid) {
+        writeJson(response, 400, { error: 'invalid_account_preferences' });
+        return true;
+      }
+      const updated = await persistence.updateUserAccountPreference(
+        user.id,
+        key as persistence.AccountPreferenceKey,
+        body[key] as string | boolean,
+        new Date(),
+      );
+      if (!updated) {
+        writeJson(response, 404, { error: 'user_not_found' });
+        return true;
+      }
+      writeJson(response, 200, { user: publicUser(updated) });
+      return true;
+    }
+
+    if (key !== 'locale') {
+      writeJson(response, 400, { error: 'invalid_account_preferences' });
+      return true;
+    }
     const locale = body.locale;
     if (locale !== null && !persistence.isAccountLocale(locale)) {
       writeJson(response, 400, { error: 'invalid_locale' });

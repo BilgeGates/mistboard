@@ -1,5 +1,6 @@
 import './account-nav.css';
 
+import { type AccountPreferences, replaceAccountPreferences } from './account-preferences.js';
 import { identify, resetIdentity } from './analytics.js';
 import { loginHrefForCurrentPage } from './auth-redirect.js';
 import { type ConnectionStatus, createConnectionStatus } from './connection-status.js';
@@ -52,6 +53,7 @@ type AuthUser = {
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
   locale: Locale | null;
+  accountPreferences?: Partial<AccountPreferences>;
   // Patron program: server-derived, present on /api/auth/me. Optional so older
   // cached payloads (pre-078) still parse.
   isPatron?: boolean;
@@ -86,6 +88,7 @@ async function primeAccountNav(): Promise<void> {
 
 export function setAccountNavUser(user: AuthUser | null): void {
   applyResolvedAccountLocale(user);
+  if (user) replaceAccountPreferences(user.accountPreferences);
   cachedUser = user;
   userPromise = Promise.resolve(user);
   setResolvedSignedIn(user !== null);
@@ -451,6 +454,7 @@ async function loadCurrentUser(): Promise<AuthUser | null> {
   userPromise = fetchCurrentUser()
     .then((user) => {
       applyResolvedAccountLocale(user);
+      if (user) replaceAccountPreferences(user.accountPreferences);
       cachedUser = user;
       setResolvedSignedIn(user !== null);
       setResolvedAdmin(user?.accountRole === 'admin');

@@ -1,4 +1,5 @@
 import './site-shell.css';
+import type { AccountPreferences } from './account-preferences.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, type Locale, localizedHref, stripLocalePrefix } from './i18n/locale.js';
 import {
@@ -29,6 +30,7 @@ export type AuthUser = {
   displayPreferences: {
     pieceAnimation?: 'none' | 'fast' | 'normal' | 'slow';
   };
+  accountPreferences?: Partial<AccountPreferences>;
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
   locale: Locale | null;

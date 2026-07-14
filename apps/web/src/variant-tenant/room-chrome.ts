@@ -14,6 +14,7 @@
  */
 
 import '../game-shell.css';
+import { readAccountPreferences, shouldShowClockTenths } from '../account-preferences.js';
 import { openConfirmDialog } from '../confirm-dialog.js';
 import { maybePlayLowTimeSound } from '../live-sound.js';
 import type { LiveRefs } from '../live-state.js';
@@ -292,7 +293,7 @@ export function createTenantRoomChrome<C extends string>(
       playerLine.append(toMove);
       const time = document.createElement('strong');
       const remainingMs = clockRemainingMs(clock, color, displayAt);
-      time.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
+      time.textContent = formatClock(remainingMs, shouldShowClockTenths(remainingMs, isActive));
       row.append(time);
       (index === 0 ? refs!.playerTop : refs!.playerBottom).append(playerLine);
       (index === 0 ? refs!.clockTop : refs!.clockBottom).append(row);
@@ -325,7 +326,9 @@ export function createTenantRoomChrome<C extends string>(
         maybePlayLowTimeSound(view.id, remainingMs, ctx.timeControl()?.initialMs ?? null);
       }
       const strong = row.querySelector('strong');
-      if (strong) strong.textContent = formatClock(remainingMs, isActive && remainingMs < 10_000);
+      if (strong) {
+        strong.textContent = formatClock(remainingMs, shouldShowClockTenths(remainingMs, isActive));
+      }
     }
   }
 
@@ -591,6 +594,10 @@ export function createTenantRoomChrome<C extends string>(
         abort.className = 'danger';
         abort.textContent = 'Abort';
         abort.addEventListener('click', () => {
+          if (!readAccountPreferences().confirmGameActions) {
+            sendSocket({ type: 'abort' });
+            return;
+          }
           openConfirmDialog({
             title: 'Abort this game?',
             body: 'This ends the room without recording a result.',
@@ -620,6 +627,10 @@ export function createTenantRoomChrome<C extends string>(
     resign.className = 'danger';
     resign.textContent = 'Resign';
     resign.addEventListener('click', () => {
+      if (!readAccountPreferences().confirmGameActions) {
+        sendSocket({ type: 'resign' });
+        return;
+      }
       openConfirmDialog({
         title: 'Resign this game?',
         body: 'Your opponent wins. This cannot be undone.',
