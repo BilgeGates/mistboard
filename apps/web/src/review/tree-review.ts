@@ -96,6 +96,13 @@ export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
    *  FEN). Null for variants with no client engine: the panel and gauge are then
    *  omitted and the board carries no eval affordance. */
   engine: EnginePresentation<Truth, Arrow> | null;
+  /** Format a whole-game-analysis best move (server `evals[].best`, in the ANALYSIS
+   *  engine's UCI dialect) for the "… was best" advice line. Omit to use the default
+   *  xiangqi/FSF formatter (correct for xiangqi/fortress/jungle, whose display coords
+   *  match the engine dialect). Hidden-info variants (banqi/jungle-flip) whose engine
+   *  UCI differs from the board coords (0-indexed rank, flip = from===to) supply their
+   *  own so the advice reads e.g. "b3 flip" instead of a raw "B2-B2". */
+  formatBestMove?: (uci: string) => string;
   /** Class on the board host element (e.g. 'dxq-postgame__board xiangqi-live-board'). */
   boardHostClassName: string;
   /** Class on the board wrapper section (e.g. 'dxq-postgame__board-wrap review-board-host'). */
@@ -427,7 +434,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     gameUrl: typeof window !== 'undefined' ? window.location.href : '',
   });
   const analysisSummaryEl = document.createElement('div');
-  const moveAdvice = createMoveAdvice();
+  const moveAdvice = createMoveAdvice(presentation.formatBestMove);
   let chart: AdvantageChart | null = null;
 
   // ── Study annotation controls (glyph picker + comment editor) ──

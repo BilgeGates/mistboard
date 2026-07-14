@@ -16,6 +16,7 @@ import { createJungleFlipInteractiveBoard } from '../jungle-flip-board.js';
 import { JUNGLE_FLIP_BOARD_VIEW } from '../jungle-flip-render.js';
 import type { NodeShape, VariantTreeAdapter } from './game-tree.js';
 import { makeJungleFlipTreeAdapter } from './jungle-flip-tree-adapter.js';
+import { formatFlipVariantBestMove } from './move-advice.js';
 import {
   mountTreeReview,
   type TreePresentation,
@@ -45,6 +46,9 @@ function makeJungleFlipPresentation(
   return {
     adapter,
     engine: null,
+    // The analysis engine's best move is 0-indexed UCI with flips as from===to; render it in
+    // board coords ("b3 flip") for the "… was best" advice line, not the raw "B2-B2".
+    formatBestMove: formatFlipVariantBestMove,
     boardHostClassName: 'jungle-flip-postgame-board jungle-flip-live-board',
     boardWrapClassName: 'dxq-postgame__board-wrap review-board-host',
     defaultBoardAriaLabel: 'Flip Jungle board',
