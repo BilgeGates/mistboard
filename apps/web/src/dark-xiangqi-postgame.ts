@@ -1,52 +1,12 @@
-import {
-  createInitialXiangqiBoard,
-  type XiangqiColor,
-  type XiangqiGameStatus,
-  type XiangqiMove,
-} from '@mistboard/game';
+import type { XiangqiColor, XiangqiGameStatus, XiangqiMove } from '@mistboard/game';
 import './game-shell.css';
 import './live-xiangqi.css';
 import './dark-xiangqi-postgame.css';
 import { darkXiangqiEnabled } from './feature-flags.js';
-import { type DarkXiangqiWireView, renderDarkXiangqiBoardSvg } from './live-dark-xiangqi.js';
-import { capturedByDiff } from './review/captured-diff.js';
-import { fillCapturedPoolWith } from './review/captured-pool.js';
-import { createFlankCaptures } from './review/flank-captures.js';
+import type { DarkXiangqiWireView } from './live-dark-xiangqi.js';
+import { mountDarkXiangqiReview } from './review/dark-xiangqi-review.js';
 import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
-import { createMoveList, type MoveListEntry } from './review/move-list.js';
-import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
-import { renderXiangqiPiece } from './xiangqi-pieces.js';
-
-// Captures come from the server-computed ledger on the wire view (per-ply in
-// history entries), which is correct on POV boards too — a board diff is NOT:
-// on a fog view a hidden survivor and a captured piece are indistinguishable.
-// The diff stays only as a fallback for payloads predating the ledger field,
-// and only on the fully revealed truth board where it is sound.
-const XIANGQI_INITIAL_PIECES = Object.values(createInitialXiangqiBoard()).filter(
-  (piece): piece is NonNullable<typeof piece> => Boolean(piece),
-);
-
-function darkXiangqiCaptured(view: DarkXiangqiWireView) {
-  if (view.captures) {
-    return [
-      ...view.captures.red.map((role) => ({ owner: 'red' as XiangqiColor, role })),
-      ...view.captures.black.map((role) => ({ owner: 'black' as XiangqiColor, role })),
-    ];
-  }
-  const current = Object.values(view.board)
-    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
-    .filter((entry) => !entry.shrouded)
-    .map((entry) => entry.piece);
-  return capturedByDiff(XIANGQI_INITIAL_PIECES, current);
-}
-
-function renderCapturedXiangqiGlyph(piece: {
-  color: XiangqiColor;
-  role: (typeof XIANGQI_INITIAL_PIECES)[number]['role'];
-}): string {
-  return renderXiangqiPiece(piece, { ariaLabel: `${piece.color} ${piece.role}` });
-}
 
 export type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
 
@@ -142,33 +102,28 @@ export function darkXiangqiPostgameApiUrl(roomId: string): string {
 }
 
 function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse): void {
-  const views = postgameViewEntries(postgame);
-  // Each board host carries its own label; the review layout arranges them
-  // (truth dominant, per-seat views as click-to-promote secondaries) and owns
-  // the scrubber, keyboard, flip, and viewport-fill sizing.
-  const targets = views.map((entry) => {
-    const el = document.createElement('section');
-    el.className = 'dxq-postgame__board-wrap';
-    const heading = document.createElement('h2');
-    heading.className = 'dxq-postgame__board-title';
-    heading.textContent = entry.label;
-    const board = document.createElement('div');
-    board.className = 'dxq-postgame__board xiangqi-live-board';
-    board.setAttribute('aria-label', `${entry.label} final Fog Xiangqi board`);
-    // Every board gets flank capture columns (opponent top-left, near
-    // bottom-right, level with the board so it keeps its full height), but only
-    // the current PRIMARY board's are filled — a promoted POV board shows its
-    // seat's captures, the small secondaries stay uncluttered.
-    const flank = createFlankCaptures(board);
-    el.append(heading, flank.host);
-    return { entry, el, board, leftCaptures: flank.leftColumn, rightCaptures: flank.rightColumn };
-  });
+  // The interactive tree replays + branches on the TRUE move history (a /game
+  // postgame reveals by design), reconstructing every position — including each
+  // seat's fogged POV — client-side through the fog kernel. The server per-ply
+  // snapshots are no longer needed for the postgame board.
+  const moveEvents = postgame.timeline.filter((item) => item.type === 'move-played' && item.move);
+  const moves = moveEvents.map((item) => item.move as XiangqiMove);
 
-  // Clickable move list (jump-to-ply + current-ply highlight), matching the
-  // other postgame pages. Red moves first, so the default 'a' pairing lands the
-  // first ply in the left column. Full truth moves are correct here — /game
-  // postgame pages reveal by design.
-  const moveList = createMoveList(moveEntries(postgame), { title: 'Moves' });
+  // Per-ply elapsed time from consecutive event timestamps (no per-move clock is
+  // persisted, so the first ply's delta is measured from the earliest event).
+  let prevAt = postgame.timeline[0]?.at ?? moveEvents[0]?.at ?? 0;
+  const moveTimes = moveEvents.map((item) => {
+    const delta = Math.max(0, item.at - prevAt);
+    prevAt = item.at;
+    return delta;
+  });
+  const hasMoveTimes = moveTimes.some((ms) => ms > 0);
+
+  const gamePlayers = postgame.game.players ?? [];
+  const playerNames = {
+    red: gamePlayers.find((p) => p.color === 'red')?.name,
+    black: gamePlayers.find((p) => p.color === 'black')?.name,
+  };
 
   const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
@@ -179,49 +134,20 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
   });
 
   root.replaceChildren(buildNav());
-  mountReviewLayout(root, {
+  mountDarkXiangqiReview(root, {
     pageClassName: 'dark-xiangqi-review',
     ariaLabel: 'Fog Xiangqi postgame',
     title: 'Fog Xiangqi',
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
-    moves: moveList.el,
-    boards: targets.map((target) => ({
-      key: target.entry.key,
-      el: target.el,
-      tier: target.entry.key === 'truth' ? 'primary' : 'secondary',
-    })),
-    boardAspect: 552 / 612,
-    boardCols: 9,
-    maxPly: postgameReplayMaxPly(postgame),
-    renderBoards({ ply, flipped, primaryKey }) {
-      const orientation: XiangqiColor = flipped ? 'black' : 'red';
-      const opponent: XiangqiColor = orientation === 'red' ? 'black' : 'red';
-      for (const { entry, board, leftCaptures, rightCaptures } of targets) {
-        const view = postgameViewAtPly(postgame, entry.key, ply) ?? entry.view;
-        board.innerHTML = renderDarkXiangqiBoardSvg(view, orientation, {
-          showFog: entry.key !== 'truth',
-        });
-        if (leftCaptures && rightCaptures) {
-          leftCaptures.replaceChildren();
-          rightCaptures.replaceChildren();
-          if (entry.key === primaryKey) {
-            const captured = darkXiangqiCaptured(view);
-            // Render captured glyphs with the SAME renderer the board uses
-            // (character pieces). Left column (top) = opponent's captures; right
-            // column (bottom) = the near side's captures.
-            fillCapturedPoolWith(leftCaptures, captured, orientation, renderCapturedXiangqiGlyph);
-            fillCapturedPoolWith(rightCaptures, captured, opponent, renderCapturedXiangqiGlyph);
-          }
-        }
-      }
-    },
-    // Jump-to-ply routes through the layout's own `go`, the same path the
-    // scrubber and keyboard use, so every triptych board stays consistent.
-    renderMoves({ ply }, jump) {
-      moveList.update(ply, jump);
-    },
+    moves,
+    moveTimes: hasMoveTimes ? moveTimes : undefined,
+    players: playerNames,
+    showCrosstable: true,
+    // No client/server whole-game analysis for fog yet (the fog engine is a
+    // separate worker piece); the review is the interactive triptych + tree.
+    analysis: null,
   });
 }
 
@@ -257,19 +183,6 @@ export function postgameViewAtPly(
     selected = snapshot;
   }
   return selected?.view ?? null;
-}
-
-// Flat move entries for the shared clickable list: one per played ply, keeping
-// the coordinate `from-to` notation the static timeline showed. `ply` is the
-// cursor a click lands on (the scrubber's 1..maxPly), so the pairing/highlight
-// track the layout's ply state. Fall back to array index when the wire entry
-// omits ply.
-function moveEntries(postgame: DarkXiangqiPostgameResponse): MoveListEntry[] {
-  const moves = postgame.timeline.filter((entry) => entry.type === 'move-played' && entry.move);
-  return moves.map((entry, index) => ({
-    ply: entry.ply ?? index + 1,
-    label: `${entry.move!.from}-${entry.move!.to}`,
-  }));
 }
 
 function loadingView(): HTMLElement {

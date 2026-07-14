@@ -204,6 +204,33 @@ export function renderDarkXiangqiBoardSvg(
   return boardSvg(view, perspective, { interactive: false, showFog: options.showFog ?? true });
 }
 
+// Interactive (review/analysis) render: like the live board but with selection +
+// drag state passed in EXPLICITLY rather than read from this module's live-room
+// globals, so several independent boards (the fog triptych) can coexist. Mirrors
+// createBanqiInteractiveBoard's renderer contract. Used by dark-xiangqi-tree-board.ts.
+export function renderDarkXiangqiInteractiveBoardSvg(
+  view: DarkXiangqiWireView,
+  perspective: XiangqiColor,
+  state: {
+    selectedSquare: XiangqiSquare | null;
+    draggingFrom: XiangqiSquare | null;
+    showFog?: boolean;
+  },
+): string {
+  return boardSvg(view, perspective, {
+    interactive: true,
+    showFog: state.showFog ?? true,
+    selectedSquare: state.selectedSquare,
+    draggingFrom: state.draggingFrom,
+  });
+}
+
+// The floating drag ghost (a single visible piece). Exported for the review
+// interactive board's installBoardDrag wiring.
+export function darkXiangqiInteractivePieceGhostSvg(piece: XiangqiPiece): string {
+  return darkXiangqiPieceGhostSvg(piece);
+}
+
 function renderBoard(liveRefs: LiveRefs, view: DarkXiangqiWireView | null): void {
   liveRefs.board.className = 'board xiangqi-live-board';
   liveRefs.board.setAttribute('aria-label', 'Fog Xiangqi board');
@@ -245,8 +272,18 @@ function renderLiveCapturedGlyph(piece: { color: XiangqiColor; role: XiangqiPiec
 function boardSvg(
   view: DarkXiangqiWireView,
   perspective: XiangqiColor,
-  options: { interactive: boolean; showFog?: boolean },
+  options: {
+    interactive: boolean;
+    showFog?: boolean;
+    // Explicit selection/drag state; when omitted (the live room) the module
+    // globals are used, so an independent review board can pass its own state
+    // without disturbing the live board. `null` = explicitly nothing selected.
+    selectedSquare?: XiangqiSquare | null;
+    draggingFrom?: XiangqiSquare | null;
+  },
 ): string {
+  const sel = options.selectedSquare !== undefined ? options.selectedSquare : selectedSquare;
+  const drag = options.draggingFrom !== undefined ? options.draggingFrom : draggingFrom;
   // Key the fog mask by the VIEW's own perspective, not the render orientation.
   // The postgame triptych draws the red, truth, and black views in one document,
   // all with the same board orientation and the same view.id (one game) — keying
@@ -264,10 +301,10 @@ function boardSvg(
       <g class="xq-live-river" ${NON_SELECTABLE_RIVER_ATTRS}>${riverLayer(perspective)}</g>
       <g class="xq-live-fog">${fog}</g>
       <g class="xq-live-lastmove">${lastMoveLayer(view, perspective)}</g>
-      <g class="xq-live-selection">${selectionLayer(selectedSquare, perspective)}</g>
-      <g class="xq-live-hints">${options.interactive ? '' : hintLayer(view, perspective)}</g>
-      <g class="xq-live-pieces">${pieceLayer(view, perspective, draggingFrom)}</g>
-      <g class="xq-live-clicks">${options.interactive ? clickLayer(view, perspective) : ''}</g>
+      <g class="xq-live-selection">${selectionLayer(sel, perspective)}</g>
+      <g class="xq-live-hints">${options.interactive ? '' : hintLayer(view, perspective, sel)}</g>
+      <g class="xq-live-pieces">${pieceLayer(view, perspective, drag)}</g>
+      <g class="xq-live-clicks">${options.interactive ? clickLayer(view, perspective, sel) : ''}</g>
     </svg>
   `;
 }
@@ -378,10 +415,14 @@ function selectionLayer(square: XiangqiSquare | null, perspective: XiangqiColor)
   return `<circle class="xq-live-selection-cell" cx="${center.x}" cy="${center.y}" r="30"/>`;
 }
 
-function hintLayer(view: DarkXiangqiWireView, perspective: XiangqiColor): string {
-  if (!selectedSquare) return '';
+function hintLayer(
+  view: DarkXiangqiWireView,
+  perspective: XiangqiColor,
+  selected: XiangqiSquare | null,
+): string {
+  if (!selected) return '';
   return view.legalMoves
-    .filter((move) => move.from === selectedSquare)
+    .filter((move) => move.from === selected)
     .map((move) => {
       const coord = coordOf(move.to);
       const center = intersection(coord.file, coord.rank, perspective);
@@ -420,11 +461,15 @@ function pieceLayer(
   return parts.join('');
 }
 
-function clickLayer(view: DarkXiangqiWireView, perspective: XiangqiColor): string {
+function clickLayer(
+  view: DarkXiangqiWireView,
+  perspective: XiangqiColor,
+  selected: XiangqiSquare | null,
+): string {
   const targets = new Map<XiangqiSquare, { capture: boolean }>();
-  if (selectedSquare) {
+  if (selected) {
     for (const move of view.legalMoves) {
-      if (move.from === selectedSquare) {
+      if (move.from === selected) {
         targets.set(move.to, { capture: view.board[move.to] !== undefined });
       }
     }

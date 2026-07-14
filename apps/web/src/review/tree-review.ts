@@ -221,7 +221,6 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   let flipped = false;
 
   const currentNode = (): Node => tree.nodeAt(currentPath) ?? tree.root;
-  const currentView = (): View => adapter.project(currentNode().truth)[0]!.view;
   const orientation = (): Color => presentation.perspective(flipped);
 
   const uciTo = (node: Node): string[] => {
@@ -232,56 +231,101 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     return line;
   };
 
-  // ── Board (interactive) + gauge column. Captured-material rows are OFF on
-  // the review surface for now: empty rows collapse and re-inflate on the first
-  // capture, jarring the rail; they return with a lichess-style rework (#166).
-  const boardWrap = document.createElement('section');
-  boardWrap.className = presentation.boardWrapClassName;
-  const boardEl = document.createElement('div');
-  boardEl.className = presentation.boardHostClassName;
-  boardEl.setAttribute('aria-label', config.boardAriaLabel ?? presentation.defaultBoardAriaLabel);
-  boardWrap.append(boardEl);
+  // ── Boards + gauge column. Captured-material rows are OFF on the review
+  // surface for now: empty rows collapse and re-inflate on the first capture,
+  // jarring the rail; they return with a lichess-style rework (#166).
+  //
+  // adapter.project() returns ONE view (open variants) or N (fog: truth +
+  // per-POV). The primary-tier view is the INTERACTIVE analysis board; any
+  // secondaries are read-only projections re-rendered on every navigation
+  // (click-to-promote enlarges one, but input stays on the truth board). A
+  // single-view variant builds exactly one board and renders as before.
+  const projectionShape = adapter.project(tree.root.truth);
+  const multiBoard = projectionShape.length > 1;
+
+  // Play a move on the interactive board → branch the tree and follow it.
+  const handleMove = (move: Move): void => {
+    const next = tree.addMove(currentPath, move);
+    if (!next) return;
+    currentPath = next;
+    moveTree.rebuild();
+    render();
+    notifyChange();
+  };
+  // Right-drag draws an annotation shape on the CURRENT node (toggle: re-drawing
+  // the same shape removes it). Green by default, red with a modifier held.
+  const handleDrawShape = (orig: string, dest: string | null, { alt }: { alt: boolean }): void => {
+    const brush = alt ? 'red' : 'green';
+    const shape: NodeShape =
+      !dest || dest === orig
+        ? { kind: 'circle', brush, orig }
+        : { kind: 'arrow', brush, orig, dest };
+    const same = (s: NodeShape): boolean =>
+      s.kind === shape.kind &&
+      s.orig === shape.orig &&
+      s.dest === shape.dest &&
+      s.brush === shape.brush;
+    const existing = currentNode().annotations?.shapes ?? [];
+    const nextShapes = existing.some(same)
+      ? existing.filter((s) => !same(s))
+      : [...existing, shape];
+    tree.annotateAt(currentPath, { shapes: nextShapes });
+    paintOverlays();
+    annotationEditor?.setAnnotations(currentNode().annotations);
+    notifyChange();
+  };
+
+  type BoardSlot = {
+    key: string;
+    wrap: HTMLElement;
+    boardEl: HTMLElement;
+    handle: TreeBoardHandle<View, Color, Arrow, Marker>;
+    primary: boolean;
+  };
+  // The view for a board key at the current node (re-projected per navigation).
+  const viewForKey = (key: string): View | null =>
+    adapter.project(currentNode().truth).find((v) => v.key === key)?.view ?? null;
+
+  const boardSlots: BoardSlot[] = projectionShape.map((pv) => {
+    const wrap = document.createElement('section');
+    wrap.className = presentation.boardWrapClassName;
+    // Multi-board (fog) hosts carry a per-view label so the reviewer can tell the
+    // truth board from each seat's fogged view; single-board hosts stay label-free.
+    if (multiBoard) {
+      // Reuse the shared postgame board-title class: it already carries the
+      // styling and the board-only primary-collapse rule (review-stage.css), so
+      // the big truth board stays label-free and only the POV boards show a title.
+      const heading = document.createElement('h2');
+      heading.className = 'dxq-postgame__board-title';
+      heading.textContent = pv.label;
+      wrap.append(heading);
+    }
+    const boardEl = document.createElement('div');
+    boardEl.className = presentation.boardHostClassName;
+    const ariaLabel = config.boardAriaLabel ?? presentation.defaultBoardAriaLabel;
+    boardEl.setAttribute('aria-label', multiBoard ? `${pv.label} — ${ariaLabel}` : ariaLabel);
+    wrap.append(boardEl);
+    const primary = pv.tier === 'primary';
+    const handle = presentation.createBoard({
+      board: boardEl,
+      getInteractionView: () => viewForKey(pv.key),
+      getPerspective: orientation,
+      seatFor: presentation.seatFor,
+      // Only the truth board plays moves; secondaries are read-only projections.
+      enabled: () => primary,
+      onMove: primary ? handleMove : () => {},
+      onDrawShape: primary ? handleDrawShape : undefined,
+    });
+    return { key: pv.key, wrap, boardEl, handle, primary };
+  });
+
+  const primarySlot = boardSlots.find((slot) => slot.primary) ?? boardSlots[0]!;
+  // Animation + overlay (engine/user arrows) target the interactive truth board.
+  const boardEl = primarySlot.boardEl;
+  const interactive = primarySlot.handle;
 
   // No client engine → no eval gauge (and no engine panel below).
   const evalBar = presentation.engine ? createEvalBar() : null;
-
-  const interactive = presentation.createBoard({
-    board: boardEl,
-    getInteractionView: () => currentView(),
-    getPerspective: orientation,
-    seatFor: presentation.seatFor,
-    enabled: () => true,
-    onMove: (move) => {
-      const next = tree.addMove(currentPath, move);
-      if (!next) return;
-      currentPath = next;
-      moveTree.rebuild();
-      render();
-      notifyChange();
-    },
-    // Right-drag draws an annotation shape on the CURRENT node (toggle: re-drawing
-    // the same shape removes it). Green by default, red with a modifier held.
-    onDrawShape: (orig, dest, { alt }) => {
-      const brush = alt ? 'red' : 'green';
-      const shape: NodeShape =
-        !dest || dest === orig
-          ? { kind: 'circle', brush, orig }
-          : { kind: 'arrow', brush, orig, dest };
-      const same = (s: NodeShape): boolean =>
-        s.kind === shape.kind &&
-        s.orig === shape.orig &&
-        s.dest === shape.dest &&
-        s.brush === shape.brush;
-      const existing = currentNode().annotations?.shapes ?? [];
-      const nextShapes = existing.some(same)
-        ? existing.filter((s) => !same(s))
-        : [...existing, shape];
-      tree.annotateAt(currentPath, { shapes: nextShapes });
-      paintOverlays();
-      annotationEditor?.setAnnotations(currentNode().annotations);
-      notifyChange();
-    },
-  });
 
   // ── Engine (live, current node) ──
   // On-board PV arrows: live MultiPV lines win; with the engine off (or between
@@ -435,7 +479,11 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     actions: config.actions,
     details,
     metaCard: config.metaCard,
-    boards: [{ key: 'truth', el: boardWrap, tier: 'primary' }],
+    boards: boardSlots.map((slot) => ({
+      key: slot.key,
+      el: slot.wrap,
+      tier: slot.primary ? ('primary' as const) : ('secondary' as const),
+    })),
     boardAspect: presentation.boardAspect,
     boardCols: presentation.boardCols,
     boardMaxPx: presentation.boardMaxPx,
@@ -498,8 +546,13 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
 
   function render(): void {
     const node = currentNode();
-    const view = currentView();
-    interactive.render(view, orientation());
+    // Re-project once per navigation and render each board host from its own
+    // view (open = the single truth board; fog = truth + the two POV boards).
+    const projection = adapter.project(node.truth);
+    for (const slot of boardSlots) {
+      const projected = projection.find((v) => v.key === slot.key);
+      slot.handle.render(projected?.view ?? null, orientation());
+    }
     evalBar?.setFlipped(flipped);
 
     // Order matters: setPosition fires onLines(null) synchronously when the

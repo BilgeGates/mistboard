@@ -22,7 +22,7 @@ describe('Dark Xiangqi postgame page', () => {
     expect(darkXiangqiPostgameApiUrl('dxq room')).toBe('/api/dark-xiangqi/games/dxq%20room');
   });
 
-  it('renders the public review triptych with server truth and all moves', async () => {
+  it('renders the interactive fog triptych — revealed truth board + fogged POV boards', async () => {
     const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
     vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
@@ -34,80 +34,79 @@ describe('Dark Xiangqi postgame page', () => {
     expect(root.querySelector('.site-nav')).not.toBeNull();
     expect(root.textContent).toContain('Spectator room');
     expect(root.textContent).toContain('Red wins');
-    expect(root.textContent).toContain('Red view');
-    expect(root.textContent).toContain('Server truth');
-    expect(root.textContent).toContain('Black view');
+    // The interactive tree renders the triptych: a dominant truth board plus each
+    // seat's fogged POV, labeled from the fog adapter's projection.
+    expect(root.textContent).toContain('Truth');
+    expect(root.textContent).toContain("Red's view");
+    expect(root.textContent).toContain("Black's view");
     expect(root.textContent).not.toContain('Play again');
-    // Moves render in the shared clickable list, paired two per numbered row
-    // (Red move, then Black move), each a jump-to-ply button.
+    expect(root.querySelectorAll('.xq-live-svg')).toHaveLength(3);
+
+    // Moves render in the shared branching move tree, paired two per numbered row
+    // (Red move, then Black move), each a jump-to-node button.
     const firstMoveRow = root.querySelector('.review-move-list__row');
     expect(firstMoveRow?.textContent).toContain('b3-b4');
     expect(firstMoveRow?.textContent).toContain('b8-b7');
-    const moveButtons = root.querySelectorAll<HTMLButtonElement>('.review-move-list__move');
+    const moveButtons = root.querySelectorAll<HTMLButtonElement>('.move-tree__move');
     expect(moveButtons).toHaveLength(2);
-    // Current ply is read off the highlighted move (data-ply); ply 0 = the start
-    // position, which has no move to highlight. (The scrubber's "Ply X of Y"
-    // status was removed with the lichess control bar.)
-    const currentPly = () =>
-      root.querySelector('.review-move-list__move--current')?.getAttribute('data-ply') ?? '0';
-    // Clicking a move jumps the whole triptych to that ply, through the same
-    // ply state the scrubber drives. Jump back to the final ply so the rest of
-    // the replay walk starts where it did before.
-    moveButtons[0]?.click();
-    expect(currentPly()).toBe('1');
-    moveButtons[1]?.click();
-    expect(currentPly()).toBe('2');
-    expect(root.querySelectorAll('.xq-live-svg')).toHaveLength(3);
-    expect(root.innerHTML).toContain('aria-label="black hidden piece"');
-    expect(root.innerHTML).toContain('aria-label="black cannon"');
-    expect(root.innerHTML).toContain('aria-label="black cannon"');
-    expect(boardWrap(root, 'Server truth').querySelector('.xq-live-fog-mask')).toBeNull();
-    expect(boardWrap(root, 'Server truth').innerHTML).not.toContain('hidden piece');
-    expect(blackCannonY(root)).toBe('189');
 
-    // Flip now lives in the control bar's menu overlay (present in the DOM even
-    // while the menu is closed), not a top-level scrubber button.
+    // Current node is read off the highlighted move's SAN; the root (start) has no
+    // highlighted move. The tree loads at the mainline tip (final ply).
+    const currentSan = () =>
+      root.querySelector('.review-move-list__move--current .review-move-list__san')?.textContent ??
+      null;
+
+    // Hidden-info invariant: the interactive truth board is fully revealed (no fog
+    // layer, no shrouded piece); each read-only POV board keeps its fog mask. The
+    // positions are reconstructed CLIENT-side from the true move list through the
+    // fog kernel, not from the server per-ply snapshots.
+    const truthWrap = boardWrap(root, 'Truth');
+    expect(truthWrap.querySelector('.xq-live-fog-mask')).toBeNull();
+    expect(truthWrap.innerHTML).not.toContain('hidden piece');
+    expect(boardWrap(root, "Red's view").querySelector('.xq-live-fog-mask')).not.toBeNull();
+    expect(boardWrap(root, "Black's view").querySelector('.xq-live-fog-mask')).not.toBeNull();
+
+    // Clicking a move jumps the whole triptych to that node.
+    moveButtons[0]?.click();
+    expect(currentSan()).toBe('b3-b4');
+    moveButtons[1]?.click();
+    expect(currentSan()).toBe('b8-b7');
+
+    // Flip lives in the control bar's menu overlay (present in the DOM even while
+    // the menu is closed). Flipping re-orients every board.
+    const truthSvg = () => truthWrap.querySelector('.xq-live-svg')?.innerHTML ?? '';
+    const beforeFlip = truthSvg();
     const menuFlip = [...root.querySelectorAll<HTMLButtonElement>('.review-menu__item')].find((b) =>
       b.textContent?.includes('Flip board'),
     );
     menuFlip?.click();
-    expect(blackCannonY(root)).toBe('369');
-
+    expect(truthSvg()).not.toBe(beforeFlip);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }));
-    expect(blackCannonY(root)).toBe('189');
+    expect(truthSvg()).toBe(beforeFlip);
 
+    // Keyboard navigation walks the mainline / jumps to the ends.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-    expect(currentPly()).toBe('1');
-
+    expect(currentSan()).toBe('b3-b4');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
-    expect(currentPly()).toBe('0');
-
+    expect(currentSan()).toBeNull();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-    expect(currentPly()).toBe('1');
-
+    expect(currentSan()).toBe('b3-b4');
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
-    expect(currentPly()).toBe('2');
+    expect(currentSan()).toBe('b8-b7');
 
     root
       .querySelector<HTMLButtonElement>('.review-controls__nav[aria-label="Previous move"]')
       ?.click();
-    expect(currentPly()).toBe('1');
+    expect(currentSan()).toBe('b3-b4');
   });
 });
 
 function boardWrap(root: HTMLElement, label: string): HTMLElement {
-  const wrap = [...root.querySelectorAll<HTMLElement>('.dxq-postgame__board-wrap')].find((el) =>
-    el.textContent?.includes(label),
+  const wrap = [...root.querySelectorAll<HTMLElement>('.dxq-postgame__board-wrap')].find(
+    (el) => el.querySelector('.dxq-postgame__board-title')?.textContent === label,
   );
   if (!wrap) throw new Error(`Missing board wrap: ${label}`);
   return wrap;
-}
-
-function blackCannonY(root: HTMLElement): string | null {
-  return (
-    boardWrap(root, 'Black view').querySelector('[aria-label="black cannon"]')?.getAttribute('y') ??
-    null
-  );
 }
 
 function postgameFixture() {
