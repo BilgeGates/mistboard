@@ -200,7 +200,12 @@ export {
   updateForumTopic,
 } from './persistence-forum.js';
 export type { StoredPlyEval } from './persistence-game-analysis.js';
-export { getGameAnalysis, saveGameAnalysis } from './persistence-game-analysis.js';
+export {
+  getGameAnalysis,
+  getGameAnalysisBlob,
+  saveGameAnalysis,
+  saveGameAnalysisBlob,
+} from './persistence-game-analysis.js';
 export type {
   GameDebugArtifactInput,
   GameDebugArtifactPayload,

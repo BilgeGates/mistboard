@@ -14,10 +14,14 @@ import {
   analyzeJieqiDecisions,
   analyzeJieqiPostgame,
   JIEQI_ANALYSIS_ENGINE_ID,
+  JIEQI_DECISIONS_ENGINE_ID,
   type JieqiAnalysisCache,
+  type JieqiDecision,
+  type JieqiDecisionsCache,
   type JieqiGameAnalysis,
   jieqiChancePlies,
   resolveJieqiAnalysis,
+  resolveJieqiDecisions,
 } from './jieqi-analysis.js';
 import { jieqiMoveToPikafishUci } from './jieqi-fen.js';
 import type { UciMultiPvLine } from './uci-engine-harness.js';
@@ -256,6 +260,119 @@ test('analyzeJieqiDecisions: played move outside the table falls back to searchm
   assert.equal(d.playedRank, null); // outside the table
   assert.equal(moveEvCalls, 1);
   assert.equal(askedMove, uci);
+});
+
+function decisionsMemoryCache(): JieqiDecisionsCache & { saves: number } {
+  const store = new Map<string, JieqiDecision[]>();
+  const cache = {
+    saves: 0,
+    async get(roomId: string, engineId: string, depth: number) {
+      return store.get(`${roomId}:${engineId}:${depth}`) ?? null;
+    },
+    async save(roomId: string, engineId: string, depth: number, decisions: JieqiDecision[]) {
+      cache.saves += 1;
+      store.set(`${roomId}:${engineId}:${depth}`, decisions);
+    },
+  };
+  return cache;
+}
+
+const sampleDecision = (ply: number): JieqiDecision => ({
+  ply,
+  mover: ply % 2 === 1 ? 'red' : 'black',
+  best: { cp: 200, mate: null },
+  played: { cp: 120, mate: null },
+  realized: { cp: 90, mate: null },
+  playedRank: 2,
+});
+
+test('resolveJieqiDecisions: pure cache read misses without computing', async () => {
+  const cache = decisionsMemoryCache();
+  let computes = 0;
+  const analyze = async (): Promise<JieqiDecision[]> => {
+    computes += 1;
+    return [];
+  };
+  const result = await resolveJieqiDecisions(
+    'room-d',
+    [],
+    STANDARD_JIEQI_DEAL,
+    [],
+    cache,
+    analyze,
+    false,
+  );
+  assert.equal(result, null);
+  assert.equal(computes, 0);
+  assert.equal(cache.saves, 0);
+});
+
+test('resolveJieqiDecisions computes once, persists, then serves from cache', async () => {
+  const cache = decisionsMemoryCache();
+  let computes = 0;
+  const analyze = async (): Promise<JieqiDecision[]> => {
+    computes += 1;
+    return [sampleDecision(3)];
+  };
+  const first = await resolveJieqiDecisions('room-e', [], STANDARD_JIEQI_DEAL, [], cache, analyze);
+  assert.ok(first);
+  assert.equal(first!.engineId, JIEQI_DECISIONS_ENGINE_ID);
+  assert.equal(computes, 1);
+  assert.equal(cache.saves, 1);
+
+  const second = await resolveJieqiDecisions('room-e', [], STANDARD_JIEQI_DEAL, [], cache, analyze);
+  assert.equal(computes, 1);
+  assert.deepEqual(second!.decisions, first!.decisions);
+});
+
+test('resolveJieqiDecisions coalesces concurrent viewers into one compute', async () => {
+  const cache = decisionsMemoryCache();
+  let computes = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const analyze = async (): Promise<JieqiDecision[]> => {
+    computes += 1;
+    await gate;
+    return [sampleDecision(1)];
+  };
+  const a = resolveJieqiDecisions('room-f', [], STANDARD_JIEQI_DEAL, [], cache, analyze);
+  const b = resolveJieqiDecisions('room-f', [], STANDARD_JIEQI_DEAL, [], cache, analyze);
+  release();
+  const [ra, rb] = await Promise.all([a, b]);
+  assert.equal(computes, 1);
+  assert.equal(cache.saves, 1);
+  assert.deepEqual(ra!.decisions, rb!.decisions);
+});
+
+test('resolveJieqiDecisions fails closed when reveals exist but every bestEV is null', async () => {
+  const cache = decisionsMemoryCache();
+  const analyze = async (): Promise<JieqiDecision[]> => [
+    { ...sampleDecision(1), best: { cp: null, mate: null } },
+    { ...sampleDecision(3), best: { cp: null, mate: null } },
+  ];
+  await assert.rejects(
+    resolveJieqiDecisions('room-vac', [], STANDARD_JIEQI_DEAL, [], cache, analyze),
+    VacuousAnalysisError,
+  );
+  assert.equal(cache.saves, 0);
+});
+
+test('resolveJieqiDecisions caches an empty result (a game with no reveal plies)', async () => {
+  const cache = decisionsMemoryCache();
+  const analyze = async (): Promise<JieqiDecision[]> => [];
+  const result = await resolveJieqiDecisions(
+    'room-empty',
+    [],
+    STANDARD_JIEQI_DEAL,
+    [],
+    cache,
+    analyze,
+  );
+  assert.ok(result);
+  assert.deepEqual(result!.decisions, []);
+  assert.equal(cache.saves, 1); // empty is a valid, cacheable result — not vacuous
 });
 
 test('analyzeJieqiDecisions: only reveal plies, with per-mover POV on realized', async () => {

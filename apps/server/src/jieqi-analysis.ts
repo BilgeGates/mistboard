@@ -349,3 +349,74 @@ export async function analyzeJieqiDecisions(
   }
   return decisions;
 }
+
+// Cache engine id for the decomposition blob — a DIFFERENT engine_id than the basic analysis, so
+// both live in the same game_analysis table without collision (see persistence-game-analysis).
+export const JIEQI_DECISIONS_ENGINE_ID = `pikafish-jieqi-decisions@${JIEQI_ENGINE_VERSION}`;
+
+export type JieqiDecisionsCache = {
+  get(roomId: string, engineId: string, depth: number): Promise<JieqiDecision[] | null>;
+  save(roomId: string, engineId: string, depth: number, decisions: JieqiDecision[]): Promise<void>;
+};
+
+const liveDecisionsCache: JieqiDecisionsCache = {
+  get: (roomId, engineId, depth) =>
+    persistence.getGameAnalysisBlob<JieqiDecision[]>(roomId, engineId, depth),
+  save: (roomId, engineId, depth, decisions) =>
+    persistence.saveGameAnalysisBlob(roomId, engineId, depth, decisions),
+};
+
+const inflightDecisions = new Map<string, Promise<JieqiDecision[]>>();
+
+export type JieqiDecisionsResult = { engineId: string; depth: number; decisions: JieqiDecision[] };
+
+/**
+ * Cache-first, coalesced decision-vs-luck decomposition (the heavier, opt-in tier on top of the
+ * basic eval sweep). `realizedRedSeat` is the basic analysis's red-seat plies (the caller resolves
+ * that first and passes it in — realized is free from it, no re-search). A scoreless decomposition
+ * (reveals exist but every bestEV is null) fails closed like the basic sweep: throws, caches
+ * nothing. A game with no reveal plies caches an empty array (a valid, terminal result).
+ */
+export async function resolveJieqiDecisions(
+  roomId: string,
+  moves: readonly JieqiMove[],
+  deal: JieqiDeal,
+  realizedRedSeat: readonly SweepPlyEval[],
+  cache: JieqiDecisionsCache = liveDecisionsCache,
+  analyze?: (
+    moves: readonly JieqiMove[],
+    deal: JieqiDeal,
+    realizedRedSeat: readonly SweepPlyEval[],
+  ) => Promise<JieqiDecision[]>,
+  computeIfMissing = true,
+): Promise<JieqiDecisionsResult | null> {
+  const engineId = JIEQI_DECISIONS_ENGINE_ID;
+  const depth = JIEQI_DECISION_DEPTH;
+
+  const cached = await cache.get(roomId, engineId, depth);
+  if (cached) return { engineId, depth, decisions: cached };
+  if (!computeIfMissing) return null;
+
+  const key = `${roomId}\0${engineId}\0${depth}`;
+  const existing = inflightDecisions.get(key);
+  if (existing) return existing.then((decisions) => ({ engineId, depth, decisions }));
+
+  const compute = (async () => {
+    const decisions = analyze
+      ? await analyze(moves, deal, realizedRedSeat)
+      : await analyzeJieqiDecisions(moves, deal, realizedRedSeat);
+    // Fail closed on a scoreless decomposition: reveals present but no bestEV anywhere means the
+    // engine emitted no score. Never cache it (a fixed engine recomputes); route maps to 503.
+    if (decisions.length > 0 && decisions.every((d) => d.best.cp == null && d.best.mate == null)) {
+      throw new VacuousAnalysisError('jieqi');
+    }
+    await cache.save(roomId, engineId, depth, decisions);
+    return decisions;
+  })();
+  inflightDecisions.set(key, compute);
+  try {
+    return { engineId, depth, decisions: await compute };
+  } finally {
+    inflightDecisions.delete(key);
+  }
+}

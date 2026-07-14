@@ -13,7 +13,11 @@ import {
 import { currentAccountUser } from './../account-session.js';
 import { jieqiEnabled } from './../feature-flags.js';
 import { VacuousAnalysisError } from './../game-analysis-sweep.js';
-import { jieqiChancePlies, resolveJieqiAnalysis } from './../jieqi-analysis.js';
+import {
+  jieqiChancePlies,
+  resolveJieqiAnalysis,
+  resolveJieqiDecisions,
+} from './../jieqi-analysis.js';
 import { jieqiEngineBinaryAvailable } from './../jieqi-engine.js';
 import type { JieqiEvent, JieqiProjection } from './../jieqi-runtime.js';
 import { jieqiTenant } from './../jieqi-tenant.js';
@@ -175,6 +179,90 @@ export async function tryHandle(
     return true;
   }
 
+  // Decision-vs-luck decomposition (Layer 2): the heavier, opt-in tier on top of the basic eval
+  // sweep above. Per reveal ply it returns {best, played, realized} EVs (mover POV) so the client
+  // can split the swing into decision quality vs luck. GET reads only the cache (204 on a miss,
+  // INCLUDING when the basic analysis it depends on isn't cached yet); POST computes (the basic
+  // sweep first, for the free `realized`, then the MultiPV decomposition) and is account-gated.
+  const decisionsMatch = pathname.match(/^\/api\/jieqi\/games\/([^/]+)\/decisions$/);
+  if (decisionsMatch) {
+    const method = request.method ?? 'GET';
+    if (method !== 'GET' && method !== 'POST') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    if (!jieqiEnabled()) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    if (method === 'POST') {
+      const user = await currentAccountUser(request);
+      if (!user) {
+        writeJson(response, 401, { error: 'not_signed_in' });
+        return true;
+      }
+      if (!jieqiEngineBinaryAvailable()) {
+        logger.error(
+          { kind: 'jieqi_decisions_engine_unavailable' },
+          'Jieqi decisions requested but the PikaJieQi binary is not present; failing closed',
+        );
+        writeJson(response, 503, { error: 'analysis_engine_unavailable' });
+        return true;
+      }
+    }
+    if (!requirePersistence(response)) return true;
+
+    const decisionsRoomId = decodeURIComponent(decisionsMatch[1]!);
+    const inputs = await loadFinishedJieqiGameInputs(decisionsRoomId);
+    if (!inputs) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    const compute = method === 'POST';
+    try {
+      // The decomposition needs the basic red-seat sweep for `realized`. On POST we compute it if
+      // missing; on GET we read only the cache — a basic-analysis miss means decisions aren't
+      // available yet, so 204 (the client requests /analysis first).
+      const analysis = await resolveJieqiAnalysis(
+        decisionsRoomId,
+        inputs.moves,
+        inputs.deal,
+        undefined,
+        undefined,
+        compute,
+      );
+      if (!analysis) {
+        response.writeHead(204).end();
+        return true;
+      }
+      const decisions = await resolveJieqiDecisions(
+        decisionsRoomId,
+        inputs.moves,
+        inputs.deal,
+        analysis.plies,
+        undefined,
+        undefined,
+        compute,
+      );
+      if (!decisions) {
+        response.writeHead(204).end();
+        return true;
+      }
+      writeJson(response, 200, decisions);
+    } catch (err) {
+      if (err instanceof VacuousAnalysisError) {
+        logger.error(
+          { kind: 'jieqi_decisions_engine_vacuous', room_id: decisionsRoomId },
+          'Jieqi decisions produced no evals (engine emitted no score); failing closed',
+        );
+        writeJson(response, 503, { error: 'analysis_engine_unavailable' });
+        return true;
+      }
+      throw err;
+    }
+    return true;
+  }
+
   const postgameMatch = pathname.match(/^\/api\/jieqi\/games\/([^/]+)$/);
   if (!postgameMatch) return false;
 
@@ -193,6 +281,32 @@ export async function tryHandle(
   }
   writeJson(response, 200, payload);
   return true;
+}
+
+// Shared loader for the analysis tiers: the per-game deal (from the room-created event) + the
+// move list, but only for a FINISHED game. Returns null for a missing / non-jieqi / unfinished
+// game or a log with no deal. The `/decisions` branch uses it; the `/analysis` branch inlines the
+// same steps (kept as-is to avoid churn).
+async function loadFinishedJieqiGameInputs(
+  roomId: string,
+): Promise<{ deal: JieqiDeal; moves: JieqiMove[] } | null> {
+  const events = await persistence.loadRoomEvents<JieqiEvent>(roomId);
+  if (!events || !isTenantEventLog(jieqiTenant, events, roomId)) return null;
+  const projection = replayTenantEvents(jieqiTenant, events);
+  if (projection.state.status.type !== 'finished') return null;
+  const created = events[0];
+  const deal =
+    created && created.type === 'room-created'
+      ? (created.setup as JieqiDeal | undefined)
+      : undefined;
+  if (!deal) return null;
+  const moves = events
+    .filter(
+      (event): event is Extract<JieqiEvent, { type: 'move-played' }> =>
+        event.type === 'move-played',
+    )
+    .map((event) => event.move as JieqiMove);
+  return { deal, moves };
 }
 
 export async function jieqiPostgameForApi(
