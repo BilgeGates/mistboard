@@ -1,18 +1,16 @@
-/* Mistboard TV (/watch) — rides the shared review-shell (left info rail | center
-   board | right rail), so it reads like the room/review pages. The board sits in
-   a FIXED SQUARE board-box: every variant's board is pillarboxed into the same
-   square (SVG boards via preserveAspectRatio, chess fills it natively), so a
-   channel switch never jumps the layout and there is no per-variant board sizing.
-   Left rail: game meta card + channel list. Center: square board-box + a
-   "Previously on Mistboard TV" strip beneath it. Right rail: player rows +
-   review-game link. */
+/* Mistboard TV (/watch) uses the shared three-column review shell, but the board
+   itself is frameless and width-driven. Square and rectangular variants share a
+   fixed width while keeping their natural height. */
 
 .watch-review-shell {
-  /* Cap the center board column at the board-box max so the two 320px rails hug
-     the board instead of a viewport-tall square pushing them to the page edges.
-     Aspect defaults to 1 (square) in the review-shell, which is exactly right. */
   --watch-board-max: 560px;
   --uni-board-max: var(--watch-board-max);
+}
+
+@media (min-width: 800px) {
+  .watch-review-shell .review-shell__cluster {
+    --uni-board-width: min(var(--watch-board-max), var(--uni-board-w-budget));
+  }
 }
 
 .watch-left,
@@ -29,47 +27,32 @@
   align-items: center;
 }
 
-/* ── Center: fixed square board-box ─────────────────────────────────────────
-   The box is a hard square (aspect-ratio 1/1) with a recessed panel background,
-   so a non-square board's pillarbox gutters read as intentional. Every framing
-   chrome (seat rows, clocks, labels, controls, the compact meta card) is hidden
-   because player identity lives in the rails; only the board graphic shows. */
+/* ── Center: frameless, naturally proportioned main board ────────────────── */
 .watch-board-box {
   width: min(var(--watch-board-max, 560px), 100%);
-  aspect-ratio: 1 / 1;
   margin: 0 auto;
-  overflow: hidden;
-  border: 1px solid var(--site-border-soft);
-  border-radius: var(--site-radius);
-  background: var(--site-panel-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-:root[data-effective-theme="dark"] .watch-board-box {
-  border-color: var(--site-border);
+  overflow: visible;
 }
 
 /* The empty / skeleton states render into the mount root (inside the box); let
    the box grow to fit the empty message instead of clipping it to a square. */
 .watch-board-box:has(.watch-empty) {
-  aspect-ratio: auto;
-  overflow: visible;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius);
   background: var(--site-panel);
 }
 
 .watch-tv-board {
   width: 100%;
-  height: 100%;
+  height: auto;
   min-width: 0;
   min-height: 0;
 }
 
-/* The replay mount + its layers fill the square box and center the board. */
+/* The replay mount follows the rendered board height. */
 .watch-board-box .replay-page {
   width: 100%;
-  height: 100%;
+  height: auto;
 }
 
 /* Chrome that never belongs in the TV board-box (identity is in the rails). */
@@ -92,13 +75,10 @@
   display: none;
 }
 
-/* Tenant (SVG) boards: the homepage-showcase single-board layout
-   (.replay-layout.replay-layout-solo). Fill the square; the MutationObserver in
-   watch-route.ts stamps preserveAspectRatio="xMidYMid meet" on the board SVG so a
-   non-square board pillarboxes centered rather than stretching. */
+/* Tenant SVG boards keep their viewBox aspect ratio. */
 .watch-board-box .replay-layout-solo {
   width: 100%;
-  height: 100%;
+  height: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -111,7 +91,7 @@
 .watch-board-box .replay-layout-solo .showcase-board-row,
 .watch-board-box .replay-layout-solo .replay-pane {
   width: 100%;
-  height: 100%;
+  height: auto;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -121,7 +101,7 @@
 
 .watch-board-box .replay-layout-solo .replay-board {
   width: 100%;
-  height: 100%;
+  height: auto;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -132,7 +112,7 @@
 .watch-board-box .replay-layout-solo .replay-board svg {
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
 }
 
 /* Chess (chessground): the fog channels (dark-chess, reveal-chess, kriegspiel,
@@ -145,7 +125,7 @@
    public board to look at. */
 .watch-board-box .replay-layout:not(.replay-layout-solo) {
   width: 100%;
-  height: 100%;
+  height: auto;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -191,7 +171,7 @@
 .watch-board-box [data-watch-pov="white"] .replay-pane-white,
 .watch-board-box [data-watch-pov="black"] .replay-pane-black {
   width: 100%;
-  height: 100%;
+  height: auto;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -272,7 +252,7 @@
 /* ── Renderer-swap skeleton (replay-skeleton.ts) ──────────────────────────── */
 .watch-replay-skeleton {
   width: 100%;
-  height: 100%;
+  min-height: min(72vw, 420px);
   padding: 16px;
   box-sizing: border-box;
   display: flex;
@@ -283,7 +263,7 @@
 }
 
 .watch-replay-skeleton-board {
-  width: min(100%, 100cqh - 40px);
+  width: min(100%, 420px);
   max-width: 100%;
   aspect-ratio: 1 / 1;
   border: 1px solid var(--site-border-soft);
@@ -369,17 +349,14 @@
   background: var(--site-panel);
 }
 
-/* ── "Previously on Mistboard TV" strip (under the board) ─────────────────── */
+/* ── Two completed-game boards under the main board ───────────────────────── */
 .watch-previously {
   width: min(var(--watch-board-max, 560px), 100%);
   margin: 0 auto;
-  border: 1px solid var(--site-border-soft);
-  border-radius: var(--site-radius);
-  background: var(--site-panel);
-  padding: 10px 12px;
+  padding: 6px 0 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   box-sizing: border-box;
 }
 
@@ -398,15 +375,6 @@
   line-height: 1.2;
 }
 
-.watch-previously-scope {
-  flex: 0 0 auto;
-  color: var(--site-muted);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1.2;
-  text-align: right;
-}
-
 .watch-previously-empty {
   margin: 0;
   color: var(--site-muted);
@@ -416,37 +384,31 @@
 
 .watch-queue-list {
   margin: 0;
-  padding: 2px;
+  padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: thin;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .watch-queue-item {
-  flex: 0 0 auto;
-  display: flex;
+  min-width: 0;
 }
 
 .watch-queue-item.is-new {
   animation: watch-queue-enter 420ms ease-out both;
 }
 
-/* Each past game is a compact card and stays an `a.watch-queue-row` so the
-   existing click handler / active-row logic keeps working. */
+/* The anchor is deliberately frameless. Hover/active uses a light wash behind
+   the player rows while the board itself remains edge-to-edge. */
 .watch-queue-row {
-  min-width: 150px;
-  max-width: 220px;
-  border: 1px solid var(--site-border-soft);
-  border-radius: var(--site-radius-sm);
-  background: var(--site-panel-soft);
-  padding: 8px 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  display: block;
   color: inherit;
   text-decoration: none;
 }
@@ -454,62 +416,197 @@
 .watch-queue-row:hover,
 .watch-queue-row:focus-visible,
 .watch-queue-row.active {
-  border-color: color-mix(in srgb, var(--site-accent) 45%, transparent);
-  background: var(--site-accent-soft);
+  color: var(--site-accent-strong);
+  outline: none;
 }
 
-.watch-queue-thumb {
-  flex: 0 0 auto;
-  display: block;
-  line-height: 0;
-}
-
-.watch-queue-text {
+.watch-queue-preview {
+  --showcase-seat-name-size: 12px;
+  --showcase-seat-clock-size: 12px;
+  width: 100%;
   min-width: 0;
-  flex: 1 1 auto;
+  display: block;
+}
+
+.watch-queue-preview.replay-page {
+  align-items: stretch;
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+.watch-queue-preview .replay-game-meta-card,
+.watch-queue-preview .replay-pane-label,
+.watch-queue-preview .replay-pane-name,
+.watch-queue-preview .replay-pane-status,
+.watch-queue-preview .replay-captures,
+.watch-queue-preview .captures-strip,
+.watch-queue-preview .replay-control-bar,
+.watch-queue-preview .replay-ply-line {
+  display: none;
+}
+
+/* Tenant SVG previews. */
+.watch-queue-preview .replay-layout-solo {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  align-items: stretch;
+  gap: 2px;
+  width: 100%;
 }
 
-.watch-queue-matchup {
+.watch-queue-preview .replay-layout-solo .replay-pane,
+.watch-queue-preview .replay-layout-solo .replay-board,
+.watch-queue-preview .replay-layout-solo .replay-board svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.watch-queue-preview .replay-pane:is(.winner, .loser) .replay-board {
+  filter: none;
+  box-shadow: none;
+  animation: none;
+}
+
+.watch-queue-preview .showcase-seat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  padding: 1px 2px;
+  box-sizing: border-box;
+}
+
+.watch-queue-preview .showcase-seat-name {
   min-width: 0;
-  color: var(--site-heading);
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.2;
   overflow: hidden;
+  color: var(--site-text);
+  font-size: var(--showcase-seat-name-size);
+  font-weight: 600;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.watch-queue-meta {
+.watch-queue-preview .showcase-seat-clock {
+  flex: 0 0 auto;
+  color: var(--site-muted);
+  font-size: var(--showcase-seat-clock-size);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.watch-queue-preview .showcase-seat.result-win .showcase-seat-clock {
+  color: var(--site-accent-strong);
+}
+
+.watch-queue-preview .showcase-board-row {
   display: flex;
   align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.watch-queue-preview .showcase-board-row .replay-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.watch-queue-preview .showcase-reserve {
+  flex: 0 0 22px;
+  width: 22px;
+  overflow: hidden;
+}
+
+/* Chessground previews: one revealed final-position pane with player/result rows
+   immediately above and below, matching the tenant widget. */
+.watch-queue-preview .replay-layout-single-white .replay-pane-truth,
+.watch-queue-preview .replay-layout-single-white .replay-pane-black,
+.watch-queue-preview .replay-layout-single-black .replay-pane-truth,
+.watch-queue-preview .replay-layout-single-black .replay-pane-white {
+  display: none;
+}
+
+.watch-queue-preview
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  ) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  width: 100%;
+}
+
+.watch-queue-preview
+  :is(
+    .replay-layout-single-white .replay-pane-white,
+    .replay-layout-single-black .replay-pane-black
+  )
+  .replay-board.cg-wrap {
+  --cg-w: 100%;
+  width: 100%;
+  max-width: none;
+  box-shadow: none;
+}
+
+.watch-queue-preview .replay-pane-clock-slot {
+  display: block;
+  width: 100%;
+}
+
+.watch-queue-preview.replay-compact .replay-pane > .replay-clock-row,
+.watch-queue-preview.replay-compact .replay-pane-clock-slot .replay-clock-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 6px;
-  color: var(--site-muted);
-  font-size: 10px;
-  line-height: 1.2;
+  width: 100%;
+  min-height: 0;
+  padding: 1px 2px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  box-sizing: border-box;
 }
 
-.watch-queue-result {
-  flex: 0 0 auto;
-  border: 1px solid color-mix(in srgb, var(--site-accent) 28%, transparent);
-  border-radius: 999px;
-  background: var(--site-accent-soft);
-  color: var(--site-accent-strong);
-  padding: 1px 5px;
-  font-size: 9px;
-  font-weight: 800;
-  line-height: 1.1;
-  text-transform: uppercase;
+.watch-queue-preview.replay-compact :is(.replay-clock-to-move, .replay-clock-stack-name) {
+  display: none;
 }
 
-.watch-queue-age {
+.watch-queue-preview.replay-compact .replay-clock-side {
+  display: block;
   min-width: 0;
   overflow: hidden;
+  color: var(--site-text);
+  font-size: var(--showcase-seat-name-size);
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.watch-queue-preview.replay-compact .replay-clock-time {
+  flex: 0 0 auto;
+  color: var(--site-muted);
+  font-size: var(--showcase-seat-clock-size);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.watch-queue-preview.replay-compact .replay-clock-row.result-win .replay-clock-time {
+  color: var(--site-accent-strong);
+}
+
+.watch-queue-preview-error {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  color: var(--site-muted);
+  font-size: 12px;
+  text-align: center;
 }
 
 @keyframes watch-queue-enter {
@@ -530,7 +627,46 @@
   }
 }
 
-/* ── Right rail: player rows + review-game link ──────────────────────────── */
+/* ── Dense featured-game card + right-rail players ──────────────────────── */
+.watch-meta .game-meta-card {
+  gap: 6px;
+  padding: 10px;
+}
+
+.watch-meta .game-meta-card__head {
+  gap: 10px;
+}
+
+.watch-meta .game-meta-card__icon {
+  width: 64px;
+  height: 64px;
+}
+
+.watch-meta .game-meta-card__icon .variant-marker,
+.watch-meta .game-meta-card__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.watch-meta .game-meta-card__headline {
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.watch-meta .game-meta-card__players {
+  gap: 3px;
+}
+
+.watch-meta .game-meta-card__player {
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.watch-meta .game-meta-card__status {
+  padding-top: 6px;
+  font-size: 12px;
+}
+
 .watch-players-panel {
   display: flex;
   flex-direction: column;
@@ -611,31 +747,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-.watch-players-review {
-  align-self: flex-start;
-  padding: 7px 12px;
-  border: 1px solid var(--site-border);
-  border-radius: var(--site-radius-sm, 8px);
-  background: var(--site-bg);
-  color: var(--site-text);
-  font-weight: 700;
-  font-size: 13px;
-  text-decoration: none;
-}
-
-.watch-players-review:hover,
-.watch-players-review:focus-visible {
-  background: var(--site-surface);
-  border-color: var(--site-accent);
-}
-
 /* ── Right rail: interactive move list + scrubber ────────────────────────────
    Rides the shared review-shell chrome (.review-rail-main fuses the move list +
    scrubber into one bordered box; the scrubber gets its top hairline from the
    review-shell rules). Watch only bounds the move rows so a long game scrolls
    inside the rail instead of stretching it. */
-.watch-moves:empty,
-.watch-review:empty {
+.watch-moves:empty {
   display: none;
 }
 .watch-moves-rail .review-move-list__rows {
@@ -645,18 +762,12 @@
 
 /* ── Left rail: channel list ─────────────────────────────────────────────── */
 .watch-channel-rail {
-  /* Single knob for the marker size. Compact enough that the channel list, the
-     meta card, and the status badge all fit the 320px rail. */
-  --watch-marker: 40px;
+  --watch-marker: 48px;
   min-width: 0;
-  border: 1px solid var(--site-border-soft);
-  border-radius: var(--site-radius);
-  background: var(--site-panel);
   color: var(--site-text);
-  padding: 10px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
   max-height: 60vh;
   overflow-y: auto;
   overflow-x: hidden;
@@ -664,21 +775,6 @@
 
 .watch-channel-rail[hidden] {
   display: none;
-}
-
-.watch-channel-rail h2 {
-  margin: 0;
-  padding: 2px 2px 8px;
-  border-bottom: 1px solid var(--site-border-soft);
-  color: var(--site-muted);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-:root[data-effective-theme="dark"] .watch-channel-rail {
-  border-color: var(--site-border);
 }
 
 .watch-channel-list {
@@ -696,7 +792,7 @@
   border-radius: var(--site-radius-sm);
   background: transparent;
   color: var(--site-muted);
-  padding: 5px 7px;
+  padding: 4px 6px;
   display: grid;
   /* Lichess TV row: right-aligned text block, marker pinned to the right edge. */
   grid-template-columns: minmax(0, 1fr) var(--watch-marker);

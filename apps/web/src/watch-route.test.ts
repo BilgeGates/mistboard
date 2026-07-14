@@ -4,6 +4,7 @@ import {
   buildWatchScrubber,
   formatWatchScope,
   renderWatchChannelList,
+  renderWatchQueue,
   renderWatchReplaySkeleton,
   resultLabel,
   watchFeedIsDark,
@@ -249,5 +250,50 @@ describe('renderWatchChannelList', () => {
         `${link.textContent} marker`,
       ).not.toBeNull();
     }
+  });
+});
+
+describe('renderWatchQueue', () => {
+  it('renders only two final-position board mount points', () => {
+    const game = (roomId: string): FeaturedGame => ({
+      blackName: 'Black',
+      corpusId: null,
+      mode: 'pvp',
+      plyCount: 24,
+      result: 'white-wins',
+      roomId,
+      termination: 'resignation',
+      variant: 'dark-chess',
+      whiteName: 'White',
+    });
+    const root = document.createElement('section');
+    const previews = renderWatchQueue(
+      root,
+      {
+        activeChannel: 'dark-chess',
+        channels: [
+          {
+            family: 'chess',
+            gameSpecIds: ['dark-chess'],
+            id: 'dark-chess',
+            label: 'Fog Chess',
+            sealedCount: 0,
+            unlockedCount: 3,
+          },
+        ],
+        now: '2026-07-13T00:00:00.000Z',
+        sealedCount: 0,
+        unlockLimit: 64,
+        unlocked: [game('newest'), game('previous'), game('older')],
+      },
+      'newest',
+    );
+
+    expect(previews.map(({ game: previewGame }) => previewGame.roomId)).toEqual([
+      'newest',
+      'previous',
+    ]);
+    expect(root.querySelectorAll('.watch-queue-preview')).toHaveLength(2);
+    expect(root.querySelector('[data-room-id="older"]')).toBeNull();
   });
 });
