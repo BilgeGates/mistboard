@@ -169,7 +169,13 @@ export async function tryHandle(
       response.writeHead(204).end();
       return true;
     }
-    writeJson(response, 200, analysis);
+    // Mark the flip (chance) plies so the client leaves them unjudged: a flip is a move with
+    // from === to, and the move at index i lands on ply i+1.
+    const chancePlies = moves.reduce<number[]>((acc, move, i) => {
+      if (move.from === move.to) acc.push(i + 1);
+      return acc;
+    }, []);
+    writeJson(response, 200, { ...analysis, chancePlies });
     return true;
   }
 

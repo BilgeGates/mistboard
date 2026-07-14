@@ -22,6 +22,12 @@ export type XiangqiGameAnalysisResponse = {
   engineId: string;
   depth: number;
   plies: PlyEval[];
+  /** Plies whose move was a CHANCE move (a flip, in banqi/jungle-flip): the eval swing there
+   *  mixes decision quality with the random reveal, so we can't yet attribute it to the player.
+   *  Such moves are left UNJUDGED (no glyph, no "was best", not counted) until the engine can
+   *  report per-move expected values (decision-vs-luck decomposition). Empty/absent for
+   *  deterministic variants (xiangqi/jungle). */
+  chancePlies?: number[];
 };
 
 export type MoveAnalysis = {
@@ -84,6 +90,10 @@ export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): Game
   const evals = [...response.plies].sort((a, b) => a.ply - b.ply);
   const moves: MoveAnalysis[] = [];
   const redWinPercents = evals.map((entry) => winPercent(entry.cp, entry.mate));
+  // CHANCE moves (flips) are left unjudged: their eval swing conflates decision quality with
+  // the random reveal, so grading them on outcome would blame the player for variance. Until
+  // the engine reports per-move expected values, we neither glyph nor count them.
+  const chancePlies = new Set(response.chancePlies ?? []);
   const acc: Record<'red' | 'black', { losses: number[]; i: number; m: number; b: number }> = {
     red: { losses: [], i: 0, m: 0, b: 0 },
     black: { losses: [], i: 0, m: 0, b: 0 },
@@ -98,10 +108,14 @@ export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): Game
     const redAfter = redWinPercents[ply]!;
     const winBefore = mover === 'red' ? redBefore : 100 - redBefore;
     const winAfter = mover === 'red' ? redAfter : 100 - redAfter;
-    const judgment = moveJudgment(winBefore, winAfter);
+    const isChance = chancePlies.has(ply);
+    const judgment = isChance ? null : moveJudgment(winBefore, winAfter);
     const accuracy = accuracyPercent(winBefore, winAfter);
     moves.push({ ply, mover, judgment, accuracy });
 
+    // A chance move doesn't contribute to a player's mistake counts or ACPL — we can't say the
+    // swing was their fault (or credit).
+    if (isChance) continue;
     const bucket = acc[mover];
     bucket.losses.push(
       Math.max(0, moverCp(before.cp, before.mate, mover) - moverCp(after.cp, after.mate, mover)),

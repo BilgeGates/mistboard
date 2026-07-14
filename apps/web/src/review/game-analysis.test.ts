@@ -24,6 +24,19 @@ describe('computeGameAnalysis', () => {
     expect(a.black.blunders).toBe(0);
   });
 
+  it('leaves a CHANCE (flip) ply unjudged and uncounted', () => {
+    // Same collapse as above, but ply 1 is marked as a chance move (a flip). We can't yet
+    // separate the decision from the reveal, so it gets no glyph and isn't counted.
+    const a = computeGameAnalysis({ ...evals([0, -600]), chancePlies: [1] });
+    expect(a.moves[0]?.mover).toBe('red');
+    expect(a.moves[0]?.judgment).toBe(null);
+    expect(a.red.blunders).toBe(0);
+    expect(a.red.mistakes).toBe(0);
+    expect(a.red.inaccuracies).toBe(0);
+    // ACPL excludes the chance ply too (no attributable loss).
+    expect(a.red.acpl).toBe(0);
+  });
+
   it('a Black move that improves Black is not penalised', () => {
     // ply 2 is Black's move; Red POV drops 200 -> 0, i.e. Black improved.
     const a = computeGameAnalysis(evals([0, 200, 0]));
