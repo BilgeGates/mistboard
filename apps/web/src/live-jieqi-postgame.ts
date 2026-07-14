@@ -6,8 +6,14 @@ import { jieqiEnabled } from './feature-flags.js';
 import { installJieqiBoardStyles } from './live-jieqi-render.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
 import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
+import {
+  fetchCachedJieqiDecisions,
+  type JieqiDecisionSummary,
+  requestJieqiDecisions,
+} from './review/jieqi-decisions.js';
 import { mountJieqiReview } from './review/jieqi-review.js';
 import { recoverJieqiDeal } from './review/jieqi-tree-adapter.js';
+import type { DecisionOverlay } from './review/tree-review.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
 
@@ -184,7 +190,31 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
             return new Promise<never>(() => {});
           },
     },
+    // Decision-vs-luck decomposition: reveal plies get a decision-quality glyph + per-move luck
+    // readout + a two-number summary. Computed on top of the basic analysis (heavier, so it runs
+    // as the follow-on pass). Signed-out never reaches run() — the analysis button redirects first.
+    decisions: {
+      fetchCached: () =>
+        fetchCachedJieqiDecisions(postgame.game.roomId).then((summary) =>
+          summary ? toDecisionOverlay(summary) : null,
+        ),
+      run: () => requestJieqiDecisions(postgame.game.roomId).then(toDecisionOverlay),
+    },
   });
+}
+
+// Adapt the jieqi-specific decomposition summary to the review's variant-agnostic overlay shape.
+function toDecisionOverlay(summary: JieqiDecisionSummary): DecisionOverlay {
+  return {
+    byPly: new Map(
+      [...summary.byPly].map(([ply, view]) => [
+        ply,
+        { judgment: view.judgment, luck: view.luck, playedRank: view.playedRank },
+      ]),
+    ),
+    red: summary.red,
+    black: summary.black,
+  };
 }
 
 // Exported for the watch-replay surface to reuse the per-ply view selection,

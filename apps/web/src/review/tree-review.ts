@@ -17,6 +17,7 @@
 // tree, engine, and analysis machinery is identical. The board is INTERACTIVE
 // (play a move → it branches the tree, promote/delete variations).
 
+import type { MoveJudgment } from '@mistboard/game';
 import { type AdvantageChart, createAdvantageChart } from './advantage-chart.js';
 import { createAnalysisSummary } from './analysis-summary.js';
 import { createAnnotationEditor } from './annotations-editor.js';
@@ -152,6 +153,42 @@ export type AnalysisSource = {
   run(onProgress: (done: number, total: number) => void): Promise<GameAnalysis>;
 };
 
+/** Per-reveal decision-vs-luck info the review overlays onto a chance-move game (jieqi). A
+ *  reveal's eval swing splits into a DECISION (graded) and LUCK (shown, ungraded); this carries
+ *  both per reveal ply plus per-player rollups. Variant-agnostic: the caller adapts its own
+ *  decomposition shape (e.g. review/jieqi-decisions) to this. */
+export type DecisionMoveInfo = {
+  /** Decision-quality glyph for the reveal (null = a fine choice, or within engine noise). */
+  judgment: MoveJudgment;
+  /** Signed win% swing the reveal produced vs its own expectation (+ lucky, - unlucky). */
+  luck: number;
+  /** The played reveal's rank among the alternatives (1 = best), or null when off the table. */
+  playedRank: number | null;
+};
+
+export type DecisionPlayerSummary = {
+  reveals: number;
+  /** Mean decision accuracy in [0, 100] (grades only the choice, not the outcome). */
+  decisionAccuracy: number;
+  /** Net win% swing this player's reveals produced vs expectation (signed). */
+  netLuck: number;
+};
+
+export type DecisionOverlay = {
+  /** Per-reveal info keyed by ply, for move-list glyphs + the advice line. */
+  byPly: Map<number, DecisionMoveInfo>;
+  red: DecisionPlayerSummary;
+  black: DecisionPlayerSummary;
+};
+
+/** The heavier, opt-in decision-vs-luck tier (jieqi). Fetched/computed alongside the basic
+ *  analysis; `run` is triggered right after the basic analysis compute (the decomposition needs
+ *  it). null/undefined disables the affordance entirely for variants without chance moves. */
+export type DecisionSource = {
+  fetchCached?(): Promise<DecisionOverlay | null>;
+  run(): Promise<DecisionOverlay>;
+};
+
 export type TreeReviewConfig<Move> = {
   pageClassName?: string;
   ariaLabel: string;
@@ -185,6 +222,10 @@ export type TreeReviewConfig<Move> = {
   annotationEditing?: boolean;
   /** Whole-game analysis source; null disables the analysis affordance. */
   analysis: AnalysisSource | null;
+  /** Optional decision-vs-luck overlay for chance-move games (jieqi). When set, reveal plies get
+   *  a decision-quality glyph + per-move luck readout, and the summary gains a two-number
+   *  (decisions / luck) block. Absent for deterministic variants. */
+  decisions?: DecisionSource | null;
   /** Per-ply elapsed milliseconds (index 0 = ply 1). When present, a "Move times"
    *  underboard tab renders a per-move bar chart. Only real games supply it. */
   moveTimes?: number[];
@@ -341,6 +382,9 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // NOTE: declared before createEnginePanel — its constructor clears output,
   // which fires onLines(null) → paintOverlays() synchronously.
   let gameAnalysis: GameAnalysis | null = null;
+  // Decision-vs-luck overlay (jieqi). Reveal plies get a decision glyph (merged into the move
+  // list) + a per-move luck readout (the advice line) + a two-number summary block.
+  let decisionOverlay: DecisionOverlay | null = null;
   let engineLines: CevalLine[] | null = null;
   // Engine PV / analysis-best arrows for the current node (transient, derived).
   function engineArrows(): Arrow[] {
@@ -434,6 +478,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     gameUrl: typeof window !== 'undefined' ? window.location.href : '',
   });
   const analysisSummaryEl = document.createElement('div');
+  // The decision-vs-luck two-number block (jieqi); sits under the accuracy summary, populated
+  // when the decision overlay loads. Kept as a persistent child so applyAnalysis re-attaches it.
+  const decisionSummaryEl = document.createElement('div');
+  decisionSummaryEl.className = 'review-decision-summary';
   const moveAdvice = createMoveAdvice(presentation.formatBestMove);
   let chart: AdvantageChart | null = null;
 
@@ -575,7 +623,12 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     if (presentation.engine) shareFenInput.value = presentation.engine.fen(node.truth);
     shareMovesInput.value = uciTo(node).join(' ');
     chart?.setPly(node.ply);
-    moveAdvice.update(node.ply, gameAnalysis);
+    const decisionInfo = decisionOverlay?.byPly.get(node.ply);
+    moveAdvice.update(
+      node.ply,
+      gameAnalysis,
+      decisionInfo ? { judgment: decisionInfo.judgment, luck: decisionInfo.luck } : null,
+    );
   }
 
   function applyAnalysis(analysis: GameAnalysis): void {
@@ -589,10 +642,22 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     });
     chart.setPly(currentNode().ply);
     underboardBody.replaceChildren(chart.el);
-    analysisSummaryEl.replaceChildren(createAnalysisSummary(analysis, config.players));
+    analysisSummaryEl.replaceChildren(
+      createAnalysisSummary(analysis, config.players),
+      decisionSummaryEl,
+    );
     refreshMoveTreeAnnotations(); // rebuilds the tree DOM (engine glyphs + user glyphs)
     render(); // re-highlight + re-apply move advice
     scaffold.refit(); // the underboard grew; re-fit the board
+  }
+
+  function applyDecisions(overlay: DecisionOverlay): void {
+    decisionOverlay = overlay;
+    // Append the two-number (decisions / luck) block under the accuracy summary, and re-merge
+    // the reveal glyphs + advice line now that the overlay is present.
+    decisionSummaryEl.replaceChildren(createDecisionSummary(overlay, config.players));
+    refreshMoveTreeAnnotations();
+    render();
   }
 
   // Build the move-list annotation map from BOTH the engine judgment (mainline, if
@@ -613,6 +678,22 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
           suffixClass: glyph?.suffixClass,
           eval: entry ? formatEval(entry.cp, entry.mate) : undefined,
         });
+      }
+      // Decision overlay (jieqi): a reveal ply carries no eval-swing judgment (it is a chance
+      // move), so its glyph comes from the DECISION quality instead — override just those plies,
+      // keeping the eval text from above. A fine decision has no glyph (lichess-consistent).
+      if (decisionOverlay) {
+        for (const [ply, info] of decisionOverlay.byPly) {
+          const node = nodes[ply];
+          if (!node) continue;
+          const key = pathKey(tree.pathTo(node));
+          const glyph = judgmentGlyph(info.judgment);
+          byPathKey.set(key, {
+            ...byPathKey.get(key),
+            suffix: glyph?.suffix,
+            suffixClass: glyph?.suffixClass,
+          });
+        }
       }
     }
     applyUserGlyphs(tree.root, byPathKey);
@@ -657,7 +738,15 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
         .run((done, total) => {
           label.textContent = `Analysing… ${done}/${total}`;
         })
-        .then(applyAnalysis)
+        .then((analysis) => {
+          applyAnalysis(analysis);
+          // The decomposition (jieqi) is the heavier follow-on pass; kick it off once the basic
+          // sweep is in (it depends on it). Failure leaves the eval graph standing on its own.
+          if (decisionSource) {
+            label.textContent = 'Analysing reveals…';
+            return runDecisions();
+          }
+        })
         .catch(() => {
           button.disabled = false;
           label.textContent = 'Analysis failed — retry';
@@ -666,12 +755,38 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     underboardBody.replaceChildren(button);
   }
 
+  const decisionSource = config.decisions ?? null;
+  async function loadCachedDecisions(): Promise<void> {
+    if (!decisionSource?.fetchCached) return;
+    try {
+      const overlay = await decisionSource.fetchCached();
+      if (overlay) applyDecisions(overlay);
+    } catch {
+      /* leave the decision overlay off — the eval graph stands on its own */
+    }
+  }
+  async function runDecisions(): Promise<void> {
+    if (!decisionSource) return;
+    try {
+      applyDecisions(await decisionSource.run());
+    } catch {
+      /* leave the decision overlay off */
+    }
+  }
+
   const analysisSource = config.analysis;
   if (analysisSource) {
     if (analysisSource.fetchCached) {
       void analysisSource
         .fetchCached()
-        .then((cached) => (cached ? applyAnalysis(cached) : renderAnalysisRequest(analysisSource)))
+        .then((cached) => {
+          if (cached) {
+            applyAnalysis(cached);
+            void loadCachedDecisions(); // a cached decomposition loads straight in too
+          } else {
+            renderAnalysisRequest(analysisSource);
+          }
+        })
         .catch(() => renderAnalysisRequest(analysisSource));
     } else {
       renderAnalysisRequest(analysisSource);
@@ -717,4 +832,51 @@ function truncationNotice(legal: number): HTMLElement {
   body.textContent = `Move ${legal + 1} is illegal from that position; showing the first ${legal} legal ${legal === 1 ? 'move' : 'moves'}.`;
   panel.append(heading, body);
   return panel;
+}
+
+// The two-number decision-vs-luck block (jieqi): Decision accuracy (skill, the only thing that
+// should ever feed a rating) and net Luck (the reveals' variance, shown but never graded), per
+// player. Deliberately separate from the accuracy summary so the two ideas don't blur.
+function createDecisionSummary(
+  overlay: DecisionOverlay,
+  players?: { red?: string; black?: string },
+): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'review-decision-summary__inner';
+
+  const title = document.createElement('div');
+  title.className = 'review-decision-summary__title';
+  title.textContent = 'Reveals: decision vs luck';
+  wrap.append(title);
+
+  const fmtLuck = (n: number): string => {
+    const r = Math.round(n);
+    return `${r > 0 ? '+' : ''}${r}%`;
+  };
+  const row = (label: string, redText: string, blackText: string): HTMLElement => {
+    const r = document.createElement('div');
+    r.className = 'review-decision-summary__row';
+    for (const [cls, text] of [
+      ['label', label],
+      ['red', redText],
+      ['black', blackText],
+    ] as const) {
+      const cell = document.createElement('span');
+      cell.className = `review-decision-summary__cell review-decision-summary__cell--${cls}`;
+      cell.textContent = text;
+      r.append(cell);
+    }
+    return r;
+  };
+
+  wrap.append(
+    row('', players?.red ?? 'Red', players?.black ?? 'Black'),
+    row(
+      'Decisions',
+      `${Math.round(overlay.red.decisionAccuracy)}%`,
+      `${Math.round(overlay.black.decisionAccuracy)}%`,
+    ),
+    row('Luck', fmtLuck(overlay.red.netLuck), fmtLuck(overlay.black.netLuck)),
+  );
+  return wrap;
 }
