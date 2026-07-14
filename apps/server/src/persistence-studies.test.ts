@@ -7,6 +7,7 @@ import {
   deleteStudy,
   getStudyById,
   getStudyLikeState,
+  listFavoriteStudies,
   listStudiesForOwner,
   listTopPublicStudies,
   renameChapter,
@@ -100,13 +101,26 @@ definePersistenceTests('studies', () => {
     assert.ok(retry.ok);
   });
 
-  test('lists an owner studies with chapter counts', async () => {
+  test('lists an owner studies with chapter counts and name previews', async () => {
     const owner = await makeUser('list');
     await makeStudy(owner.id, 'A');
-    await makeStudy(owner.id, 'B');
+    const multi = await makeStudy(owner.id, 'B');
+    assert.ok(multi);
+    await addChapter(multi.id, owner.id, {
+      name: 'Chapter 2',
+      variant: 'xiangqi',
+      orientation: 'red',
+      root: tree,
+    });
     const studies = await listStudiesForOwner(owner.id);
     assert.equal(studies.length, 2);
-    assert.ok(studies.every((s) => s.chapterCount === 1));
+    // Most-recently-updated first: 'B' got a second chapter after 'A' was created.
+    const [first, second] = studies;
+    assert.equal(first!.name, 'B');
+    assert.equal(first!.chapterCount, 2);
+    assert.deepEqual(first!.chapterNames, ['Chapter 1', 'Chapter 2']);
+    assert.equal(second!.chapterCount, 1);
+    assert.deepEqual(second!.chapterNames, ['Chapter 1']);
   });
 
   test('ranks public studies by likes and keeps like writes idempotent', async () => {
@@ -156,6 +170,43 @@ definePersistenceTests('studies', () => {
       (await listTopPublicStudies()).some((entry) => entry.id === study.id),
       false,
     );
+  });
+
+  test('lists a user favorites (liked public studies) and filters by name', async () => {
+    const owner = await makeUser('fav-owner');
+    const fan = await makeUser('fav-fan');
+    const cannon = await makeStudy(owner.id, 'Cannon Openings');
+    const horse = await makeStudy(owner.id, 'Horse Tactics');
+    const unliked = await makeStudy(owner.id, 'Cannon Endgames');
+    assert.ok(cannon && horse && unliked);
+    for (const study of [cannon, horse, unliked]) {
+      await updateStudyMeta(study.id, owner.id, { visibility: 'public' });
+    }
+    // Fan likes two of the three public studies.
+    await setStudyLike(cannon.id, fan.id, true);
+    await setStudyLike(horse.id, fan.id, true);
+
+    const favorites = await listFavoriteStudies(fan.id);
+    assert.deepEqual(favorites.map((study) => study.name).sort(), [
+      'Cannon Openings',
+      'Horse Tactics',
+    ]);
+    assert.equal(favorites[0]!.ownerDisplayName, 'Study fav-owner');
+
+    // Name search is a case-insensitive substring, scoped to the favorites.
+    const matched = await listFavoriteStudies(fan.id, 30, 'cannon');
+    assert.deepEqual(
+      matched.map((study) => study.name),
+      ['Cannon Openings'],
+    );
+
+    // The public index honors the same filter (and 'Cannon Endgames' is unliked
+    // but still public, so it shows there).
+    const publicCannon = await listTopPublicStudies(30, 'cannon');
+    assert.deepEqual(publicCannon.map((study) => study.name).sort(), [
+      'Cannon Endgames',
+      'Cannon Openings',
+    ]);
   });
 
   test('adds, renames, and deletes chapters (owner only, keeps at least one)', async () => {
