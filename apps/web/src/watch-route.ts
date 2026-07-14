@@ -1,5 +1,6 @@
 import { type GameEvent, maybeGameSpecForId } from '@mistboard/game';
 import { banqiResultLabel } from './banqi-result-label.js';
+import { createGameTable } from './game-table.js';
 import { renderVariantMarker } from './variant-markers.js';
 import type { VariantMiniId } from './variant-mini-boards.js';
 import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
@@ -110,11 +111,11 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   let replayHandleKind: WatchRendererKind | null = null;
   let pollTimer: number | null = null;
   let refreshInFlight = false;
-  // Right-rail interactive move list + scrubber, rebuilt whenever the active game
-  // changes. `watchPly` / `watchMaxPly` track the board's ply so the scrubber's
+  // Right-rail interactive move list + shared game-table controls. The move list
+  // is rebuilt whenever the active game changes. `watchPly` / `watchMaxPly` track
+  // the board's ply so the controls'
   // relative steps (prev/next) resolve without a live getter on the handle.
   let moveList: MoveList | null = null;
-  let moveScrubber: WatchScrubber | null = null;
   let watchPly = 0;
   let watchMaxPly = 0;
   let queuePreviewHandles: ReplayHandle[] = [];
@@ -196,24 +197,30 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     replayHandle?.jumpToPly?.(clampPly(ply, watchMaxPly));
   };
 
+  const moveScrubber = buildWatchScrubber(
+    jumpBoardToPly,
+    () => watchPly,
+    () => watchMaxPly,
+    watch.replayControlsRoot,
+  );
+
   // Re-highlight the current move + refresh the scrubber bounds/status. Driven by
   // the handle's onPlyChange on every autoplay tick or manual jump.
   const syncMoveList = (ply: number, maxPly: number): void => {
     watchPly = ply;
     watchMaxPly = maxPly;
     moveList?.update(ply, jumpBoardToPly);
-    moveScrubber?.setBounds(ply, maxPly);
-    if (moveScrubber) {
+    moveScrubber.setBounds(ply, maxPly);
+    if (moveScrubber.status)
       moveScrubber.status.textContent = maxPly > 0 ? `${ply} / ${maxPly}` : '';
-    }
   };
 
   const clearMoveList = (): void => {
     watch.movesRoot.replaceChildren();
     moveList = null;
-    moveScrubber = null;
     watchPly = 0;
     watchMaxPly = 0;
+    moveScrubber.setBounds(0, 0);
   };
 
   const clearPovToggle = (): void => {
@@ -229,7 +236,8 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     renderWatchPovToggle(watch.povRoot, game, replayHandle);
   };
 
-  // Rebuild the move list + scrubber from the freshly loaded game's handle. A
+  // Rebuild the move list inside the shared room table from the freshly loaded
+  // game's handle. A
   // handle that exposes neither jumpToPly nor plyCount (should not happen for the
   // watch renderers, but the methods are optional) hides the whole panel; a handle
   // with plyCount but no derivable move labels keeps the scrubber and drops the
@@ -241,19 +249,10 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     watchPly = 0;
     const entries = handle.moveEntries?.() ?? [];
 
-    const rail = document.createElement('div');
-    rail.className = 'review-rail-main watch-moves-rail';
     if (entries.length > 0) {
-      moveList = createMoveList(entries, { title: 'Moves' });
-      rail.append(moveList.el);
+      moveList = createMoveList(entries);
+      watch.movesRoot.append(moveList.el);
     }
-    moveScrubber = buildWatchScrubber(
-      jumpBoardToPly,
-      () => watchPly,
-      () => watchMaxPly,
-    );
-    rail.append(moveScrubber.el);
-    watch.movesRoot.append(rail);
     syncMoveList(watchPly, watchMaxPly);
   };
 
@@ -633,34 +632,47 @@ function clampPly(ply: number, maxPly: number): number {
 
 type WatchScrubber = {
   el: HTMLElement;
-  status: HTMLElement;
+  status: HTMLElement | null;
   setBounds(ply: number, maxPly: number): void;
 };
 
-// First / prev / next / last playback controls styled with the shared review
-// scrubber classes (.review-scrubber), so the /watch rail matches the room +
-// review pages. No play/pause: the TV autoplays and a manual jump pauses it.
+// First / prev / next / last playback behavior. Production binds this to the
+// shared room table's replay controls; the standalone fallback keeps the helper
+// directly testable. No play/pause: the TV autoplays and a manual jump pauses it.
 // `getPly` / `getMaxPly` read the live board ply at click time (the handle has
 // no ply getter), so relative steps resolve correctly after any jump.
 export function buildWatchScrubber(
   jump: (ply: number) => void,
   getPly: () => number,
   getMaxPly: () => number,
+  sharedControls?: HTMLElement,
 ): WatchScrubber {
-  const el = document.createElement('div');
-  el.className = 'review-scrubber';
-  const status = document.createElement('span');
-  status.className = 'review-scrubber__status';
-  status.setAttribute('aria-live', 'polite');
-  const first = watchScrubButton('|<', 'First move');
-  const prev = watchScrubButton('<', 'Previous move');
-  const next = watchScrubButton('>', 'Next move');
-  const last = watchScrubButton('>|', 'Last move');
+  const el = sharedControls ?? document.createElement('div');
+  let status: HTMLElement | null = null;
+  let first: HTMLButtonElement;
+  let prev: HTMLButtonElement;
+  let next: HTMLButtonElement;
+  let last: HTMLButtonElement;
+  if (sharedControls) {
+    first = requiredWatchControl(sharedControls, 'first');
+    prev = requiredWatchControl(sharedControls, 'prev');
+    next = requiredWatchControl(sharedControls, 'next');
+    last = requiredWatchControl(sharedControls, 'latest');
+  } else {
+    el.className = 'review-scrubber';
+    status = document.createElement('span');
+    status.className = 'review-scrubber__status';
+    status.setAttribute('aria-live', 'polite');
+    first = watchScrubButton('|<', 'First move');
+    prev = watchScrubButton('<', 'Previous move');
+    next = watchScrubButton('>', 'Next move');
+    last = watchScrubButton('>|', 'Last move');
+    el.append(status, first, prev, next, last);
+  }
   first.addEventListener('click', () => jump(0));
   prev.addEventListener('click', () => jump(getPly() - 1));
   next.addEventListener('click', () => jump(getPly() + 1));
   last.addEventListener('click', () => jump(getMaxPly()));
-  el.append(status, first, prev, next, last);
   return {
     el,
     status,
@@ -671,6 +683,12 @@ export function buildWatchScrubber(
       last.disabled = ply >= maxPly;
     },
   };
+}
+
+function requiredWatchControl(root: HTMLElement, action: string): HTMLButtonElement {
+  const button = root.querySelector<HTMLButtonElement>(`[data-replay="${action}"]`);
+  if (!button) throw new Error(`missing shared watch control: ${action}`);
+  return button;
 }
 
 function watchScrubButton(text: string, label: string): HTMLButtonElement {
@@ -767,15 +785,18 @@ type WatchSection = {
   replayRoot: HTMLElement;
   povRoot: HTMLElement;
   queueRoot: HTMLElement;
-  playersRoot: HTMLElement;
+  gameTableRoot: HTMLElement;
+  playerBottom: HTMLElement;
+  playerTop: HTMLElement;
   movesRoot: HTMLElement;
+  replayControlsRoot: HTMLElement;
 };
 
 // The /watch page rides the SHARED review-shell (left info rail | center board |
 // right rail), the same layout the room + review pages use, so Mistboard TV reads
 // like the rest of the site. LEFT: game meta card + channel list. CENTER: a
 // fixed-width, naturally proportioned board with two completed mini-boards. RIGHT:
-// player rows + move controls.
+// the same shared game table the corresponding room uses.
 function buildWatchSection(feed: WatchFeed | null): WatchSection {
   // ── Left rail: meta card (top) + channel list (below) + sealed-status badge ──
   const left = document.createElement('div');
@@ -815,14 +836,12 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
 
   center.append(boardBox, povRoot, queueRoot);
 
-  // ── Right rail: player rows + interactive move list & scrubber ──
+  // ── Right rail: the shared room game table, with watch-owned behavior ──
   const right = document.createElement('div');
   right.className = 'watch-right';
-  const playersRoot = document.createElement('div');
-  playersRoot.className = 'watch-players';
-  const movesRoot = document.createElement('div');
-  movesRoot.className = 'watch-moves';
-  right.append(playersRoot, movesRoot);
+  const gameTable = createGameTable();
+  gameTable.el.classList.add('watch-game-table');
+  right.append(gameTable.el);
 
   const el = createReviewShell({
     left,
@@ -840,8 +859,11 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
     replayRoot,
     povRoot,
     queueRoot,
-    playersRoot,
-    movesRoot,
+    gameTableRoot: gameTable.el,
+    playerBottom: gameTable.refs.playerBottom,
+    playerTop: gameTable.refs.playerTop,
+    movesRoot: gameTable.refs.movesRoot,
+    replayControlsRoot: gameTable.refs.replayControlsRoot,
   };
 }
 
@@ -888,7 +910,8 @@ function renderWatchActiveGame(
 ): void {
   const game = activeWatchGame(feed, activeRoomId);
   renderWatchMetaCard(watch.metaRoot, game);
-  renderWatchPlayers(watch.playersRoot, game);
+  watch.gameTableRoot.hidden = !game;
+  renderWatchPlayers(watch.playerTop, watch.playerBottom, game);
 }
 
 function renderWatchMetaCard(root: HTMLElement, game: FeaturedGame | null): void {
@@ -912,52 +935,46 @@ function watchGameStatusLine(game: FeaturedGame): string {
   return termination ? `${result} by ${termination}` : result;
 }
 
-// Right rail (top): the two player rows (names + ratings). The move list +
-// scrubber sit below this panel; the "Review game" link is a separate panel
-// at the bottom of the rail (renderWatchReviewLink), so the rail reads
-// player rows → moves → review, top to bottom.
-function renderWatchPlayers(root: HTMLElement, game: FeaturedGame | null): void {
-  root.replaceChildren();
+// Populate the shared room table's board-relative player rows. The second mover
+// sits above the board and the first mover below it, matching every room's
+// default orientation.
+function renderWatchPlayers(
+  top: HTMLElement,
+  bottom: HTMLElement,
+  game: FeaturedGame | null,
+): void {
+  top.replaceChildren();
+  bottom.replaceChildren();
   if (!game) return;
+  const [firstMover, secondMover] = watchGamePlayers(game);
+  if (secondMover) top.append(watchGameTablePlayer(secondMover));
+  if (firstMover) bottom.append(watchGameTablePlayer(firstMover));
+}
 
-  const panel = document.createElement('section');
-  panel.className = 'watch-players-panel';
-
-  const heading = document.createElement('h2');
-  heading.className = 'watch-players-heading';
-  heading.textContent = 'Players';
-  panel.append(heading);
-
-  const rows = document.createElement('div');
-  rows.className = 'watch-players-rows';
-  for (const player of watchGamePlayers(game)) {
-    const row = document.createElement('div');
-    row.className = 'watch-player-row';
-    const disc = document.createElement('span');
-    disc.className = `watch-player-disc watch-player-disc--${player.color}`;
-    disc.setAttribute('aria-hidden', 'true');
-    row.append(disc);
-    const name = document.createElement('span');
-    name.className = 'watch-player-name';
-    name.textContent = player.name;
-    name.title = player.name;
-    row.append(name);
-    if (player.isEngine) {
-      const bot = document.createElement('span');
-      bot.className = 'watch-player-bot';
-      bot.textContent = 'BOT';
-      row.append(bot);
-    }
-    if (player.rating != null) {
-      const rating = document.createElement('span');
-      rating.className = 'watch-player-rating';
-      rating.textContent = String(player.rating);
-      row.append(rating);
-    }
-    rows.append(row);
+function watchGameTablePlayer(player: GameMetaPlayer): HTMLElement {
+  const row = document.createElement('span');
+  row.className = 'clock-player-line watch-game-table__player';
+  const disc = document.createElement('span');
+  disc.className = `watch-player-disc watch-player-disc--${player.color}`;
+  disc.setAttribute('aria-hidden', 'true');
+  const name = document.createElement('span');
+  name.className = 'clock-name';
+  name.textContent = player.name;
+  name.title = player.name;
+  row.append(disc, name);
+  if (player.isEngine) {
+    const bot = document.createElement('span');
+    bot.className = 'watch-player-bot';
+    bot.textContent = 'BOT';
+    row.append(bot);
   }
-  panel.append(rows);
-  root.append(panel);
+  if (player.rating != null) {
+    const rating = document.createElement('span');
+    rating.className = 'watch-player-rating';
+    rating.textContent = String(player.rating);
+    row.append(rating);
+  }
+  return row;
 }
 
 // The shared variant marker for each watch channel, so the TV rail reads in

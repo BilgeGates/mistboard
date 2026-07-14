@@ -1,4 +1,5 @@
 import { attachBoardResizeGrip, restoreBoardScale } from './board-resize.js';
+import { createGameTable } from './game-table.js';
 import type { LiveRefs } from './live-state.js';
 import './review/review-shell.css';
 import './live-review.css';
@@ -91,38 +92,7 @@ export function createLiveLayout(
             </div>
           </div>
           </div>
-          <aside class="side-panel moves-panel review-shell__rail review-shell__right" aria-label="Game table">
-            <section class="panel-section game-console">
-              <div data-captures-top class="captures-strip captures-strip-top rail-material" aria-label="Pieces captured by the top side"></div>
-              <div data-clock-top class="clocks clock-slot"></div>
-              <div class="round-table__box">
-                <div data-player-top class="round-table__player round-table__player--top"></div>
-                <div class="replay-console">
-                  <div class="replay-controls">
-                    <button type="button" data-replay="first" title="First position">|&lt;</button>
-                    <button type="button" data-replay="prev" title="Previous event">&lt;</button>
-                    <button type="button" data-replay="next" title="Next event">&gt;</button>
-                    <button type="button" data-replay="latest" title="Latest position">&gt;|</button>
-                  </div>
-                  <ol data-move-list class="move-list"></ol>
-                  <p data-replay-meta class="replay-meta" hidden>Live</p>
-                </div>
-                <div data-action-section class="round-table__row" hidden>
-                  <div data-action-status class="action-status"></div>
-                </div>
-                <div class="round-table__row">
-                  <div data-room-actions class="room-actions"></div>
-                </div>
-                <div data-game-controls-section class="round-table__row" hidden>
-                  <div data-game-controls class="game-controls"></div>
-                </div>
-                <div data-player-bottom class="round-table__player round-table__player--bottom"></div>
-              </div>
-              <div data-clock-bottom class="clocks clock-slot"></div>
-              <div data-captures class="captures-strip captures-strip-bottom rail-material" aria-label="Pieces captured by the bottom side"></div>
-              <p data-clocks-note class="clocks-pregame-note" hidden></p>
-            </section>
-          </aside>
+          <aside data-game-table-host class="side-panel moves-panel review-shell__rail review-shell__right" aria-label="Game table"></aside>
         </div>
         <section data-dev-views-section class="debug-page" hidden>
           <div class="debug-header">
@@ -133,6 +103,11 @@ export function createLiveLayout(
       </section>
     </main>
   `;
+
+  const gameTableHost = target.querySelector<HTMLElement>('[data-game-table-host]');
+  if (!gameTableHost) throw new Error('missing game table host');
+  const gameTable = createGameTable();
+  gameTableHost.append(gameTable.el);
 
   // The room rides the shared site nav (brand + Watch/Leaderboard + Learn +
   // account), prepended as an element so its dropdown and mobile toggle wire
@@ -152,16 +127,23 @@ export function createLiveLayout(
   const board = target.querySelector<HTMLDivElement>('[data-board]');
   const boardPaused = target.querySelector<HTMLDivElement>('[data-board-paused]');
   const boardStatus = target.querySelector<HTMLDivElement>('[data-board-status]');
-  const actionSection = target.querySelector<HTMLElement>('[data-action-section]');
-  const actionStatus = target.querySelector<HTMLDivElement>('[data-action-status]');
-  const clockTop = target.querySelector<HTMLDivElement>('[data-clock-top]');
-  const clockBottom = target.querySelector<HTMLDivElement>('[data-clock-bottom]');
-  const playerTop = target.querySelector<HTMLDivElement>('[data-player-top]');
-  const playerBottom = target.querySelector<HTMLDivElement>('[data-player-bottom]');
-  const clockNote = target.querySelector<HTMLParagraphElement>('[data-clocks-note]');
-  const capturesTop = target.querySelector<HTMLDivElement>('[data-captures-top]');
-  const capturesBottom = target.querySelector<HTMLDivElement>('[data-captures]');
-  const roomActions = target.querySelector<HTMLDivElement>('[data-room-actions]');
+  const {
+    actionSection,
+    actionStatus,
+    capturesBottom,
+    capturesTop,
+    clockBottom,
+    clockNote,
+    clockTop,
+    gameControls,
+    gameControlsSection,
+    moveList,
+    playerBottom,
+    playerTop,
+    replayControls,
+    replayMeta,
+    roomActions,
+  } = gameTable.refs;
   const devViewsSection = target.querySelector<HTMLElement>('[data-dev-views-section]');
   const devViewsPanel = target.querySelector<HTMLDivElement>('[data-dev-views]');
   const offerSection = target.querySelector<HTMLElement>('[data-offer-section]');
@@ -170,28 +152,12 @@ export function createLiveLayout(
   const selectionSection = target.querySelector<HTMLElement>('[data-selection-section]');
   const starts = target.querySelector<HTMLDivElement>('[data-starts]');
   const selectionList = target.querySelector<HTMLDivElement>('[data-selections]');
-  const replayMeta = target.querySelector<HTMLParagraphElement>('[data-replay-meta]');
-  const replayControls = target.querySelectorAll<HTMLButtonElement>('[data-replay]');
-  const moveList = target.querySelector<HTMLOListElement>('[data-move-list]');
-  const gameControls = target.querySelector<HTMLDivElement>('[data-game-controls]');
-  const gameControlsSection = target.querySelector<HTMLElement>('[data-game-controls-section]');
-
   if (
     !roomMeta ||
     !gameInfo ||
     !board ||
     !boardPaused ||
     !boardStatus ||
-    !actionSection ||
-    !actionStatus ||
-    !capturesTop ||
-    !capturesBottom ||
-    !clockTop ||
-    !clockBottom ||
-    !playerTop ||
-    !playerBottom ||
-    !clockNote ||
-    !roomActions ||
     !devViewsSection ||
     !devViewsPanel ||
     !offerSection ||
@@ -199,11 +165,7 @@ export function createLiveLayout(
     !promotion ||
     !selectionSection ||
     !starts ||
-    !selectionList ||
-    !replayMeta ||
-    !moveList ||
-    !gameControls ||
-    !gameControlsSection
+    !selectionList
   ) {
     throw new Error('missing app region');
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FeaturedGame } from './game-display.js';
+import { createGameTable } from './game-table.js';
 import {
   buildWatchScrubber,
   formatWatchScope,
@@ -205,6 +206,25 @@ describe('buildWatchScrubber', () => {
     expect(button(scrubber.el, 'First move')?.disabled).toBe(false);
     expect(button(scrubber.el, 'Next move')?.disabled).toBe(true);
     expect(button(scrubber.el, 'Last move')?.disabled).toBe(true);
+  });
+
+  it('binds the same controls used by live room game tables', () => {
+    const table = createGameTable();
+    const jumps: number[] = [];
+    const scrubber = buildWatchScrubber(
+      (ply) => jumps.push(ply),
+      () => 4,
+      () => 12,
+      table.refs.replayControlsRoot,
+    );
+
+    table.refs.replayControlsRoot.querySelector<HTMLButtonElement>('[data-replay="prev"]')?.click();
+    table.refs.replayControlsRoot
+      .querySelector<HTMLButtonElement>('[data-replay="latest"]')
+      ?.click();
+
+    expect(scrubber.el).toBe(table.refs.replayControlsRoot);
+    expect(jumps).toEqual([3, 12]);
   });
 });
 

@@ -627,7 +627,7 @@
   }
 }
 
-/* ── Dense featured-game card + right-rail players ──────────────────────── */
+/* ── Dense featured-game card + shared room game table ─────────────────── */
 .watch-meta .game-meta-card {
   gap: 6px;
   padding: 10px;
@@ -667,38 +667,21 @@
   font-size: 12px;
 }
 
-.watch-players-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--site-border);
-  border-radius: var(--site-radius);
-  background: var(--site-panel, var(--site-surface));
+.watch-game-table {
+  width: 100%;
+  gap: 0;
 }
 
-.watch-players-heading {
-  margin: 0;
-  color: var(--site-muted);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.watch-game-table .round-table__box {
+  width: 100%;
 }
 
-.watch-players-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.watch-game-table__player {
+  width: 100%;
 }
 
-.watch-player-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  font-size: 14px;
-  color: var(--site-text);
+.watch-game-table__player .clock-name {
+  flex: 1 1 auto;
 }
 
 .watch-player-disc {
@@ -717,15 +700,6 @@
 
 .watch-player-disc--red {
   background: #b23b3b;
-}
-
-.watch-player-name {
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 700;
 }
 
 .watch-player-bot {
@@ -747,15 +721,18 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Right rail: interactive move list + scrubber ────────────────────────────
-   Rides the shared review-shell chrome (.review-rail-main fuses the move list +
-   scrubber into one bordered box; the scrubber gets its top hairline from the
-   review-shell rules). Watch only bounds the move rows so a long game scrolls
-   inside the rail instead of stretching it. */
-.watch-moves:empty {
-  display: none;
+/* The shared room table supplies the outer box and controls. The review move
+   model keeps watch's cross-variant notation/click behavior but drops its own
+   card chrome inside that box. */
+.watch-game-table .review-move-list {
+  gap: 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
-.watch-moves-rail .review-move-list__rows {
+
+.watch-game-table .review-move-list__rows {
   max-height: min(38vh, 340px);
   overflow-y: auto;
 }
@@ -768,9 +745,7 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  max-height: 60vh;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: visible;
 }
 
 .watch-channel-rail[hidden] {
@@ -864,4 +839,13 @@
 
 :root[data-effective-theme="dark"] .watch-channel-list a {
   color: var(--site-text);
+}
+
+/* Watch channels are navigation, not a viewport-height tool panel. Let the
+   rail set the page height at col3 instead of clipping it to the board row. */
+@media (min-width: 1260px) {
+  .watch-review-shell .review-shell__left {
+    align-self: start;
+    overflow: visible;
+  }
 }
