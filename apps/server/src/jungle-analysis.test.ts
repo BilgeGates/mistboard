@@ -9,10 +9,12 @@ import {
 import type { SweepPlyEval } from './game-analysis-sweep.js';
 import {
   analyzeJunglePostgame,
+  isVacuousAnalysis,
   JUNGLE_ANALYSIS_ENGINE_ID,
   type JungleAnalysisCache,
   type JungleGameAnalysis,
   resolveJungleAnalysis,
+  VacuousAnalysisError,
 } from './jungle-analysis.js';
 
 // A few real legal moves, taken from the kernel so they are always valid (jungle has
@@ -119,6 +121,52 @@ test('resolveJungleAnalysis coalesces concurrent viewers into one compute', asyn
   await Promise.all([a, b]);
   assert.equal(computes, 1);
   assert.equal(cache.saves, 1);
+});
+
+test('isVacuousAnalysis flags an all-null sweep but not a scored or empty one', () => {
+  assert.equal(
+    isVacuousAnalysis([
+      { ply: 0, cp: null, mate: null, best: 'a1b1' },
+      { ply: 1, cp: null, mate: null, best: 'c7d7' },
+    ]),
+    true,
+  );
+  // One real score anywhere → not vacuous.
+  assert.equal(
+    isVacuousAnalysis([
+      { ply: 0, cp: null, mate: null, best: 'a1b1' },
+      { ply: 1, cp: 3, mate: null, best: 'c7d7' },
+    ]),
+    false,
+  );
+  // A mate-only ply still counts as scored.
+  assert.equal(isVacuousAnalysis([{ ply: 0, cp: null, mate: 2, best: null }]), false);
+  // Empty is "nothing to judge", not "engine broken".
+  assert.equal(isVacuousAnalysis([]), false);
+});
+
+test('resolveJungleAnalysis fails closed on a scoreless sweep: throws and caches nothing', async () => {
+  const cache = memoryCache();
+  const analyze = async (): Promise<JungleGameAnalysis> => ({
+    engineId: JUNGLE_ANALYSIS_ENGINE_ID,
+    depth: 12,
+    // Engine emitted moves but no evals — the broken-binary signature.
+    plies: [
+      { ply: 0, cp: null, mate: null, best: 'a1b1' },
+      { ply: 1, cp: null, mate: null, best: 'c7d7' },
+    ],
+  });
+  await assert.rejects(
+    resolveJungleAnalysis('room-vacuous', [], cache, analyze, true),
+    VacuousAnalysisError,
+  );
+  // Nothing persisted, so a fixed engine can recompute later.
+  assert.equal(cache.saves, 0);
+  // And the in-flight key was cleared (a retry re-runs rather than wedging).
+  await assert.rejects(
+    resolveJungleAnalysis('room-vacuous', [], cache, analyze, true),
+    VacuousAnalysisError,
+  );
 });
 
 test('JUNGLE_ANALYSIS_ENGINE_ID is a stable, version-tagged identifier', () => {

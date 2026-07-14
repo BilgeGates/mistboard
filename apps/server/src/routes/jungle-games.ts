@@ -9,7 +9,7 @@ import {
 } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
 import { jungleEnabled } from './../feature-flags.js';
-import { resolveJungleAnalysis } from './../jungle-analysis.js';
+import { resolveJungleAnalysis, VacuousAnalysisError } from './../jungle-analysis.js';
 import { jungleEngineBinaryAvailable } from './../jungle-engine.js';
 import type { JungleEvent } from './../jungle-runtime.js';
 import { jungleTenant } from './../jungle-tenant.js';
@@ -113,13 +113,28 @@ export async function tryHandle(
     const moves = analysisPayload.timeline
       .filter((entry): entry is JunglePostgameMove => entry.type === 'move-played')
       .map((entry) => entry.move as JungleMove);
-    const analysis = await resolveJungleAnalysis(
-      analysisRoomId,
-      moves,
-      undefined,
-      undefined,
-      method === 'POST',
-    );
+    let analysis: Awaited<ReturnType<typeof resolveJungleAnalysis>>;
+    try {
+      analysis = await resolveJungleAnalysis(
+        analysisRoomId,
+        moves,
+        undefined,
+        undefined,
+        method === 'POST',
+      );
+    } catch (err) {
+      // A scoreless sweep (engine emitted moves but no evals) fails closed like a missing
+      // binary: 503, nothing cached, rather than a bogus flawless-game result.
+      if (err instanceof VacuousAnalysisError) {
+        logger.error(
+          { kind: 'jungle_analysis_engine_vacuous', room_id: analysisRoomId },
+          'Jungle analysis produced no evals (engine emitted no score); failing closed',
+        );
+        writeJson(response, 503, { error: 'analysis_engine_unavailable' });
+        return true;
+      }
+      throw err;
+    }
     if (!analysis) {
       response.writeHead(204).end();
       return true;

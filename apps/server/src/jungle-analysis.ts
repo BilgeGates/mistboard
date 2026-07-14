@@ -86,6 +86,24 @@ export type JungleGameAnalysis = {
 };
 
 /**
+ * Raised when a completed sweep carries no evaluation at all (every ply cp+mate null).
+ * That means the engine produced moves but never emitted a score — a broken/stale binary
+ * that would otherwise cache as a flat, mistake-free game. Fail closed: the caller surfaces
+ * "engine unavailable" and nothing is persisted, so a later fixed engine can recompute.
+ */
+export class VacuousAnalysisError extends Error {
+  constructor() {
+    super('jungle_analysis_vacuous');
+    this.name = 'VacuousAnalysisError';
+  }
+}
+
+/** A sweep with zero usable evals (no cp and no mate on any ply). */
+export function isVacuousAnalysis(plies: readonly SweepPlyEval[]): boolean {
+  return plies.length > 0 && plies.every((p) => p.cp == null && p.mate == null);
+}
+
+/**
  * Reconstruct every ply from the move list and evaluate it (Red POV). Ply 0 is the
  * initial position; ply k is the position after k moves. `evaluate` is injectable so
  * tests can drive the sweep without an engine. Reconstruction uses the same kernel
@@ -160,6 +178,10 @@ export async function resolveJungleAnalysis(
 
   const compute = (async () => {
     const analysis = analyze ? await analyze(moves) : await analyzeJunglePostgame(moves);
+    // Fail closed on a scoreless sweep: never cache a vacuous (all-null) series — it would
+    // render as a flawless game forever. Throwing keeps the key uncached so a fixed engine
+    // recomputes; the route maps this to 503 analysis_engine_unavailable.
+    if (isVacuousAnalysis(analysis.plies)) throw new VacuousAnalysisError();
     await cache.save(roomId, engineId, depth, analysis.plies);
     return analysis;
   })();
