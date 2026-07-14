@@ -9,9 +9,11 @@ import './landing.css';
 import './game-route.css';
 import { jungleFlipEnabled } from './feature-flags.js';
 import { jungleFlipResultLabel } from './jungle-flip-result-label.js';
+import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
 import { buildReviewMeta, labelize } from './review/game-review-meta.js';
 import { mountJungleFlipReview } from './review/jungle-flip-review.js';
 import { recoverJungleFlipDeal } from './review/jungle-flip-tree-adapter.js';
+import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
 
 // Postgame review for Flip Jungle. Flip Jungle is SYMMETRIC hidden-identity (the
@@ -123,12 +125,27 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
   }
   const deal = recoverJungleFlipDeal(earliestRevealed.view);
 
-  const moves: JungleFlipMove[] = postgame.timeline
-    .filter(
-      (entry): entry is typeof entry & { move: JungleFlipMove } =>
-        entry.type === 'move-played' && !!entry.move,
-    )
-    .map((entry) => entry.move);
+  const moveEvents = postgame.timeline.filter(
+    (entry): entry is typeof entry & { move: JungleFlipMove } =>
+      entry.type === 'move-played' && !!entry.move,
+  );
+  const moves: JungleFlipMove[] = moveEvents.map((entry) => entry.move);
+
+  // Per-ply elapsed time from consecutive event timestamps (no per-move clock is persisted,
+  // so the first ply's delta is measured from the earliest event).
+  let prevAt = postgame.timeline[0]?.at ?? moveEvents[0]?.at ?? 0;
+  const moveTimes = moveEvents.map((entry) => {
+    const delta = Math.max(0, entry.at - prevAt);
+    prevAt = entry.at;
+    return delta;
+  });
+  const hasMoveTimes = moveTimes.some((ms) => ms > 0);
+
+  const gamePlayers = postgame.game.players ?? [];
+  const playerNames = {
+    red: gamePlayers.find((p) => p.color === 'red')?.name,
+    black: gamePlayers.find((p) => p.color === 'black')?.name,
+  };
 
   const status = `${jungleFlipResultLabel(postgame.game.result, firstColor)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
@@ -147,9 +164,25 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
     metaCard,
     details,
     moves,
-    // No jungle-flip whole-game analysis engine is wired; the interactive board +
-    // move tree stand on their own (no eval gauge, no computer-analysis underboard).
-    analysis: null,
+    moveTimes: hasMoveTimes ? moveTimes : undefined,
+    players: playerNames,
+    showCrosstable: true,
+    // Server-side MistyJungleFlip whole-game analysis, DB-cached: an already-analysed game
+    // loads straight from cache on open (a GET that never computes). Requesting a fresh
+    // compute is account-gated (the server rejects anon POSTs), so a signed-out visitor gets
+    // a sign-in CTA instead of a request that would 401.
+    analysis: {
+      requestLabel: isLikelySignedIn()
+        ? 'Request computer analysis'
+        : 'Sign in to request analysis',
+      fetchCached: () => fetchCachedGameAnalysis('jungle-flip', postgame.game.roomId),
+      run: isLikelySignedIn()
+        ? () => requestGameAnalysis('jungle-flip', postgame.game.roomId)
+        : () => {
+            window.location.assign('/account');
+            return new Promise<never>(() => {});
+          },
+    },
   });
 }
 

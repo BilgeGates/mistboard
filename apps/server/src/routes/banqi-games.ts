@@ -1,15 +1,22 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   BANQI_SPEC_ID,
+  type BanqiDeal,
+  type BanqiMove,
   type BanqiPlayerView,
   type BanqiSeat,
   banqiTruthView,
   getBanqiPlayerView,
   oppositeBanqiSeat,
 } from '@mistboard/game';
+import { currentAccountUser } from './../account-session.js';
+import { resolveBanqiAnalysis } from './../banqi-analysis.js';
+import { banqiEngineBinaryAvailable } from './../banqi-engine.js';
 import type { BanqiEvent } from './../banqi-runtime.js';
 import { banqiTenant } from './../banqi-tenant.js';
 import { banqiEnabled } from './../feature-flags.js';
+import { VacuousAnalysisError } from './../game-analysis-sweep.js';
+import { logger } from './../obs.js';
 import * as persistence from './../persistence.js';
 import {
   applyTenantEvent,
@@ -69,6 +76,103 @@ export async function tryHandle(
   pathname: string,
   _parsedUrl: URL,
 ): Promise<boolean> {
+  // Computer analysis: fixed-strength eval of every ply, red-seat POV, cached + coalesced.
+  // GET returns only the cached result (204 on a miss, so the client auto-loads on open);
+  // POST computes on a miss and is account-gated (the whole-game sweep is expensive). Banqi
+  // is hidden-info, so reconstruction needs the per-game DEAL (events[0].setup) — we replay
+  // the raw event log (which retains the server-secret deal) rather than the client payload.
+  const analysisMatch = pathname.match(/^\/api\/banqi\/games\/([^/]+)\/analysis$/);
+  if (analysisMatch) {
+    const method = request.method ?? 'GET';
+    if (method !== 'GET' && method !== 'POST') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    if (!banqiEnabled()) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    if (method === 'POST') {
+      const user = await currentAccountUser(request);
+      if (!user) {
+        writeJson(response, 401, { error: 'not_signed_in' });
+        return true;
+      }
+      // Fail closed, not open: the analysis engine is the MistyBanqi binary ONLY. A missing
+      // binary is a broken deploy, so surface it (alertable log + 503) instead of a weaker
+      // eval. Gated to the compute path — GET only reads the cache and never needs the engine.
+      if (!banqiEngineBinaryAvailable()) {
+        logger.error(
+          { kind: 'banqi_analysis_engine_unavailable' },
+          'Banqi analysis requested but the banqi-engine binary is not present; failing closed',
+        );
+        writeJson(response, 503, { error: 'analysis_engine_unavailable' });
+        return true;
+      }
+    }
+    if (!requirePersistence(response)) return true;
+
+    const analysisRoomId = decodeURIComponent(analysisMatch[1]!);
+    const events = await persistence.loadRoomEvents<BanqiEvent>(analysisRoomId);
+    if (!events || !isTenantEventLog(banqiTenant, events, analysisRoomId)) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    // Only finished games are analysable; replay confirms the terminal state.
+    const projection = replayTenantEvents(banqiTenant, events);
+    if (projection.state.status.type !== 'finished') {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    // The deal lives on the room-created event's setup (retained in the persisted log; only
+    // the client wire copy strips it). Without it we cannot reconstruct hidden identities.
+    const created = events[0];
+    const deal =
+      created && created.type === 'room-created'
+        ? (created.setup as BanqiDeal | undefined)
+        : undefined;
+    if (!deal) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    const moves = events
+      .filter(
+        (event): event is Extract<BanqiEvent, { type: 'move-played' }> =>
+          event.type === 'move-played',
+      )
+      .map((event) => event.move as BanqiMove);
+
+    let analysis: Awaited<ReturnType<typeof resolveBanqiAnalysis>>;
+    try {
+      analysis = await resolveBanqiAnalysis(
+        analysisRoomId,
+        moves,
+        deal,
+        undefined,
+        undefined,
+        method === 'POST',
+      );
+    } catch (err) {
+      // A scoreless sweep (engine emitted moves but no evals) fails closed like a missing
+      // binary: 503, nothing cached, rather than a bogus flawless-game result.
+      if (err instanceof VacuousAnalysisError) {
+        logger.error(
+          { kind: 'banqi_analysis_engine_vacuous', room_id: analysisRoomId },
+          'Banqi analysis produced no evals (engine emitted no score); failing closed',
+        );
+        writeJson(response, 503, { error: 'analysis_engine_unavailable' });
+        return true;
+      }
+      throw err;
+    }
+    if (!analysis) {
+      response.writeHead(204).end();
+      return true;
+    }
+    writeJson(response, 200, analysis);
+    return true;
+  }
+
   const postgameMatch = pathname.match(/^\/api\/banqi\/games\/([^/]+)$/);
   if (!postgameMatch) return false;
 

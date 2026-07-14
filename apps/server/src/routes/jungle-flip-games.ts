@@ -2,14 +2,21 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   getJungleFlipPlayerView,
   JUNGLE_FLIP_SPEC_ID,
+  type JungleFlipDeal,
+  type JungleFlipMove,
   type JungleFlipPlayerView,
   type JungleFlipSeat,
   jungleFlipTruthView,
   oppositeJungleFlipSeat,
 } from '@mistboard/game';
+import { currentAccountUser } from './../account-session.js';
 import { jungleFlipEnabled } from './../feature-flags.js';
+import { VacuousAnalysisError } from './../game-analysis-sweep.js';
+import { resolveJungleFlipAnalysis } from './../jungle-flip-analysis.js';
+import { jungleFlipEngineBinaryAvailable } from './../jungle-flip-engine.js';
 import type { JungleFlipEvent } from './../jungle-flip-runtime.js';
 import { jungleFlipTenant } from './../jungle-flip-tenant.js';
+import { logger } from './../obs.js';
 import * as persistence from './../persistence.js';
 import {
   applyTenantEvent,
@@ -68,6 +75,103 @@ export async function tryHandle(
   pathname: string,
   _parsedUrl: URL,
 ): Promise<boolean> {
+  // Computer analysis: fixed-strength eval of every ply, red-seat POV, cached + coalesced.
+  // GET returns only the cached result (204 on a miss); POST computes on a miss and is
+  // account-gated. Flip Jungle is hidden-info, so reconstruction needs the per-game DEAL
+  // (events[0].setup) — we replay the raw event log (which retains the deal), not the client
+  // payload.
+  const analysisMatch = pathname.match(/^\/api\/jungle-flip\/games\/([^/]+)\/analysis$/);
+  if (analysisMatch) {
+    const method = request.method ?? 'GET';
+    if (method !== 'GET' && method !== 'POST') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    if (!jungleFlipEnabled()) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    if (method === 'POST') {
+      const user = await currentAccountUser(request);
+      if (!user) {
+        writeJson(response, 401, { error: 'not_signed_in' });
+        return true;
+      }
+      // Fail closed, not open: the analysis engine is the MistyJungleFlip binary ONLY. A
+      // missing binary is a broken deploy, so surface it (alertable log + 503) instead of a
+      // weaker eval. Gated to the compute path — GET only reads the cache.
+      if (!jungleFlipEngineBinaryAvailable()) {
+        logger.error(
+          { kind: 'jungle_flip_analysis_engine_unavailable' },
+          'Flip Jungle analysis requested but the jungle-flip-engine binary is not present; failing closed',
+        );
+        writeJson(response, 503, { error: 'analysis_engine_unavailable' });
+        return true;
+      }
+    }
+    if (!requirePersistence(response)) return true;
+
+    const analysisRoomId = decodeURIComponent(analysisMatch[1]!);
+    const events = await persistence.loadRoomEvents<JungleFlipEvent>(analysisRoomId);
+    if (!events || !isTenantEventLog(jungleFlipTenant, events, analysisRoomId)) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    // Only finished games are analysable; replay confirms the terminal state.
+    const projection = replayTenantEvents(jungleFlipTenant, events);
+    if (projection.state.status.type !== 'finished') {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    // The deal lives on the room-created event's setup (retained in the persisted log; only
+    // the client wire copy strips it). Without it we cannot reconstruct hidden identities.
+    const created = events[0];
+    const deal =
+      created && created.type === 'room-created'
+        ? (created.setup as JungleFlipDeal | undefined)
+        : undefined;
+    if (!deal) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    const moves = events
+      .filter(
+        (event): event is Extract<JungleFlipEvent, { type: 'move-played' }> =>
+          event.type === 'move-played',
+      )
+      .map((event) => event.move as JungleFlipMove);
+
+    let analysis: Awaited<ReturnType<typeof resolveJungleFlipAnalysis>>;
+    try {
+      analysis = await resolveJungleFlipAnalysis(
+        analysisRoomId,
+        moves,
+        deal,
+        undefined,
+        undefined,
+        method === 'POST',
+      );
+    } catch (err) {
+      // A scoreless sweep (engine emitted moves but no evals) fails closed like a missing
+      // binary: 503, nothing cached, rather than a bogus flawless-game result.
+      if (err instanceof VacuousAnalysisError) {
+        logger.error(
+          { kind: 'jungle_flip_analysis_engine_vacuous', room_id: analysisRoomId },
+          'Flip Jungle analysis produced no evals (engine emitted no score); failing closed',
+        );
+        writeJson(response, 503, { error: 'analysis_engine_unavailable' });
+        return true;
+      }
+      throw err;
+    }
+    if (!analysis) {
+      response.writeHead(204).end();
+      return true;
+    }
+    writeJson(response, 200, analysis);
+    return true;
+  }
+
   const postgameMatch = pathname.match(/^\/api\/jungle-flip\/games\/([^/]+)$/);
   if (!postgameMatch) return false;
 

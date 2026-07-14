@@ -14,6 +14,25 @@ export type SweepPlyEval = {
   best: string | null;
 };
 
+/**
+ * Raised when a completed sweep carries no evaluation at all (every ply cp+mate null).
+ * That means the engine produced moves but never emitted a score — a broken/stale binary
+ * that would otherwise cache as a flat, mistake-free game. Fail closed: the caller surfaces
+ * "engine unavailable" and nothing is persisted, so a later fixed engine can recompute.
+ * Shared by every per-variant analysis module (jungle / banqi / jungle-flip).
+ */
+export class VacuousAnalysisError extends Error {
+  constructor(variant?: string) {
+    super(variant ? `${variant}_analysis_vacuous` : 'analysis_vacuous');
+    this.name = 'VacuousAnalysisError';
+  }
+}
+
+/** A sweep with zero usable evals (no cp and no mate on any ply). Empty = not vacuous. */
+export function isVacuousAnalysis(plies: readonly SweepPlyEval[]): boolean {
+  return plies.length > 0 && plies.every((p) => p.cp == null && p.mate == null);
+}
+
 export type PositionEvaluate = (
   moves: string[],
   opts: { depth: number },

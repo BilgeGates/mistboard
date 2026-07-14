@@ -86,6 +86,11 @@ describe('Banqi postgame page', () => {
     // linear list's data-ply.)
     const current = root.querySelector('.review-move-list__move--current');
     expect(current?.querySelector('.review-move-list__san')?.textContent).toBe('a1 flip');
+    // Server-side computer analysis underboard is wired: a signed-out visitor sees the
+    // sign-in CTA (the account-gated compute button) rather than nothing.
+    const analyseButton = root.querySelector<HTMLButtonElement>('.xiangqi-review__analyse');
+    expect(analyseButton).not.toBeNull();
+    expect(analyseButton?.textContent).toContain('Sign in to request analysis');
   });
 
   it('steps through plies with the arrow keys', async () => {

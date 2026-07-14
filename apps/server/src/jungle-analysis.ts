@@ -17,7 +17,11 @@ import {
   type JungleGameState,
   type JungleMove,
 } from '@mistboard/game';
-import type { SweepPlyEval } from './game-analysis-sweep.js';
+import {
+  isVacuousAnalysis,
+  type SweepPlyEval,
+  VacuousAnalysisError,
+} from './game-analysis-sweep.js';
 import { evaluateJungleFenNodes, JUNGLE_RUST_ENGINE_VERSION } from './jungle-engine.js';
 import { jungleStateToEngineFen } from './jungle-fen.js';
 import * as persistence from './persistence.js';
@@ -85,23 +89,9 @@ export type JungleGameAnalysis = {
   plies: SweepPlyEval[];
 };
 
-/**
- * Raised when a completed sweep carries no evaluation at all (every ply cp+mate null).
- * That means the engine produced moves but never emitted a score — a broken/stale binary
- * that would otherwise cache as a flat, mistake-free game. Fail closed: the caller surfaces
- * "engine unavailable" and nothing is persisted, so a later fixed engine can recompute.
- */
-export class VacuousAnalysisError extends Error {
-  constructor() {
-    super('jungle_analysis_vacuous');
-    this.name = 'VacuousAnalysisError';
-  }
-}
-
-/** A sweep with zero usable evals (no cp and no mate on any ply). */
-export function isVacuousAnalysis(plies: readonly SweepPlyEval[]): boolean {
-  return plies.length > 0 && plies.every((p) => p.cp == null && p.mate == null);
-}
+// The vacuous-sweep guard is shared across variants; re-export so existing importers
+// (jungle-analysis.test.ts, routes/jungle-games.ts) keep resolving it from here.
+export { isVacuousAnalysis, VacuousAnalysisError };
 
 /**
  * Reconstruct every ply from the move list and evaluate it (Red POV). Ply 0 is the
