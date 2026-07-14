@@ -14,7 +14,14 @@
 
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { runUciBestmove, runUciEval, UciEnginePool, type UciEval } from './uci-engine-harness.js';
+import {
+  runUciBestmove,
+  runUciEval,
+  runUciMultiPv,
+  UciEnginePool,
+  type UciEval,
+  type UciMultiPvLine,
+} from './uci-engine-harness.js';
 
 export const JIEQI_DEFAULT_ENGINE_ID = 'pikafish-jieqi-strong';
 // Engine BUILD version recorded per PvE game (subject_id encodes only the tier). The shipped
@@ -151,6 +158,68 @@ export async function evaluateJieqiFen(
       commands,
       timeoutMs: opts.movetimeMs + 4_000,
       timeoutMessage: 'pikafish-jieqi eval timed out',
+    });
+  } finally {
+    release();
+  }
+}
+
+// Decision-vs-luck analysis (Layer 2): the per-root-move EV table for a redacted position, in
+// ONE search. Pikafish models dark pieces as chance nodes, so each root move's score is its
+// probability-weighted (downside-adjusted) EXPECTED value over the reveal pool — an honest,
+// non-god-view number. We use MultiPV rather than the plain-search top move because that top
+// move is unreliable under jieqi's noisy no-net eval (verified: the plain best and the MultiPV
+// best disagree); the MultiPV table is internally consistent (all rows same conditions), which
+// is what the bestEV-vs-playedEV comparison needs. `multiPv` bounds the table width (cost scales
+// with it). Scores are side-to-move POV; the caller normalizes. Gated through the shared pool.
+export async function evaluateJieqiMultiPv(
+  fen: string,
+  opts: { depth: number; movetimeMs: number; multiPv: number },
+): Promise<UciMultiPvLine[]> {
+  const commands = [
+    'uci',
+    ...netOption(),
+    `setoption name MultiPV value ${Math.max(1, Math.floor(opts.multiPv))}`,
+    'ucinewgame',
+    'isready',
+    `position fen ${fen}`,
+    `go depth ${Math.max(1, Math.floor(opts.depth))} movetime ${opts.movetimeMs}`,
+  ];
+  const release = await enginePool.acquire();
+  try {
+    return await runUciMultiPv({
+      bin: pikaJieqiPath(),
+      commands,
+      timeoutMs: opts.movetimeMs + 4_000,
+      timeoutMessage: 'pikafish-jieqi multipv eval timed out',
+    });
+  } finally {
+    release();
+  }
+}
+
+// The EV of ONE specific root move (its chance-averaged score), via `searchmoves`. Used as the
+// fallback for a played move that fell outside the MultiPV table's width. Side-to-move POV.
+export async function evaluateJieqiMoveEv(
+  fen: string,
+  move: string,
+  opts: { depth: number; movetimeMs: number },
+): Promise<UciEval> {
+  const commands = [
+    'uci',
+    ...netOption(),
+    'ucinewgame',
+    'isready',
+    `position fen ${fen}`,
+    `go depth ${Math.max(1, Math.floor(opts.depth))} movetime ${opts.movetimeMs} searchmoves ${move}`,
+  ];
+  const release = await enginePool.acquire();
+  try {
+    return await runUciEval({
+      bin: pikaJieqiPath(),
+      commands,
+      timeoutMs: opts.movetimeMs + 4_000,
+      timeoutMessage: 'pikafish-jieqi searchmoves eval timed out',
     });
   } finally {
     release();

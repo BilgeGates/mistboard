@@ -11,6 +11,7 @@ import {
 import type { SweepPlyEval } from './game-analysis-sweep.js';
 import { VacuousAnalysisError } from './game-analysis-sweep.js';
 import {
+  analyzeJieqiDecisions,
   analyzeJieqiPostgame,
   JIEQI_ANALYSIS_ENGINE_ID,
   type JieqiAnalysisCache,
@@ -18,6 +19,8 @@ import {
   jieqiChancePlies,
   resolveJieqiAnalysis,
 } from './jieqi-analysis.js';
+import { jieqiMoveToPikafishUci } from './jieqi-fen.js';
+import type { UciMultiPvLine } from './uci-engine-harness.js';
 
 // A real, deterministic game off the fixed standard deal. To guarantee the sequence contains
 // BOTH reveal plies (moving a face-down piece) and non-reveal plies (moving an already-revealed
@@ -177,4 +180,106 @@ test('resolveJieqiAnalysis fails closed on a scoreless sweep: throws and caches 
 
 test('JIEQI_ANALYSIS_ENGINE_ID is a stable, version-tagged identifier', () => {
   assert.match(JIEQI_ANALYSIS_ENGINE_ID, /^pikafish-jieqi-analysis@/);
+});
+
+// ── Decision-vs-luck decomposition (Layer 2) ──────────────────────────────────────
+
+// The initial position is all-dark but the generals, so the first legal move is (almost always)
+// a reveal — a good single-reveal fixture. Returns the move + its Pikafish UCI.
+function firstRevealMove(deal: JieqiDeal): { move: JieqiMove; uci: string } {
+  const state = createInitialJieqiState('t', deal);
+  const move = getJieqiLegalMoves(state).find((m) => state.board[m.from]?.faceDown === true)!;
+  return { move, uci: jieqiMoveToPikafishUci(move) };
+}
+
+function mpvLine(index: number, move: string, cp: number): UciMultiPvLine {
+  return { index, move, cp, mate: null, depth: 10 };
+}
+
+test('analyzeJieqiDecisions: played move found in the MultiPV table (best = rank 1)', async () => {
+  const { move, uci } = firstRevealMove(STANDARD_JIEQI_DEAL);
+  const otherUci = uci === 'a9a8' ? 'a0a1' : 'a9a8'; // any move id distinct from the played one
+  let moveEvCalls = 0;
+  const decisions = await analyzeJieqiDecisions(
+    [move],
+    STANDARD_JIEQI_DEAL,
+    // Layer-1 red-seat sweep: ply 1 is +200 for Red; mover of ply 1 is Red, so realized = +200.
+    [
+      { ply: 0, cp: 0, mate: null, best: null },
+      { ply: 1, cp: 200, mate: null, best: null },
+    ],
+    {
+      multiPv: async () => [mpvLine(1, otherUci, 300), mpvLine(2, uci, 120)],
+      moveEv: async () => {
+        moveEvCalls += 1;
+        return { cp: -999, mate: null };
+      },
+    },
+  );
+  assert.equal(decisions.length, 1);
+  const d = decisions[0]!;
+  assert.equal(d.ply, 1);
+  assert.equal(d.mover, 'red');
+  assert.equal(d.best.cp, 300);
+  assert.equal(d.played.cp, 120);
+  assert.equal(d.playedRank, 2);
+  assert.equal(d.realized.cp, 200);
+  // Decision loss (best − played) is a non-negative ceiling; luck (realized − played) is signed.
+  assert.equal(d.best.cp! - d.played.cp!, 180);
+  assert.equal(moveEvCalls, 0); // found in the table, no fallback
+});
+
+test('analyzeJieqiDecisions: played move outside the table falls back to searchmoves', async () => {
+  const { move, uci } = firstRevealMove(STANDARD_JIEQI_DEAL);
+  let moveEvCalls = 0;
+  let askedMove: string | null = null;
+  const decisions = await analyzeJieqiDecisions(
+    [move],
+    STANDARD_JIEQI_DEAL,
+    [
+      { ply: 0, cp: 0, mate: null, best: null },
+      { ply: 1, cp: 0, mate: null, best: null },
+    ],
+    {
+      // A table that does NOT contain the played move.
+      multiPv: async () => [mpvLine(1, 'z9z8', 300), mpvLine(2, 'y9y8', 250)],
+      moveEv: async (_fen, m) => {
+        moveEvCalls += 1;
+        askedMove = m;
+        return { cp: 99, mate: null };
+      },
+    },
+  );
+  const d = decisions[0]!;
+  assert.equal(d.best.cp, 300);
+  assert.equal(d.played.cp, 99);
+  assert.equal(d.playedRank, null); // outside the table
+  assert.equal(moveEvCalls, 1);
+  assert.equal(askedMove, uci);
+});
+
+test('analyzeJieqiDecisions: only reveal plies, with per-mover POV on realized', async () => {
+  const { moves, chance } = playGame(STANDARD_JIEQI_DEAL, 8);
+  // Red-seat sweep with a distinct value per ply so the POV projection is checkable.
+  const realizedRedSeat: SweepPlyEval[] = Array.from({ length: moves.length + 1 }, (_, ply) => ({
+    ply,
+    cp: ply * 10,
+    mate: null,
+    best: null,
+  }));
+  const decisions = await analyzeJieqiDecisions([...moves], STANDARD_JIEQI_DEAL, realizedRedSeat, {
+    multiPv: async () => [mpvLine(1, 'no-match', 0)],
+    moveEv: async () => ({ cp: 0, mate: null }),
+  });
+  // Decisions land exactly on the reveal plies jieqiChancePlies reports.
+  assert.deepEqual(
+    decisions.map((d) => d.ply),
+    chance,
+  );
+  for (const d of decisions) {
+    const sign = d.mover === 'red' ? 1 : -1;
+    // realized is the red-seat sweep at this ply, reprojected onto the mover's POV.
+    assert.equal(d.realized.cp, sign * d.ply * 10);
+    assert.equal(d.mover, d.ply % 2 === 1 ? 'red' : 'black');
+  }
 });

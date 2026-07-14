@@ -412,6 +412,119 @@ export function runUciEval(args: RunUciBestmoveArgs): Promise<UciEval> {
   });
 }
 
+/**
+ * Parse a UCI `info … multipv K … score … pv <move> …` line into a ranked table row.
+ * Returns undefined for non-info, score-less, or pv-less lines. The score is from the
+ * side-to-move POV, exactly as the engine reports it. `index` is the 1-based MultiPV rank.
+ */
+export function parseInfoMultiPv(
+  line: string,
+):
+  | { index: number; depth: number; cp: number | null; mate: number | null; move: string }
+  | undefined {
+  if (!line.startsWith('info ') || !line.includes(' multipv ') || !line.includes(' score ')) {
+    return undefined;
+  }
+  const tokens = line.split(/\s+/);
+  let index = 0;
+  let depth = 0;
+  let cp: number | null = null;
+  let mate: number | null = null;
+  let move: string | null = null;
+  for (let i = 1; i < tokens.length; i += 1) {
+    if (tokens[i] === 'multipv') index = Number(tokens[i + 1]);
+    else if (tokens[i] === 'depth') depth = Number(tokens[i + 1]);
+    else if (tokens[i] === 'score') {
+      if (tokens[i + 1] === 'cp') cp = Number(tokens[i + 2]);
+      else if (tokens[i + 1] === 'mate') mate = Number(tokens[i + 2]);
+    } else if (tokens[i] === 'pv') {
+      move = tokens[i + 1] ?? null;
+      break; // the pv is the rest of the line; we only want its first move
+    }
+  }
+  if (!index || !move) return undefined;
+  return { index, depth, cp, mate, move };
+}
+
+export type UciMultiPvLine = {
+  /** 1-based MultiPV rank (1 = engine's best). */
+  index: number;
+  /** Root move (first token of the pv), in engine UCI. */
+  move: string;
+  /** Centipawns (side-to-move POV); null when a mate score is present. */
+  cp: number | null;
+  /** Signed moves-to-mate (side-to-move POV); null otherwise. */
+  mate: number | null;
+  /** Depth this row was last reported at. */
+  depth: number;
+};
+
+/**
+ * Like runUciEval, but collects the full MultiPV table: the final-depth `info … multipv …`
+ * rows, one per rank, sorted by rank (index 1 = best). Requires the caller to have set
+ * `setoption name MultiPV value N` in `commands`. Same spawn / hard-timeout / SIGKILL-cleanup
+ * contract as runUciEval. A later (deeper) row for a given index overwrites an earlier one, so
+ * the returned table reflects the deepest scores the search reached before `bestmove`.
+ */
+export function runUciMultiPv(args: RunUciBestmoveArgs): Promise<UciMultiPvLine[]> {
+  const { bin, commands, timeoutMs, timeoutMessage } = args;
+  return new Promise<UciMultiPvLine[]>((resolveTable, reject) => {
+    const child = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'] });
+    let buf = '';
+    let settled = false;
+    const table = new Map<number, UciMultiPvLine>();
+    const advertisedOptions = new Set<string>();
+
+    const finish = (run: () => void): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        child.kill('SIGKILL');
+      } catch {
+        /* already gone */
+      }
+      run();
+    };
+
+    const timer = setTimeout(() => finish(() => reject(new Error(timeoutMessage))), timeoutMs);
+
+    child.on('error', (err) => finish(() => reject(err)));
+    child.stdout.on('data', (chunk: Buffer) => {
+      buf += chunk.toString('utf8');
+      let newline = buf.indexOf('\n');
+      while (newline >= 0) {
+        const line = buf.slice(0, newline).trim();
+        buf = buf.slice(newline + 1);
+        const option = parseUciOptionLine(line);
+        if (option) advertisedOptions.add(option);
+        const protocolError = uciProtocolError(line);
+        if (protocolError) {
+          finish(() => reject(new Error(`UCI engine rejected command: ${protocolError}`)));
+          return;
+        }
+        const row = parseInfoMultiPv(line);
+        if (row) table.set(row.index, row);
+        const move = parseBestmoveLine(line);
+        if (move !== undefined) {
+          finish(() => {
+            try {
+              validateConfiguredUciOptions(commands, advertisedOptions);
+              resolveTable([...table.values()].sort((a, b) => a.index - b.index));
+            } catch (err) {
+              reject(err);
+            }
+          });
+          return;
+        }
+        newline = buf.indexOf('\n');
+      }
+    });
+
+    child.stdin.write(`${commands.join('\n')}\n`);
+  });
+}
+
 // ── Fairy-Stockfish layer (the perfect-info xiangqi + crossroads providers) ───
 
 // Resolve the FSF binary: explicit env override, else the known dev location, else

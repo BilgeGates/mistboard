@@ -9,12 +9,34 @@ import {
   buildFairyStockfishCommands,
   configuredUciOptionNames,
   parseBestmoveLine,
+  parseInfoMultiPv,
   parseUciOptionLine,
   runUciBestmove,
   UciEnginePool,
 } from './uci-engine-harness.js';
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+// ── parseInfoMultiPv ──────────────────────────────────────────────────────────
+
+test('parseInfoMultiPv extracts rank, score, and the pv first move', () => {
+  const row = parseInfoMultiPv(
+    'info depth 10 seldepth 14 multipv 2 score cp -340 nodes 12345 pv c6c5 e3e4 g0e2',
+  );
+  assert.deepEqual(row, { index: 2, depth: 10, cp: -340, mate: null, move: 'c6c5' });
+});
+
+test('parseInfoMultiPv reads a mate score', () => {
+  const row = parseInfoMultiPv('info depth 20 multipv 1 score mate 3 pv e7e8');
+  assert.deepEqual(row, { index: 1, depth: 20, cp: null, mate: 3, move: 'e7e8' });
+});
+
+test('parseInfoMultiPv returns undefined without multipv, score, or pv', () => {
+  assert.equal(parseInfoMultiPv('info depth 10 score cp 20 pv e2e4'), undefined); // no multipv
+  assert.equal(parseInfoMultiPv('info depth 10 multipv 1 pv e2e4'), undefined); // no score
+  assert.equal(parseInfoMultiPv('info string hashfull 0'), undefined);
+  assert.equal(parseInfoMultiPv('bestmove e2e4'), undefined);
+});
 
 // ── boundedEnvInt ─────────────────────────────────────────────────────────────
 

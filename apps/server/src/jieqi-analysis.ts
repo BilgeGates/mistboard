@@ -29,9 +29,15 @@ import {
   type SweepPlyEval,
   VacuousAnalysisError,
 } from './game-analysis-sweep.js';
-import { evaluateJieqiFen, JIEQI_ENGINE_VERSION } from './jieqi-engine.js';
-import { jieqiStateToPikafishFen } from './jieqi-fen.js';
+import {
+  evaluateJieqiFen,
+  evaluateJieqiMoveEv,
+  evaluateJieqiMultiPv,
+  JIEQI_ENGINE_VERSION,
+} from './jieqi-engine.js';
+import { jieqiMoveToPikafishUci, jieqiStateToPikafishFen } from './jieqi-fen.js';
 import * as persistence from './persistence.js';
+import type { UciMultiPvLine } from './uci-engine-harness.js';
 
 // Search budget. A fixed DEPTH is CPU-independent in RESULT (the eval at a given depth is the
 // same tree on any box), so the cached analysis stays stable; the movetime cap only bounds
@@ -209,4 +215,137 @@ export async function resolveJieqiAnalysis(
   } finally {
     inflightAnalysis.delete(key);
   }
+}
+
+// ── Decision-vs-luck decomposition (Layer 2) ──────────────────────────────────────
+//
+// A jieqi REVEAL move bundles a decision (which dark piece to activate, and where) with a dice
+// roll (what it reveals to). Grading the whole eval swing blames the player for variance. This
+// decomposition splits it into two honest numbers per reveal ply, all computable WITHOUT
+// god-view because Pikafish averages over the reveal pool (chance nodes):
+//
+//   bestEV   = EV of the best available move (MultiPV rank 1) — the decision ceiling.
+//   playedEV = EV of the move the player actually chose — their decision, before the dice.
+//   realized = the eval AFTER the reveal happened — the truth, including luck.
+//
+// The client turns these into: decision loss = winPct(bestEV) − winPct(playedEV) (skill, the
+// only thing that should feed a rating), and luck = winPct(realized) − winPct(playedEV) (shown
+// separately, ungraded). bestEV/playedEV come from the SAME MultiPV table (internally
+// consistent); realized is free — it is the Layer-1 red-seat sweep at ply i+1.
+
+// Budget for the MultiPV pass (reveal plies only). MultiPV=12 @ depth 10 was ~3.6s/position in
+// probes; ~2 min for a whole game's reveals, one-time and cached. The plain-search best is
+// unreliable under jieqi's noisy no-net eval, so we need real width to trust bestEV.
+const JIEQI_DECISION_DEPTH = 10;
+const JIEQI_DECISION_MOVETIME_CAP_MS = 4_000;
+const JIEQI_DECISION_MULTIPV = 12;
+
+export type JieqiEvalPoint = {
+  /** Centipawns from the MOVER's POV (positive = better for the player who moved). */
+  cp: number | null;
+  /** Signed moves-to-mate from the MOVER's POV; null otherwise. */
+  mate: number | null;
+};
+
+/** One reveal ply's decision-vs-luck inputs, all normalized to the MOVER's POV. The client
+ *  derives decision-loss and luck (win%) from these three points. */
+export type JieqiDecision = {
+  /** The reveal ply (1-based): move index i lands on ply i+1. */
+  ply: number;
+  mover: JieqiColor;
+  /** EV of the best move (MultiPV rank 1) — the decision ceiling. */
+  best: JieqiEvalPoint;
+  /** EV of the move actually played — the decision, before the dice. */
+  played: JieqiEvalPoint;
+  /** Eval AFTER the reveal — the truth, including luck (from the Layer-1 sweep). */
+  realized: JieqiEvalPoint;
+  /** The played move's MultiPV rank (1 = it WAS the best), or null when it fell outside the
+   *  table width and its EV came from a searchmoves fallback. */
+  playedRank: number | null;
+};
+
+// Red-seat sweep point (ply k, red-seat POV) reprojected onto the mover's POV.
+function toMoverPov(point: SweepPlyEval | undefined, mover: JieqiColor): JieqiEvalPoint {
+  const sign = mover === 'red' ? 1 : -1;
+  if (!point) return { cp: null, mate: null };
+  return {
+    cp: point.cp == null ? null : point.cp * sign,
+    mate: point.mate == null ? null : point.mate * sign,
+  };
+}
+
+// A MultiPV row is already the side-to-move (= mover) POV, so pass it through.
+function rowToPoint(row: UciMultiPvLine | undefined): JieqiEvalPoint {
+  if (!row) return { cp: null, mate: null };
+  return { cp: row.cp, mate: row.mate };
+}
+
+export type JieqiDecisionDeps = {
+  multiPv: (fen: string) => Promise<UciMultiPvLine[]>;
+  moveEv: (fen: string, move: string) => Promise<{ cp: number | null; mate: number | null }>;
+};
+
+const liveDecisionDeps: JieqiDecisionDeps = {
+  multiPv: (fen) =>
+    evaluateJieqiMultiPv(fen, {
+      depth: JIEQI_DECISION_DEPTH,
+      movetimeMs: JIEQI_DECISION_MOVETIME_CAP_MS,
+      multiPv: JIEQI_DECISION_MULTIPV,
+    }),
+  moveEv: (fen, move) =>
+    evaluateJieqiMoveEv(fen, move, {
+      depth: JIEQI_DECISION_DEPTH,
+      movetimeMs: JIEQI_DECISION_MOVETIME_CAP_MS,
+    }),
+};
+
+/**
+ * Compute the decision-vs-luck inputs for every REVEAL ply. Reconstructs the game from the deal
+ * (same kernel as the Layer-1 sweep), and for each ply whose moved piece was face-down beforehand
+ * runs ONE MultiPV search on the pre-move position: bestEV = rank 1, playedEV = the played move's
+ * row (or a searchmoves fallback if it fell outside the table). `realized` is taken from the
+ * provided Layer-1 red-seat sweep (`realizedRedSeat[ply]`), reprojected onto the mover's POV — no
+ * extra engine call. `deps` is injectable so tests drive it without an engine.
+ */
+export async function analyzeJieqiDecisions(
+  moves: readonly JieqiMove[],
+  deal: JieqiDeal,
+  realizedRedSeat: readonly SweepPlyEval[],
+  deps: JieqiDecisionDeps = liveDecisionDeps,
+): Promise<JieqiDecision[]> {
+  let state = createInitialJieqiState('analysis', deal);
+  const decisions: JieqiDecision[] = [];
+  for (let i = 0; i < moves.length; i += 1) {
+    const move = moves[i]!;
+    const source = state.board[move.from];
+    const mover: JieqiColor = state.status.type === 'playing' ? state.status.turn : 'red';
+    const isReveal = source?.faceDown === true && state.status.type === 'playing';
+    if (isReveal) {
+      const fen = jieqiStateToPikafishFen(state);
+      const playedUci = jieqiMoveToPikafishUci(move);
+      const table = await deps.multiPv(fen);
+      const best = rowToPoint(table[0]);
+      const playedRow = table.find((row) => row.move === playedUci);
+      let played: JieqiEvalPoint;
+      let playedRank: number | null;
+      if (playedRow) {
+        played = rowToPoint(playedRow);
+        playedRank = playedRow.index;
+      } else {
+        // The played move fell outside the MultiPV width; get its EV directly.
+        played = await deps.moveEv(fen, playedUci);
+        playedRank = null;
+      }
+      decisions.push({
+        ply: i + 1,
+        mover,
+        best,
+        played,
+        realized: toMoverPov(realizedRedSeat[i + 1], mover),
+        playedRank,
+      });
+    }
+    state = applyJieqiMove(state, move);
+  }
+  return decisions;
 }
