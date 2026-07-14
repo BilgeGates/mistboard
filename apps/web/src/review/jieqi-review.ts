@@ -14,6 +14,7 @@ import type {
 import { createJieqiInteractiveBoard } from '../jieqi-board.js';
 import type { NodeShape, VariantTreeAdapter } from './game-tree.js';
 import { makeJieqiTreeAdapter } from './jieqi-tree-adapter.js';
+import { formatJieqiBestMove } from './move-advice.js';
 import {
   mountTreeReview,
   type TreePresentation,
@@ -36,6 +37,9 @@ function makeJieqiPresentation(
   return {
     adapter,
     engine: null,
+    // The analysis engine's best move is Pikafish UCI (0-indexed ranks, no flips); render it in
+    // board coords ("e8-a8") for the "… was best" advice line, not the raw "e7a7".
+    formatBestMove: formatJieqiBestMove,
     boardHostClassName: 'jieqi-postgame-board jieqi-live-board',
     boardWrapClassName: 'dxq-postgame__board-wrap review-board-host',
     defaultBoardAriaLabel: 'Reveal Xiangqi board',

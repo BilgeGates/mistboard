@@ -4,9 +4,11 @@ import './landing.css';
 import './game-route.css';
 import { jieqiEnabled } from './feature-flags.js';
 import { installJieqiBoardStyles } from './live-jieqi-render.js';
+import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
 import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
 import { mountJieqiReview } from './review/jieqi-review.js';
 import { recoverJieqiDeal } from './review/jieqi-tree-adapter.js';
+import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
 
 // Postgame review for Jieqi (Reveal Xiangqi). Jieqi hides piece IDENTITIES
@@ -123,12 +125,27 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
   }
   const deal = recoverJieqiDeal(truthSeed);
 
-  const moves: JieqiMove[] = postgame.timeline
-    .filter(
-      (entry): entry is typeof entry & { move: JieqiMove } =>
-        entry.type === 'move-played' && !!entry.move,
-    )
-    .map((entry) => entry.move);
+  const moveEvents = postgame.timeline.filter(
+    (entry): entry is typeof entry & { move: JieqiMove } =>
+      entry.type === 'move-played' && !!entry.move,
+  );
+  const moves: JieqiMove[] = moveEvents.map((entry) => entry.move);
+
+  // Per-ply elapsed time from consecutive event timestamps (no per-move clock is persisted, so
+  // the first ply's delta is measured from the earliest event).
+  let prevAt = postgame.timeline[0]?.at ?? moveEvents[0]?.at ?? 0;
+  const moveTimes = moveEvents.map((entry) => {
+    const delta = Math.max(0, entry.at - prevAt);
+    prevAt = entry.at;
+    return delta;
+  });
+  const hasMoveTimes = moveTimes.some((ms) => ms > 0);
+
+  const gamePlayers = postgame.game.players ?? [];
+  const playerNames = {
+    red: gamePlayers.find((p) => p.color === 'red')?.name,
+    black: gamePlayers.find((p) => p.color === 'black')?.name,
+  };
 
   const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
@@ -147,9 +164,26 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
     metaCard,
     details,
     moves,
-    // No jieqi whole-game analysis engine is wired; the interactive board + move
-    // tree stand on their own (no eval gauge, no computer-analysis underboard).
-    analysis: null,
+    moveTimes: hasMoveTimes ? moveTimes : undefined,
+    players: playerNames,
+    showCrosstable: true,
+    // Server-side PikaJieQi whole-game analysis, DB-cached: an already-analysed game loads
+    // straight from cache on open (a GET that never computes). Requesting a fresh compute is
+    // account-gated (the server rejects anon POSTs), so a signed-out visitor gets a sign-in CTA
+    // instead of a request that would 401. REVEAL plies are returned unjudged (their swing mixes
+    // decision with the random reveal) until the decision-vs-luck decomposition lands.
+    analysis: {
+      requestLabel: isLikelySignedIn()
+        ? 'Request computer analysis'
+        : 'Sign in to request analysis',
+      fetchCached: () => fetchCachedGameAnalysis('jieqi', postgame.game.roomId),
+      run: isLikelySignedIn()
+        ? () => requestGameAnalysis('jieqi', postgame.game.roomId)
+        : () => {
+            window.location.assign('/account');
+            return new Promise<never>(() => {});
+          },
+    },
   });
 }
 

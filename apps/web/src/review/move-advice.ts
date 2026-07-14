@@ -43,6 +43,20 @@ export function formatFlipVariantBestMove(uci: string): string {
   return from === to ? `${from} flip` : `${from}-${to}`;
 }
 
+// Best-move formatter for jieqi (Reveal Xiangqi). PikaJieQi emits Pikafish UCI with 0-indexed
+// ranks (rank 0..9) on the 9×10 xiangqi board, while the board displays 1-indexed ranks (1..10).
+// Convert each square (rank + 1); jieqi has NO from===to flip (a reveal rides a normal move), so
+// it is always a coordinate pair. e.g. engine "e7a7" -> "e8-a8". Single-digit ranks only here
+// (0..9 -> 1..10), so a 4-char UCI is expected.
+export function formatJieqiBestMove(uci: string): string {
+  if (uci.length < 4) return uci;
+  const toDisplay = (sq: string): string => {
+    const rank = Number(sq[1]);
+    return Number.isNaN(rank) ? sq : `${sq[0]}${rank + 1}`;
+  };
+  return `${toDisplay(uci.slice(0, 2))}-${toDisplay(uci.slice(2, 4))}`;
+}
+
 export function createMoveAdvice(
   formatBest: (uci: string) => string = defaultFormatMove,
 ): MoveAdvice {

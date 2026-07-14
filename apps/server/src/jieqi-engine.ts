@@ -14,7 +14,7 @@
 
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { runUciBestmove, UciEnginePool } from './uci-engine-harness.js';
+import { runUciBestmove, runUciEval, UciEnginePool, type UciEval } from './uci-engine-harness.js';
 
 export const JIEQI_DEFAULT_ENGINE_ID = 'pikafish-jieqi-strong';
 // Engine BUILD version recorded per PvE game (subject_id encodes only the tier). The shipped
@@ -110,6 +110,51 @@ function netOption(): string[] {
 export function jieqiEngineTierFor(engineId: string | undefined): JieqiEngineTier | null {
   if (!engineId) return null;
   return JIEQI_ENGINE_BY_ID.get(engineId) ?? null;
+}
+
+// Presence check for the fail-closed analysis path: true when the PikaJieQi binary resolves.
+// The analysis route uses this to return 503 (not a silent weaker eval) when the build is
+// missing the engine — mirrors banqiEngineBinaryAvailable() / jungleEngineBinaryAvailable().
+export function jieqiEngineBinaryAvailable(): boolean {
+  try {
+    pikaJieqiPath();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Whole-game ANALYSIS eval (distinct from the playable move provider above): read PikaJieQi's
+// `info … score` for a redacted current-position FEN, side-to-move POV. Unlike the 3 custom
+// engines, Pikafish ALREADY emits `info score` — no engine change was needed here, so this just
+// reads what the binary already prints. The dial is a fixed search DEPTH (CPU-independent
+// result, so the cached analysis stays stable) with a movetime cap bounding latency. Gated
+// through the shared pool so a sweep runs sequentially rather than stampeding the binary. Caller
+// owns POV normalization; the redacted (as-played info-state) FEN is sent as-is — the engine
+// never sees a hidden id.
+export async function evaluateJieqiFen(
+  fen: string,
+  opts: { depth: number; movetimeMs: number },
+): Promise<UciEval> {
+  const commands = [
+    'uci',
+    ...netOption(),
+    'ucinewgame',
+    'isready',
+    `position fen ${fen}`,
+    `go depth ${Math.max(1, Math.floor(opts.depth))} movetime ${opts.movetimeMs}`,
+  ];
+  const release = await enginePool.acquire();
+  try {
+    return await runUciEval({
+      bin: pikaJieqiPath(),
+      commands,
+      timeoutMs: opts.movetimeMs + 4_000,
+      timeoutMessage: 'pikafish-jieqi eval timed out',
+    });
+  } finally {
+    release();
+  }
 }
 
 export function jieqiEngineDisplayName(engineId: string): string {

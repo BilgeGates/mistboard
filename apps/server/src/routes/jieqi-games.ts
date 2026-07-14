@@ -3,14 +3,21 @@ import {
   getJieqiPlayerView,
   JIEQI_SPEC_ID,
   type JieqiColor,
+  type JieqiDeal,
   type JieqiGameState,
+  type JieqiMove,
   type JieqiPlayerView,
   jieqiTruthView,
   oppositeJieqiColor,
 } from '@mistboard/game';
+import { currentAccountUser } from './../account-session.js';
 import { jieqiEnabled } from './../feature-flags.js';
+import { VacuousAnalysisError } from './../game-analysis-sweep.js';
+import { jieqiChancePlies, resolveJieqiAnalysis } from './../jieqi-analysis.js';
+import { jieqiEngineBinaryAvailable } from './../jieqi-engine.js';
 import type { JieqiEvent, JieqiProjection } from './../jieqi-runtime.js';
 import { jieqiTenant } from './../jieqi-tenant.js';
+import { logger } from './../obs.js';
 import * as persistence from './../persistence.js';
 import {
   applyTenantEvent,
@@ -67,6 +74,107 @@ export async function tryHandle(
   pathname: string,
   _parsedUrl: URL,
 ): Promise<boolean> {
+  // Computer analysis: fixed-strength eval of every ply, red-seat POV, cached + coalesced.
+  // GET returns only the cached result (204 on a miss, so the client auto-loads on open); POST
+  // computes on a miss and is account-gated (the whole-game sweep is expensive). Jieqi hides
+  // face-down IDENTITIES, so reconstruction needs the per-game DEAL (events[0].setup) — we
+  // replay the raw event log (which retains the server-secret deal), not the client payload.
+  const analysisMatch = pathname.match(/^\/api\/jieqi\/games\/([^/]+)\/analysis$/);
+  if (analysisMatch) {
+    const method = request.method ?? 'GET';
+    if (method !== 'GET' && method !== 'POST') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    if (!jieqiEnabled()) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    if (method === 'POST') {
+      const user = await currentAccountUser(request);
+      if (!user) {
+        writeJson(response, 401, { error: 'not_signed_in' });
+        return true;
+      }
+      // Fail closed, not open: the analysis engine is the PikaJieQi binary ONLY. A missing
+      // binary is a broken deploy, so surface it (alertable log + 503) instead of a weaker
+      // eval. Gated to the compute path — GET only reads the cache and never needs the engine.
+      if (!jieqiEngineBinaryAvailable()) {
+        logger.error(
+          { kind: 'jieqi_analysis_engine_unavailable' },
+          'Jieqi analysis requested but the PikaJieQi binary is not present; failing closed',
+        );
+        writeJson(response, 503, { error: 'analysis_engine_unavailable' });
+        return true;
+      }
+    }
+    if (!requirePersistence(response)) return true;
+
+    const analysisRoomId = decodeURIComponent(analysisMatch[1]!);
+    const events = await persistence.loadRoomEvents<JieqiEvent>(analysisRoomId);
+    if (!events || !isTenantEventLog(jieqiTenant, events, analysisRoomId)) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    // Only finished games are analysable; replay confirms the terminal state.
+    const projection = replayTenantEvents(jieqiTenant, events);
+    if (projection.state.status.type !== 'finished') {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    // The deal lives on the room-created event's setup (retained in the persisted log; only the
+    // client wire copy strips it). Without it we cannot reconstruct hidden identities.
+    const created = events[0];
+    const deal =
+      created && created.type === 'room-created'
+        ? (created.setup as JieqiDeal | undefined)
+        : undefined;
+    if (!deal) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    const moves = events
+      .filter(
+        (event): event is Extract<JieqiEvent, { type: 'move-played' }> =>
+          event.type === 'move-played',
+      )
+      .map((event) => event.move as JieqiMove);
+
+    let analysis: Awaited<ReturnType<typeof resolveJieqiAnalysis>>;
+    try {
+      analysis = await resolveJieqiAnalysis(
+        analysisRoomId,
+        moves,
+        deal,
+        undefined,
+        undefined,
+        method === 'POST',
+      );
+    } catch (err) {
+      // A scoreless sweep (engine emitted moves but no evals) fails closed like a missing
+      // binary: 503, nothing cached, rather than a bogus flawless-game result.
+      if (err instanceof VacuousAnalysisError) {
+        logger.error(
+          { kind: 'jieqi_analysis_engine_vacuous', room_id: analysisRoomId },
+          'Jieqi analysis produced no evals (engine emitted no score); failing closed',
+        );
+        writeJson(response, 503, { error: 'analysis_engine_unavailable' });
+        return true;
+      }
+      throw err;
+    }
+    if (!analysis) {
+      response.writeHead(204).end();
+      return true;
+    }
+    // Mark the REVEAL (chance) plies so the client leaves them unjudged. Unlike banqi's
+    // from===to flip, a jieqi reveal is a normal move of a face-down piece, so we detect it by
+    // replaying the deal (jieqiChancePlies), not by move shape.
+    const chancePlies = jieqiChancePlies(moves, deal);
+    writeJson(response, 200, { ...analysis, chancePlies });
+    return true;
+  }
+
   const postgameMatch = pathname.match(/^\/api\/jieqi\/games\/([^/]+)$/);
   if (!postgameMatch) return false;
 
