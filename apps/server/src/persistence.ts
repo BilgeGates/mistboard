@@ -379,6 +379,7 @@ export {
   getStudyById,
   getStudyLikeState,
   isStudyVisibility,
+  listFavoriteStudies,
   listStudiesForOwner,
   listTopPublicStudies,
   renameChapter,

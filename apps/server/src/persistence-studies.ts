@@ -44,7 +44,9 @@ export type StudyRecord = {
 
 export type StudyWithChapters = StudyRecord & { chapters: StudyChapterRecord[] };
 
-export type StudySummary = StudyRecord & { chapterCount: number };
+/** `chapterNames` is a preview slice (first few by ordinal), not the full set —
+ *  enough to render lichess-style chapter previews on a study card. */
+export type StudySummary = StudyRecord & { chapterCount: number; chapterNames: string[] };
 
 export type PublicStudySummary = StudySummary & {
   ownerHandle: string;
@@ -141,6 +143,42 @@ const STUDY_COLS = 'id, owner_id, name, description, visibility, created_at, upd
 const CHAPTER_COLS =
   'id, study_id, ordinal, name, variant, orientation, root, denorm, version, gamebook, created_at, updated_at';
 
+/** Correlated scalar subquery yielding the first few chapter names (by ordinal) as
+ *  a text[], for a study aliased `s`. This is the preview slice a study card shows,
+ *  not the full chapter set. */
+const CHAPTER_NAMES_PREVIEW = `(SELECT array_agg(name ORDER BY ordinal, created_at)
+         FROM (SELECT name, ordinal, created_at FROM study_chapters
+                WHERE study_id = s.id ORDER BY ordinal, created_at LIMIT 4) preview) AS chapter_names`;
+
+/** Optional `AND s.name ILIKE $n` fragment for a search query, with `%`/`_`/`\`
+ *  escaped so a literal search term can't act as a wildcard. Returns an empty
+ *  clause (and no bound value) when the query is blank. */
+function nameFilter(q: string | undefined, paramIndex: number): { clause: string; value?: string } {
+  const trimmed = q?.trim();
+  if (!trimmed) return { clause: '' };
+  const escaped = trimmed.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+  return { clause: ` AND s.name ILIKE $${paramIndex}`, value: `%${escaped}%` };
+}
+
+type PublicStudyRow = StudyRow & {
+  chapter_count: string;
+  chapter_names: string[] | null;
+  owner_handle: string;
+  owner_display_name: string;
+  like_count: string;
+};
+
+function mapPublicStudy(row: PublicStudyRow): PublicStudySummary {
+  return {
+    ...mapStudy(row),
+    chapterCount: Number(row.chapter_count),
+    chapterNames: row.chapter_names ?? [],
+    ownerHandle: row.owner_handle,
+    ownerDisplayName: row.owner_display_name,
+    likeCount: Number(row.like_count),
+  };
+}
+
 /** Create a study and its first chapter atomically. Returns the full record. */
 export async function createStudy(input: CreateStudyInput): Promise<StudyWithChapters | null> {
   if (!isInitialized()) return null;
@@ -190,56 +228,96 @@ export async function getStudyById(id: string): Promise<StudyWithChapters | null
   return { ...mapStudy(row), chapters: chapters.rows.map(mapChapter) };
 }
 
-export async function listStudiesForOwner(ownerId: string): Promise<StudySummary[]> {
+export async function listStudiesForOwner(ownerId: string, q?: string): Promise<StudySummary[]> {
   if (!isInitialized()) return [];
-  const { rows } = await getPool().query<StudyRow & { chapter_count: string }>(
+  const filter = nameFilter(q, 2);
+  const params: unknown[] = [ownerId];
+  if (filter.value !== undefined) params.push(filter.value);
+  const { rows } = await getPool().query<
+    StudyRow & { chapter_count: string; chapter_names: string[] | null }
+  >(
     `SELECT ${STUDY_COLS.split(', ')
       .map((c) => `s.${c}`)
       .join(', ')},
-       (SELECT count(*) FROM study_chapters c WHERE c.study_id = s.id) AS chapter_count
-       FROM studies s WHERE s.owner_id = $1 ORDER BY s.updated_at DESC`,
-    [ownerId],
+       (SELECT count(*) FROM study_chapters c WHERE c.study_id = s.id) AS chapter_count,
+       ${CHAPTER_NAMES_PREVIEW}
+       FROM studies s WHERE s.owner_id = $1${filter.clause} ORDER BY s.updated_at DESC`,
+    params,
   );
-  return rows.map((row) => ({ ...mapStudy(row), chapterCount: Number(row.chapter_count) }));
+  return rows.map((row) => ({
+    ...mapStudy(row),
+    chapterCount: Number(row.chapter_count),
+    chapterNames: row.chapter_names ?? [],
+  }));
 }
 
-/** Most-liked public studies, with recency as the deterministic tie-breaker. */
-export async function listTopPublicStudies(limit = 5): Promise<PublicStudySummary[]> {
+/** Most-liked public studies, with recency as the deterministic tie-breaker.
+ *  `q` filters by study name (case-insensitive substring). */
+export async function listTopPublicStudies(limit = 5, q?: string): Promise<PublicStudySummary[]> {
   if (!isInitialized()) return [];
   const bounded = Math.max(1, Math.min(limit, 50));
-  const { rows } = await getPool().query<
-    StudyRow & {
-      chapter_count: string;
-      owner_handle: string;
-      owner_display_name: string;
-      like_count: string;
-    }
-  >(
+  const filter = nameFilter(q, 2);
+  const params: unknown[] = [bounded];
+  if (filter.value !== undefined) params.push(filter.value);
+  const { rows } = await getPool().query<PublicStudyRow>(
     `SELECT ${STUDY_COLS.split(', ')
       .map((column) => `s.${column}`)
       .join(', ')},
             u.handle AS owner_handle,
             u.display_name AS owner_display_name,
             count(DISTINCT c.id) AS chapter_count,
-            count(DISTINCT l.user_id) AS like_count
+            count(DISTINCT l.user_id) AS like_count,
+            ${CHAPTER_NAMES_PREVIEW}
        FROM studies s
        JOIN users u ON u.id = s.owner_id
        LEFT JOIN study_chapters c ON c.study_id = s.id
        LEFT JOIN study_likes l ON l.study_id = s.id
       WHERE s.visibility = 'public'
-        AND u.profile_visibility IN ('public', 'unlisted')
+        AND u.profile_visibility IN ('public', 'unlisted')${filter.clause}
       GROUP BY s.id, u.handle, u.display_name
       ORDER BY count(DISTINCT l.user_id) DESC, s.updated_at DESC, s.id
       LIMIT $1`,
-    [bounded],
+    params,
   );
-  return rows.map((row) => ({
-    ...mapStudy(row),
-    chapterCount: Number(row.chapter_count),
-    ownerHandle: row.owner_handle,
-    ownerDisplayName: row.owner_display_name,
-    likeCount: Number(row.like_count),
-  }));
+  return rows.map(mapPublicStudy);
+}
+
+/** Public studies the signed-in user has liked (their favorites). Same shape as the
+ *  public index, filtered to studies still public + from listable profiles, so a
+ *  later visibility flip can't leak a now-private study through a stale like. */
+export async function listFavoriteStudies(
+  userId: string,
+  limit = 30,
+  q?: string,
+): Promise<PublicStudySummary[]> {
+  if (!isInitialized()) return [];
+  const bounded = Math.max(1, Math.min(limit, 50));
+  const filter = nameFilter(q, 3);
+  const params: unknown[] = [userId, bounded];
+  if (filter.value !== undefined) params.push(filter.value);
+  const { rows } = await getPool().query<PublicStudyRow>(
+    `SELECT ${STUDY_COLS.split(', ')
+      .map((column) => `s.${column}`)
+      .join(', ')},
+            u.handle AS owner_handle,
+            u.display_name AS owner_display_name,
+            count(DISTINCT c.id) AS chapter_count,
+            count(DISTINCT l.user_id) AS like_count,
+            ${CHAPTER_NAMES_PREVIEW}
+       FROM study_likes fav
+       JOIN studies s ON s.id = fav.study_id
+       JOIN users u ON u.id = s.owner_id
+       LEFT JOIN study_chapters c ON c.study_id = s.id
+       LEFT JOIN study_likes l ON l.study_id = s.id
+      WHERE fav.user_id = $1
+        AND s.visibility = 'public'
+        AND u.profile_visibility IN ('public', 'unlisted')${filter.clause}
+      GROUP BY s.id, u.handle, u.display_name
+      ORDER BY s.updated_at DESC, s.id
+      LIMIT $2`,
+    params,
+  );
+  return rows.map(mapPublicStudy);
 }
 
 export async function getStudyLikeState(

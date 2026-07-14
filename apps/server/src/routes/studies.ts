@@ -48,6 +48,23 @@ function studyView(study: persistence.StudyRecord, isOwner: boolean) {
   };
 }
 
+// Public listing card view (All studies / Favorites): owner + likes on top of the
+// base study view, so cards can show "♥ N · author · date".
+function publicStudyView(study: persistence.PublicStudySummary) {
+  return {
+    ...studyView(study, false),
+    chapterCount: study.chapterCount,
+    chapterNames: study.chapterNames,
+    owner: { handle: study.ownerHandle, displayName: study.ownerDisplayName },
+    likeCount: study.likeCount,
+  };
+}
+
+function parseLimit(params: URLSearchParams, fallback: number): number {
+  const value = Number(params.get('limit'));
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
 function chapterView(chapter: persistence.StudyChapterRecord) {
   return {
     id: chapter.id,
@@ -73,15 +90,33 @@ export async function tryHandle(
   if (pathname === '/api/studies/public') {
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
-    const studies = await persistence.listTopPublicStudies(5);
-    writeJson(response, 200, {
-      studies: studies.map((study) => ({
-        ...studyView(study, false),
-        chapterCount: study.chapterCount,
-        owner: { handle: study.ownerHandle, displayName: study.ownerDisplayName },
-        likeCount: study.likeCount,
-      })),
-    });
+    // ?limit lets the /study "All studies" browse ask for more than the homepage
+    // widget's default 5. ?q filters by study name. listTopPublicStudies clamps.
+    const params = new URL(request.url ?? '', 'http://localhost').searchParams;
+    const studies = await persistence.listTopPublicStudies(
+      parseLimit(params, 5),
+      params.get('q') ?? undefined,
+    );
+    writeJson(response, 200, { studies: studies.map(publicStudyView) });
+    return true;
+  }
+
+  // ── Favorites: public studies the signed-in user has liked ──
+  if (pathname === '/api/studies/favorites') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    const params = new URL(request.url ?? '', 'http://localhost').searchParams;
+    const studies = await persistence.listFavoriteStudies(
+      user.id,
+      parseLimit(params, 30),
+      params.get('q') ?? undefined,
+    );
+    writeJson(response, 200, { studies: studies.map(publicStudyView) });
     return true;
   }
 
@@ -95,9 +130,14 @@ export async function tryHandle(
     }
     if (pathname === '/api/studies/mine') {
       if (!requireMethod(request, response, 'GET')) return true;
-      const studies = await persistence.listStudiesForOwner(user.id);
+      const q = new URL(request.url ?? '', 'http://localhost').searchParams.get('q') ?? undefined;
+      const studies = await persistence.listStudiesForOwner(user.id, q);
       writeJson(response, 200, {
-        studies: studies.map((s) => ({ ...studyView(s, true), chapterCount: s.chapterCount })),
+        studies: studies.map((s) => ({
+          ...studyView(s, true),
+          chapterCount: s.chapterCount,
+          chapterNames: s.chapterNames,
+        })),
       });
       return true;
     }
