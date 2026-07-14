@@ -212,12 +212,13 @@ describe('renderWatchChannelList', () => {
     return { family: 'xiangqi', gameSpecIds: [id], id, label, sealedCount: 0, unlockedCount: 1 };
   }
 
-  // Regression: every launchable channel needs a CHANNEL_MINI_BY_ID entry, or
-  // its rail marker renders as an empty slot. dark-xiangqi shipped without one.
-  it('renders a variant marker for every launched watch channel', () => {
+  // Regression: every launchable channel needs either a variant marker mapping
+  // or a dedicated cross-variant marker, or its rail slot renders empty.
+  it('renders a marker for every launched watch channel', () => {
     const feed = {
       activeChannel: 'dark-chess',
       channels: [
+        channel('engines', 'Engines'),
         channel('dark-chess', 'Fog Chess'),
         channel('mini-xiangqi', 'Mini Xiangqi'),
         channel('dark-mini-xiangqi', 'Dark Mini Xiangqi'),
@@ -240,7 +241,7 @@ describe('renderWatchChannelList', () => {
     renderWatchChannelList(root, feed);
 
     const links = root.querySelectorAll('a.watch-channel-link');
-    expect(links).toHaveLength(12);
+    expect(links).toHaveLength(13);
     for (const link of links) {
       const thumb = link.querySelector('.watch-channel-thumb');
       expect(
