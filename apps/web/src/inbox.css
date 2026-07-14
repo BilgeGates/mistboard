@@ -499,6 +499,36 @@
   outline: none;
 }
 
+/* Admin-only "Message reports" entry point: amber-tinted with an "Admin only"
+   pill so it never reads as ordinary inbox navigation (mirrors the forum
+   moderation badge convention). */
+.inbox-admin-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--site-warning-text);
+  text-decoration: none;
+}
+
+.inbox-admin-link:hover,
+.inbox-admin-link:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+.inbox-admin-badge {
+  border: 1px solid var(--site-warning-border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--site-warning-text);
+}
+
 .inbox-reports-filters {
   display: flex;
   gap: 8px;

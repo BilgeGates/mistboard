@@ -6,7 +6,6 @@ import { loadCachedCurrentUser, readCachedUser } from './account-nav.js';
 import { buildContact } from './contact.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
-import { SHOGI_IMAGE_SET_CREDITS } from './shogi-piece-sets.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav, GITHUB_URL } from './site-shell.js';
 import { buildStaticPageLayout } from './static-page-shell.js';
@@ -574,24 +573,10 @@ function buildSource(locale: Locale = currentLocale()): HTMLElement {
     textLine(t('source.identityForksBrand', {}, locale)),
   ]);
 
-  // CC BY / CC BY-SA attribution for the bundled shogi image piece sets. Lives
-  // here rather than in the appearance picker so the settings dropdown stays clean.
-  const pieceArt = sourceBlock(
-    'Piece art',
-    SHOGI_IMAGE_SET_CREDITS.map((credit) => {
-      const line = document.createElement('span');
-      line.append(
-        document.createTextNode(`Shogi ${credit.sets} by `),
-        linkLine(credit.author, credit.authorUrl),
-        document.createTextNode(' ('),
-        linkLine(credit.license, credit.licenseUrl),
-        document.createTextNode(')'),
-      );
-      return line;
-    }),
-  );
-
-  section.append(heading, intro, source, thirdParty, identity, pieceArt);
+  // NOTE: the shogi image piece-set "Piece art" attribution block is hidden for
+  // now (SHOGI_IMAGE_SET_CREDITS still holds the CC BY / CC BY-SA credits when we
+  // reinstate it). See buildSource history before re-adding.
+  section.append(heading, intro, source, thirdParty, identity);
   return section;
 }
 

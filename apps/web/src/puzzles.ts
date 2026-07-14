@@ -226,6 +226,11 @@ type PuzzleSession = {
   // One-shot flag: focus the next-puzzle button on the render right after a
   // solve, so Enter or Space advances without reaching for the mouse.
   focusNext: boolean;
+  // The viewer's "did you like this puzzle?" thumb vote, if any. Kept on the
+  // session so the selected-button feedback survives renderSession() rebuilds
+  // (the solved panel is rebuilt from scratch on every render). Voting shows
+  // feedback in place and does NOT advance to the next puzzle.
+  vote: 'up' | 'down' | null;
   // Post-completion engine analysis (standard xiangqi only). Created lazily the
   // first time a completed puzzle renders, then persists across renderSession()
   // rebuilds so the engine toggle + eval + arrows survive a full re-render.
@@ -558,6 +563,7 @@ function createPuzzleSession(puzzle: PuzzleDetail): PuzzleSession {
     failed: false,
     revealed: false,
     focusNext: false,
+    vote: null,
   };
 }
 
@@ -1595,7 +1601,7 @@ function feedbackPanel(
   navigation: PuzzleNavigation,
   renderSession: () => void,
 ): HTMLElement {
-  if (isSessionSolved(session)) return solvedPanel(navigation);
+  if (isSessionSolved(session)) return solvedPanel(session, navigation, renderSession);
   if (session.revealed) return revealedPanel(navigation);
 
   const panel = document.createElement('div');
@@ -1687,7 +1693,11 @@ function revealedPanel(navigation: PuzzleNavigation): HTMLElement {
   return panel;
 }
 
-function solvedPanel(navigation: PuzzleNavigation): HTMLElement {
+function solvedPanel(
+  session: PuzzleSession,
+  navigation: PuzzleNavigation,
+  renderSession: () => void,
+): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'puzzle-solved-panel';
 
@@ -1712,27 +1722,45 @@ function solvedPanel(navigation: PuzzleNavigation): HTMLElement {
   // renderPuzzleDetail), so the old disabled "analysis board" stub is gone.
   const prompt = document.createElement('span');
   prompt.className = 'puzzle-vote-prompt';
-  prompt.textContent = 'Did you like this puzzle?';
+  prompt.textContent = session.vote ? 'Thanks for the feedback!' : 'Did you like this puzzle?';
   const votes = document.createElement('div');
   votes.className = 'puzzle-vote-actions';
-  votes.append(puzzleVoteButton('up', navigation), puzzleVoteButton('down', navigation));
+  votes.append(
+    puzzleVoteButton('up', session, renderSession),
+    puzzleVoteButton('down', session, renderSession),
+  );
   feedbackRow.append(prompt, votes);
 
   panel.append(title, cont, feedbackRow);
   return panel;
 }
 
-function puzzleVoteButton(kind: 'up' | 'down', navigation: PuzzleNavigation): HTMLButtonElement {
+// The thumb vote records a like/dislike and shows in-place feedback (the chosen
+// button reads as selected). It deliberately does NOT advance to the next
+// puzzle — advancing is the "Next puzzle" CTA's job.
+function puzzleVoteButton(
+  kind: 'up' | 'down',
+  session: PuzzleSession,
+  renderSession: () => void,
+): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = `puzzle-vote-button puzzle-vote-button--${kind}`;
+  const selected = session.vote === kind;
+  button.className = `puzzle-vote-button puzzle-vote-button--${kind}${
+    selected ? ' puzzle-vote-button--selected' : ''
+  }`;
   button.setAttribute(
     'aria-label',
     kind === 'up' ? 'Puzzle was helpful' : 'Puzzle was not helpful',
   );
+  button.setAttribute('aria-pressed', selected ? 'true' : 'false');
   button.innerHTML = kind === 'up' ? THUMB_UP_SVG : THUMB_DOWN_SVG;
-  button.disabled = !navigation.hasNext;
-  button.addEventListener('click', navigation.goNext);
+  button.addEventListener('click', () => {
+    // Toggle off if re-clicking the current vote, else set it. Re-render so both
+    // buttons reflect the new state (and the prompt updates).
+    session.vote = session.vote === kind ? null : kind;
+    renderSession();
+  });
   return button;
 }
 

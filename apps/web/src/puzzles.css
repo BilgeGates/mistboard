@@ -861,6 +861,15 @@
   color: hsl(359, 58%, 57%);
 }
 
+.puzzle-vote-button:hover {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+/* The chosen vote reads as pressed: filled tint + full-strength icon. */
+.puzzle-vote-button--selected {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+
 .puzzle-vote-button:disabled {
   color: var(--site-border);
   cursor: default;

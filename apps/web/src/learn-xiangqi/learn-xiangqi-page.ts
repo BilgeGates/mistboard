@@ -9,6 +9,7 @@ import './learn-xiangqi.css';
 import type { XiangqiPieceRole } from '@mistboard/game';
 import { initLiveSound, playSound } from '../live-sound.js';
 import { buildNav } from '../site-shell.js';
+import { xiangqiAppearanceChangedEvent } from '../theme.js';
 import {
   createXiangqiInteractiveBoard,
   type XiangqiBoardArrow,
@@ -112,6 +113,11 @@ export function mountLearnXiangqi(root: HTMLElement): void {
   }
 
   window.addEventListener('hashchange', render);
+  // Pieces are baked as inline SVG glyphs at render time, so a live piece-set
+  // change (fired by the appearance picker) needs a full re-render to repaint
+  // the board and the piece legend. Without this, the setting only takes effect
+  // after a reload. Mirrors xiangqi-replay.ts.
+  window.addEventListener(xiangqiAppearanceChangedEvent, render);
 
   // ── Map screen ─────────────────────────────────────────────────────────────
 
