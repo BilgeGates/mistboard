@@ -130,6 +130,39 @@ Capture-stage pattern: `success: extinct('black')`, `pointsForCapture: true`,
 to score by piece value (chariot 90, cannon 45, horse 40, elephant/advisor 20,
 soldier 10).
 
+## Intent (the craft contract for one-move puzzles)
+
+A one-move level with no failure stakes is an exercise, not a puzzle. The
+craft standard (from lila, where `detectCapture: 'unprotected'` is the
+default even on check stages): several moves LOOK right, exactly one survives
+the refutation, and the wrong ones fail with the refutation demonstrated on
+the board.
+
+Declare that contract with `intent` and the verifier PROVES it by running
+every legal first move through the exact runner pipeline:
+
+```ts
+intent: { solutions: 1, candidates: { assert: check, min: 3 } }
+```
+
+- `solutions`: exactly this many first moves complete the level (gates
+  included). Almost always 1.
+- `candidates`: at least `min` first moves satisfy the assert on the raw
+  post-move position, BEFORE the capture-threat and failure gates: the
+  tempting choices the student must pick among. Solutions count toward it.
+
+Only valid on levels with `nbMoves: 1` and neither apples nor a scenario.
+
+Composition workflow: leave `detectCapture` on its default, place refuters
+(a chariot down a file, a horse watching a landing point, the enemy general
+next to an unprotected checker), declare the intent, run the verifier, and
+iterate on the FEN until the counts prove out. Traps the verifier has
+already caught in practice: a "refuted" chariot check that is accidentally
+CHECKMATE because your own general on the same file makes the recapture an
+illegal flying-general move, and a "hanging" piece that is retroactively
+protected by the piece you just moved. Do not trust your head; trust the
+counts. Exemplar: `stages/check1.ts`.
+
 ## Copy
 
 - The stage file owns ALL its strings in `copy` (keys

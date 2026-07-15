@@ -58,6 +58,24 @@ export interface AssertData {
 
 export type LearnAssert = (data: AssertData) => boolean;
 
+// ── Intent (machine-checked craft contract) ──────────────────────────────────
+
+/** Declares what makes a one-move level a PUZZLE rather than an exercise, and
+ *  lets the CI verifier prove it. Only allowed on levels with nbMoves 1 and
+ *  neither apples nor a scenario: the verifier enumerates every legal first
+ *  move through the exact runner pipeline (capture-threat scan, failure
+ *  assert, success assert) and enforces these counts. */
+export interface LearnIntent {
+  /** Exactly this many legal first moves complete the level through the full
+   *  pipeline. Almost always 1: the puzzle has one right answer. */
+  solutions: number;
+  /** At least `min` legal first moves satisfy `assert` on the raw post-move
+   *  position, BEFORE the capture-threat and failure gates: the tempting
+   *  candidates the student must choose among (e.g. all checking moves on a
+   *  find-the-safe-check level). Solutions count toward the minimum. */
+  candidates?: { assert: LearnAssert; min: number };
+}
+
 // ── Level ────────────────────────────────────────────────────────────────────
 
 /** Which movegen drives the level. 'relaxed' = geometry only (FoW kernel
@@ -108,6 +126,9 @@ export interface LearnLevelBase {
    *  requires it to complete in exactly nbMoves player moves. REQUIRED for
    *  levels with neither apples (BFS-proven) nor a scenario (walk-proven). */
   sampleSolution?: string;
+  /** Craft contract for one-move puzzles: the verifier enumerates every legal
+   *  first move and enforces the declared solution/candidate counts. */
+  intent?: LearnIntent;
 }
 
 export interface LearnLevelDefaults {
