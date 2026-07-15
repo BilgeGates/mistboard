@@ -5,10 +5,16 @@ import './game-route.css';
 import { banqiResultLabel } from './banqi-result-label.js';
 import { banqiEnabled } from './feature-flags.js';
 import { installBanqiBoardStyles } from './live-banqi-render.js';
+import {
+  type BanqiDecisionSummary,
+  fetchCachedBanqiDecisions,
+  requestBanqiDecisions,
+} from './review/banqi-decisions.js';
 import { mountBanqiReview } from './review/banqi-review.js';
 import { recoverBanqiDeal } from './review/banqi-tree-adapter.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
 import { buildReviewMeta, labelize } from './review/game-review-meta.js';
+import type { DecisionOverlay } from './review/tree-review.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
 
@@ -183,7 +189,36 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
             return new Promise<never>(() => {});
           },
     },
+    // Decision-vs-luck decomposition: flip plies get a decision-quality glyph + per-move luck
+    // readout + a two-number summary. Computed on top of the basic analysis (heavier, so it runs
+    // as the follow-on pass). Signed-out never reaches run() — the analysis button redirects first.
+    decisions: {
+      fetchCached: () =>
+        fetchCachedBanqiDecisions(postgame.game.roomId).then((summary) =>
+          summary ? toDecisionOverlay(summary) : null,
+        ),
+      run: () => requestBanqiDecisions(postgame.game.roomId).then(toDecisionOverlay),
+    },
   });
+}
+
+// Adapt the banqi-specific decomposition summary to the review's variant-agnostic overlay shape.
+function toDecisionOverlay(summary: BanqiDecisionSummary): DecisionOverlay {
+  return {
+    byPly: new Map(
+      [...summary.byPly].map(([ply, view]) => [
+        ply,
+        {
+          judgment: view.judgment,
+          accuracy: view.accuracy,
+          luck: view.luck,
+          playedRank: view.playedRank,
+        },
+      ]),
+    ),
+    red: { reveals: summary.red.reveals, decisionAccuracy: summary.red.decisionAccuracy },
+    black: { reveals: summary.black.reveals, decisionAccuracy: summary.black.decisionAccuracy },
+  };
 }
 
 // Banqi is symmetric, so the review reduces to the single truth surface. Exported
