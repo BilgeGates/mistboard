@@ -1,4 +1,10 @@
 .site-nav {
+  /* Shared navigation is a brand-token boundary. Route palettes can safely
+     redefine generic action colors without recoloring nav dropdowns. */
+  --site-accent: var(--site-brand-accent);
+  --site-accent-strong: var(--site-brand-accent-strong);
+  --site-accent-soft: var(--site-brand-accent-soft);
+  --site-on-accent: var(--site-brand-on-accent);
   position: sticky;
   top: 0;
   z-index: 10;
