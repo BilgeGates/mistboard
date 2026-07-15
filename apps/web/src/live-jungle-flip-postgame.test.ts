@@ -78,16 +78,16 @@ describe('Flip Jungle postgame page', () => {
     expect(root.querySelector('.review-stage')?.classList).toContain('review-stage--board-only');
     expect(root.querySelector('.review-shell__right .captures-strip')).toBeNull();
 
-    // The opening action was a flip (self-move): the move list reads it as "a1 flip"
-    // in the left cell (the first ply, `firstMover: 'a'`).
+    // The opening action was a flip (self-move): the move list reads it as the bare square
+    // "a1" (no dash = a flip; board moves are "a1-b2"), in the left cell (first ply, `firstMover: 'a'`).
     const firstMove = root.querySelector<HTMLButtonElement>(
       '.review-move-list__row .review-move-list__move',
     );
-    expect(firstMove?.querySelector('.review-move-list__san')?.textContent).toBe('a1 flip');
+    expect(firstMove?.querySelector('.review-move-list__san')?.textContent).toBe('a1');
     // Opens at the final ply (the flip is the mainline tip): the highlighted current
     // cell is that flip move. (The tree move list highlights via --current.)
     const current = root.querySelector('.review-move-list__move--current');
-    expect(current?.querySelector('.review-move-list__san')?.textContent).toBe('a1 flip');
+    expect(current?.querySelector('.review-move-list__san')?.textContent).toBe('a1');
     // Server-side computer analysis underboard is wired: a signed-out visitor sees the
     // sign-in CTA (the account-gated compute button) rather than nothing.
     const analyseButton = root.querySelector<HTMLButtonElement>('.xiangqi-review__analyse');

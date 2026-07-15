@@ -154,7 +154,11 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
       luckEl.textContent = ann.luck;
       if (ann.luckTone) luckEl.classList.add(`review-move-list__luck--${ann.luckTone}`);
     }
-    if (ann?.eval) evalEl.textContent = ann.eval;
+    // On a chance (flip/reveal) ply the luck badge IS the per-move readout; the raw eval there is
+    // the realized (luck-mixed) value the chart already plots, and a fourth item crowds the bare
+    // coord into an ellipsis. Show the eval only on graded (non-luck) moves so a flip's notation
+    // stays fully visible next to its glyph + luck badge.
+    if (ann?.eval && !ann.luck) evalEl.textContent = ann.eval;
     button.addEventListener('click', () => opts.onJump(pathOf(node)));
     if (opts.onPromote || opts.onDelete) {
       button.addEventListener('contextmenu', (event) => {
