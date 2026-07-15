@@ -1,56 +1,90 @@
-// Xiangqi Learn — Stage: out of check (应将). Port of lila outOfCheck.ts,
-// xiangqi-ized. Every level starts with RED IN CHECK under strict rules, so
-// the movegen itself forces an escape: any offered move answers the check and
-// the level completes on it. Each position is shaped so one escape family is
-// the natural (often only) answer: run, capture, block, and the two cannon
-// twists chess does not have (add a second screen; walk the screen away).
+// Xiangqi Learn — Stage: out of check (应将). Lila outOfCheck arc with real
+// stakes. Strict movegen already forces the player to answer the check, so the
+// craft lives in the REFUTATIONS: detectCapture stays on its 'unprotected'
+// default, every level (after the forced-move opener) offers several legal
+// escapes, and exactly one does not immediately lose material. Wrong answers
+// are refuted on the board: blockers get eaten by the checker, greedy captures
+// run into a defender, and the cannon's screen turns out to be poisoned.
+// Taxonomy escalates run → block → capture → screen play → capstone.
 
+import { not, selfCheck } from '../learn-assert.js';
 import { arrow, type LearnLevelPartial } from '../learn-types.js';
+
+/** The player answered the check: red's own general is no longer attacked.
+ *  Under strict rules every LEGAL move satisfies this, so as an intent
+ *  candidates assert it counts exactly the legal escapes. */
+const escaped = not(selfCheck('red'));
 
 const levels: LearnLevelPartial[] = [
   {
-    // Run: the chariot owns the file; Kf1 is the single legal move (d1 is
-    // flying-general illegal against the black general on d10).
+    // Run, the teaching level: the chariot owns the e-file and Kf1 is the
+    // single legal move (d1 is flying-general illegal against the black
+    // general on d10). The arrows are the one hint this stage gives.
     goal: 'learn.xiangqi.outOfCheck.goal.escape',
     fen: '3k5/9/9/9/4r4/9/9/9/9/4K4 w',
     shapes: [arrow('e6', 'e1', 'red'), arrow('e1', 'f1', 'green')],
     sampleSolution: 'e1f1',
+    intent: { solutions: 1, candidates: { assert: escaped, min: 1 } },
   },
   {
-    // Capture: the checking horse is on your chariot's rank. Take it.
-    goal: 'learn.xiangqi.outOfCheck.goal.capture',
-    fen: '5k3/9/9/9/9/9/9/R2n5/9/4K4 w',
-    sampleSolution: 'a3d3',
+    // Run, now with temptations: the horse can block on e3 or e5, but the
+    // checking chariot eats either blocker for free. Only the sidestep to f1
+    // costs nothing (d1 stays flying-general illegal).
+    goal: 'learn.xiangqi.outOfCheck.goal.fleeTrap',
+    fen: '3k5/9/9/9/4r4/9/6N2/9/9/4K4 w',
+    sampleSolution: 'e1f1',
+    intent: { solutions: 1, candidates: { assert: escaped, min: 3 } },
   },
   {
-    // Block: the general cannot step anywhere; interpose on the e-file
-    // (chariot to e2, or either advisor to e2 — every legal move is a block).
+    // Block: the general is stuck (f1 covered by the f2 soldier, d1 flying-
+    // general illegal, e2 stays on the file). Three blocks exist: the horse
+    // hangs on e5 and e7, but the chariot block on e3 is defended by the h3
+    // cannon over the g3 soldier screen. The screen also stops the cannon
+    // from blocking on e3 itself.
     goal: 'learn.xiangqi.outOfCheck.goal.block',
-    fen: '4k4/9/4r4/9/9/9/9/9/1R7/3AKA3 w',
-    sampleSolution: 'b2e2',
+    fen: '3k5/9/4r4/9/6N2/9/9/1R4pC1/5p3/4K4 w',
+    sampleSolution: 'b3e3',
+    intent: { solutions: 1, candidates: { assert: escaped, min: 3 } },
   },
   {
-    // Xiangqi twist: the cannon fires over ONE screen (the black soldier on
-    // e4). Add a second piece to the line and the capture is impossible.
-    goal: 'learn.xiangqi.outOfCheck.goal.secondScreen',
-    fen: '4k4/9/4c4/9/9/6R2/4p4/9/9/3AKA3 w',
-    sampleSolution: 'g5e5',
+    // Capture: the checking chariot is all alone, so the horse just takes it.
+    // Every block (horse e6, chariot e3, cannon e5) feeds the chariot a free
+    // piece, and the f2 soldier plus flying-general keep the general home.
+    goal: 'learn.xiangqi.outOfCheck.goal.capture',
+    fen: '3k5/9/4r4/6N2/9/8C/9/1R7/5p3/4K4 w',
+    sampleSolution: 'g7e8',
+    intent: { solutions: 1, candidates: { assert: escaped, min: 4 } },
   },
   {
-    // Xiangqi twist: your own horse is the cannon's screen. Walk it off the
-    // line and the cannon has nothing to jump (every horse move escapes).
-    goal: 'learn.xiangqi.outOfCheck.goal.removeScreen',
-    fen: '5k3/4c4/9/9/9/4N4/9/2n3n2/9/4K4 w',
-    sampleSolution: 'e5d7',
+    // Screen play: the cannon checks over the e5 soldier. Two screens stop a
+    // cannon, and three pieces can volunteer: the horse (e3), the cannon lift
+    // (e7), and the chariot (e6). The f5 horse eats the first two; only the
+    // chariot slides onto the line for free. Capturing the e5 soldier is not
+    // even legal: the capturer would become the new screen. The f2 soldier
+    // covers f1 and the open d-file keeps d1 flying-general illegal.
+    goal: 'learn.xiangqi.outOfCheck.goal.screen',
+    fen: '3k5/9/4c4/8C/R8/4pn3/6N2/9/5p3/4K4 w',
+    sampleSolution: 'a6e6',
+    intent: { solutions: 1, candidates: { assert: escaped, min: 3 } },
   },
   {
-    // Capstone: run (Kd1/Kf1), block (Ng3-e2), or capture (Ra7xe7) all work.
-    // The copy asks for the best answer; any legal escape is accepted.
+    // Capstone, all three at once: chariot takes chariot looks natural but
+    // the g7 horse guards theirs, and both blocks (horse e3, cannon e5) are
+    // chariot food. Only the quiet general step to d1 survives (f1 is
+    // flying-general illegal against the black general on f10). The b8 horse
+    // guards a6: the threat scan covers EVERY red piece, so after the flee
+    // the enemy chariot's rank-6 grab of ours must have a recapture.
     goal: 'learn.xiangqi.outOfCheck.goal.best',
-    fen: '4k4/9/9/R3r4/9/9/9/6N2/9/4K4 w',
-    sampleSolution: 'a7e7',
+    fen: '5k3/9/1N7/6n2/R3r4/8C/9/9/6N2/4K4 w',
+    sampleSolution: 'e1d1',
+    intent: { solutions: 1, candidates: { assert: escaped, min: 4 } },
   },
-].map((level) => ({ rules: 'strict', nbMoves: 1, detectCapture: false, ...level }));
+].map((level) => ({
+  rules: 'strict',
+  nbMoves: 1,
+  success: escaped,
+  ...level,
+}));
 
 export const outOfCheckStage = {
   key: 'out-of-check',
@@ -61,23 +95,23 @@ export const outOfCheckStage = {
   illustration: { glyph: '应' },
   copy: {
     'learn.xiangqi.outOfCheck.title': 'Out of check',
-    'learn.xiangqi.outOfCheck.subtitle': 'Defend your general',
+    'learn.xiangqi.outOfCheck.subtitle': 'Defend your general, at no cost',
     'learn.xiangqi.outOfCheck.intro':
-      'Check! Your general is attacked and you must answer right away. Run, capture the attacker, or break the attack. Against a cannon you have a special trick: play with its screen.',
+      'Check! Your general is attacked and you must answer right away. Run, capture the attacker, or block the path. But careless rescues backfire: block with the wrong piece and the enemy simply eats it. Find the escape that costs you nothing.',
     'learn.xiangqi.outOfCheck.complete':
-      'Congratulations! Your general always has a plan: run, capture, or block. And when a cannon checks, remember the screen: add a second one, or take yours away.',
+      'Congratulations! Run, capture, or block: your general always has a plan. Just count the cost before you choose. And when a cannon checks, play with its screen: a second screen shuts it down, but a poisoned screen can cost you a piece.',
     'learn.xiangqi.outOfCheck.goal.escape':
-      'Check! The chariot attacks your general. Step to a safe point in the palace.',
-    'learn.xiangqi.outOfCheck.goal.capture':
-      'The horse gives check. Get out of check by capturing it!',
+      'Check! The chariot attacks your general. Step aside to the safe point in the palace.',
+    'learn.xiangqi.outOfCheck.goal.fleeTrap':
+      'Check! Your horse can jump in the way, but the chariot eats it for free on either square. Walk your general to safety instead.',
     'learn.xiangqi.outOfCheck.goal.block':
-      'Your general cannot run. Block the chariot by putting a piece in its path.',
-    'learn.xiangqi.outOfCheck.goal.secondScreen':
-      'A cannon captures over exactly one screen. Slide a second piece onto the line: with two screens, it cannot take your general!',
-    'learn.xiangqi.outOfCheck.goal.removeScreen':
-      'Your own horse is the screen this cannon fires over! Move it off the line and the cannon cannot jump.',
+      'Your general cannot run this time. Three pieces can block, but only one blocker is defended. Your cannon has its back!',
+    'learn.xiangqi.outOfCheck.goal.capture':
+      'The enemy chariot is loud but all alone. Blocking only feeds it a free piece. Capture the checker!',
+    'learn.xiangqi.outOfCheck.goal.screen':
+      'A cannon needs exactly one screen to strike. Put a second piece on the line and it cannot jump! But the enemy horse watches two of the squares. Only one screen comes for free.',
     'learn.xiangqi.outOfCheck.goal.best':
-      'Check! You can run, block, or capture. Find the best way out of this one.',
+      'A real scramble. Chariot takes chariot looks natural, but their horse guards it. Every block hangs too. Sometimes the general must save himself: find the quiet step!',
   },
   levels,
 };
