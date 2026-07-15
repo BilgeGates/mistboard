@@ -101,7 +101,7 @@ export const cannonStage = {
     'learn.xiangqi.cannon.intro':
       'The cannon moves like the chariot, but it captures differently: it must jump over exactly one piece, called the screen. Any piece can be the screen, yours or theirs.',
     'learn.xiangqi.cannon.complete':
-      'Well done! The cannon is the trickiest piece in xiangqi. Remember: it needs a screen to capture, and no screen to move.',
+      'Well done! The cannon is the trickiest piece in xiangqi. Remember: it needs a screen to capture, and no screen to move. The cannon stars in the most famous named mates of all: 马后炮 and 重炮 are waiting for you in Mate patterns.',
     'learn.xiangqi.cannon.goal.1': 'The cannon slides like the chariot. Grab the star!',
     'learn.xiangqi.cannon.goal.2': 'Two stars, two moves. No jumping needed to move.',
     'learn.xiangqi.cannon.goal.3':

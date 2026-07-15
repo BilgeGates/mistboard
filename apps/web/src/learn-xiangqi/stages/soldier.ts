@@ -92,7 +92,7 @@ export const soldierStage = {
     'learn.xiangqi.soldier.intro':
       'Soldiers step one point straight forward and can never move backward. Cross the river and they earn a new power: the sideways step.',
     'learn.xiangqi.soldier.complete':
-      'Congratulations! Soldiers never retreat, and they grow stronger across the river. Push them forward together and they can win the game.',
+      'Congratulations! Soldiers never retreat, and they grow stronger across the river. Push them forward together and they can win the game: two soldiers at the palace gates have their own battle name, 二鬼拍门, two ghosts pounding the gates.',
     'learn.xiangqi.soldier.goal.1':
       'The soldier steps one point forward at a time. March to the star!',
     'learn.xiangqi.soldier.goal.2':
