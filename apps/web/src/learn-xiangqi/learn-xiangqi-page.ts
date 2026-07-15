@@ -6,7 +6,7 @@
 import '../live-xiangqi.css';
 import './learn-xiangqi.css';
 
-import type { XiangqiPieceRole } from '@mistboard/game';
+import type { XiangqiPieceRole, XiangqiSquare } from '@mistboard/game';
 import { initLiveSound, playSound } from '../live-sound.js';
 import { buildNav } from '../site-shell.js';
 import { xiangqiAppearanceChangedEvent } from '../theme.js';
@@ -39,7 +39,13 @@ import {
   totalLevelCount,
 } from './stages/index.js';
 
-const AUTO_ADVANCE_DELAY_MS = 1200;
+// Long enough for the level-end arpeggio and the staggered star pop to land
+// before the board swaps; the completion beat is part of the reward.
+const AUTO_ADVANCE_DELAY_MS = 1800;
+// How long the pickup sparkle marker stays on the board (matches the CSS
+// animation length so it never freezes mid-frame).
+const SPARKLE_MS = 500;
+const SCORE_COUNT_UP_MS = 900;
 
 // "What next?" funnel tiles (map bottom). Watch takes lichess's Practice slot.
 const WHAT_NEXT_TILES: { title: string; subtitle: string; href: string; glyph: string }[] = [
@@ -276,9 +282,12 @@ export function mountLearnXiangqi(root: HTMLElement): void {
 
     mountLevel(stage, level, boardHost, table);
 
-    // First visit to a stage: intro overlay.
+    // First visit to a stage: intro overlay (with its own stage-start sound).
+    // Every other level mount gets a soft level-start ping instead.
     if (!stageHasProgress(progress, stage) && levelId === 1) {
       page.append(stageStartOverlay(stage));
+    } else {
+      playSound('level-start');
     }
   }
 
@@ -350,6 +359,8 @@ export function mountLearnXiangqi(root: HTMLElement): void {
     table: HTMLElement,
   ): void {
     let shapes: readonly LearnShape[] = [];
+    // Squares wearing a transient pickup-sparkle marker (apple just eaten).
+    const sparkles = new Set<XiangqiSquare>();
 
     const board = createXiangqiInteractiveBoard({
       board: boardHost,
@@ -381,6 +392,9 @@ export function mountLearnXiangqi(root: HTMLElement): void {
       for (const square of runner?.apples() ?? []) {
         markers.push({ square, kind: 'star', className: 'xq-marker--apple' });
       }
+      for (const square of sparkles) {
+        markers.push({ square, kind: 'star', className: 'xq-marker--sparkle' });
+      }
       board.setArrows(arrows);
       board.setMarkers(markers);
     };
@@ -398,7 +412,21 @@ export function mountLearnXiangqi(root: HTMLElement): void {
         shapes = next;
         syncOverlays();
       },
-      onSound: playLearnSound,
+      onSound: (sound) => {
+        // Apple pickup: flash a sparkle on the collected point. lastMove is
+        // already the pickup move when the take sound fires.
+        if (sound === 'take') {
+          const square = runner?.view().lastMove?.to;
+          if (square) {
+            sparkles.add(square);
+            later(() => {
+              sparkles.delete(square);
+              syncOverlays();
+            }, SPARKLE_MS);
+          }
+        }
+        playLearnSound(sound);
+      },
       onComplete: (score) => {
         progress = saveLevelScore(stage.key, level.id, score);
         renderTable(stage, level, table);
@@ -441,7 +469,7 @@ export function mountLearnXiangqi(root: HTMLElement): void {
     } else if (vm.completed) {
       body.classList.add('learn-xq-result--completed');
       const stars = starsOfRank(levelRank(level, vm.score));
-      body.innerHTML = `<p class="learn-xq-congrats">${learnCongrats()}</p><div class="learn-xq-stars">${starIcons(stars)}</div>`;
+      body.innerHTML = `<p class="learn-xq-congrats">${learnCongrats()}</p><div class="learn-xq-stars learn-xq-stars--animated">${starIcons(stars)}</div>`;
       if (level.nextButton) {
         const next = document.createElement('button');
         next.type = 'button';
@@ -489,7 +517,7 @@ export function mountLearnXiangqi(root: HTMLElement): void {
       <button type="button" class="learn-xq-overlay-go">${learnCopy('learn.xiangqi.letsGo')}</button>`;
     overlay.append(card);
     overlay.addEventListener('click', () => overlay.remove());
-    playSound('game-start');
+    playSound('stage-start');
     return overlay;
   }
 
@@ -505,8 +533,20 @@ export function mountLearnXiangqi(root: HTMLElement): void {
     card.innerHTML = `
       <div class="learn-xq-stars learn-xq-stars--animated">${starIcons(stars)}</div>
       <h2>${learnCopy('learn.xiangqi.stage')} ${stage.id} ${learnCopy('learn.xiangqi.stageComplete')}</h2>
-      <p class="learn-xq-score"><span>${learnCopy('learn.xiangqi.yourScore')}</span> ${total.toLocaleString()}</p>
+      <p class="learn-xq-score"><span>${learnCopy('learn.xiangqi.yourScore')}</span> <em class="learn-xq-score-value">0</em></p>
       <p>${learnCopy(stage.complete)}</p>`;
+    // Count the score up from zero while the stars pop.
+    const scoreValue = card.querySelector<HTMLElement>('.learn-xq-score-value');
+    if (scoreValue) {
+      const startedAt = performance.now();
+      const tick = (now: number): void => {
+        const t = Math.min(1, (now - startedAt) / SCORE_COUNT_UP_MS);
+        const eased = 1 - (1 - t) ** 3;
+        scoreValue.textContent = Math.round(total * eased).toLocaleString();
+        if (t < 1 && overlay.isConnected) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
     const buttons = document.createElement('div');
     buttons.className = 'learn-xq-overlay-buttons';
     if (next) {
@@ -525,19 +565,22 @@ export function mountLearnXiangqi(root: HTMLElement): void {
     buttons.append(menuButton);
     card.append(buttons);
     overlay.append(card);
-    playSound('win');
+    playSound('stage-end');
     return overlay;
   }
 
   // ── Shared bits ────────────────────────────────────────────────────────────
 
   function playLearnSound(sound: LearnSound): void {
+    // The lila seven-sound palette: pickups, failures, and level completion
+    // each have their own voice. 'failure' is deliberately NOT the ranked
+    // 'lose' sting: a lesson retry should feel invited, not punished.
     const mapping = {
       move: 'move',
-      take: 'capture',
+      take: 'learn-take',
       capture: 'capture',
-      failure: 'lose',
-      levelEnd: 'win',
+      failure: 'learn-failure',
+      levelEnd: 'level-end',
     } as const;
     playSound(mapping[sound]);
   }

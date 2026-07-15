@@ -502,6 +502,52 @@ export function tonesForSound(kind: SoundKind, set: SoundSetId = 'mist'): SoundT
       { delay: 0.01, duration: 0.13, frequency: 125, gain: 0.07, type: 'sine' },
     ];
   }
+  if (kind === 'learn-take') {
+    // Star/apple pickup: a bright two-note "bling", clearly not a capture.
+    return [
+      { delay: 0, duration: 0.07, frequency: 987.77, gain: 0.05, type: 'sine' },
+      { delay: 0.055, duration: 0.14, frequency: 1318.51, gain: 0.045, type: 'sine' },
+    ];
+  }
+  if (kind === 'learn-failure') {
+    // A soft "not quite": gentle descending pair, far kinder than the ranked
+    // 'lose' sting. Failing a lesson should invite a retry, not sting.
+    return [
+      { delay: 0, duration: 0.12, frequency: 329.63, gain: 0.032, type: 'sine' },
+      { delay: 0.11, duration: 0.18, frequency: 277.18, gain: 0.03, type: 'sine' },
+    ];
+  }
+  if (kind === 'level-start') {
+    // A single soft ping when a lesson level mounts.
+    return [{ delay: 0, duration: 0.12, frequency: 659.25, gain: 0.04, type: 'sine' }];
+  }
+  if (kind === 'level-end') {
+    // Level solved: a light rising arpeggio, quicker and smaller than 'win'.
+    return [
+      { delay: 0, duration: 0.08, frequency: 523.25, gain: 0.045, type: 'triangle' },
+      { delay: 0.07, duration: 0.1, frequency: 659.25, gain: 0.045, type: 'triangle' },
+      { delay: 0.15, duration: 0.18, frequency: 783.99, gain: 0.05, type: 'triangle' },
+    ];
+  }
+  if (kind === 'stage-start') {
+    // Opening a new chapter: a warm three-note flourish.
+    return [
+      { delay: 0, duration: 0.1, frequency: 392, gain: 0.045, type: 'sine' },
+      { delay: 0.09, duration: 0.12, frequency: 523.25, gain: 0.045, type: 'sine' },
+      { delay: 0.19, duration: 0.2, frequency: 659.25, gain: 0.045, type: 'sine' },
+    ];
+  }
+  if (kind === 'stage-end') {
+    // Stage complete: a major run with a high sparkle on top, grander than
+    // both 'win' and 'level-end'.
+    return [
+      { delay: 0, duration: 0.1, frequency: 392, gain: 0.05, type: 'triangle' },
+      { delay: 0.09, duration: 0.1, frequency: 493.88, gain: 0.05, type: 'triangle' },
+      { delay: 0.18, duration: 0.1, frequency: 587.33, gain: 0.05, type: 'triangle' },
+      { delay: 0.27, duration: 0.32, frequency: 783.99, gain: 0.055, type: 'triangle' },
+      { delay: 0.38, duration: 0.4, frequency: 1174.66, gain: 0.035, type: 'sine' },
+    ];
+  }
   return [{ delay: 0, duration: 0.09, frequency: 320, gain: 0.055, type: 'sine' }];
 }
 

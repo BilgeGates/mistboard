@@ -24,7 +24,7 @@ import {
 import type { Square as EoSquare } from 'elephantops';
 import { parseBoardFen } from 'elephantops/fen';
 import { makeSquare } from 'elephantops/util';
-import type { LearnRulesMode } from './learn-types.js';
+import { arrow, type LearnRulesMode, type LearnShape } from './learn-types.js';
 
 export function oppositeColor(color: XiangqiColor): XiangqiColor {
   return color === 'red' ? 'black' : 'red';
@@ -138,6 +138,23 @@ export function isCheckAgainst(state: XiangqiGameState, color: XiangqiColor): bo
   const generalSquare = findPiece(state.board, color, 'general');
   if (!generalSquare) return false;
   return attackersOf(state, generalSquare, oppositeColor(color)).length > 0;
+}
+
+/** Yellow arrows from every attacker to each general currently in check, both
+ *  directions (a level can open with the player in check, and the player can
+ *  give check). Drawn automatically by the runner so a delivered check is
+ *  always SHOWN, lila-style, and kept in the final position. General-less
+ *  teaching fragments produce no arrows. */
+export function checkArrowShapes(state: XiangqiGameState): LearnShape[] {
+  const shapes: LearnShape[] = [];
+  for (const color of ['red', 'black'] as const) {
+    const general = findPiece(state.board, color, 'general');
+    if (!general) continue;
+    for (const from of attackersOf(state, general, oppositeColor(color))) {
+      shapes.push(arrow(from, general, 'yellow'));
+    }
+  }
+  return shapes;
 }
 
 export function findPiece(
