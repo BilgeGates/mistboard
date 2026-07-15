@@ -172,8 +172,7 @@ function pieceLayer(
       }
       // A revealed soldier past the river draws with the promoted-soldier art,
       // same as the standard xiangqi board (red owns ranks 1-5, black 6-10).
-      const crossed =
-        entry.role === 'soldier' && (entry.color === 'red' ? rank >= 6 : rank <= 5);
+      const crossed = entry.role === 'soldier' && (entry.color === 'red' ? rank >= 6 : rank <= 5);
       return renderXiangqiPieceGlyphed({ color: entry.color, role: entry.role }, pieceSet, {
         ariaLabel: `${entry.color} ${entry.role}`,
         className: dragSource ? 'jieqi-piece jieqi-piece--drag-source' : 'jieqi-piece',
