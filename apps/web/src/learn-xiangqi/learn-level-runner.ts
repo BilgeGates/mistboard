@@ -232,6 +232,7 @@ export function createLevelRunner(level: LearnLevel, events: LevelRunnerEvents):
           state,
           level.color,
           level.detectCapture === true ? true : 'unprotected',
+          level.rules,
         );
         if (threat) {
           failWithThreat(threat.move);

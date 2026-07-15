@@ -185,22 +185,40 @@ export interface CaptureThreat {
 /** After the player's move, can the opponent capture one of the player's
  *  pieces? 'unprotected' restricts to captures the player could not answer by
  *  recapturing on the same point (lila's default failure heuristic for
- *  non-apple levels). Returns one threat (the first found) or null. */
+ *  non-apple levels). Returns one threat (the first found) or null.
+ *
+ *  On strict levels the opponent's reply and the player's recapture are BOTH
+ *  real legal moves (lila parity: chess.js movegen respects check). This is
+ *  load-bearing for check stages: after the player gives check, the only
+ *  legal punishments answer the check (usually by capturing the checker), so
+ *  the refutation demonstrated on the board is always a legal reply. The
+ *  relaxed geometry probe would happily "refute" a check by grabbing some
+ *  unrelated piece while ignoring the check, an illegal move.
+ *  Relaxed levels keep the geometry probe (general-less fragments). */
 export function findCaptureThreat(
   state: XiangqiGameState,
   playerColor: XiangqiColor,
   mode: 'unprotected' | true,
+  rules: LearnRulesMode,
 ): CaptureThreat | null {
   const opponent = oppositeColor(playerColor);
   const probe: XiangqiGameState = { ...state, status: { type: 'playing', turn: opponent } };
-  for (const move of getRelaxedLegalMoves(probe)) {
+  for (const move of learnLegalMoves(probe, rules)) {
     const target = state.board[move.to];
     if (!target || target.color !== playerColor) continue;
     if (mode === true) return { move };
     // 'unprotected': play the capture, then ask whether the player could
-    // recapture on that point.
-    const after = applyLearnMove(probe, 'relaxed', move);
-    if (attackersOf(after, move.to, playerColor).length === 0) return { move };
+    // legally recapture on that point.
+    const after = applyLearnMove(probe, rules, move);
+    if (rules === 'strict') {
+      const recaptures =
+        after.status.type === 'playing'
+          ? getStandardXiangqiLegalMoves(after).filter((reply) => reply.to === move.to)
+          : [];
+      if (recaptures.length === 0) return { move };
+    } else if (attackersOf(after, move.to, playerColor).length === 0) {
+      return { move };
+    }
   }
   return null;
 }

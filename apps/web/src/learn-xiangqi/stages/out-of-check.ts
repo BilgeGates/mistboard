@@ -38,11 +38,13 @@ const levels: LearnLevelPartial[] = [
   {
     // Block: the general is stuck (f1 covered by the f2 soldier, d1 flying-
     // general illegal, e2 stays on the file). Three blocks exist: the horse
-    // hangs on e5 and e7, but the chariot block on e3 is defended by the h3
+    // hangs on e5 and e7, but the chariot block on e3 is defended by the i3
     // cannon over the g3 soldier screen. The screen also stops the cannon
-    // from blocking on e3 itself.
+    // from blocking on e3 itself. The cannon sits on i3, not h3: on h3 the
+    // screen soldier could snap it up (gxh3) and the recapture Rh3 would be
+    // an illegal pin-break, the e3 chariot being the check blocker.
     goal: 'learn.xiangqi.outOfCheck.goal.block',
-    fen: '3k5/9/4r4/9/6N2/9/9/1R4pC1/5p3/4K4 w',
+    fen: '3k5/9/4r4/9/6N2/9/9/1R4p1C/5p3/4K4 w',
     sampleSolution: 'b3e3',
     intent: { solutions: 1, candidates: { assert: escaped, min: 3 } },
   },

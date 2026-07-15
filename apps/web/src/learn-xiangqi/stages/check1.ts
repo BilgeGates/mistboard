@@ -48,14 +48,16 @@ const levels: LearnLevelPartial[] = [
     intent: { solutions: 1, candidates: { assert: check, min: 2 } },
   },
   {
-    // Discovered check, cannon style: any horse jump clears the e-file and
-    // the cannon checks through the enemy soldier screen. But the elephant
-    // watches c6 and the horse watches f7 and g6: only d7 is safe. The
-    // advisors and soldiers close the horse's own back rank.
+    // Discovered check, cannon style: every horse jump clears the e-file and
+    // the cannon checks through the enemy soldier screen. But the enemy horse
+    // on d4 answers any check with Nxe2, eating the cannon for free (capturing
+    // the checker is the one capture that is legal while in check). Only the
+    // jump to d3 lands on that horse's leg and shuts the capture down: the
+    // classic block-the-horse-leg defense, played in attack.
     goal: 'learn.xiangqi.check1.goal.discovered',
-    fen: '4k4/9/b6n1/4p4/9/4N4/2P3P2/3A1A3/4C4/3K5 w',
-    sampleSolution: 'e5d7',
-    intent: { solutions: 1, candidates: { assert: check, min: 3 } },
+    fen: '4k4/9/9/4p4/9/4N4/3n5/9/4C4/3K5 w',
+    sampleSolution: 'e5d3',
+    intent: { solutions: 1, candidates: { assert: check, min: 8 } },
   },
   {
     // Only one check: the cannon has no screen (and may not land on one), the
@@ -69,15 +71,20 @@ const levels: LearnLevelPartial[] = [
   },
   {
     // Capstone: four checks on a full battlefield, and the e8 soldier starts
-    // en prise to the enemy chariot. The chariot lift and cannon lift abandon
-    // it, the horse jump is met by the other horse. Only the protected
-    // soldier push both checks and saves the soldier. The black horse on f9
-    // doubles as a leg block so the red horse's g9 jump is never a check, and
-    // the red general sits on e1 so Kxd10 stays legal (a red general on the
-    // d-file would turn the chariot check into an accidental flying-general
-    // mate; the verifier caught both).
+    // en prise to the enemy chariot on h8. The chariot lift (a10) is caught by
+    // the corner horse (Nb8xa10), the cannon lift (g10) falls to the f10
+    // chariot or the elephant, and the horse jump (d8) is eaten by the other
+    // horse with no comeback: the e8 soldier's sideways recapture would bare
+    // the e-file and flying-general is illegal (which is why the red general
+    // MUST sit on e1). Only the guarded soldier push survives: nothing can
+    // legally touch e9 (the general is chased off by the f7 horse), and it
+    // saves the soldier too. The f9 horse doubles as a leg block so the red
+    // horse's g9 jump is never a check. The cannon lives on g1, where the red
+    // general blocks its rank-1 road: anywhere with access to the e-file it
+    // would check through the e8 screen unrefuted (and a red soldier can never
+    // legally block for it on its own half, ERR_PAWNS).
     goal: 'learn.xiangqi.check1.goal.capstone',
-    fen: '4ka3/5n3/4P2rb/5N3/5n3/9/3R5/4B1C2/9/4K4 w',
+    fen: '4kr3/5n3/1n2P2rb/5N3/9/9/R8/9/9/4K1C2 w',
     sampleSolution: 'e8e9',
     intent: { solutions: 1, candidates: { assert: check, min: 4 } },
   },
@@ -112,7 +119,7 @@ export const check1Stage = {
     'learn.xiangqi.check1.goal.soldier':
       'Two soldier checks, and both step right next to the general. He eats the unprotected one. Push the soldier your chariot defends!',
     'learn.xiangqi.check1.goal.discovered':
-      'Jump the horse away and your cannon gives a discovered check. But most landing points are watched. Find the safe jump!',
+      'Jump the horse away and your cannon gives a discovered check. But the enemy horse stands ready to eat your cannon! One jump blocks its path. Find it!',
     'learn.xiangqi.check1.goal.onlyOne': 'Only one move gives check here. Find it!',
     'learn.xiangqi.check1.goal.capstone':
       'A real battle. Your soldier is under attack, and four moves give check. Three of them lose material. Find the check that saves the day!',

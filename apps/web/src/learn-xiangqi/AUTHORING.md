@@ -70,6 +70,14 @@ Key fields and their defaults (`toLevel`):
   the capture demonstrated). This is the whole game for protection-style
   levels; set `detectCapture: false` explicitly on check/mate/scenario levels
   where a "hanging" piece is fine.
+  On STRICT levels the scan uses real legal moves for both the opponent's
+  capture and your recapture (lila parity). Consequence one: if your move
+  gives check, the only capture that can refute you is a legal answer to the
+  check, almost always a capture of your checker; a piece hanging elsewhere
+  is not a refutation (grabbing it would ignore the check, an illegal move).
+  Consequence two: a recapture does not count when it is illegal, e.g. the
+  recapturer is a check blocker, or a sideways soldier recapture that would
+  bare the file between the generals (flying general).
 - `color`: derived from the FEN side-to-move. Opponent-first scenario levels
   (FEN gives the opponent the move) must set `color` explicitly.
 
@@ -159,9 +167,16 @@ next to an unprotected checker), declare the intent, run the verifier, and
 iterate on the FEN until the counts prove out. Traps the verifier has
 already caught in practice: a "refuted" chariot check that is accidentally
 CHECKMATE because your own general on the same file makes the recapture an
-illegal flying-general move, and a "hanging" piece that is retroactively
-protected by the piece you just moved. Do not trust your head; trust the
-counts. Exemplar: `stages/check1.ts`.
+illegal flying-general move; a "hanging" piece that is retroactively
+protected by the piece you just moved; a wrong check "refuted" only by an
+illegal reply (the strict scan is check-legal: while in check the opponent
+can only punish by capturing your CHECKER, so a watcher of a discovered
+checker's landing square refutes nothing); a defended blocker whose
+defender's recapture is an illegal pin-break; and a hero piece that guards
+the very squares your decoy checks are supposed to hang on (a soldier's
+sideways recapture can be neutralized by flying general, but only when the
+file between the generals is otherwise EMPTY). Do not trust your head;
+trust the counts. Exemplar: `stages/check1.ts`.
 
 ## Copy
 
