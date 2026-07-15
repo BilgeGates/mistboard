@@ -120,6 +120,18 @@
   overflow: hidden;
 }
 
+/* The square-grid Xiangqi SVG is taller than the classic board because its river
+   is a real gutter between rows. Size this surface from the shared box HEIGHT and
+   let the 540:612 width follow, otherwise flex gives it the full square width and
+   its intrinsic ratio paints past the box bottom. */
+.home-puzzle-widget-board:has(.xq-live-svg--cell) {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  aspect-ratio: 540 / 612;
+}
+
 .home-puzzle-widget-board svg {
   position: absolute;
   inset: 0;
@@ -1188,6 +1200,18 @@
   justify-content: center;
 }
 
+/* Match the daily-puzzle treatment above: the homepage viewer keeps its shared
+   square slot, while the square-grid Xiangqi board itself is height-driven inside
+   that slot. This accounts for the river gutter without changing widget height. */
+.showcase-widget .replay-layout-solo .replay-board:has(.xq-live-svg--cell) {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 100%;
+  height: var(--showcase-widget-size);
+  aspect-ratio: 540 / 612;
+  margin-inline: auto;
+}
+
 /* Fill the box; the SVG's default preserveAspectRatio (xMidYMid meet) scales the
    viewBox content to contain within it, centered, without distortion. */
 .showcase-widget .replay-layout-solo .replay-board svg {
@@ -1675,6 +1699,16 @@
     margin-left: auto;
     gap: 0;
     align-items: flex-end;
+  }
+
+  /* The left-rail viewer hugs its board to the center-facing edge; any spare
+     width from fitting the portrait board stays on the outside of the rail. */
+  .landing-page .landing-board-column
+    #landing-replay
+    .replay-layout-solo
+    .replay-board:has(.xq-live-svg--cell) {
+    margin-left: auto;
+    margin-right: 0;
   }
 
   /* The middle child (board pane, or the reserve-flanked board row) fills the box;
