@@ -147,6 +147,13 @@ export interface LearnLevelDefaults {
   /** Keep it the player's turn after their move (apple levels). Default: true
    *  when there is no scenario, false when a scenario scripts the opponent. */
   keepTurn: boolean;
+  /** Scenario craft contract: every scripted opponent reply must be the
+   *  opponent's ONLY legal move, so the demonstrated line is forced, not
+   *  cooperative (a "mate in 2" claim that black could have dodged is a
+   *  false claim). Verifier-enforced. Default: true for scenario levels.
+   *  Set false ONLY on demo scenarios whose copy frames the opponent's move
+   *  as a choice or a blunder, never on a forced-sequence claim. */
+  forcedReplies: boolean;
 }
 
 export type LearnLevel = LearnLevelBase & LearnLevelDefaults;
@@ -201,6 +208,7 @@ export function toLevel(partial: LearnLevelPartial, index: number): LearnLevel {
     detectCapture: partial.apples ? false : 'unprotected',
     rules: 'relaxed',
     keepTurn: !partial.scenario,
+    forcedReplies: Boolean(partial.scenario),
     ...partial,
   };
 }

@@ -133,6 +133,34 @@ function walkScenario(level: LearnLevel): AssertData {
   };
 }
 
+/** Walk the scenario asserting each scripted opponent reply is the opponent's
+ *  ONLY legal move: the demonstrated line is forced, never cooperative. A
+ *  scripted "defense" the opponent was free to dodge makes the level's claim
+ *  (usually "mate in N") false against real play. */
+function assertForcedReplies(level: LearnLevel): void {
+  let state = levelState(level);
+  const scenario = createScenario(level.scenario);
+  for (;;) {
+    if (state.status.type !== 'playing') break;
+    const step = scenario.peek();
+    if (!step) break;
+    if (state.status.turn === level.color) {
+      scenario.player(step.move);
+    } else {
+      const legal = learnLegalMoves(state, level.rules)
+        .map((move) => `${move.from}${move.to}`)
+        .sort()
+        .join(' ');
+      expect(
+        legal,
+        `level ${level.id}: scripted reply ${step.move.from}${step.move.to} must be the opponent's only legal move (forcedReplies)`,
+      ).toBe(`${step.move.from}${step.move.to}`);
+      scenario.opponent();
+    }
+    state = applyLearnMove(state, level.rules, step.move);
+  }
+}
+
 /** Replay a sampleSolution through the exact runner pipeline (lila order:
  *  matched scenario moves skip the gates; otherwise capture threat, then the
  *  failure assert, then success). Returns issue strings; empty = proven. */
@@ -315,6 +343,12 @@ describe('learn xiangqi level verifier', () => {
                 level.nbMoves,
               );
             });
+
+            if (level.forcedReplies) {
+              it('every scripted opponent reply is forced (only legal move)', () => {
+                assertForcedReplies(level);
+              });
+            }
           }
 
           if (!level.apples && !level.scenario) {

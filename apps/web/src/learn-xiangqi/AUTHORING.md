@@ -103,7 +103,27 @@ Every level must be provable. The verifier enforces:
    trivially true for no-apple levels and would complete the level on move 1.
    Moves are `{ from: 'h10', to: 'h6' }` objects.
    PROOF: the verifier walks the script (legality, success, nbMoves ==
-   scripted player moves).
+   scripted player moves) AND, by default, proves every scripted opponent
+   reply is the opponent's ONLY legal move (`forcedReplies`, default true on
+   scenario levels). A scripted "defense" the opponent was free to dodge
+   makes the level's claim false against real play: a "mate in 2" where the
+   king had a quiet sidestep is not a mate in 2. Set `forcedReplies: false`
+   ONLY on demo scenarios whose copy frames the opponent's move as a choice
+   or a blunder (cannon's chariot-blunder level, the perpetual-check demos),
+   never on a pattern or mate claim.
+   Forcing toolbox, proven across mate-patterns: make every red move a
+   check whose unique answer is a king step or a single recapture; wall the
+   king with its OWN pieces; cover flight squares with the flying-general
+   rule (a red king on an open file bars that file's palace squares, and
+   bars capturing a checker when taking it would empty the file); pin
+   would-be defenders with a top-rank chariot or a cannon's second screen
+   (a piece that is one of two screens on the general's file can never
+   move); and give black a single quiet-move soldier as the tempo piece on
+   levels whose first red move is quiet. Filler-soldier legality: on its
+   OWN half a black soldier must sit on files a/c/e/g/i at rank 7 or 6
+   (forward-only, exactly one move); crossed soldiers gain sidesteps and
+   are NOT single-move fillers; a soldier off its start files on its own
+   half is an illegal position (elephantops ERR_PAWNS).
 3. **Everything else** (protection/check/mate/setup-style): provide
    `sampleSolution: 'g1e1'` (space-separated from-to pairs, player moves
    only). PROOF: the verifier replays it through the exact runner pipeline

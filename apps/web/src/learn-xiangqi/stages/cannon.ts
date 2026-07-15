@@ -64,10 +64,13 @@ const levels: LearnLevelPartial[] = [
   },
   {
     // Scenario: the enemy chariot stops behind your horse. Blast it.
+    // forcedReplies off: the chariot's stop is a scripted BLUNDER the copy
+    // frames as such, not a claimed forced sequence.
     goal: 'learn.xiangqi.cannon.goal.6',
     fen: '7r1/9/9/9/9/7N1/9/7C1/9/9 b',
     color: 'red',
     nbMoves: 1,
+    forcedReplies: false,
     scenario: [
       { move: { from: 'h10', to: 'h6' }, shapes: [arrow('h3', 'h6', 'green')] },
       { from: 'h3', to: 'h6' },
