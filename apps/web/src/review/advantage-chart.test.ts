@@ -20,6 +20,16 @@ function legend(el: HTMLElement): HTMLElement {
 }
 
 describe('advantage chart luck overlay', () => {
+  it('uses bound ink colors without changing the first-seat eval direction', () => {
+    const chart = createAdvantageChart(evals, {
+      onJump: () => {},
+      seatColors: { red: 'black', black: 'red' },
+    });
+    const zones = chart.el.querySelectorAll('.advantage-chart__zone');
+    expect(zones[0]?.classList).toContain('advantage-chart__zone--black');
+    expect(zones[1]?.classList).toContain('advantage-chart__zone--red');
+  });
+
   it('has no ghost/band and a hidden legend until the overlay is set', () => {
     const chart = createAdvantageChart(evals, { onJump: () => {} });
     expect(ghost(chart.el).getAttribute('points')).toBe('');

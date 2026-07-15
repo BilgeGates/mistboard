@@ -7,7 +7,7 @@ import {
   STANDARD_JUNGLE_FLIP_DEAL,
 } from '@mistboard/game';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { jungleFlipResultLabel } from './jungle-flip-result-label.js';
+import { jungleFlipResultLabel, jungleFlipSeatInk } from './jungle-flip-result-label.js';
 import {
   initialPlyFromSearch,
   jungleFlipPostgameApiUrl,
@@ -21,6 +21,8 @@ describe('jungleFlipResultLabel maps the winning seat to its flip-bound ink', ()
     expect(jungleFlipResultLabel('black-wins', 'black')).toBe('Red wins');
     expect(jungleFlipResultLabel('red-wins', 'red')).toBe('Red wins');
     expect(jungleFlipResultLabel('black-wins', 'red')).toBe('Black wins');
+    expect(jungleFlipSeatInk('red', 'black')).toBe('black');
+    expect(jungleFlipSeatInk('black', 'black')).toBe('red');
   });
 
   it('keeps draws ink-agnostic and falls back to move order before the flip binds', () => {
@@ -57,7 +59,11 @@ describe('Flip Jungle postgame page', () => {
   });
 
   it('renders a single review board, info rail, and move rows', async () => {
-    const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).endsWith('/analysis')
+        ? new Response(null, { status: 204 })
+        : jsonResponse(postgameFixture()),
+    );
     vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
 
@@ -67,7 +73,7 @@ describe('Flip Jungle postgame page', () => {
     expect(fetchSpy).toHaveBeenCalledWith('/api/jungle-flip/games/jgf_postgame');
     expect(root.textContent).toContain('Spectator room');
     expect(root.textContent).toContain('Flip Jungle');
-    expect(root.textContent).toContain('Red wins');
+    expect(root.textContent).toContain('Black wins');
     expect(root.querySelectorAll('.jungle-flip-postgame-board')).toHaveLength(1);
     expect(root.querySelector('.review-stage')?.classList).toContain('review-stage--board-only');
     expect(root.querySelector('.review-shell__right .captures-strip')).toBeNull();
@@ -88,14 +94,61 @@ describe('Flip Jungle postgame page', () => {
     expect(analyseButton).not.toBeNull();
     expect(analyseButton?.textContent).toContain('Sign in to request analysis');
   });
+
+  it('displays first-mover analysis in the black ink revealed by the opening flip', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) =>
+      String(input).endsWith('/analysis')
+        ? jsonResponse({
+            engineId: 'test',
+            depth: 1,
+            plies: [
+              { ply: 0, cp: 0, mate: null, best: null },
+              { ply: 1, cp: 100, mate: null, best: null },
+            ],
+            chancePlies: [1],
+          })
+        : jsonResponse(postgameFixture()),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    mountJungleFlipPostgame(root, 'jgf_postgame');
+    await flushPromises();
+
+    const playerRows = root.querySelectorAll('.game-meta-card__player');
+    expect(playerRows[0]?.textContent).toContain('First player');
+    expect(playerRows[0]?.querySelector('.game-meta-card__disc')?.classList).toContain(
+      'game-meta-card__disc--dark',
+    );
+    expect(playerRows[1]?.querySelector('.game-meta-card__disc')?.classList).toContain(
+      'game-meta-card__disc--red',
+    );
+
+    const analysisPlayers = root.querySelectorAll('.analysis-summary__player');
+    expect(analysisPlayers[0]?.textContent).toContain('First player');
+    expect(analysisPlayers[0]?.querySelector('.analysis-summary__dot')?.classList).toContain(
+      'analysis-summary__dot--black',
+    );
+    expect(analysisPlayers[1]?.querySelector('.analysis-summary__dot')?.classList).toContain(
+      'analysis-summary__dot--red',
+    );
+    expect(root.querySelector('.advantage-chart__zone')?.classList).toContain(
+      'advantage-chart__zone--black',
+    );
+    expect(root.querySelector('.review-move-times__bar')?.classList).toContain(
+      'review-move-times__bar--black',
+    );
+  });
 });
 
 function postgameFixture() {
   // Build a REAL 1-ply flip-jungle game with the kernel so the tree can reconstruct
-  // the deal (from history.revealed's ply-0 truth board) and replay it: the standard
-  // fixed deal, opening a1 flip (a real game always opens with a flip), then black
-  // resigns. Generating from the kernel keeps the fixture legal.
-  const initial = createInitialJungleFlipState('jgf_postgame', STANDARD_JUNGLE_FLIP_DEAL);
+  // the deal (from history.revealed's ply-0 truth board) and replay it: a valid
+  // fixed deal with black on a1, an opening a1 flip, then the second seat resigning.
+  // Generating from the kernel keeps the fixture legal.
+  const deal = [...STANDARD_JUNGLE_FLIP_DEAL];
+  [deal[0], deal[8]] = [deal[8]!, deal[0]!]; // a1 reveals black, binding first mover to black
+  const initial = createInitialJungleFlipState('jgf_postgame', deal);
   const flip: JungleFlipMove = { from: 'a1', to: 'a1' };
   const afterFlip = applyJungleFlipMove(initial, flip);
   return {
@@ -112,6 +165,10 @@ function postgameFixture() {
       visibility: 'private',
       initialMs: 180000,
       incrementMs: 2000,
+      players: [
+        { color: 'red', name: 'First player', rating: 2100, kind: 'account' },
+        { color: 'black', name: 'Second player', rating: null, kind: 'engine' },
+      ],
     },
     state: {
       status: { type: 'finished', winner: 'red', reason: 'resignation' },
@@ -119,6 +176,7 @@ function postgameFixture() {
       timeControl: { initialMs: 180000, incrementMs: 2000 },
     },
     timeline: [
+      { type: 'room-created', at: 0 },
       { type: 'move-played', at: 4, color: 'red', move: flip, ply: 1 },
       { type: 'seat-resigned', at: 5, color: 'black', winner: 'red' },
     ],

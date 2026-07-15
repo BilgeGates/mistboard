@@ -8,7 +8,7 @@ import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
 import { jungleFlipEnabled } from './feature-flags.js';
-import { jungleFlipResultLabel } from './jungle-flip-result-label.js';
+import { jungleFlipResultLabel, jungleFlipSeatInk } from './jungle-flip-result-label.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
 import { buildReviewMeta, labelize } from './review/game-review-meta.js';
 import { mountJungleFlipReview } from './review/jungle-flip-review.js';
@@ -146,6 +146,10 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
     red: gamePlayers.find((p) => p.color === 'red')?.name,
     black: gamePlayers.find((p) => p.color === 'black')?.name,
   };
+  const seatColors = {
+    red: jungleFlipSeatInk('red', firstColor) ?? 'red',
+    black: jungleFlipSeatInk('black', firstColor) ?? 'black',
+  } as const;
 
   const status = `${jungleFlipResultLabel(postgame.game.result, firstColor)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
@@ -153,6 +157,7 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
     variantName: 'Flip Jungle',
     game: postgame.game,
     status,
+    seatColors,
   });
 
   root.replaceChildren(buildNav());
@@ -166,6 +171,7 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
     moves,
     moveTimes: hasMoveTimes ? moveTimes : undefined,
     players: playerNames,
+    seatColors,
     showCrosstable: true,
     // Server-side MistyJungleFlip whole-game analysis, DB-cached: an already-analysed game
     // loads straight from cache on open (a GET that never computes). Requesting a fresh

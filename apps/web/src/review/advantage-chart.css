@@ -13,7 +13,8 @@
   overflow: hidden;
   display: block;
 }
-/* Red is favoured in the top half, Black in the bottom. */
+/* The first analysis seat is favoured in the top half, the second in the bottom.
+   Flip variants bind those seats to their revealed inks at runtime. */
 .advantage-chart__zone--red {
   fill: color-mix(in srgb, #c7a06a 14%, transparent);
 }
@@ -24,7 +25,7 @@
   stroke: color-mix(in srgb, var(--site-muted) 45%, transparent);
   stroke-width: 0.5;
 }
-/* The advantage area wears the leading side's colour (clipped per half). */
+/* The advantage area wears the leading player's bound ink (clipped per half). */
 .advantage-chart__area--red {
   fill: color-mix(in srgb, #c0563f 72%, transparent);
 }

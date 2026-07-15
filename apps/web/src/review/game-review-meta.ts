@@ -22,6 +22,7 @@
 
 import type { VariantMiniId } from '../variant-mini-boards.js';
 import { createGameMetaCard, type GameMetaPlayer, timeAgoLabel } from './game-meta-card.js';
+import { type ReviewSeatColors, reviewColorForSeat } from './review-seat-colors.js';
 import { buildSpectatorChat } from './spectator-chat.js';
 
 /** A persisted postgame participant as the shared `postgameGameSummary` server
@@ -60,6 +61,9 @@ export type ReviewMetaConfig = {
   /** Outcome line under the divider, e.g. 'Red wins by Checkmate'. Caller-computed
    *  so variant-specific result phrasing (seat→ink) stays with the variant. */
   status: string;
+  /** Optional seat→ink binding for flip variants. Player order remains seat
+   *  order, but each row's disc uses the color established by the opening flip. */
+  seatColors?: ReviewSeatColors;
 };
 
 export type ReviewMeta = {
@@ -78,16 +82,22 @@ export function buildReviewMeta(config: ReviewMetaConfig): ReviewMeta {
     headline: [reviewTimeControlLabel(game), game.rated ? 'Rated' : 'Casual'],
     variantName: config.variantName,
     subline: timeAgoLabel(game.endedAt),
-    players: reviewMetaPlayers(game.players),
+    players: reviewMetaPlayers(game.players, config.seatColors),
     status: config.status,
   });
   return { metaCard: card.el, details: buildSpectatorChat(game.roomId) };
 }
 
 /** Map persisted participants into meta-card player rows (engine → BOT tag). */
-export function reviewMetaPlayers(players: ReviewMetaPlayer[] | undefined): GameMetaPlayer[] {
+export function reviewMetaPlayers(
+  players: ReviewMetaPlayer[] | undefined,
+  seatColors?: ReviewSeatColors,
+): GameMetaPlayer[] {
   return (players ?? []).map((player) => ({
-    color: player.color,
+    color:
+      player.color === 'red' || player.color === 'black'
+        ? reviewColorForSeat(player.color, seatColors)
+        : player.color,
     name: player.name,
     rating: player.rating ?? null,
     isEngine: player.kind === 'engine',

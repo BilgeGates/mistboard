@@ -51,6 +51,21 @@ describe('reviewMetaPlayers', () => {
     ]);
   });
 
+  it('can bind first/second seats to their flip-revealed inks', () => {
+    expect(
+      reviewMetaPlayers(
+        [
+          { color: 'red', name: 'First', kind: 'account' },
+          { color: 'black', name: 'Second', kind: 'engine' },
+        ],
+        { red: 'black', black: 'red' },
+      ),
+    ).toEqual([
+      { color: 'black', name: 'First', rating: null, isEngine: false },
+      { color: 'red', name: 'Second', rating: null, isEngine: true },
+    ]);
+  });
+
   it('is empty when no participants were persisted', () => {
     expect(reviewMetaPlayers(undefined)).toEqual([]);
   });

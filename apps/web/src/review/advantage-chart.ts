@@ -7,6 +7,7 @@
 import { winPercent } from '@mistboard/game';
 import './advantage-chart.css';
 import type { PlyEval } from './game-analysis.js';
+import { type ReviewSeatColors, reviewColorForSeat } from './review-seat-colors.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const VIEW_W = 300;
@@ -33,7 +34,7 @@ function svg(tag: string, attrs: Record<string, string>): SVGElement {
 
 export function createAdvantageChart(
   evals: PlyEval[],
-  opts: { onJump: (ply: number) => void },
+  opts: { onJump: (ply: number) => void; seatColors?: ReviewSeatColors },
 ): AdvantageChart {
   const maxPly = Math.max(1, evals.length - 1);
   const xOf = (ply: number) => (ply / maxPly) * VIEW_W;
@@ -41,6 +42,8 @@ export function createAdvantageChart(
 
   const el = document.createElement('section');
   el.className = 'advantage-chart';
+  const firstColor = reviewColorForSeat('red', opts.seatColors);
+  const secondColor = reviewColorForSeat('black', opts.seatColors);
 
   const chart = svg('svg', {
     viewBox: `0 0 ${VIEW_W} ${VIEW_H}`,
@@ -70,14 +73,14 @@ export function createAdvantageChart(
       y: '0',
       width: `${VIEW_W}`,
       height: `${VIEW_H / 2}`,
-      class: 'advantage-chart__zone advantage-chart__zone--red',
+      class: `advantage-chart__zone advantage-chart__zone--${firstColor}`,
     }),
     svg('rect', {
       x: '0',
       y: `${VIEW_H / 2}`,
       width: `${VIEW_W}`,
       height: `${VIEW_H / 2}`,
-      class: 'advantage-chart__zone advantage-chart__zone--black',
+      class: `advantage-chart__zone advantage-chart__zone--${secondColor}`,
     }),
     svg('line', {
       x1: '0',
@@ -95,12 +98,12 @@ export function createAdvantageChart(
   const areaRed = svg('polygon', {
     points: areaPoints,
     'clip-path': `url(#${redClipId})`,
-    class: 'advantage-chart__area advantage-chart__area--red',
+    class: `advantage-chart__area advantage-chart__area--${firstColor}`,
   });
   const areaBlack = svg('polygon', {
     points: areaPoints,
     'clip-path': `url(#${blackClipId})`,
-    class: 'advantage-chart__area advantage-chart__area--black',
+    class: `advantage-chart__area advantage-chart__area--${secondColor}`,
   });
   const line = svg('polyline', { points: points.join(' '), class: 'advantage-chart__line' });
   const cursor = svg('line', {

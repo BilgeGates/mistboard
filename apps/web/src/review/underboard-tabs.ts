@@ -8,6 +8,8 @@
 // inputs (number[], { red, black }, input elements, strings), so the standard-
 // xiangqi tree surface and the generalized tree controller share it unchanged.
 
+import { type ReviewSeatColors, reviewColorForSeat } from './review-seat-colors.js';
+
 export type UnderboardOptions = {
   /** Include the "Computer analysis" tab. False for surfaces with no whole-game
    *  analysis (e.g. the historical library), so they don't lead with an empty chart. */
@@ -17,6 +19,8 @@ export type UnderboardOptions = {
   /** Per-ply elapsed milliseconds (index 0 = ply 1). Present + non-empty → a
    *  "Move times" tab renders a per-move bar chart. */
   moveTimes?: number[];
+  /** Visual ink for first/second-seat move bars in flip variants. */
+  seatColors?: ReviewSeatColors;
   /** Present = show the Crosstable tab; the names label its stub. */
   players?: { red?: string; black?: string };
   /** Live-FEN share input, refreshed by the caller on every navigation. */
@@ -37,7 +41,11 @@ export function underboardPanel(analysisBody: HTMLElement, opts: UnderboardOptio
     tabDefs.push({ id: 'info', label: 'Game info', body: opts.provenance });
   }
   if (opts.moveTimes && opts.moveTimes.length > 0) {
-    tabDefs.push({ id: 'times', label: 'Move times', body: moveTimesBody(opts.moveTimes) });
+    tabDefs.push({
+      id: 'times',
+      label: 'Move times',
+      body: moveTimesBody(opts.moveTimes, opts.seatColors),
+    });
   }
   if (opts.players) {
     tabDefs.push({ id: 'crosstable', label: 'Crosstable', body: crosstableBody(opts.players) });
@@ -79,17 +87,18 @@ export function underboardPanel(analysisBody: HTMLElement, opts: UnderboardOptio
   return panel;
 }
 
-// Per-move time bars (lichess "Move times"): red plies (1,3,5…) above the axis,
-// black plies below. Heights scale to the slowest move.
-function moveTimesBody(times: number[]): HTMLElement {
+// Per-move time bars (lichess "Move times"): odd plies belong to the first seat,
+// even plies to the second. Heights scale to the slowest move.
+function moveTimesBody(times: number[], seatColors?: ReviewSeatColors): HTMLElement {
   const body = document.createElement('div');
   const chart = document.createElement('div');
   chart.className = 'review-move-times';
   const max = Math.max(1, ...times);
   for (let i = 0; i < times.length; i += 1) {
-    const isRed = i % 2 === 0; // ply 1 (index 0) is Red's move
+    const seat = i % 2 === 0 ? 'red' : 'black'; // ply 1 belongs to the first-mover seat
+    const color = reviewColorForSeat(seat, seatColors);
     const col = document.createElement('div');
-    col.className = `review-move-times__bar review-move-times__bar--${isRed ? 'red' : 'black'}`;
+    col.className = `review-move-times__bar review-move-times__bar--${color}`;
     col.style.height = `${Math.max(2, Math.round((times[i]! / max) * 100))}%`;
     col.title = `Move ${i + 1}: ${formatDuration(times[i]!)}`;
     chart.append(col);

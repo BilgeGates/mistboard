@@ -39,6 +39,7 @@ import { createMoveAdvice } from './move-advice.js';
 import { createMoveTree, type MoveTree, type MoveTreeAnnotation, pathKey } from './move-tree.js';
 import { createReviewControls, REVIEW_MENU_ICONS } from './review-controls.js';
 import { createReviewScaffold, installReviewKeyboard } from './review-layout.js';
+import type { ReviewSeatColors } from './review-seat-colors.js';
 import { deserializeTree, type SerializedTree, serializeTree } from './tree-serialize.js';
 import { underboardPanel } from './underboard-tabs.js';
 
@@ -231,8 +232,11 @@ export type TreeReviewConfig<Move> = {
    *  underboard tab renders a per-move bar chart. Only real games supply it. */
   moveTimes?: number[];
   /** Real player names — label the accuracy summary and crosstable stub. Absent =
-   *  the side colors (Red / Black) are used. */
+   *  the side's displayed ink is used. */
   players?: { red?: string; black?: string };
+  /** Visual ink bound to the first/second analysis seats. Flip variants set this
+   *  after the opening reveal; analysis ownership remains keyed by seat. */
+  seatColors?: ReviewSeatColors;
   /** Show the "Crosstable" underboard tab (a head-to-head record — a stub for now). */
   showCrosstable?: boolean;
   /** Prebuilt provenance panel (source / event / date / flags …). When present, a
@@ -473,6 +477,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     hasAnalysis: Boolean(config.analysis),
     provenance: config.provenance,
     moveTimes: config.moveTimes,
+    seatColors: config.seatColors,
     players: config.showCrosstable ? (config.players ?? {}) : undefined,
     shareFenInput,
     shareMovesInput,
@@ -634,6 +639,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     gameAnalysis = analysis;
     const nodes = mainlineNodes();
     chart = createAdvantageChart(analysis.evals, {
+      seatColors: config.seatColors,
       onJump: (ply) => {
         const target = nodes[ply];
         if (target) go(tree.pathTo(target));
@@ -648,7 +654,9 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       decisionSummaryEl.replaceChildren(decisionPendingNote());
       analysisSummaryEl.replaceChildren(decisionSummaryEl);
     } else {
-      analysisSummaryEl.replaceChildren(createAnalysisSummary(analysis, config.players));
+      analysisSummaryEl.replaceChildren(
+        createAnalysisSummary(analysis, config.players, { seatColors: config.seatColors }),
+      );
     }
     refreshMoveTreeAnnotations(); // rebuilds the tree DOM (engine glyphs + user glyphs)
     render(); // re-highlight + re-apply move advice
@@ -670,7 +678,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       );
       const merged = mergeDecisionAnalysis(gameAnalysis, decisionByPly);
       analysisSummaryEl.replaceChildren(
-        createAnalysisSummary({ ...gameAnalysis, ...merged }, config.players, { hideAcpl: true }),
+        createAnalysisSummary({ ...gameAnalysis, ...merged }, config.players, {
+          hideAcpl: true,
+          seatColors: config.seatColors,
+        }),
         decisionSummaryEl,
       );
       decisionSummaryEl.replaceChildren(luckCaption());

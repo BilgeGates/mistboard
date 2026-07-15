@@ -5,6 +5,7 @@
 // labelled Red / Black.
 import './analysis-summary.css';
 import type { GameAnalysis, PlayerAnalysis } from './game-analysis.js';
+import { type ReviewSeatColors, reviewColorForSeat } from './review-seat-colors.js';
 
 /** Optional real player names; fall back to the side colors for anonymous games. */
 export type AnalysisSummaryLabels = { red?: string; black?: string };
@@ -13,6 +14,8 @@ export type AnalysisSummaryOptions = {
   /** Hide the ACPL row. Chance/hidden-info variants (jieqi) set this: centipawn loss can't be
    *  luck-stripped, so it reads as noise next to the luck-free accuracy + counts. */
   hideAcpl?: boolean;
+  /** Visual ink for each analysis seat. Stats and labels remain seat-keyed. */
+  seatColors?: ReviewSeatColors;
 };
 
 export function createAnalysisSummary(
@@ -23,18 +26,22 @@ export function createAnalysisSummary(
   const el = document.createElement('section');
   el.className = 'analysis-summary';
   const hideAcpl = options?.hideAcpl ?? false;
+  const firstColor = reviewColorForSeat('red', options?.seatColors);
+  const secondColor = reviewColorForSeat('black', options?.seatColors);
+  el.append(playerBlock(labels?.red || colorLabel(firstColor), firstColor, analysis.red, hideAcpl));
   el.append(
-    playerBlock(labels?.red || 'Red', 'analysis-summary__dot--red', analysis.red, hideAcpl),
-  );
-  el.append(
-    playerBlock(labels?.black || 'Black', 'analysis-summary__dot--black', analysis.black, hideAcpl),
+    playerBlock(labels?.black || colorLabel(secondColor), secondColor, analysis.black, hideAcpl),
   );
   return el;
 }
 
+function colorLabel(color: 'red' | 'black'): string {
+  return color === 'red' ? 'Red' : 'Black';
+}
+
 function playerBlock(
   label: string,
-  dotClass: string,
+  color: 'red' | 'black',
   player: PlayerAnalysis,
   hideAcpl: boolean,
 ): HTMLElement {
@@ -44,7 +51,7 @@ function playerBlock(
   const head = document.createElement('div');
   head.className = 'analysis-summary__head';
   const dot = document.createElement('span');
-  dot.className = `analysis-summary__dot ${dotClass}`;
+  dot.className = `analysis-summary__dot analysis-summary__dot--${color}`;
   const name = document.createElement('span');
   name.className = 'analysis-summary__name';
   name.textContent = label;
