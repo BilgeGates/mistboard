@@ -29,6 +29,7 @@ import {
   jungleCoverImage,
   jungleFaceDownDiscSvg,
   jungleLastMoveFromSvg,
+  jungleLastMoveRevealSvg,
   jungleLastMoveToSvg,
   jungleShadowFilterDef,
 } from './jungle-art.js';
@@ -135,14 +136,22 @@ function terrain(
     );
   }
   if (lastMove) {
-    // Shared JUNGLE_LAST_MOVE spec (same ratios as the vanilla Jungle board):
-    // origin shadow fill + thin gold destination ring.
+    // A board move gets xiangqi's two-part grammar: origin shadow disc plus a
+    // destination halo. A flip is a self-move (`from === to`), so it gets only the
+    // halo around the revealed piece. Drawing the origin shadow there as well would
+    // falsely suggest that the piece travelled away and back.
     const from = jungleFlipCoordOf(lastMove.from);
     const fromTopLeft = geom.topLeft(from.file, from.rank);
-    parts.push(jungleLastMoveFromSvg(fromTopLeft.x, fromTopLeft.y, c));
     const to = jungleFlipCoordOf(lastMove.to);
     const toTopLeft = geom.topLeft(to.file, to.rank);
-    parts.push(jungleLastMoveToSvg(toTopLeft.x, toTopLeft.y, c));
+    if (lastMove.from !== lastMove.to) {
+      parts.push(jungleLastMoveFromSvg(fromTopLeft.x, fromTopLeft.y, c));
+    }
+    parts.push(
+      lastMove.from === lastMove.to
+        ? jungleLastMoveRevealSvg(toTopLeft.x, toTopLeft.y, c)
+        : jungleLastMoveToSvg(toTopLeft.x, toTopLeft.y, c),
+    );
   }
   return parts.join('');
 }

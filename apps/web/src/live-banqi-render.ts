@@ -34,6 +34,9 @@ const PIECE_SIZE = tokenPieceSize(CELL);
 const WIDTH = MARGIN * 2 + FILES * CELL;
 const HEIGHT = MARGIN * 2 + RANKS * CELL;
 const HIT_HALF = CELL / 2 - 1;
+const LAST_MOVE_FROM_RADIUS = CELL * 0.45;
+const LAST_MOVE_RING_RADIUS = CELL * (26 / 60);
+const LAST_MOVE_REVEAL_RADIUS = CELL * 0.475;
 
 export const BANQI_PIECE_PX = PIECE_SIZE;
 
@@ -149,16 +152,22 @@ function moveHints(view: BanqiPlayerView, moves: readonly BanqiMove[]): string {
 
 function lastMoveMarkers(view: BanqiPlayerView): string {
   if (!view.lastMove) return '';
-  const squares =
-    view.lastMove.from === view.lastMove.to
-      ? [view.lastMove.from]
-      : [view.lastMove.from, view.lastMove.to];
-  return squares
-    .map((sq) => {
-      const { x, y } = cellCenter(sq);
-      return `<rect class="banqi-last" x="${x - HIT_HALF}" y="${y - HIT_HALF}" width="${HIT_HALF * 2}" height="${HIT_HALF * 2}"/>`;
-    })
-    .join('');
+  const to = cellCenter(view.lastMove.to);
+  const destination = `<circle class="banqi-last-ring" cx="${to.x}" cy="${to.y}" r="${LAST_MOVE_RING_RADIUS}"/>`;
+  // Flips are self-moves. A single destination halo marks the revealed piece
+  // without inventing an origin. Board moves retain xiangqi's origin-shadow plus
+  // destination-halo grammar.
+  if (view.lastMove.from === view.lastMove.to) {
+    return (
+      destination +
+      `<circle class="banqi-last-reveal" cx="${to.x}" cy="${to.y}" r="${LAST_MOVE_REVEAL_RADIUS}"/>`
+    );
+  }
+  const from = cellCenter(view.lastMove.from);
+  return (
+    `<circle class="banqi-last-from" cx="${from.x}" cy="${from.y}" r="${LAST_MOVE_FROM_RADIUS}"/>` +
+    destination
+  );
 }
 
 function hitLayerWithTargets(moves: readonly BanqiMove[], view?: BanqiPlayerView): string {
@@ -248,7 +257,24 @@ export function installBanqiBoardStyles(): void {
     .banqi-hit--target:hover .banqi-hint-capture {
       opacity: 0;
     }
-    .banqi-last { fill: rgba(250, 204, 21, 0.22); pointer-events: none; }
+    .banqi-last-from {
+      fill: rgba(161, 98, 7, 0.34);
+      pointer-events: none;
+    }
+    .banqi-last-ring {
+      fill: none;
+      stroke: var(--board-highlight, #d6af4e);
+      stroke-width: ${CELL * (4 / 60)};
+      filter: drop-shadow(0 0 1px rgba(70, 45, 8, 0.5));
+      pointer-events: none;
+    }
+    .banqi-last-reveal {
+      fill: none;
+      stroke: var(--board-highlight, #d6af4e);
+      stroke-width: ${CELL * 0.045};
+      opacity: 0.9;
+      pointer-events: none;
+    }
     .banqi-piece { pointer-events: none; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2)); }
     .banqi-back { pointer-events: none; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3)); }
     .banqi-drag-source { opacity: 0.34; }

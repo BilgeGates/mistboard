@@ -186,9 +186,9 @@ function furniture(
     );
   }
 
-  // Last-move marks over the terrain (shared JUNGLE_LAST_MOVE spec, same grammar as
-  // the xiangqi boards): a darker shadow fill on the origin cell, a thin gold ring
-  // (with a slim dark under-edge for busy tiles) on the destination cell.
+  // Last-move marks over the terrain (shared JUNGLE_LAST_MOVE spec, same circular
+  // grammar as the xiangqi boards): a darker shadow disc at the origin and a thin
+  // gold halo (with a slim dark under-edge for busy tiles) at the destination.
   if (lastMove) {
     const from = jungleCoordOf(lastMove.from);
     const fromTopLeft = geom.topLeft(from.file, from.rank);
