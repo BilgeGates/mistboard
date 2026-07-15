@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Color, GameEvent, TimeClass } from '@mistboard/game';
+import { currentAccountUser } from './../account-session.js';
 import { attachBanqiFirstColors } from './../banqi-first-color.js';
 import {
   decisionLogAvailable,
@@ -68,6 +69,60 @@ export async function tryHandle(
   parsedUrl: URL,
 ): Promise<boolean> {
   const url = request.url ?? '/';
+
+  if (pathname === '/api/games/favorites') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    const user = await currentAccountUser(request);
+    if (!user) {
+      writeJson(response, 401, { error: 'authentication_required' });
+      return true;
+    }
+    const offset = boundedInt(parsedUrl.searchParams.get('offset'), 0, 0, Number.MAX_SAFE_INTEGER);
+    const limit = boundedInt(parsedUrl.searchParams.get('limit'), 15, 1, 50);
+    const page = await persistence.listFavoriteGames(user.id, offset, limit);
+    writeJson(response, 200, page);
+    return true;
+  }
+
+  const favoriteMatch = pathname.match(/^\/api\/games\/([^/]+)\/favorite$/);
+  if (favoriteMatch) {
+    const roomId = decodeURIComponent(favoriteMatch[1]!);
+    const user = await currentAccountUser(request);
+    if (request.method === 'GET' && !user) {
+      writeJson(response, 200, { authenticated: false, favorited: false });
+      return true;
+    }
+    if (!requirePersistence(response)) return true;
+    if (!user) {
+      writeJson(response, 401, { error: 'authentication_required' });
+      return true;
+    }
+
+    if (request.method === 'GET') {
+      const state = await persistence.getGameFavoriteState(roomId, user.id);
+      if (!state.accessible) {
+        writeJson(response, 404, { error: 'not_found' });
+        return true;
+      }
+      writeJson(response, 200, { authenticated: true, favorited: state.favorited });
+      return true;
+    }
+
+    if (request.method === 'PUT' || request.method === 'DELETE') {
+      const state = await persistence.setGameFavorite(roomId, user.id, request.method === 'PUT');
+      if (!state.accessible) {
+        writeJson(response, 404, { error: 'not_found' });
+        return true;
+      }
+      writeJson(response, 200, { authenticated: true, favorited: state.favorited });
+      return true;
+    }
+
+    response.setHeader('allow', 'GET, PUT, DELETE');
+    writeJson(response, 405, { error: 'method_not_allowed' });
+    return true;
+  }
 
   if (pathname === '/api/watch') {
     if (!requireMethod(request, response, 'GET')) return true;
@@ -370,6 +425,11 @@ export async function tryHandle(
   }
 
   return false;
+}
+
+function boundedInt(raw: string | null, fallback: number, min: number, max: number): number {
+  const parsed = Number.parseInt(raw ?? '', 10);
+  return Number.isNaN(parsed) ? fallback : Math.max(min, Math.min(parsed, max));
 }
 
 async function gameSummaryForApi(

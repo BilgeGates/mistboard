@@ -153,6 +153,16 @@ export type CompletedGameFilters = {
   mode?: GameMode;
 };
 
+export type FavoriteGamePage = {
+  games: RecentEveGameRecord[];
+  total: number;
+};
+
+export type GameFavoriteState = {
+  accessible: boolean;
+  favorited: boolean;
+};
+
 // ── Game row types + mappers ──────────────────────────────────────────────
 // Five list-style queries (listCorpusGames, listRecentEveGames,
 // listRecentPublicGames, listCompletedGames, getGameSummary) all return rows
@@ -837,6 +847,100 @@ export async function getGameSummary(roomId: string): Promise<RecentEveGameRecor
   if (!row) return null;
   const [record] = await attachGameParticipants([recentEveGameRecordFromRow(row)]);
   return record ?? null;
+}
+
+// A saved game never grants access. Non-private completed games are saveable by
+// any signed-in account; private games are saveable only by an account recorded
+// as a participant. Keeping this predicate beside every favorite query prevents
+// a later visibility flip from leaking a stale bookmark through the saved list.
+const FAVORITE_ACCESS_SQL = `games.status = 'completed'
+       AND (
+         games.visibility <> 'private'
+         OR EXISTS (
+           SELECT 1
+           FROM game_participants viewer_participant
+           WHERE viewer_participant.game_id = games.room_id
+             AND viewer_participant.subject_type = 'user'
+             AND viewer_participant.subject_id = $2
+         )
+       )`;
+
+export async function getGameFavoriteState(
+  roomId: string,
+  userId: string,
+): Promise<GameFavoriteState> {
+  const { rows } = await getPool().query<{ accessible: boolean; favorited: boolean }>(
+    `SELECT
+       EXISTS (
+         SELECT 1 FROM games
+         WHERE games.room_id = $1 AND ${FAVORITE_ACCESS_SQL}
+       ) AS accessible,
+       EXISTS (
+         SELECT 1 FROM game_favorites
+         WHERE game_id = $1 AND user_id = $2
+       ) AS favorited`,
+    [roomId, userId],
+  );
+  return rows[0] ?? { accessible: false, favorited: false };
+}
+
+export async function setGameFavorite(
+  roomId: string,
+  userId: string,
+  favorited: boolean,
+): Promise<GameFavoriteState> {
+  if (favorited) {
+    // INSERT ... SELECT makes the access check and write one statement, so a
+    // guessed private/running game id cannot create a dangling bookmark.
+    await getPool().query(
+      `INSERT INTO game_favorites (game_id, user_id)
+       SELECT games.room_id, $2
+       FROM games
+       WHERE games.room_id = $1 AND ${FAVORITE_ACCESS_SQL}
+       ON CONFLICT (user_id, game_id) DO NOTHING`,
+      [roomId, userId],
+    );
+  } else {
+    await getPool().query(`DELETE FROM game_favorites WHERE game_id = $1 AND user_id = $2`, [
+      roomId,
+      userId,
+    ]);
+  }
+  return getGameFavoriteState(roomId, userId);
+}
+
+export async function listFavoriteGames(
+  userId: string,
+  offset = 0,
+  limit = 15,
+): Promise<FavoriteGamePage> {
+  const boundedOffset = Math.max(0, offset);
+  const boundedLimit = Math.max(1, Math.min(limit, 50));
+  const { rows } = await getPool().query<RecentEveGameRow & { total_count: string }>(
+    `SELECT ${RECENT_EVE_SELECT_COLUMNS}, COUNT(*) OVER() AS total_count
+     FROM game_favorites favorite
+     JOIN games ON games.room_id = favorite.game_id
+     LEFT JOIN eve_games ON eve_games.game_id = games.room_id
+     WHERE favorite.user_id = $1
+       AND games.status = 'completed'
+       AND (
+         games.visibility <> 'private'
+         OR EXISTS (
+           SELECT 1
+           FROM game_participants viewer_participant
+           WHERE viewer_participant.game_id = games.room_id
+             AND viewer_participant.subject_type = 'user'
+             AND viewer_participant.subject_id = $1
+         )
+       )
+     ORDER BY favorite.created_at DESC, favorite.game_id DESC
+     LIMIT $2 OFFSET $3`,
+    [userId, boundedLimit, boundedOffset],
+  );
+  return {
+    games: await attachGameParticipants(rows.map(recentEveGameRecordFromRow)),
+    total: rows.length > 0 ? Number(rows[0]!.total_count) : 0,
+  };
 }
 
 // ── Faceted game query + aggregates (powers the admin game browser) ─────────

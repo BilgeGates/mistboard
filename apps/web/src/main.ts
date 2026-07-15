@@ -281,9 +281,11 @@ if (replaySample) {
   );
 } else if (tenantPostgame?.tenant.enabled()) {
   const { tenant, mount, roomId } = tenantPostgame;
+  appRoot.dataset.favoriteGameId = roomId;
   setTitle(tenant.pageTitle);
   void mountOrReport(() => mount(appRoot, roomId).then(() => undefined));
 } else if (gameRoomId) {
+  appRoot.dataset.favoriteGameId = gameRoomId;
   setTitle('Game');
   void mountOrReport(() =>
     import('./landing.js').then(({ mountGame }) => mountGame(appRoot, gameRoomId)),

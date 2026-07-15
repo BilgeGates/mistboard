@@ -1599,8 +1599,8 @@
   }
 }
 
-/* Activity / Games tabs over one full-width column: the tab is the panel's
-   only label, so the panels themselves carry no heading. */
+/* Activity / Games tabs over one full-width column. Games owns a second-level
+   switch so Saved reads as a game-list filter, not a peer of Activity. */
 .profile-tabs {
   overflow: hidden;
 }
@@ -1655,14 +1655,74 @@
 }
 
 .profile-tabs > .profile-activity-panel,
-.profile-tabs > .profile-games {
+.profile-tabs > .profile-games-group,
+.profile-games-group > .profile-games {
   min-width: 0;
   margin: 0;
   padding: 0;
 }
 
-.profile-tabs > [hidden] {
+.profile-tabs > [hidden],
+.profile-games-group > [hidden] {
   display: none;
+}
+
+.profile-games-subtab-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid var(--site-border-soft);
+  background: var(--site-panel-soft);
+}
+
+.profile-games-subtab {
+  min-height: 64px;
+  padding: 9px 16px 10px;
+  border: 0;
+  border-right: 1px solid var(--site-border-soft);
+  background: transparent;
+  color: var(--site-muted);
+  text-align: center;
+  cursor: pointer;
+}
+
+.profile-games-subtab:last-child {
+  border-right: 0;
+}
+
+.profile-games-subtab:hover,
+.profile-games-subtab:focus-visible {
+  background: var(--site-hover);
+  color: var(--site-heading);
+}
+
+.profile-games-subtab:focus-visible {
+  outline: 2px solid var(--site-focus);
+  outline-offset: -2px;
+}
+
+.profile-games-subtab[aria-selected="true"] {
+  background: var(--site-panel);
+  color: var(--site-heading);
+  box-shadow: inset 0 -3px 0 var(--site-accent);
+}
+
+.profile-games-subtab-count,
+.profile-games-subtab-label {
+  display: block;
+}
+
+.profile-games-subtab-count {
+  font-size: 18px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+.profile-games-subtab-label {
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
 }
 
 .profile-activity-summary-list {
@@ -1817,6 +1877,14 @@
 
 .profile-game-row-draw {
   --profile-game-tone: #4f8edb;
+}
+
+.profile-game-row-neutral {
+  --profile-game-tone: #d29a35;
+}
+
+.profile-game-outcome-neutral {
+  font-size: 18px;
 }
 
 .profile-game-body,

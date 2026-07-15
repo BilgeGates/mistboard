@@ -572,6 +572,19 @@
   background: var(--site-surface);
 }
 
+.game-favorite-action {
+  cursor: pointer;
+}
+
+.game-favorite-action--saved {
+  color: #d29a35;
+}
+
+.game-favorite-action:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 /* Right-rail move list card (interactive move rows). */
 .review-moves-card {
   display: flex;

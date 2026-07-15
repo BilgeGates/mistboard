@@ -15,6 +15,7 @@
 //     so both surfaces share one layout and size identically.
 
 import { attachBoardResizeGrip, currentBoardScale, restoreBoardScale } from '../board-resize.js';
+import { createGameFavoriteButton } from '../game-favorite.js';
 import { createReviewControls, REVIEW_MENU_ICONS } from './review-controls.js';
 import { type BoardStageHandle, type BoardStageSlot, createBoardStage } from './review-stage.js';
 import './review-shell.css';
@@ -207,7 +208,11 @@ export function createReviewScaffold(
 
   applyBoardSizing(stage.el, config, !showBoardMaterial || stripsAdopted, !showBoardMaterial);
 
-  const left = infoRail(config);
+  const favoriteGameId = root.dataset.favoriteGameId;
+  const actions = favoriteGameId
+    ? reviewActionsWithFavorite(config.actions, favoriteGameId)
+    : config.actions;
+  const left = infoRail({ ...config, actions });
   // Right rail, lichess order: material-top · [analyse table: engine panel ·
   // move list · advice · navigation] · summary · material-bottom. The analyse
   // table is ONE visually connected box (lichess's analyse tools) whose bottom
@@ -299,6 +304,13 @@ export function createReviewScaffold(
   }
 
   return { stage, refit };
+}
+
+function reviewActionsWithFavorite(existing: HTMLElement | undefined, roomId: string): HTMLElement {
+  const actions = existing ?? document.createElement('div');
+  actions.classList.add('review-actions');
+  actions.append(createGameFavoriteButton(roomId));
+  return actions;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

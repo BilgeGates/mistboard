@@ -143,6 +143,45 @@ describe('profile ratings rail', () => {
           { headers: { 'content-type': 'application/json' }, status: 200 },
         );
       }
+      if (url.includes('/api/games/favorites')) {
+        return new Response(
+          JSON.stringify({
+            games: [
+              {
+                roomId: 'saved-xiangqi-1',
+                variant: 'xiangqi',
+                mode: 'pvp',
+                rated: false,
+                result: 'red-wins',
+                termination: 'resignation',
+                plyCount: 48,
+                whiteName: null,
+                blackName: null,
+                corpusId: null,
+                endedAt: '2026-07-01T12:00:00.000Z',
+                participants: [
+                  {
+                    color: 'red',
+                    displayName: 'Red Player',
+                    subjectType: 'user',
+                    subjectId: 'u_red',
+                    visibility: 'public',
+                  },
+                  {
+                    color: 'black',
+                    displayName: 'Black Player',
+                    subjectType: 'user',
+                    subjectId: 'u_black',
+                    visibility: 'public',
+                  },
+                ],
+              },
+            ],
+            total: 1,
+          }),
+          { headers: { 'content-type': 'application/json' }, status: 200 },
+        );
+      }
       return new Response(
         JSON.stringify({
           profile: {
@@ -307,9 +346,8 @@ describe('profile ratings rail', () => {
       true,
     );
 
-    // Activity / Games are tabs over one column: the tab is the panel's only
-    // label (panels carry no heading), the Games tab carries the total count,
-    // and clicking swaps which panel is shown.
+    // Activity / Games are the primary tabs. Saved is private to the profile
+    // owner and lives as a second-level choice inside Games.
     const tabs = [...root.querySelectorAll<HTMLButtonElement>('.profile-tab')];
     expect(tabs.map((tab) => tab.textContent)).toEqual(['Activity', 'Games 2']);
     expect(tabs[1]?.querySelector('.profile-tab-count')?.textContent).toBe('2');
@@ -317,11 +355,37 @@ describe('profile ratings rail', () => {
     expect(root.querySelector('.profile-activity-panel h2')).toBeNull();
     expect(root.querySelector('.profile-games h2')).toBeNull();
     expect(root.querySelector<HTMLElement>('.profile-activity-panel')?.hidden).toBe(false);
-    expect(root.querySelector<HTMLElement>('.profile-games')?.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>('.profile-games-group')?.hidden).toBe(true);
     tabs[1]?.click();
     expect(tabs[1]?.getAttribute('aria-selected')).toBe('true');
     expect(root.querySelector<HTMLElement>('.profile-activity-panel')?.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>('.profile-games-group')?.hidden).toBe(false);
     expect(root.querySelector<HTMLElement>('.profile-games')?.hidden).toBe(false);
+
+    await vi.waitFor(() => {
+      expect(root.querySelector('.profile-games-subtab-count')?.textContent).toBe('2');
+    });
+    const gameSubtabs = [...root.querySelectorAll<HTMLButtonElement>('.profile-games-subtab')];
+    expect(
+      gameSubtabs.map((tab) => tab.querySelector('.profile-games-subtab-label')?.textContent),
+    ).toEqual(['Games', 'Saved']);
+    expect(gameSubtabs[0]?.querySelector('.profile-games-subtab-count')?.textContent).toBe('2');
+    await vi.waitFor(() => {
+      expect(gameSubtabs[1]?.querySelector('.profile-games-subtab-count')?.textContent).toBe('1');
+    });
+    expect(gameSubtabs[0]?.getAttribute('aria-selected')).toBe('true');
+
+    gameSubtabs[1]?.click();
+    expect(gameSubtabs[1]?.getAttribute('aria-selected')).toBe('true');
+    expect(
+      root.querySelector<HTMLElement>('.profile-games:not(.profile-saved-games)')?.hidden,
+    ).toBe(true);
+    expect(root.querySelector<HTMLElement>('.profile-saved-games')?.hidden).toBe(false);
+    expect(root.querySelector('.profile-saved-games')?.textContent).toContain(
+      'Red Player vs Black Player',
+    );
+    expect(root.querySelector('.profile-saved-games .profile-game-outcome')?.textContent).toBe('★');
+    expect(fetchSpy).toHaveBeenCalledWith('/api/games/favorites?offset=0&limit=15');
 
     // Compact game rows: the date is its own trailing column on the row link.
     const gameRow = root.querySelector('.profile-game-row');

@@ -86,6 +86,7 @@ type UserProfile = {
 
 // First page is delivered with the profile; "Load more" pulls subsequent pages.
 const PROFILE_GAMES_PAGE = 15;
+const FAVORITE_GAMES_PAGE = 15;
 
 type LeaderboardEntry = {
   rank: number;
@@ -1500,9 +1501,10 @@ function chartDateLabel(
   return text;
 }
 
-// Activity and Games are tabs over one full-width column: the tab is the panel's
-// only label (the panels carry no heading of their own), and clicking a tab
-// swaps which panel is shown.
+// Activity and Games are the primary profile tabs. A profile owner gets a
+// second-level Games / Saved switch inside Games, mirroring the way Lichess
+// keeps bookmarks under its games area instead of making them a peer of
+// Activity.
 function buildProfileTabs(profile: UserProfile, locale: Locale = currentLocale()): HTMLElement {
   const section = document.createElement('section');
   section.className = 'profile-tabs';
@@ -1513,9 +1515,15 @@ function buildProfileTabs(profile: UserProfile, locale: Locale = currentLocale()
 
   const activityPanel = buildProfileActivity(profile, locale);
   const gamesPanel = buildProfileGames(profile, locale);
+  const saved = profile.isViewer ? buildSavedGamesPanel(locale) : null;
+  const gamesGroup = document.createElement('section');
+  gamesGroup.className = 'profile-games-group';
   activityPanel.id = `profile-activity-${profile.user.handle}`;
-  gamesPanel.id = `profile-games-${profile.user.handle}`;
-  gamesPanel.hidden = true;
+  gamesGroup.id = `profile-games-${profile.user.handle}`;
+  gamesPanel.id = `profile-games-all-${profile.user.handle}`;
+  if (saved) saved.panel.id = `profile-saved-${profile.user.handle}`;
+  gamesGroup.hidden = true;
+  if (saved) saved.panel.hidden = true;
 
   const activityTab = buildProfileTabButton(
     t('profile.activity', {}, locale),
@@ -1525,23 +1533,153 @@ function buildProfileTabs(profile: UserProfile, locale: Locale = currentLocale()
   // The Games tab carries the total game count (lichess angle-tab parity).
   const gamesTab = buildProfileTabButton(
     t('profile.games', {}, locale),
-    gamesPanel.id,
+    gamesGroup.id,
     false,
     profile.gamesTotal > 0 ? profile.gamesTotal : undefined,
   );
   tabList.append(activityTab, gamesTab);
 
-  const activate = (button: HTMLButtonElement, panel: HTMLElement) => {
-    for (const tab of [activityTab, gamesTab])
-      tab.setAttribute('aria-selected', String(tab === button));
-    activityPanel.hidden = panel !== activityPanel;
-    gamesPanel.hidden = panel !== gamesPanel;
-  };
-  activityTab.addEventListener('click', () => activate(activityTab, activityPanel));
-  gamesTab.addEventListener('click', () => activate(gamesTab, gamesPanel));
+  let loadSaved: (() => void) | null = null;
+  if (saved) {
+    const gameSubtabs = document.createElement('div');
+    gameSubtabs.className = 'profile-games-subtab-list';
+    gameSubtabs.setAttribute('role', 'tablist');
+    gameSubtabs.setAttribute('aria-label', t('profile.games', {}, locale));
+    const allGamesSubtab = buildProfileGamesSubtab(
+      t('profile.games', {}, locale),
+      gamesPanel.id,
+      true,
+      profile.gamesTotal,
+    );
+    const savedSubtab = buildProfileGamesSubtab(
+      t('profile.savedGames', {}, locale),
+      saved.panel.id,
+      false,
+    );
+    const activateGamesSubtab = (button: HTMLButtonElement, panel: HTMLElement) => {
+      for (const subtab of [allGamesSubtab, savedSubtab]) {
+        subtab.setAttribute('aria-selected', String(subtab === button));
+      }
+      gamesPanel.hidden = panel !== gamesPanel;
+      saved.panel.hidden = panel !== saved.panel;
+    };
+    allGamesSubtab.addEventListener('click', () => activateGamesSubtab(allGamesSubtab, gamesPanel));
+    savedSubtab.addEventListener('click', () => activateGamesSubtab(savedSubtab, saved.panel));
+    gameSubtabs.append(allGamesSubtab, savedSubtab);
+    gamesGroup.append(gameSubtabs, gamesPanel, saved.panel);
+    loadSaved = () => {
+      void saved.load((total) => setProfileGamesSubtabCount(savedSubtab, total));
+    };
+  } else {
+    gamesGroup.append(gamesPanel);
+  }
 
-  section.append(tabList, activityPanel, gamesPanel);
+  const activate = (button: HTMLButtonElement, showGames: boolean) => {
+    for (const tab of [activityTab, gamesTab]) {
+      tab.setAttribute('aria-selected', String(tab === button));
+    }
+    activityPanel.hidden = showGames;
+    gamesGroup.hidden = !showGames;
+  };
+  activityTab.addEventListener('click', () => activate(activityTab, false));
+  gamesTab.addEventListener('click', () => {
+    activate(gamesTab, true);
+    loadSaved?.();
+  });
+
+  section.append(tabList, activityPanel, gamesGroup);
   return section;
+}
+
+function setProfileGamesSubtabCount(button: HTMLButtonElement, count: number): void {
+  const existing = button.querySelector<HTMLElement>('.profile-games-subtab-count');
+  if (existing) {
+    existing.textContent = String(count);
+    return;
+  }
+  const badge = document.createElement('span');
+  badge.className = 'profile-games-subtab-count';
+  badge.textContent = String(count);
+  button.prepend(badge, document.createTextNode(' '));
+}
+
+function buildSavedGamesPanel(locale: Locale): {
+  panel: HTMLElement;
+  load(onTotal: (total: number) => void): Promise<void>;
+} {
+  const panel = document.createElement('section');
+  panel.className = 'profile-games profile-saved-games';
+  const status = document.createElement('p');
+  status.className = 'landing-games-empty';
+  status.textContent = t('profile.loading', {}, locale);
+  panel.append(status);
+
+  let loaded = false;
+  const load = async (onTotal: (total: number) => void): Promise<void> => {
+    if (loaded) return;
+    loaded = true;
+    let firstPage: { games: FeaturedGame[]; total: number };
+    try {
+      firstPage = await fetchFavoriteGamesPage(0, FAVORITE_GAMES_PAGE);
+    } catch {
+      loaded = false;
+      status.textContent = t('profile.loadFailedBody', {}, locale);
+      return;
+    }
+    onTotal(firstPage.total);
+    if (firstPage.games.length === 0) {
+      status.textContent = t('profile.noSavedGames', {}, locale);
+      return;
+    }
+
+    const list = document.createElement('ol');
+    list.className = 'profile-game-list';
+    const appendGames = (games: FeaturedGame[]): void => {
+      for (const game of games) list.append(buildProfileGameRow(game, { locale, neutral: true }));
+    };
+    appendGames(firstPage.games);
+    panel.replaceChildren(list);
+
+    let rendered = firstPage.games.length;
+    if (rendered >= firstPage.total) return;
+    const moreWrap = document.createElement('div');
+    moreWrap.className = 'profile-games-more';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'profile-games-more-btn';
+    button.textContent = t('profile.loadMore', {}, locale);
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      button.textContent = t('profile.loadingMore', {}, locale);
+      try {
+        const page = await fetchFavoriteGamesPage(rendered, FAVORITE_GAMES_PAGE);
+        appendGames(page.games);
+        rendered += page.games.length;
+        onTotal(page.total);
+        if (rendered >= page.total || page.games.length === 0) {
+          moreWrap.remove();
+        } else {
+          button.disabled = false;
+          button.textContent = t('profile.loadMore', {}, locale);
+        }
+      } catch {
+        button.disabled = false;
+        button.textContent = t('profile.loadMore', {}, locale);
+      }
+    });
+    moreWrap.append(button);
+    panel.append(moreWrap);
+  };
+  return { panel, load };
+}
+
+async function fetchFavoriteGamesPage(
+  offset: number,
+  limit: number,
+): Promise<{ games: FeaturedGame[]; total: number }> {
+  const response = await fetch(`/api/games/favorites?offset=${offset}&limit=${limit}`);
+  if (!response.ok) throw new Error(`failed to load saved games: ${response.status}`);
+  return (await response.json()) as { games: FeaturedGame[]; total: number };
 }
 
 function buildProfileTabButton(
@@ -1563,6 +1701,31 @@ function buildProfileTabButton(
     badge.textContent = String(count);
     button.append(document.createTextNode(' '), badge);
   }
+  return button;
+}
+
+function buildProfileGamesSubtab(
+  label: string,
+  controls: string,
+  selected: boolean,
+  count?: number,
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'profile-games-subtab';
+  button.setAttribute('role', 'tab');
+  button.setAttribute('aria-controls', controls);
+  button.setAttribute('aria-selected', String(selected));
+  if (count != null) {
+    const badge = document.createElement('span');
+    badge.className = 'profile-games-subtab-count';
+    badge.textContent = String(count);
+    button.append(badge, document.createTextNode(' '));
+  }
+  const text = document.createElement('span');
+  text.className = 'profile-games-subtab-label';
+  text.textContent = label;
+  button.append(text);
   return button;
 }
 
