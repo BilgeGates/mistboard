@@ -11,8 +11,9 @@ import { mountJieqiReview } from './jieqi-review.js';
 import type { DecisionOverlay } from './tree-review.js';
 
 // End-to-end wiring test (jsdom): mount the jieqi review with a fake analysis + decision overlay
-// and assert the three visual outputs the decomposition adds — the reveal glyph on the move list,
-// the two-number summary block, and the per-move luck readout in the advice line.
+// and assert the visual outputs the decomposition adds — the reveal glyph + per-move luck badge on
+// the move list, and the headline accuracy summary re-graded luck-free (reveal counted as a
+// mistake) with a luck caption instead of a separate decision block.
 
 function firstMoves(count: number): JieqiMove[] {
   let state = createInitialJieqiState('t', STANDARD_JIEQI_DEAL);
@@ -39,7 +40,7 @@ function fakeAnalysis(plyCount: number) {
 
 function overlayWithFlaggedReveal(): DecisionOverlay {
   return {
-    byPly: new Map([[1, { judgment: 'mistake', luck: -12, playedRank: 5 }]]),
+    byPly: new Map([[1, { judgment: 'mistake', accuracy: 71, luck: -12, playedRank: 5 }]]),
     red: { reveals: 1, decisionAccuracy: 71 },
     black: { reveals: 0, decisionAccuracy: 100 },
   };
@@ -72,12 +73,18 @@ describe('jieqi decision overlay wiring', () => {
     await Promise.resolve();
     await new Promise((r) => setTimeout(r, 0));
 
-    // 1) The decision-accuracy rollup appears (skill only; luck is NOT summed here anymore).
-    const summary = root.querySelector('.review-decision-summary__inner');
+    // 1) The headline accuracy summary re-grades the reveal luck-free: Red's flagged reveal now
+    // counts as a Mistake (the base analysis left it unjudged), and a luck caption replaces the old
+    // separate decision block. No "Non-reveal" split, no ACPL row.
+    const summary = root.querySelector('.analysis-summary');
     expect(summary).not.toBeNull();
-    expect(summary!.textContent).toContain('Reveal decisions');
-    expect(summary!.textContent).toContain('71% accuracy'); // red decision accuracy
-    expect(summary!.textContent).not.toContain('Luck'); // net-luck row is gone
+    const redBlock = summary!.querySelector('.analysis-summary__player');
+    expect(redBlock!.textContent).toContain('Mistake');
+    expect(summary!.textContent).not.toContain('Non-reveal');
+    expect(summary!.textContent).not.toContain('centipawn'); // ACPL hidden for chance variants
+    const caption = root.querySelector('.review-decision-summary__caption');
+    expect(caption).not.toBeNull();
+    expect(caption!.textContent).toContain('🎲');
 
     // 2) The flagged reveal (ply 1) shows the decision glyph (? mistake) in the move list.
     expect(root.textContent).toContain('?');

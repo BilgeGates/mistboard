@@ -25,7 +25,7 @@ import type { CevalLine, CevalVariant } from './engine/ceval.js';
 import { createEnginePanel } from './engine/engine-panel.js';
 import { createEvalBar } from './engine/eval-bar.js';
 import { formatEval } from './engine/eval-format.js';
-import { type GameAnalysis, judgmentGlyph } from './game-analysis.js';
+import { type GameAnalysis, judgmentGlyph, mergeDecisionAnalysis } from './game-analysis.js';
 import {
   createGameTree,
   type GameTree,
@@ -160,6 +160,9 @@ export type AnalysisSource = {
 export type DecisionMoveInfo = {
   /** Decision-quality glyph for the reveal (null = a fine choice, or within engine noise). */
   judgment: MoveJudgment;
+  /** Luck-free accuracy of the CHOICE in [0, 100] (best-vs-played pool means). Feeds the headline
+   *  accuracy so a reveal ply is graded on skill, not the dice. */
+  accuracy: number;
   /** Signed win% swing the reveal produced vs its own expectation (+ lucky, - unlucky). */
   luck: number;
   /** The played reveal's rank among the alternatives (1 = best), or null when off the table. */
@@ -476,8 +479,9 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     gameUrl: typeof window !== 'undefined' ? window.location.href : '',
   });
   const analysisSummaryEl = document.createElement('div');
-  // The decision-vs-luck two-number block (jieqi); sits under the accuracy summary, populated
-  // when the decision overlay loads. Kept as a persistent child so applyAnalysis re-attaches it.
+  // Chance-variant (jieqi) caption slot under the accuracy summary: a "Grading reveals…" placeholder
+  // until the decomposition loads, then a one-line luck caption. Kept as a persistent child so
+  // applyAnalysis/applyDecisions can re-attach it without re-creating the node.
   const decisionSummaryEl = document.createElement('div');
   decisionSummaryEl.className = 'review-decision-summary';
   const moveAdvice = createMoveAdvice(presentation.formatBestMove);
@@ -637,17 +641,15 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     });
     chart.setPly(currentNode().ply);
     underboardBody.replaceChildren(chart.el);
-    // Chance variants (those with a decision overlay) grade reveals separately, so the top
-    // accuracy here is over NON-reveal moves only — label it so it doesn't read as contradicting
-    // the reveal-decision accuracy below.
-    analysisSummaryEl.replaceChildren(
-      createAnalysisSummary(
-        analysis,
-        config.players,
-        config.decisions ? { accuracyLabel: 'Non-reveal accuracy' } : undefined,
-      ),
-      decisionSummaryEl,
-    );
+    // Chance variants (jieqi) grade every move luck-free once the decomposition loads; the base
+    // summary would exclude reveals and read as a misleading clean sheet, so hold a placeholder
+    // until applyDecisions folds the decomposition in. Deterministic variants show the base now.
+    if (config.decisions) {
+      decisionSummaryEl.replaceChildren(decisionPendingNote());
+      analysisSummaryEl.replaceChildren(decisionSummaryEl);
+    } else {
+      analysisSummaryEl.replaceChildren(createAnalysisSummary(analysis, config.players));
+    }
     refreshMoveTreeAnnotations(); // rebuilds the tree DOM (engine glyphs + user glyphs)
     render(); // re-highlight + re-apply move advice
     scaffold.refit(); // the underboard grew; re-fit the board
@@ -655,9 +657,24 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
 
   function applyDecisions(overlay: DecisionOverlay): void {
     decisionOverlay = overlay;
-    // Append the decision-accuracy block under the accuracy summary, and re-merge the reveal
-    // glyphs + inline luck now that the overlay is present.
-    decisionSummaryEl.replaceChildren(createDecisionSummary(overlay, config.players));
+    // Fold the decomposition into the headline summary: reveals are now graded luck-free (best-vs-
+    // played pool means), quiet moves on their realized swing, so accuracy + the mistake/blunder
+    // counts finally reflect the player's CHOICES rather than the dice. ACPL is hidden (it can't be
+    // luck-stripped). Per-reveal luck lives on the moves + the chart band, not a separate number.
+    if (gameAnalysis) {
+      const decisionByPly = new Map(
+        [...overlay.byPly].map(([ply, info]) => [
+          ply,
+          { accuracy: info.accuracy, judgment: info.judgment },
+        ]),
+      );
+      const merged = mergeDecisionAnalysis(gameAnalysis, decisionByPly);
+      analysisSummaryEl.replaceChildren(
+        createAnalysisSummary({ ...gameAnalysis, ...merged }, config.players, { hideAcpl: true }),
+        decisionSummaryEl,
+      );
+      decisionSummaryEl.replaceChildren(luckCaption());
+    }
     // Overlay the advantage chart's "if reveals ran average" ghost line: per-reveal luck is in the
     // MOVER's POV, so a black reveal flips sign to red-POV (red moves the odd plies).
     const redLuckByPly = new Map<number, number>();
@@ -847,41 +864,20 @@ function truncationNotice(legal: number): HTMLElement {
   return panel;
 }
 
-// The decision-quality rollup (jieqi): a single number per player — Decision accuracy — grading
-// only the CHOICE (never the outcome). Per-reveal luck lives inline on each move, not here, so
-// this stays a clean skill readout that could feed a rating. Only rendered for a player who made
-// reveals.
-function createDecisionSummary(
-  overlay: DecisionOverlay,
-  players?: { red?: string; black?: string },
-): HTMLElement {
-  const wrap = document.createElement('div');
-  wrap.className = 'review-decision-summary__inner';
+// Shown in the accuracy slot for a chance variant (jieqi) while the decision decomposition is still
+// computing — the base accuracy would exclude reveals and read as a false clean sheet, so we wait.
+function decisionPendingNote(): HTMLElement {
+  const note = document.createElement('div');
+  note.className = 'review-decision-summary__pending';
+  note.textContent = 'Grading reveals…';
+  return note;
+}
 
-  const title = document.createElement('div');
-  title.className = 'review-decision-summary__title';
-  title.textContent = 'Reveal decisions';
-  wrap.append(title);
-
-  const row = (name: string, summary: DecisionPlayerSummary): HTMLElement | null => {
-    if (summary.reveals === 0) return null;
-    const r = document.createElement('div');
-    r.className = 'review-decision-summary__row';
-    const label = document.createElement('span');
-    label.className = 'review-decision-summary__cell review-decision-summary__cell--label';
-    label.textContent = name;
-    const value = document.createElement('span');
-    value.className = 'review-decision-summary__cell review-decision-summary__cell--value';
-    value.textContent = `${Math.round(summary.decisionAccuracy)}% accuracy`;
-    r.append(label, value);
-    return r;
-  };
-
-  for (const el of [
-    row(players?.red ?? 'Red', overlay.red),
-    row(players?.black ?? 'Black', overlay.black),
-  ]) {
-    if (el) wrap.append(el);
-  }
-  return wrap;
+// A one-line caption under the (luck-free) accuracy summary explaining that accuracy grades the
+// CHOICE and the 🎲 per-move badges + chart band are the luck, so the two never look contradictory.
+function luckCaption(): HTMLElement {
+  const cap = document.createElement('div');
+  cap.className = 'review-decision-summary__caption';
+  cap.textContent = 'Accuracy grades your choices; 🎲 marks the luck of each reveal.';
+  return cap;
 }

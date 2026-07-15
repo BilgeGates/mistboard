@@ -10,9 +10,9 @@ import type { GameAnalysis, PlayerAnalysis } from './game-analysis.js';
 export type AnalysisSummaryLabels = { red?: string; black?: string };
 
 export type AnalysisSummaryOptions = {
-  /** Label for the accuracy row. Chance/hidden-info variants pass 'Non-reveal accuracy' so it
-   *  reads as distinct from the separate reveal-decision accuracy. Defaults to 'Accuracy'. */
-  accuracyLabel?: string;
+  /** Hide the ACPL row. Chance/hidden-info variants (jieqi) set this: centipawn loss can't be
+   *  luck-stripped, so it reads as noise next to the luck-free accuracy + counts. */
+  hideAcpl?: boolean;
 };
 
 export function createAnalysisSummary(
@@ -22,17 +22,12 @@ export function createAnalysisSummary(
 ): HTMLElement {
   const el = document.createElement('section');
   el.className = 'analysis-summary';
-  const accuracyLabel = options?.accuracyLabel ?? 'Accuracy';
+  const hideAcpl = options?.hideAcpl ?? false;
   el.append(
-    playerBlock(labels?.red || 'Red', 'analysis-summary__dot--red', analysis.red, accuracyLabel),
+    playerBlock(labels?.red || 'Red', 'analysis-summary__dot--red', analysis.red, hideAcpl),
   );
   el.append(
-    playerBlock(
-      labels?.black || 'Black',
-      'analysis-summary__dot--black',
-      analysis.black,
-      accuracyLabel,
-    ),
+    playerBlock(labels?.black || 'Black', 'analysis-summary__dot--black', analysis.black, hideAcpl),
   );
   return el;
 }
@@ -41,7 +36,7 @@ function playerBlock(
   label: string,
   dotClass: string,
   player: PlayerAnalysis,
-  accuracyLabel: string,
+  hideAcpl: boolean,
 ): HTMLElement {
   const block = document.createElement('div');
   block.className = 'analysis-summary__player';
@@ -73,9 +68,11 @@ function playerBlock(
       plural(player.blunders, 'Blunder', 'Blunders'),
       player.blunders > 0 ? 'blunder' : null,
     ),
-    statRow(String(player.acpl), 'Average centipawn loss', null),
-    statRow(`${Math.round(player.accuracy)}%`, accuracyLabel, null),
+    statRow(`${Math.round(player.accuracy)}%`, 'Accuracy', null),
   );
+  if (!hideAcpl) {
+    stats.append(statRow(String(player.acpl), 'Average centipawn loss', null));
+  }
 
   block.append(head, stats);
   return block;

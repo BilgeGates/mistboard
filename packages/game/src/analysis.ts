@@ -67,14 +67,16 @@ export function moveJudgment(winBefore: number, winAfter: number): MoveJudgment 
  * order — one more entry than there are moves. The first mover owns the even
  * transitions (0->1, 2->3, ...). Returns 0 for a side with no moves.
  */
-// `excludePlies` (1-based ply numbers) drops those move transitions from the per-player accuracy
-// samples — used by chance/hidden-info variants (jieqi/banqi/jungle-flip) to keep REVEAL plies out
-// of the accuracy, since a reveal's win% swing is luck, not a graded decision. Empty/absent for
-// deterministic variants, so their accuracy is unchanged. The volatility windows still span the
-// full curve (a reveal is real local volatility); only the attribution to a player is skipped.
+// `overrideAccuracyByPly` (1-based ply -> value) substitutes the per-move accuracy for chance/
+// hidden-info variants (jieqi/banqi/jungle-flip), where a reveal ply's realized win% swing mixes
+// SKILL with LUCK. A number replaces the curve-derived sample with a LUCK-FREE one (the decision's
+// pool-mean accuracy, so the choice is graded and the dice are not); `null` drops the ply entirely
+// (a reveal we couldn't decompose). Plies absent from the map derive from the curve as usual, so
+// deterministic variants (no map) are unchanged. The volatility windows still span the full curve
+// (a reveal is real local volatility); only each move's accuracy value is overridden.
 export function gameAccuracy(
   winPercents: number[],
-  excludePlies?: ReadonlySet<number>,
+  overrideAccuracyByPly?: ReadonlyMap<number, number | null>,
 ): { first: number; second: number } {
   const moves = winPercents.length - 1;
   if (moves < 1) return { first: 0, second: 0 };
@@ -100,14 +102,21 @@ export function gameAccuracy(
     second: [],
   };
   for (let i = 0; i < moves; i += 1) {
-    // Move index i produces ply i+1; skip a reveal (chance) ply so its luck never counts as skill.
-    if (excludePlies?.has(i + 1)) continue;
+    // Move index i produces ply i+1.
+    const mover: 'first' | 'second' = i % 2 === 0 ? 'first' : 'second';
+    const weight = weights[i] ?? 1;
+    const override = overrideAccuracyByPly?.get(i + 1);
+    if (override !== undefined) {
+      // A reveal ply: use the luck-free decision accuracy (number), or drop it (null).
+      if (override === null) continue;
+      samples[mover].push({ accuracy: override, weight });
+      continue;
+    }
     const prev = winPercents[i]!;
     const next = winPercents[i + 1]!;
-    const mover: 'first' | 'second' = i % 2 === 0 ? 'first' : 'second';
     const before = mover === 'first' ? prev : 100 - prev;
     const after = mover === 'first' ? next : 100 - next;
-    samples[mover].push({ accuracy: accuracyPercent(before, after), weight: weights[i] ?? 1 });
+    samples[mover].push({ accuracy: accuracyPercent(before, after), weight });
   }
 
   const sideAccuracy = (side: 'first' | 'second'): number => {

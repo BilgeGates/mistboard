@@ -67,11 +67,21 @@ test('gameAccuracy handles degenerate inputs', () => {
   assert.equal(one.second, 100);
 });
 
-test('gameAccuracy excludes reveal (chance) plies from the graded accuracy', () => {
+test('gameAccuracy drops a reveal ply (null override) from the graded accuracy', () => {
   // A curve where the FIRST mover's ply-1 move looks like a big blunder (50 -> 15) but it is a
-  // reveal (luck): excluding ply 1 should lift their accuracy well above the un-excluded version.
+  // reveal (luck): dropping ply 1 should lift their accuracy well above the un-overridden version.
   const curve = [50, 15, 40, 45, 42];
   const graded = gameAccuracy(curve);
-  const revealExcluded = gameAccuracy(curve, new Set([1]));
-  assert.ok(revealExcluded.first > graded.first, 'excluding the unlucky reveal raises accuracy');
+  const revealDropped = gameAccuracy(curve, new Map([[1, null]]));
+  assert.ok(revealDropped.first > graded.first, 'dropping the unlucky reveal raises accuracy');
+});
+
+test('gameAccuracy substitutes a luck-free accuracy for a reveal ply', () => {
+  // Same curve: ply 1 realized as a 50->15 crater, but the luck-free DECISION was near-perfect.
+  // Overriding ply 1 with a high accuracy should grade the first mover well above the realized
+  // (outcome-graded) version, and above simply dropping the ply (which adds no positive sample).
+  const curve = [50, 15, 40, 45, 42];
+  const realized = gameAccuracy(curve);
+  const luckFree = gameAccuracy(curve, new Map([[1, 99]]));
+  assert.ok(luckFree.first > realized.first, 'a luck-free decision beats the crater outcome');
 });

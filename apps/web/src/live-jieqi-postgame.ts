@@ -209,7 +209,12 @@ function toDecisionOverlay(summary: JieqiDecisionSummary): DecisionOverlay {
     byPly: new Map(
       [...summary.byPly].map(([ply, view]) => [
         ply,
-        { judgment: view.judgment, luck: view.luck, playedRank: view.playedRank },
+        {
+          judgment: view.judgment,
+          accuracy: view.accuracy,
+          luck: view.luck,
+          playedRank: view.playedRank,
+        },
       ]),
     ),
     red: { reveals: summary.red.reveals, decisionAccuracy: summary.red.decisionAccuracy },

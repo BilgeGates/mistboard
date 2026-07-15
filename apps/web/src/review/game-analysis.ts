@@ -54,6 +54,9 @@ export type GameAnalysis = {
   /** Red-POV eval per ply cursor (0..N). */
   evals: PlyEval[];
   moves: MoveAnalysis[];
+  /** 1-based plies whose move was a chance (reveal) move — left unjudged here; graded luck-free by
+   *  the decision decomposition (see mergeDecisionAnalysis). Empty for deterministic variants. */
+  chancePlies: number[];
   red: PlayerAnalysis;
   black: PlayerAnalysis;
 };
@@ -127,10 +130,13 @@ export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): Game
 
   // Whole-game accuracy is lila's volatility-weighted + harmonic blend — NOT a
   // plain mean of per-move accuracies (which reads flatteringly high). CHANCE (reveal) plies are
-  // excluded so this grades only the moves a player fully controls — a reveal's swing is luck, and
-  // its skill is measured separately by the decision decomposition. Empty for deterministic
-  // variants, so their accuracy is unchanged.
-  const accuracies = gameAccuracy(redWinPercents, chancePlies);
+  // dropped here so this base grades only the moves a player fully controls — a reveal's swing is
+  // luck. For chance variants this base is provisional: mergeDecisionAnalysis re-grades the reveals
+  // luck-free once the decomposition loads. Empty map for deterministic variants (unchanged).
+  const accuracies = gameAccuracy(
+    redWinPercents,
+    chancePlies.size ? new Map([...chancePlies].map((ply) => [ply, null])) : undefined,
+  );
 
   const summarize = (side: 'red' | 'black'): PlayerAnalysis => {
     const b = acc[side];
@@ -148,9 +154,67 @@ export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): Game
     depth: response.depth,
     evals,
     moves,
+    chancePlies: [...chancePlies].sort((a, b) => a - b),
     red: summarize('red'),
     black: summarize('black'),
   };
+}
+
+/** A reveal ply's luck-free decision grade, from the decomposition (see review/jieqi-decisions). */
+export type PlyDecision = {
+  /** Accuracy in [0, 100] of the CHOICE (best-vs-played pool means), luck stripped. */
+  accuracy: number;
+  /** Judgment of the choice (?!/?/??), already deadband-guarded. null = a fine choice. */
+  judgment: MoveJudgment;
+};
+
+/**
+ * Fold the decision-vs-luck decomposition into the headline per-player analysis for a chance
+ * variant (jieqi). The base computeGameAnalysis leaves reveal plies unjudged (their realized swing
+ * is luck); here we grade EVERY move luck-free — reveals via their pool-mean decision grade, quiet
+ * moves via the realized swing — so the accuracy and the inaccuracy/mistake/blunder counts finally
+ * reflect how the player actually chose. ACPL is intentionally dropped (centipawn loss can't be
+ * luck-stripped and reads as noise here). A reveal with no decision entry is left ungraded.
+ */
+export function mergeDecisionAnalysis(
+  analysis: GameAnalysis,
+  decisionByPly: ReadonlyMap<number, PlyDecision>,
+): { red: PlayerAnalysis; black: PlayerAnalysis } {
+  const redWinPercents = analysis.evals.map((e) => winPercent(e.cp, e.mate));
+  const chance = new Set(analysis.chancePlies);
+  const override = new Map<number, number | null>();
+  const counts: Record<'red' | 'black', { i: number; m: number; b: number }> = {
+    red: { i: 0, m: 0, b: 0 },
+    black: { i: 0, m: 0, b: 0 },
+  };
+  const bump = (side: 'red' | 'black', judgment: MoveJudgment): void => {
+    if (judgment === 'inaccuracy') counts[side].i += 1;
+    else if (judgment === 'mistake') counts[side].m += 1;
+    else if (judgment === 'blunder') counts[side].b += 1;
+  };
+  for (const move of analysis.moves) {
+    if (chance.has(move.ply)) {
+      const decision = decisionByPly.get(move.ply);
+      if (!decision) {
+        override.set(move.ply, null); // a reveal we couldn't decompose — leave it ungraded
+        continue;
+      }
+      override.set(move.ply, decision.accuracy);
+      bump(move.mover, decision.judgment);
+    } else {
+      // Quiet (fully-controlled) move: its realized judgment already stands.
+      bump(move.mover, move.judgment);
+    }
+  }
+  const accuracies = gameAccuracy(redWinPercents, override);
+  const build = (side: 'red' | 'black', accuracy: number): PlayerAnalysis => ({
+    accuracy,
+    inaccuracies: counts[side].i,
+    mistakes: counts[side].m,
+    blunders: counts[side].b,
+    acpl: 0, // not shown for chance variants (see AnalysisSummaryOptions.hideAcpl)
+  });
+  return { red: build('red', accuracies.first), black: build('black', accuracies.second) };
 }
 
 function mean(values: number[]): number {
