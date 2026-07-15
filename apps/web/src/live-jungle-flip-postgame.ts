@@ -11,8 +11,14 @@ import { jungleFlipEnabled } from './feature-flags.js';
 import { jungleFlipResultLabel, jungleFlipSeatInk } from './jungle-flip-result-label.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
 import { buildReviewMeta, labelize } from './review/game-review-meta.js';
+import {
+  fetchCachedJungleFlipDecisions,
+  type JungleFlipDecisionSummary,
+  requestJungleFlipDecisions,
+} from './review/jungle-flip-decisions.js';
 import { mountJungleFlipReview } from './review/jungle-flip-review.js';
 import { recoverJungleFlipDeal } from './review/jungle-flip-tree-adapter.js';
+import type { DecisionOverlay } from './review/tree-review.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
 
@@ -189,7 +195,36 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
             return new Promise<never>(() => {});
           },
     },
+    // Decision-vs-luck decomposition: flip plies get a decision-quality glyph + per-move luck
+    // readout + a two-number summary. Computed on top of the basic analysis (heavier, so it runs
+    // as the follow-on pass). Signed-out never reaches run() — the analysis button redirects first.
+    decisions: {
+      fetchCached: () =>
+        fetchCachedJungleFlipDecisions(postgame.game.roomId).then((summary) =>
+          summary ? toDecisionOverlay(summary) : null,
+        ),
+      run: () => requestJungleFlipDecisions(postgame.game.roomId).then(toDecisionOverlay),
+    },
   });
+}
+
+// Adapt the flip-jungle decomposition summary to the review's variant-agnostic overlay shape.
+function toDecisionOverlay(summary: JungleFlipDecisionSummary): DecisionOverlay {
+  return {
+    byPly: new Map(
+      [...summary.byPly].map(([ply, view]) => [
+        ply,
+        {
+          judgment: view.judgment,
+          accuracy: view.accuracy,
+          luck: view.luck,
+          playedRank: view.playedRank,
+        },
+      ]),
+    ),
+    red: { reveals: summary.red.reveals, decisionAccuracy: summary.red.decisionAccuracy },
+    black: { reveals: summary.black.reveals, decisionAccuracy: summary.black.decisionAccuracy },
+  };
 }
 
 export function replayMaxPly(postgame: JungleFlipPostgameResponse): number {
