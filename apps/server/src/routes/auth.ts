@@ -18,6 +18,7 @@ import {
   sendEmailLoginCode,
 } from './../account-session.js';
 import { clientIpForRateLimit, createAuthRateLimiter } from './../auth-rate-limit.js';
+import { authCounters } from './../obs.js';
 import * as persistence from './../persistence.js';
 import { readJsonBody, requireMethod, requirePersistence, writeJson } from './lib.js';
 
@@ -29,6 +30,9 @@ const authConfirmRateWindowMs = 10 * 60 * 1000;
 const authConfirmRatePerWindow = 10;
 const authStartRateWindowMs = 10 * 60 * 1000;
 const authStartRatePerWindow = 5;
+const authStartEmailRatePerWindow = 3;
+const authStartResendCooldownMs = 30 * 1000;
+const authRateBucketRetentionMs = 24 * 60 * 60 * 1000;
 const confirmRateLimiter = createAuthRateLimiter(authConfirmRatePerWindow, authConfirmRateWindowMs);
 const startRateLimiter = createAuthRateLimiter(authStartRatePerWindow, authStartRateWindowMs);
 
@@ -48,23 +52,56 @@ export async function tryHandle(
   if (pathname === '/api/auth/email/start') {
     if (!requireMethod(request, response, 'POST')) return true;
     if (!requirePersistence(response)) return true;
-    if (!startRateLimiter.check(clientIpForRateLimit(request))) {
+    const clientIp = clientIpForRateLimit(request);
+    if (!startRateLimiter.check(clientIp)) {
+      authCounters.recordStart('rate_limited');
       writeJson(response, 429, { error: 'rate_limited' });
       return true;
     }
     if (!authEmailDeliveryEnabled && !devAuthCodesEnabled) {
+      authCounters.recordStart('rejected');
       writeJson(response, 503, { error: 'email_delivery_not_configured' });
       return true;
     }
     const body = await readJsonBody(request);
     const email = normalizeEmail(typeof body.email === 'string' ? body.email : null);
     if (!email) {
+      authCounters.recordStart('rejected');
       writeJson(response, 400, { error: 'invalid_email' });
+      return true;
+    }
+    const now = new Date();
+    await persistence.pruneAuthRateLimitBuckets(
+      new Date(now.getTime() - authRateBucketRetentionMs),
+    );
+    const ipAllowed = await persistence.consumeAuthRateLimitBucket({
+      limit: authStartRatePerWindow,
+      now,
+      scope: 'email-start-ip',
+      subjectHash: hashSecret(`auth-rate:email-start-ip:${clientIp}`),
+      windowMs: authStartRateWindowMs,
+    });
+    if (!ipAllowed) {
+      authCounters.recordStart('rate_limited');
+      writeJson(response, 429, { error: 'rate_limited' });
+      return true;
+    }
+    const emailAllowed = await persistence.consumeAuthRateLimitBucket({
+      cooldownMs: authStartResendCooldownMs,
+      limit: authStartEmailRatePerWindow,
+      now,
+      scope: 'email-start-email',
+      subjectHash: hashSecret(`auth-rate:email-start-email:${email}`),
+      windowMs: authStartRateWindowMs,
+    });
+    if (!emailAllowed) {
+      authCounters.recordStart('rate_limited');
+      writeJson(response, 429, { error: 'rate_limited' });
       return true;
     }
     const loginId = randomUUID();
     const code = randomEmailLoginCode();
-    const expiresAt = new Date(Date.now() + emailLoginCodeTtlMs);
+    const expiresAt = new Date(now.getTime() + emailLoginCodeTtlMs);
     await persistence.createEmailLoginChallenge({
       id: loginId,
       email,
@@ -75,14 +112,18 @@ export async function tryHandle(
       const delivery = await sendEmailLoginCode(email, code);
       if (!delivery.ok) {
         await persistence.deleteEmailLoginChallenge(loginId);
+        authCounters.recordStart('delivery_failed');
         writeJson(response, 502, { error: 'email_delivery_failed' });
         return true;
       }
     }
+    await persistence.supersedeEmailLoginChallenges(email, loginId, now);
+    authCounters.recordStart('sent');
     writeJson(response, 202, {
       loginId,
       email,
       expiresAt: expiresAt.toISOString(),
+      resendAvailableAt: new Date(now.getTime() + authStartResendCooldownMs).toISOString(),
       delivery: authEmailDeliveryEnabled ? 'email' : 'dev-response',
       ...(devAuthCodesEnabled ? { devCode: code } : {}),
     });
@@ -92,7 +133,9 @@ export async function tryHandle(
   if (pathname === '/api/auth/email/confirm') {
     if (!requireMethod(request, response, 'POST')) return true;
     if (!requirePersistence(response)) return true;
-    if (!confirmRateLimiter.check(clientIpForRateLimit(request))) {
+    const clientIp = clientIpForRateLimit(request);
+    if (!confirmRateLimiter.check(clientIp)) {
+      authCounters.recordConfirm('rate_limited');
       writeJson(response, 429, { error: 'rate_limited' });
       return true;
     }
@@ -100,18 +143,33 @@ export async function tryHandle(
     const loginId = typeof body.loginId === 'string' ? body.loginId.trim() : '';
     const code = typeof body.code === 'string' ? body.code.trim() : '';
     if (!loginId || !code) {
+      authCounters.recordConfirm('rejected');
       writeJson(response, 400, { error: 'invalid_login_code' });
       return true;
     }
     const now = new Date();
+    const ipAllowed = await persistence.consumeAuthRateLimitBucket({
+      limit: authConfirmRatePerWindow,
+      now,
+      scope: 'email-confirm-ip',
+      subjectHash: hashSecret(`auth-rate:email-confirm-ip:${clientIp}`),
+      windowMs: authConfirmRateWindowMs,
+    });
+    if (!ipAllowed) {
+      authCounters.recordConfirm('rate_limited');
+      writeJson(response, 429, { error: 'rate_limited' });
+      return true;
+    }
     const challenge = await persistence.consumeEmailLoginChallenge(loginId, hashSecret(code), now);
     if (!challenge) {
+      authCounters.recordConfirm('rejected');
       writeJson(response, 400, { error: 'invalid_login_code' });
       return true;
     }
 
     const account = await ensureUserForEmail(challenge.email, now);
     if ('closed' in account) {
+      authCounters.recordConfirm('rejected');
       writeJson(response, 403, { error: 'account_closed' });
       return true;
     }
@@ -126,6 +184,7 @@ export async function tryHandle(
       expiresAt,
       userAgent: sessionUserAgent(request),
     });
+    authCounters.recordConfirm('success');
     writeJson(
       response,
       200,

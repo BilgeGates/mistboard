@@ -149,6 +149,17 @@ export type EmailLoginChallenge = {
   expiresAt: Date;
 };
 
+export type AuthRateLimitScope = 'email-confirm-ip' | 'email-start-email' | 'email-start-ip';
+
+export type AuthRateLimitInput = {
+  cooldownMs?: number;
+  limit: number;
+  now: Date;
+  scope: AuthRateLimitScope;
+  subjectHash: string;
+  windowMs: number;
+};
+
 export type EmailChangeChallenge = EmailLoginChallenge & {
   userId: string;
 };
@@ -263,6 +274,64 @@ export async function createEmailLoginChallenge(challenge: EmailLoginChallenge):
 
 export async function deleteEmailLoginChallenge(id: string): Promise<void> {
   await getPool().query('DELETE FROM email_login_challenges WHERE id = $1', [id]);
+}
+
+export async function supersedeEmailLoginChallenges(
+  email: string,
+  keepId: string,
+  at: Date,
+): Promise<void> {
+  await getPool().query(
+    `UPDATE email_login_challenges
+        SET consumed_at = $3
+      WHERE lower(email) = lower($1)
+        AND id <> $2
+        AND consumed_at IS NULL`,
+    [email, keepId, at],
+  );
+}
+
+export async function consumeAuthRateLimitBucket(input: AuthRateLimitInput): Promise<boolean> {
+  if (
+    input.limit < 1 ||
+    input.windowMs < 1 ||
+    (input.cooldownMs !== undefined && input.cooldownMs < 0)
+  ) {
+    throw new Error('invalid auth rate-limit configuration');
+  }
+  const windowCutoff = new Date(input.now.getTime() - input.windowMs);
+  const cooldownCutoff = new Date(input.now.getTime() - (input.cooldownMs ?? 0));
+  const { rowCount } = await getPool().query(
+    `INSERT INTO auth_rate_limit_buckets
+       (scope, subject_hash, window_started_at, hit_count, last_hit_at)
+     VALUES ($1, $2, $3, 1, $3)
+     ON CONFLICT (scope, subject_hash) DO UPDATE
+       SET window_started_at = CASE
+             WHEN auth_rate_limit_buckets.window_started_at <= $4 THEN $3
+             ELSE auth_rate_limit_buckets.window_started_at
+           END,
+           hit_count = CASE
+             WHEN auth_rate_limit_buckets.window_started_at <= $4 THEN 1
+             ELSE auth_rate_limit_buckets.hit_count + 1
+           END,
+           last_hit_at = $3
+       WHERE (
+         auth_rate_limit_buckets.window_started_at <= $4
+         OR auth_rate_limit_buckets.hit_count < $5
+       )
+       AND auth_rate_limit_buckets.last_hit_at <= $6
+     RETURNING hit_count`,
+    [input.scope, input.subjectHash, input.now, windowCutoff, input.limit, cooldownCutoff],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+export async function pruneAuthRateLimitBuckets(before: Date): Promise<number> {
+  const result = await getPool().query(
+    'DELETE FROM auth_rate_limit_buckets WHERE last_hit_at < $1',
+    [before],
+  );
+  return result.rowCount ?? 0;
 }
 
 export async function consumeEmailLoginChallenge(

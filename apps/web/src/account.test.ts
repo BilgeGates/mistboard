@@ -53,7 +53,7 @@ describe('account page auth flow', () => {
         const url = String(input);
         if (url === '/api/auth/me') return jsonResponse({ user: null });
         if (url === '/api/auth/email/start') {
-          return jsonResponse({ loginId: 'login-1', devCode: '123456' }, 202);
+          return jsonResponse(authStartData('login-1', '12345678'), 202);
         }
         if (url === '/api/auth/email/confirm') {
           return jsonResponse({ user, isNewUser: false });
@@ -87,7 +87,7 @@ describe('account page auth flow', () => {
     expect(document.querySelector('.account-nav-trigger')?.textContent).toBe('misty');
     expect(document.querySelector('.site-nav-link-signin')).toBeNull();
     expect(window.location.pathname).toBe('/');
-    expect(document.querySelector('h1')?.textContent).toBe('Sign in');
+    expect(document.querySelector('h1')?.textContent).toBe('Sign in or create an account');
   });
 
   it('shows local setup guidance when the auth API is unavailable', async () => {
@@ -116,6 +116,8 @@ describe('account page auth flow', () => {
     expect(document.querySelector('.account-status')?.textContent).toContain(
       'Auth server unavailable',
     );
+    expect(email?.getAttribute('aria-invalid')).toBe('true');
+    expect(document.querySelector('.account-status')?.getAttribute('data-state')).toBe('error');
   });
 
   it('localizes the Traditional Chinese register flow', async () => {
@@ -126,7 +128,7 @@ describe('account page auth flow', () => {
         const url = String(input);
         if (url === '/api/auth/me') return jsonResponse({ user: null });
         if (url === '/api/auth/email/start') {
-          return jsonResponse({ loginId: 'login-1' }, 202);
+          return jsonResponse(authStartData('login-1'), 202);
         }
         throw new Error(`unexpected fetch: ${url}`);
       }),
@@ -137,15 +139,20 @@ describe('account page auth flow', () => {
     await mountAccount(document.querySelector<HTMLElement>('#app') as HTMLElement);
     await flushDom();
 
-    expect(document.querySelector('.account-auth-tabs')?.getAttribute('aria-label')).toBe(
-      '帳號存取',
-    );
-    expect(document.querySelector('h1')?.textContent).toBe('建立帳號');
+    expect(document.querySelector('.account-auth-tabs')).toBeNull();
+    expect(document.querySelector('h1')?.textContent).toBe('登入或建立帳號');
     expect(document.querySelector('.account-copy')?.textContent).toBe(
-      '輸入信箱。我們會寄送驗證碼，不需要密碼。',
+      '一組信箱驗證碼。不需要密碼。',
     );
     expect(document.querySelector<HTMLInputElement>('input[name="email"]')?.placeholder).toBe(
       '信箱地址',
+    );
+    expect(document.querySelector('.account-auth-field-label')?.textContent).toBe('信箱地址');
+    expect(document.querySelector('.account-auth-field-help')?.textContent).toContain('10 分鐘');
+    expect(document.querySelectorAll('.account-auth-principles li')).toHaveLength(3);
+    expect(document.querySelector<HTMLDetailsElement>('.account-auth-principles')?.open).toBe(true);
+    expect(document.querySelector('.account-auth-principles')?.textContent).toContain(
+      '帳號讓計分對局保持可信',
     );
     expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toBe(
       '寄送驗證碼',
@@ -162,8 +169,90 @@ describe('account page auth flow', () => {
     expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toBe(
       '確認',
     );
+    expect(document.querySelector('.account-auth-code-prompt')?.textContent).toBe(
+      '請輸入寄送至 misty@example.com 的 8 位數驗證碼。',
+    );
+    expect(document.querySelector('.account-auth-code-timing')?.textContent).toMatch(
+      /(?:9:|10:00)/,
+    );
+    expect(email?.readOnly).toBe(true);
+    expect(document.querySelector<HTMLElement>('.account-auth-email-stage')?.hidden).toBe(true);
+    expect(document.querySelector<HTMLElement>('.account-auth-code-stage')?.hidden).toBe(false);
+
+    document.querySelectorAll<HTMLButtonElement>('.account-auth-reset')[1]?.click();
+
+    expect(email?.readOnly).toBe(false);
+    expect(document.querySelector<HTMLElement>('.account-auth-email-stage')?.hidden).toBe(false);
+    expect(document.querySelector<HTMLElement>('.account-auth-code-stage')?.hidden).toBe(true);
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')?.textContent).toBe(
+      '寄送驗證碼',
+    );
+  });
+
+  it('replaces the active challenge when a new code is requested', async () => {
+    let starts = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user: null });
+        if (url === '/api/auth/email/start') {
+          starts += 1;
+          return jsonResponse(
+            {
+              ...authStartData(`login-${starts}`),
+              resendAvailableAt: new Date(Date.now() - 1_000).toISOString(),
+            },
+            202,
+          );
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { mountAccount } = await import('./account.js');
+    await mountAccount(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    const email = document.querySelector<HTMLInputElement>('input[name="email"]');
+    if (email) email.value = 'misty@example.com';
+    submitAccountForm();
+    await flushDom();
+
+    const resend = document.querySelector<HTMLButtonElement>('.account-auth-resend');
+    expect(resend?.disabled).toBe(false);
+    resend?.click();
+    await flushDom();
+
+    expect(starts).toBe(2);
+    expect(document.querySelector('.account-status')?.textContent).toBe('A new code was sent.');
+    document.querySelectorAll<HTMLButtonElement>('.account-auth-reset')[1]?.click();
+  });
+
+  it('shows a specific message when code requests are rate limited', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === '/api/auth/me') return jsonResponse({ user: null });
+        if (url === '/api/auth/email/start') {
+          return jsonResponse({ error: 'rate_limited' }, 429);
+        }
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+
+    const { mountAccount } = await import('./account.js');
+    await mountAccount(document.querySelector<HTMLElement>('#app') as HTMLElement);
+    await flushDom();
+
+    const email = document.querySelector<HTMLInputElement>('input[name="email"]');
+    if (email) email.value = 'misty@example.com';
+    submitAccountForm();
+    await flushDom();
+
     expect(document.querySelector('.account-status')?.textContent).toBe(
-      '請檢查信箱中的登入驗證碼。',
+      'Too many attempts. Try again in a few minutes.',
     );
   });
 
@@ -186,7 +275,7 @@ describe('account page auth flow', () => {
     const shell = document.querySelector<HTMLElement>('main.account-shell');
     expect(shell?.classList.contains('account-settings-shell')).toBe(false);
     expect(document.querySelector('.account-settings-rail')).toBeNull();
-    expect(document.querySelector('h1')?.textContent).toBe('Sign in');
+    expect(document.querySelector('h1')?.textContent).toBe('Sign in or create an account');
   });
 
   it('renders display preferences separately from the appearance menu', async () => {
@@ -747,6 +836,16 @@ function jsonResponse(data: unknown, status = 200): Response {
     status,
     json: async () => data,
   } as Response;
+}
+
+function authStartData(loginId: string, devCode?: string): Record<string, string> {
+  const now = Date.now();
+  return {
+    loginId,
+    ...(devCode ? { devCode } : {}),
+    expiresAt: new Date(now + 10 * 60_000).toISOString(),
+    resendAvailableAt: new Date(now + 30_000).toISOString(),
+  };
 }
 
 async function flushDom(): Promise<void> {

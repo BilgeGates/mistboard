@@ -1650,40 +1650,6 @@ function formatAccountDate(date: Date, locale: Locale): string {
 
 // ── Login / register form ────────────────────────────────────────────────────
 
-function buildAccountAuthTabs(
-  active: 'login' | 'register',
-  locale: Locale = currentLocale(),
-): HTMLElement {
-  const tabs = document.createElement('div');
-  tabs.className = 'account-auth-tabs';
-  tabs.setAttribute('role', 'tablist');
-  tabs.setAttribute('aria-label', t('account.access', {}, locale));
-
-  const signIn = buildAccountAuthTab(
-    t('nav.signIn', {}, locale),
-    localizedHref('/account?tab=login', locale),
-    active === 'login',
-  );
-  const register = buildAccountAuthTab(
-    t('nav.register', {}, locale),
-    localizedHref('/account?tab=register', locale),
-    active === 'register',
-  );
-
-  tabs.append(signIn, register);
-  return tabs;
-}
-
-function buildAccountAuthTab(label: string, href: string, isActive: boolean): HTMLAnchorElement {
-  const link = document.createElement('a');
-  link.href = href;
-  link.textContent = label;
-  link.className = isActive ? 'account-auth-tab active' : 'account-auth-tab';
-  link.setAttribute('role', 'tab');
-  link.setAttribute('aria-selected', isActive ? 'true' : 'false');
-  return link;
-}
-
 function buildLoginForm(
   tab: 'login' | 'register' = 'login',
   onAuth: (user: AuthUser) => void = () => undefined,
@@ -1692,8 +1658,7 @@ function buildLoginForm(
 ): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'account-panel account-auth-panel';
-
-  panel.append(buildAccountAuthTabs(tab, locale));
+  panel.dataset.entryPoint = tab;
 
   const eyebrow = document.createElement('span');
   eyebrow.className = 'account-eyebrow';
@@ -1701,128 +1666,340 @@ function buildLoginForm(
 
   const title = document.createElement('h1');
   title.className = 'site-section-heading';
-  title.textContent =
-    tab === 'register' ? t('account.createAccountTitle', {}, locale) : t('nav.signIn', {}, locale);
+  title.textContent = t('account.continueTitle', {}, locale);
 
   const copy = document.createElement('p');
   copy.className = 'account-copy';
-  copy.textContent =
-    tab === 'register' ? t('account.registerCopy', {}, locale) : t('account.loginCopy', {}, locale);
+  copy.textContent = t('account.continueCopy', {}, locale);
 
   const form = document.createElement('form');
   form.className = 'account-form';
 
+  const emailField = document.createElement('label');
+  emailField.className = 'account-auth-field';
+  const emailLabel = document.createElement('span');
+  emailLabel.className = 'account-auth-field-label';
+  emailLabel.textContent = t('account.emailAddress', {}, locale);
   const email = document.createElement('input');
   email.type = 'email';
   email.name = 'email';
   email.autocomplete = 'email';
   email.placeholder = t('account.emailAddress', {}, locale);
+  email.setAttribute('aria-describedby', 'account-auth-email-help');
   email.required = true;
+  const emailHelp = document.createElement('span');
+  emailHelp.id = 'account-auth-email-help';
+  emailHelp.className = 'account-auth-field-help';
+  emailHelp.textContent = t('account.emailCodeHelp', {}, locale);
+  emailField.append(emailLabel, email, emailHelp);
 
+  const emailStage = document.createElement('div');
+  emailStage.className = 'account-auth-stage account-auth-email-stage';
+  const newAccountNotice = document.createElement('p');
+  newAccountNotice.className = 'account-auth-new-account';
+  newAccountNotice.textContent = t('account.newAccountNotice', {}, locale);
+  emailStage.append(emailField, newAccountNotice);
+
+  const codeField = document.createElement('label');
+  codeField.className = 'account-auth-field';
+  const codeLabel = document.createElement('span');
+  codeLabel.className = 'account-auth-field-label';
+  codeLabel.textContent = t('account.loginCode', {}, locale);
   const code = document.createElement('input');
   code.type = 'text';
   code.name = 'code';
   code.inputMode = 'numeric';
   code.autocomplete = 'one-time-code';
   code.placeholder = t('account.loginCode', {}, locale);
-  code.hidden = true;
+  code.maxLength = 8;
+  code.pattern = '[0-9]{8}';
+  code.setAttribute('aria-describedby', 'account-auth-status');
+  codeField.append(codeLabel, code);
+
+  const codeStage = document.createElement('div');
+  codeStage.className = 'account-auth-stage account-auth-code-stage';
+  codeStage.hidden = true;
+  const codePrompt = document.createElement('p');
+  codePrompt.className = 'account-auth-code-prompt';
+  const codeTiming = document.createElement('p');
+  codeTiming.className = 'account-auth-code-timing';
+  const codeActions = document.createElement('div');
+  codeActions.className = 'account-auth-code-actions';
+  const resendCode = document.createElement('button');
+  resendCode.type = 'button';
+  resendCode.className = 'account-auth-reset account-auth-resend';
+  const changeEmail = document.createElement('button');
+  changeEmail.type = 'button';
+  changeEmail.className = 'account-auth-reset';
+  changeEmail.textContent = t('account.useDifferentEmail', {}, locale);
+  codeActions.append(resendCode, changeEmail);
+  codeStage.append(codePrompt, codeField, codeTiming, codeActions);
 
   const submit = document.createElement('button');
   submit.type = 'submit';
   submit.className = 'landing-setup-start';
   submit.textContent = t('account.sendCode', {}, locale);
+  submit.setAttribute('aria-describedby', 'account-auth-status');
 
   const status = document.createElement('p');
+  status.id = 'account-auth-status';
   status.className = 'account-status';
+  status.hidden = true;
   status.setAttribute('aria-live', 'polite');
+  status.setAttribute('role', 'status');
 
   let loginId: string | null = null;
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
+  let expiresAt = 0;
+  let resendAvailableAt = 0;
+  let countdownTimer: number | null = null;
+  let authBusy = false;
+
+  const clearCountdown = (): void => {
+    if (countdownTimer !== null) window.clearInterval(countdownTimer);
+    countdownTimer = null;
+  };
+
+  const showStatus = (message: string, state: 'error' | 'success'): void => {
+    status.textContent = message;
+    status.hidden = false;
+    status.dataset.state = state;
+  };
+
+  const hideStatus = (): void => {
+    status.hidden = true;
+    status.textContent = '';
+    status.removeAttribute('data-state');
+  };
+
+  const updateCountdown = (): void => {
+    const now = Date.now();
+    const expiresIn = Math.max(0, expiresAt - now);
+    const resendIn = Math.max(0, resendAvailableAt - now);
+    codeTiming.textContent =
+      expiresIn > 0
+        ? t('account.codeExpiresIn', { time: formatAuthCountdown(expiresIn) }, locale)
+        : t('account.codeExpired', {}, locale);
+    codeTiming.dataset.state = expiresIn > 0 ? 'active' : 'expired';
+    submit.disabled = authBusy || expiresIn <= 0;
+    resendCode.disabled = authBusy || resendIn > 0;
+    changeEmail.disabled = authBusy;
+    resendCode.textContent =
+      resendIn > 0
+        ? t('account.resendIn', { time: formatAuthCountdown(resendIn) }, locale)
+        : t('account.resendCode', {}, locale);
+    if (expiresIn <= 0 && resendIn <= 0) clearCountdown();
+  };
+
+  const startCountdown = (): void => {
+    clearCountdown();
+    updateCountdown();
+    countdownTimer = window.setInterval(updateCountdown, 1_000);
+  };
+
+  const resetToEmail = (): void => {
+    clearCountdown();
+    loginId = null;
+    expiresAt = 0;
+    resendAvailableAt = 0;
+    authBusy = false;
+    email.readOnly = false;
+    email.removeAttribute('aria-invalid');
+    code.value = '';
+    code.required = false;
+    code.removeAttribute('aria-invalid');
+    emailStage.hidden = false;
+    codeStage.hidden = true;
+    hideStatus();
+    submit.disabled = false;
+    changeEmail.disabled = false;
+    submit.textContent = t('account.sendCode', {}, locale);
+    email.focus();
+  };
+
+  changeEmail.addEventListener('click', () => {
+    resetToEmail();
+  });
+
+  const requestCode = async (isResend: boolean): Promise<void> => {
+    if (authBusy) return;
+    authBusy = true;
     submit.disabled = true;
+    resendCode.disabled = true;
+    changeEmail.disabled = true;
+    hideStatus();
+    email.removeAttribute('aria-invalid');
+    code.removeAttribute('aria-invalid');
+    submit.textContent = t('account.sendCodeBusy', {}, locale);
+    if (isResend) resendCode.textContent = t('account.sendCodeBusy', {}, locale);
     try {
-      if (!loginId) {
-        const { data, resp } = await fetchAuthJson<{
-          loginId?: string;
-          devCode?: string;
-          error?: string;
-        }>('/api/auth/email/start', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ email: email.value }),
-        });
-        if (!resp.ok || !data.loginId)
-          throw new Error(data.error ?? `start failed: ${resp.status}`);
-        loginId = data.loginId;
-        code.hidden = false;
-        code.required = true;
-        if (data.devCode) code.value = data.devCode;
-        submit.textContent = t('account.confirm', {}, locale);
-        status.textContent = data.devCode
-          ? t('account.devCodeFilled', {}, locale)
-          : t('account.checkEmail', {}, locale);
-        code.focus();
-      } else {
-        const { data, resp } = await fetchAuthJson<{
-          user?: AuthUser;
-          isNewUser?: boolean;
-          error?: string;
-        }>('/api/auth/email/confirm', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ loginId, code: code.value }),
-        });
-        if (!resp.ok || !data.user) throw new Error(data.error ?? `confirm failed: ${resp.status}`);
-        // Identify immediately; the shared account-nav cache is updated below,
-        // so there may be no full page reload before the next pageview.
-        identify(data.user.id, {
-          handle: data.user.handle,
-          account_role: data.user.accountRole,
-          email_verified: data.user.emailVerified,
-        });
-        if (data.isNewUser) track('signup_completed');
-        setAccountNavUser(data.user);
-        if (options.redirectOnSuccess) {
-          window.location.href = requestedAuthReferrer() ?? localizedHref('/', locale);
-          return;
-        }
-        onAuth(data.user);
+      const { data, resp } = await fetchAuthJson<{
+        devCode?: string;
+        email?: string;
+        error?: string;
+        expiresAt?: string;
+        loginId?: string;
+        resendAvailableAt?: string;
+      }>('/api/auth/email/start', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: email.value }),
+      });
+      if (!resp.ok || !data.loginId || !data.expiresAt || !data.resendAvailableAt) {
+        throw new Error(data.error ?? `start failed: ${resp.status}`);
       }
+      loginId = data.loginId;
+      expiresAt = Date.parse(data.expiresAt);
+      resendAvailableAt = Date.parse(data.resendAvailableAt);
+      if (!Number.isFinite(expiresAt) || !Number.isFinite(resendAvailableAt)) {
+        throw new Error('auth_bad_response');
+      }
+      email.readOnly = true;
+      emailStage.hidden = true;
+      codeStage.hidden = false;
+      code.required = true;
+      codePrompt.textContent = t('account.codePrompt', { email: email.value }, locale);
+      code.value = data.devCode ?? '';
+      submit.textContent = t('account.confirm', {}, locale);
+      if (data.devCode) showStatus(t('account.devCodeFilled', {}, locale), 'success');
+      else if (isResend) showStatus(t('account.codeResent', {}, locale), 'success');
+      startCountdown();
+      code.focus();
+      code.select();
     } catch (err) {
-      status.textContent =
+      showStatus(
         err instanceof Error
           ? authErrorMessage(err.message, locale)
-          : t('account.signInFailed', {}, locale);
-    } finally {
+          : t('account.signInFailed', {}, locale),
+        'error',
+      );
+      if (!loginId) email.setAttribute('aria-invalid', 'true');
       submit.disabled = false;
+      submit.textContent = loginId
+        ? t('account.confirm', {}, locale)
+        : t('account.sendCode', {}, locale);
+      if (loginId) updateCountdown();
+    } finally {
+      authBusy = false;
+      if (loginId) updateCountdown();
+      else submit.disabled = false;
+    }
+  };
+
+  resendCode.addEventListener('click', () => {
+    void requestCode(true);
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!loginId) {
+      await requestCode(false);
+      return;
+    }
+    if (expiresAt <= Date.now()) {
+      showStatus(t('account.codeExpired', {}, locale), 'error');
+      code.setAttribute('aria-invalid', 'true');
+      return;
+    }
+    if (authBusy) return;
+    authBusy = true;
+    submit.disabled = true;
+    changeEmail.disabled = true;
+    hideStatus();
+    email.removeAttribute('aria-invalid');
+    code.removeAttribute('aria-invalid');
+    submit.textContent = t('account.confirmBusy', {}, locale);
+    try {
+      const { data, resp } = await fetchAuthJson<{
+        user?: AuthUser;
+        isNewUser?: boolean;
+        error?: string;
+      }>('/api/auth/email/confirm', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ loginId, code: code.value }),
+      });
+      if (!resp.ok || !data.user) throw new Error(data.error ?? `confirm failed: ${resp.status}`);
+      clearCountdown();
+      // Identify immediately; the shared account-nav cache is updated below,
+      // so there may be no full page reload before the next pageview.
+      identify(data.user.id, {
+        handle: data.user.handle,
+        account_role: data.user.accountRole,
+        email_verified: data.user.emailVerified,
+      });
+      if (data.isNewUser) track('signup_completed');
+      setAccountNavUser(data.user);
+      if (options.redirectOnSuccess) {
+        window.location.href = requestedAuthReferrer() ?? localizedHref('/', locale);
+        return;
+      }
+      onAuth(data.user);
+    } catch (err) {
+      showStatus(
+        err instanceof Error
+          ? authErrorMessage(err.message, locale)
+          : t('account.signInFailed', {}, locale),
+        'error',
+      );
+      code.setAttribute('aria-invalid', 'true');
+    } finally {
+      authBusy = false;
+      submit.textContent = t('account.confirm', {}, locale);
+      updateCountdown();
     }
   });
 
-  form.append(email, code, submit, status);
+  form.append(emailStage, codeStage, submit, status);
 
-  // Terms/Privacy assent at the point of account creation. The footer is now
-  // homepage-only, so the register form is the surface that surfaces these.
-  if (tab === 'register') {
-    const legal = document.createElement('p');
-    legal.className = 'account-legal';
-    const termsLink = document.createElement('a');
-    termsLink.href = localizedHref('/terms', locale);
-    termsLink.textContent = t('footer.terms', {}, locale);
-    const privacyLink = document.createElement('a');
-    privacyLink.href = localizedHref('/privacy', locale);
-    privacyLink.textContent = t('footer.privacy', {}, locale);
-    legal.append(
-      t('account.legalPrefix', {}, locale),
-      termsLink,
-      t('account.legalAnd', {}, locale),
-      privacyLink,
-      t('account.legalSuffix', {}, locale),
-    );
-    form.append(legal);
+  // Verification can create an account from either historical entry point, so
+  // expectations and legal assent must be visible in both cases.
+  const principles = document.createElement('details');
+  principles.className = 'account-auth-principles';
+  principles.open = tab === 'register';
+  const principlesSummary = document.createElement('summary');
+  principlesSummary.textContent = t('account.principlesSummary', {}, locale);
+  const principlesBody = document.createElement('div');
+  principlesBody.className = 'account-auth-principles-body';
+  const principlesTitle = document.createElement('h2');
+  principlesTitle.textContent = t('account.registerPrinciplesTitle', {}, locale);
+  const principlesList = document.createElement('ul');
+  for (const key of [
+    'account.registerFairPlay',
+    'account.registerRespect',
+    'account.registerOneAccount',
+  ] as const) {
+    const item = document.createElement('li');
+    item.textContent = t(key, {}, locale);
+    principlesList.append(item);
   }
+  principlesBody.append(principlesTitle, principlesList);
+  principles.append(principlesSummary, principlesBody);
+
+  const legal = document.createElement('p');
+  legal.className = 'account-legal';
+  const termsLink = document.createElement('a');
+  termsLink.href = localizedHref('/terms', locale);
+  termsLink.textContent = t('footer.terms', {}, locale);
+  const privacyLink = document.createElement('a');
+  privacyLink.href = localizedHref('/privacy', locale);
+  privacyLink.textContent = t('footer.privacy', {}, locale);
+  legal.append(
+    t('account.legalPrefix', {}, locale),
+    termsLink,
+    t('account.legalAnd', {}, locale),
+    privacyLink,
+    t('account.legalSuffix', {}, locale),
+  );
+  form.append(principles, legal);
 
   panel.append(eyebrow, title, copy, form);
   return panel;
+}
+
+function formatAuthCountdown(milliseconds: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1_000));
+  const minutes = Math.floor(totalSeconds / 60);
+  return `${minutes}:${String(totalSeconds % 60).padStart(2, '0')}`;
 }
 
 async function fetchAuthJson<T>(
@@ -1850,6 +2027,7 @@ function authErrorMessage(value: string, locale: Locale = currentLocale()): stri
   if (value === 'email_delivery_failed') return t('account.emailDeliveryFailed', {}, locale);
   if (value === 'persistence_disabled') return t('account.persistenceDisabled', {}, locale);
   if (value === 'invalid_login_code') return t('account.invalidLoginCode', {}, locale);
+  if (value === 'rate_limited') return t('account.tooManyAttempts', {}, locale);
   if (value === 'invalid_email') return t('account.invalidEmail', {}, locale);
   if (value === 'account_closed') return t('account.accountAlreadyClosed', {}, locale);
   return t('account.signInFailed', {}, locale);
