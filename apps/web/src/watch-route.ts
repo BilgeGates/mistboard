@@ -17,6 +17,7 @@ import {
   variantDisplayLabel,
 } from './game-display.js';
 import { gameMetaForGame, timeControlLabelForGame } from './game-meta.js';
+import { initLiveSound, playSound } from './live-sound.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { renderWatchReplaySkeleton } from './replay-skeleton.js';
 import { createGameMetaCard, type GameMetaPlayer } from './review/game-meta-card.js';
@@ -87,7 +88,12 @@ export function watchRendererKindForGame(feed: WatchFeed, roomId: string): Watch
 const WATCH_ACTIVE_POLL_MS = 15_000;
 const WATCH_IDLE_POLL_MS = 60_000;
 
+export function shouldPlayWatchMoveSound(previousPly: number | null, nextPly: number): boolean {
+  return previousPly !== null && nextPly === previousPly + 1;
+}
+
 export async function mountWatch(root: HTMLElement): Promise<void> {
+  initLiveSound();
   root.replaceChildren();
   root.classList.add('landing-page', 'watch-route');
   root.append(buildNav(), buildLoadingState('Loading replays'));
@@ -118,6 +124,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   let moveList: MoveList | null = null;
   let watchPly = 0;
   let watchMaxPly = 0;
+  let lastSoundPly: number | null = null;
   let queuePreviewHandles: ReplayHandle[] = [];
   let queuePreviewKey = '';
   let queueRenderVersion = 0;
@@ -207,6 +214,8 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   // Re-highlight the current move + refresh the scrubber bounds/status. Driven by
   // the handle's onPlyChange on every autoplay tick or manual jump.
   const syncMoveList = (ply: number, maxPly: number): void => {
+    if (shouldPlayWatchMoveSound(lastSoundPly, ply)) playSound('move');
+    lastSoundPly = ply;
     watchPly = ply;
     watchMaxPly = maxPly;
     moveList?.update(ply, jumpBoardToPly);

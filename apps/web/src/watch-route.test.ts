@@ -8,11 +8,23 @@ import {
   renderWatchQueue,
   renderWatchReplaySkeleton,
   resultLabel,
+  shouldPlayWatchMoveSound,
   watchFeedIsDark,
   watchPovToggleApplies,
   watchQueueMatchupLabel,
   watchQueueResultLabel,
 } from './watch-route.js';
+
+describe('watch move sounds', () => {
+  it('sounds only a single forward ply, not initial paint, jumps, or loop resets', () => {
+    expect(shouldPlayWatchMoveSound(null, 0)).toBe(false);
+    expect(shouldPlayWatchMoveSound(0, 1)).toBe(true);
+    expect(shouldPlayWatchMoveSound(1, 2)).toBe(true);
+    expect(shouldPlayWatchMoveSound(2, 2)).toBe(false);
+    expect(shouldPlayWatchMoveSound(2, 8)).toBe(false);
+    expect(shouldPlayWatchMoveSound(8, 0)).toBe(false);
+  });
+});
 
 describe('watch route copy helpers', () => {
   it('scopes sealed watch copy to dark channels', () => {
