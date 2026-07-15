@@ -1,49 +1,61 @@
-// Xiangqi Learn — Stage: check in one (将军). Lila check1 arc, xiangqi-ized:
-// common fields (strict rules, one move, success = check) spread across every
-// level; the checking piece escalates through the xiangqi arsenal. All levels
-// run the strict kernel, so both generals sit in their palaces, flying-general
-// is enforced, and movegen never offers a self-exposing move. Positions are
-// tuned so the check-in-one is never accidentally checkmate (mate has its own
-// stage).
+// Xiangqi Learn — Stage: check in one (将军). Lila check1 arc with lila's
+// REAL stakes: detectCapture stays on its 'unprotected' default, so a check
+// that hangs the checking piece FAILS with the refutation demonstrated on the
+// board. Every level is a find-the-safe-check puzzle: several moves give
+// check (the intent contract proves it), exactly one keeps the checker safe.
+// All levels run the strict kernel (both generals in their palaces,
+// flying-general enforced) and are tuned so the safe check is never
+// accidentally checkmate (mate has its own stage).
 
 import { check, not } from '../learn-assert.js';
-import { arrow, type LearnLevelPartial } from '../learn-types.js';
+import { circle, type LearnLevelPartial } from '../learn-types.js';
 
 const levels: LearnLevelPartial[] = [
   {
-    // Chariot check straight down the open file.
+    // Chariot: the file check (e6) is watched by the horse (leg f7 open); the
+    // rank-10 lift (a10) is safe. The circled horse is the level-1 hint.
     goal: 'learn.xiangqi.check1.goal.chariot',
-    fen: '4k4/9/9/9/9/R8/9/9/9/3K5 w',
-    shapes: [arrow('a5', 'e5')],
-    sampleSolution: 'a5e5',
+    fen: '4k4/9/9/6n2/R8/9/9/9/9/3K5 w',
+    shapes: [circle('g7', 'red')],
+    sampleSolution: 'a6a10',
+    intent: { solutions: 1, candidates: { assert: check, min: 2 } },
   },
   {
-    // Cannon check: the advisor on e9 is the screen.
+    // Cannon: two screen checks exist. The rank-9 check (h9, screen = the
+    // horse) lands next to the enemy chariot; the file check (e6, screen =
+    // the elephant) is out of everyone's reach.
     goal: 'learn.xiangqi.check1.goal.cannon',
-    fen: '4k4/4a4/9/9/9/7C1/9/9/9/3K5 w',
-    sampleSolution: 'h5e5',
+    fen: '9/4k1n1r/4b4/9/7C1/9/9/9/9/4K4 w',
+    sampleSolution: 'h6e6',
+    intent: { solutions: 1, candidates: { assert: check, min: 2 } },
   },
   {
-    // Horse check: the black horse on d9 blocks the d8 route's leg, so only
-    // the f8 jump delivers check.
+    // Horse: both forward jumps give check, but the enemy chariot guards d8
+    // straight down its file. f8 is safe: the general blocks the chariot's
+    // rank and nothing else reaches it.
     goal: 'learn.xiangqi.check1.goal.horse',
-    fen: '4k4/3n5/9/9/4N4/9/9/9/9/3K5 w',
+    fen: '3rk4/9/9/9/4N4/9/9/9/9/5K3 w',
     sampleSolution: 'e6f8',
+    intent: { solutions: 1, candidates: { assert: check, min: 2 } },
   },
   {
-    // Soldier check: one push to the palace edge. Kept minimal: any friendly
-    // piece behind the soldier adds discovered checks that muddy the lesson.
+    // Soldier: two pushes check, and both step right next to the general. The
+    // sideways step (e8) gets eaten; the forward push (d9) is backed by the
+    // chariot on d1, so the general cannot touch it.
     goal: 'learn.xiangqi.check1.goal.soldier',
-    fen: '4k4/9/4P4/9/9/9/9/9/9/3K5 w',
-    sampleSolution: 'e8e9',
+    fen: '3a5/4k4/3P5/9/9/4p4/9/9/9/3RK4 w',
+    sampleSolution: 'd8d9',
+    intent: { solutions: 1, candidates: { assert: check, min: 2 } },
   },
   {
-    // Discovered check, cannon style: two pieces sit between cannon and
-    // general. Jump the horse away and exactly one screen (the enemy
-    // soldier!) remains.
+    // Discovered check, cannon style: any horse jump clears the e-file and
+    // the cannon checks through the enemy soldier screen. But the elephant
+    // watches c6 and the horse watches f7 and g6: only d7 is safe. The
+    // advisors and soldiers close the horse's own back rank.
     goal: 'learn.xiangqi.check1.goal.discovered',
-    fen: '4k4/9/9/4p4/9/4N4/9/9/4C4/3K5 w',
+    fen: '4k4/9/b6n1/4p4/9/4N4/2P3P2/3A1A3/4C4/3K5 w',
     sampleSolution: 'e5d7',
+    intent: { solutions: 1, candidates: { assert: check, min: 3 } },
   },
   {
     // Only one check: the cannon has no screen (and may not land on one), the
@@ -53,20 +65,27 @@ const levels: LearnLevelPartial[] = [
     goal: 'learn.xiangqi.check1.goal.onlyOne',
     fen: '3k5/2r1a4/6N2/9/9/9/3C5/9/9/R3K4 w',
     sampleSolution: 'a1a10',
+    intent: { solutions: 1, candidates: { assert: check, min: 1 } },
   },
   {
-    // Capstone on a fuller board: lift the cannon to the back rank and check
-    // through the enemy's own elephant.
+    // Capstone: four checks on a full battlefield, and the e8 soldier starts
+    // en prise to the enemy chariot. The chariot lift and cannon lift abandon
+    // it, the horse jump is met by the other horse. Only the protected
+    // soldier push both checks and saves the soldier. The black horse on f9
+    // doubles as a leg block so the red horse's g9 jump is never a check, and
+    // the red general sits on e1 so Kxd10 stays legal (a red general on the
+    // d-file would turn the chariot check into an accidental flying-general
+    // mate; the verifier caught both).
     goal: 'learn.xiangqi.check1.goal.capstone',
-    fen: '2b1ka3/8r/4b2n1/9/9/2p3p2/2N1P4/1C7/4K2R1/3A2B2 w',
-    sampleSolution: 'b3b10',
+    fen: '4ka3/5n3/4P2rb/5N3/5n3/9/3R5/4B1C2/9/4K4 w',
+    sampleSolution: 'e8e9',
+    intent: { solutions: 1, candidates: { assert: check, min: 4 } },
   },
 ].map((level) => ({
   rules: 'strict',
   nbMoves: 1,
   success: check,
   failure: not(check),
-  detectCapture: false,
   ...level,
 }));
 
@@ -79,23 +98,24 @@ export const check1Stage = {
   illustration: { glyph: '将' },
   copy: {
     'learn.xiangqi.check1.title': 'Check in one',
-    'learn.xiangqi.check1.subtitle': 'Attack the enemy general',
+    'learn.xiangqi.check1.subtitle': 'Attack the enemy general, safely',
     'learn.xiangqi.check1.intro':
-      'You win by trapping the enemy general. Attacking it is called check: the general must deal with the threat at once. Find the move that gives check!',
+      'You win by trapping the enemy general. Attacking it is called check: the general must deal with the threat at once. But a careless check backfires: if your attacker can be captured for nothing, you gave away a piece, not a check. Find the check that keeps your piece safe!',
     'learn.xiangqi.check1.complete':
-      'Well done! Any piece can give check, and the cannon can even do it from behind a screen. Next: what to do when YOUR general is the one in check.',
+      'Well done! Any piece can give check, but only a safe check counts: always ask what the enemy can grab after your move. Next: what to do when YOUR general is the one in check.',
     'learn.xiangqi.check1.goal.chariot':
-      'The file is wide open. Check the enemy general with your chariot!',
+      'Two chariot moves give check, but the enemy horse watches one of them. Find the safe check!',
     'learn.xiangqi.check1.goal.cannon':
-      'Check with your cannon. Remember: it needs exactly one screen between itself and the general.',
+      'Your cannon can check over two different screens. The enemy chariot guards one landing point. Choose wisely!',
     'learn.xiangqi.check1.goal.horse':
-      'Check with your horse. Mind the legs: a blocked horse cannot attack.',
+      'Both horse jumps give check. The enemy chariot stares straight down at one of them. Pick the safe jump!',
     'learn.xiangqi.check1.goal.soldier':
-      'Even the humble soldier can give check. March it into the palace!',
+      'Two soldier checks, and both step right next to the general. He eats the unprotected one. Push the soldier your chariot defends!',
     'learn.xiangqi.check1.goal.discovered':
-      'Two pieces block your cannon. Jump the horse away and the cannon behind it gives check: a discovered check!',
+      'Jump the horse away and your cannon gives a discovered check. But most landing points are watched. Find the safe jump!',
     'learn.xiangqi.check1.goal.onlyOne': 'Only one move gives check here. Find it!',
-    'learn.xiangqi.check1.goal.capstone': 'A real battle. Find the check in one move!',
+    'learn.xiangqi.check1.goal.capstone':
+      'A real battle. Your soldier is under attack, and four moves give check. Three of them lose material. Find the check that saves the day!',
   },
   levels,
 };

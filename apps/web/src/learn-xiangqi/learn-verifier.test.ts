@@ -216,6 +216,48 @@ function simulateSampleSolution(level: LearnLevel): string[] {
   return issues;
 }
 
+/** Enumerate every legal first move through the exact runner pipeline and
+ *  count, for a one-move level: `solutions` (moves that complete the level)
+ *  and `candidates` (moves satisfying the intent's candidate assert on the
+ *  raw post-move position, before the capture-threat and failure gates). */
+function classifyFirstMoves(level: LearnLevel): { solutions: number; candidates: number } {
+  const start = levelState(level);
+  const success = level.success ?? applesEaten;
+  let solutions = 0;
+  let candidates = 0;
+
+  for (const move of learnLegalMoves(start, level.rules)) {
+    const state = applyLearnMove(start, level.rules, move, {
+      keepTurn: level.rules === 'relaxed' && level.keepTurn,
+    });
+    const apples = new Set(readApples(level.apples));
+    apples.delete(move.to);
+    const data: AssertData = {
+      state,
+      playerColor: level.color,
+      items: apples,
+      vm: { moves: 1, lastPlayerMove: move, scenarioComplete: false, scenarioFailed: false },
+    };
+
+    if (level.intent?.candidates?.assert(data)) candidates += 1;
+
+    // Runner gate order: capture-threat scan, then the failure assert, then
+    // success. A move only solves when it passes both gates AND succeeds.
+    if (level.detectCapture !== false && state.status.type === 'playing') {
+      const threat = findCaptureThreat(
+        state,
+        level.color,
+        level.detectCapture === true ? true : 'unprotected',
+      );
+      if (threat) continue;
+    }
+    if (level.failure?.(data) ?? false) continue;
+    if (success(data)) solutions += 1;
+  }
+
+  return { solutions, candidates };
+}
+
 describe('learn xiangqi level verifier', () => {
   for (const stage of learnXiangqiStages) {
     describe(`stage ${stage.key}`, () => {
@@ -285,6 +327,25 @@ describe('learn xiangqi level verifier', () => {
           if (level.sampleSolution) {
             it('sampleSolution completes the level through the runner pipeline', () => {
               expect(simulateSampleSolution(level)).toEqual([]);
+            });
+          }
+
+          if (level.intent) {
+            it('honors the declared intent (craft contract)', () => {
+              expect(level.nbMoves, 'intent requires a one-move level').toBe(1);
+              expect(level.apples, 'intent does not support apple levels').toBeUndefined();
+              expect(level.scenario, 'intent does not support scenario levels').toBeUndefined();
+              const { solutions, candidates } = classifyFirstMoves(level);
+              expect(
+                solutions,
+                `exactly ${level.intent?.solutions} first move(s) must solve the level`,
+              ).toBe(level.intent?.solutions);
+              if (level.intent?.candidates) {
+                expect(
+                  candidates,
+                  `at least ${level.intent.candidates.min} first moves must satisfy the candidate assert (tempting wrong answers)`,
+                ).toBeGreaterThanOrEqual(level.intent.candidates.min);
+              }
             });
           }
         });
