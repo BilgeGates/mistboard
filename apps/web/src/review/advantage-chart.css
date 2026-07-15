@@ -51,3 +51,46 @@
   vector-effect: non-scaling-stroke;
   opacity: 0.55;
 }
+/* Decision-vs-luck overlay (jieqi): a dashed "if reveals ran average" line and the shaded band
+   between it and the real line — the gap IS the cumulative luck. Neutral tone: it marks variance,
+   not good/bad. */
+.advantage-chart__luck-band {
+  fill: color-mix(in srgb, #7c6cc4 26%, transparent);
+  stroke: none;
+}
+.advantage-chart__ghost {
+  fill: none;
+  stroke: color-mix(in srgb, var(--site-text) 55%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+.advantage-chart__legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--site-muted);
+}
+.advantage-chart__legend[hidden] {
+  display: none;
+}
+.advantage-chart__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.advantage-chart__legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 0;
+  border-top-width: 2px;
+  border-top-style: solid;
+}
+.advantage-chart__legend-swatch--real {
+  border-top-color: color-mix(in srgb, var(--site-text) 55%, transparent);
+}
+.advantage-chart__legend-swatch--ghost {
+  border-top-style: dashed;
+  border-top-color: color-mix(in srgb, var(--site-text) 55%, transparent);
+}

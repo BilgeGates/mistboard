@@ -18,6 +18,11 @@ let chartInstance = 0;
 export interface AdvantageChart {
   el: HTMLElement;
   setPly(ply: number): void;
+  /** Overlay the decision-vs-luck "ghost" line (chance variants only). `redLuckByPly` is the
+   *  per-ply luck in RED-POV win points (a reveal by black flips sign). Draws a dashed "if
+   *  reveals ran average" line = realized minus cumulative luck, plus a shaded band whose gap is
+   *  the cumulative luck, plus a legend. Safe to call once decisions load. */
+  setLuckOverlay(redLuckByPly: ReadonlyMap<number, number>): void;
 }
 
 function svg(tag: string, attrs: Record<string, string>): SVGElement {
@@ -105,8 +110,22 @@ export function createAdvantageChart(
     y2: `${VIEW_H}`,
     class: 'advantage-chart__cursor',
   });
-  chart.append(areaRed, areaBlack, line, cursor);
+  // Luck overlay layers (populated by setLuckOverlay when decisions load). The band sits UNDER
+  // the realized line/cursor; the ghost line sits just under the cursor so the real line reads as
+  // primary. Kept as stable nodes so a re-call just rewrites their points.
+  const luckBand = svg('polygon', { points: '', class: 'advantage-chart__luck-band' });
+  const ghostLine = svg('polyline', { points: '', class: 'advantage-chart__ghost' });
+  chart.append(luckBand, areaRed, areaBlack, ghostLine, line, cursor);
   el.append(chart);
+
+  // Legend (hidden until the luck overlay is set): explains solid vs dashed.
+  const legend = document.createElement('div');
+  legend.className = 'advantage-chart__legend';
+  legend.hidden = true;
+  legend.innerHTML =
+    '<span class="advantage-chart__legend-item"><span class="advantage-chart__legend-swatch advantage-chart__legend-swatch--real"></span>Your line</span>' +
+    '<span class="advantage-chart__legend-item"><span class="advantage-chart__legend-swatch advantage-chart__legend-swatch--ghost"></span>If reveals ran average</span>';
+  el.append(legend);
 
   el.addEventListener('click', (event) => {
     const box = chart.getBoundingClientRect();
@@ -121,5 +140,25 @@ export function createAdvantageChart(
     cursor.setAttribute('x2', x);
   }
 
-  return { el, setPly };
+  function setLuckOverlay(redLuckByPly: ReadonlyMap<number, number>): void {
+    // Ghost = realized win% MINUS the cumulative red-POV luck up to each ply — i.e. the
+    // trajectory if every reveal had come out at its average. The per-ply luck is added at the
+    // ply the reveal lands on (that ply's realized win% already includes it). Additive-in-win%
+    // is an approximation (win% is non-linear), but it's the standard, legible luck-adjusted
+    // curve. If no reveal ever moved the needle, skip the overlay entirely.
+    if (![...redLuckByPly.values()].some((v) => Math.abs(v) > 0.05)) return;
+    let cumulative = 0;
+    const ghostPoints: string[] = [];
+    for (const e of evals) {
+      cumulative += redLuckByPly.get(e.ply) ?? 0;
+      const ghostWin = Math.max(0, Math.min(100, winPercent(e.cp, e.mate) - cumulative));
+      ghostPoints.push(`${xOf(e.ply).toFixed(1)},${((1 - ghostWin / 100) * VIEW_H).toFixed(1)}`);
+    }
+    ghostLine.setAttribute('points', ghostPoints.join(' '));
+    // Band between the realized line and the ghost line: realized forward, ghost back.
+    luckBand.setAttribute('points', `${points.join(' ')} ${[...ghostPoints].reverse().join(' ')}`);
+    legend.hidden = false;
+  }
+
+  return { el, setPly, setLuckOverlay };
 }

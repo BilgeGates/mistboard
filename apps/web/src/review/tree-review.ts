@@ -655,9 +655,16 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
 
   function applyDecisions(overlay: DecisionOverlay): void {
     decisionOverlay = overlay;
-    // Append the two-number (decisions / luck) block under the accuracy summary, and re-merge
-    // the reveal glyphs + advice line now that the overlay is present.
+    // Append the decision-accuracy block under the accuracy summary, and re-merge the reveal
+    // glyphs + inline luck now that the overlay is present.
     decisionSummaryEl.replaceChildren(createDecisionSummary(overlay, config.players));
+    // Overlay the advantage chart's "if reveals ran average" ghost line: per-reveal luck is in the
+    // MOVER's POV, so a black reveal flips sign to red-POV (red moves the odd plies).
+    const redLuckByPly = new Map<number, number>();
+    for (const [ply, info] of overlay.byPly) {
+      redLuckByPly.set(ply, (ply % 2 === 1 ? 1 : -1) * info.luck);
+    }
+    chart?.setLuckOverlay(redLuckByPly);
     refreshMoveTreeAnnotations();
     render();
   }
