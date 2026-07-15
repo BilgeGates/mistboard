@@ -46,13 +46,23 @@ describe('standard Xiangqi board SVG', () => {
     expect(svg).toContain(
       '<rect class="xq-live-cell-river" x="6" y="306" width="540" height="12"/>',
     );
-    expect(svg).toContain('<line x1="186" y1="438" x2="366" y2="618"/>');
+    expect(svg.match(/class="xq-live-palace-band"/g)).toHaveLength(2);
+    expect(svg).toContain('<g class="xq-live-palace"></g>');
     expect(svg).not.toContain('<line class="xq-live-cell-line" x1="6" y1="6"');
     // The river is a real gutter: the fifth row ends at 306 and the sixth begins
     // at 318. Red a1 shifts with its half and remains centered in its square.
     expect(svg).toContain('x="6" y="246" width="60" height="60"');
     expect(svg).toContain('x="6" y="318" width="60" height="60"');
     expect(svg).toContain('x="9" y="561" width="54" height="54"');
+  });
+
+  it('retains the traditional palace diagonals on intersection boards', () => {
+    const state = createInitialXiangqiState('xq-board-classic-palace');
+    const view = getStandardXiangqiPlayerView(state, 'red');
+    const svg = renderSharedXiangqiBoardSvg(view, 'red', { layout: 'intersection' });
+
+    expect(svg).toContain('<line x1="216" y1="36" x2="336" y2="156"/>');
+    expect(svg).toContain('<line x1="336" y1="36" x2="216" y2="156"/>');
   });
 
   it('renders the river label as theme-controlled non-selectable board furniture', () => {

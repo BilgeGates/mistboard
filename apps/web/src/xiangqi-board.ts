@@ -208,6 +208,11 @@ function palaceBand(
 }
 
 function palaceLayer(perspective: XiangqiColor, layout: XiangqiBoardLayout): string {
+  // The square grid uses its tinted 3x3 palace cells as the visual cue. The
+  // traditional diagonals are retained only for the intersection layouts,
+  // where they remain part of the board geometry.
+  if (layout === 'cell') return '';
+
   const parts: string[] = [];
   for (const palace of [
     { fileMin: 3, fileMax: 5, rankMin: 1, rankMax: 3 },
@@ -217,17 +222,8 @@ function palaceLayer(perspective: XiangqiColor, layout: XiangqiBoardLayout): str
     const b = intersection(palace.fileMax, palace.rankMin, perspective, layout);
     const c = intersection(palace.fileMax, palace.rankMax, perspective, layout);
     const d = intersection(palace.fileMin, palace.rankMin, perspective, layout);
-    if (layout === 'cell') {
-      const left = Math.min(a.x, b.x, c.x, d.x) - CELL / 2;
-      const right = Math.max(a.x, b.x, c.x, d.x) + CELL / 2;
-      const top = Math.min(a.y, b.y, c.y, d.y) - CELL / 2;
-      const bottom = Math.max(a.y, b.y, c.y, d.y) + CELL / 2;
-      parts.push(`<line x1="${left}" y1="${top}" x2="${right}" y2="${bottom}"/>`);
-      parts.push(`<line x1="${left}" y1="${bottom}" x2="${right}" y2="${top}"/>`);
-    } else {
-      parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`);
-      parts.push(`<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}"/>`);
-    }
+    parts.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`);
+    parts.push(`<line x1="${c.x}" y1="${c.y}" x2="${d.x}" y2="${d.y}"/>`);
   }
   return parts.join('');
 }

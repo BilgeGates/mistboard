@@ -162,12 +162,7 @@
 }
 
 .xq-live-svg--cell .xq-live-palace-band {
-  fill: var(--xq-cell-palace, color-mix(in srgb, #925f88 16%, transparent));
-}
-
-.xq-live-svg--cell .xq-live-palace line {
-  stroke-width: 2;
-  stroke-opacity: 0.68;
+  fill: var(--xq-cell-palace, color-mix(in srgb, #7c4d72 24%, transparent));
 }
 
 .xq-live-cell-river {
