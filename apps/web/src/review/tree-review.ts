@@ -637,8 +637,15 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     });
     chart.setPly(currentNode().ply);
     underboardBody.replaceChildren(chart.el);
+    // Chance variants (those with a decision overlay) grade reveals separately, so the top
+    // accuracy here is over NON-reveal moves only — label it so it doesn't read as contradicting
+    // the reveal-decision accuracy below.
     analysisSummaryEl.replaceChildren(
-      createAnalysisSummary(analysis, config.players),
+      createAnalysisSummary(
+        analysis,
+        config.players,
+        config.decisions ? { accuracyLabel: 'Non-reveal accuracy' } : undefined,
+      ),
       decisionSummaryEl,
     );
     refreshMoveTreeAnnotations(); // rebuilds the tree DOM (engine glyphs + user glyphs)

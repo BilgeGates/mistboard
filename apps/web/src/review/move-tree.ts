@@ -133,13 +133,22 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
     const san = document.createElement('span');
     san.className = 'review-move-list__san';
     san.textContent = node.label;
+    // The judgment glyph is its OWN slot, NOT appended inside `san`: san truncates with an
+    // ellipsis when the row is tight (e.g. a jieqi reveal that also carries a luck badge), and a
+    // glyph inside san would be clipped away with the label. A dedicated non-shrinking slot keeps
+    // the glyph visible right after the move.
+    const suffixEl = document.createElement('span');
+    suffixEl.className = 'review-move-list__suffix';
     const luckEl = document.createElement('span');
     luckEl.className = 'review-move-list__luck';
     const evalEl = document.createElement('span');
     evalEl.className = 'review-move-list__eval';
-    button.append(san, luckEl, evalEl);
+    button.append(san, suffixEl, luckEl, evalEl);
     const ann = annotations.get(key);
-    if (ann?.suffix) appendGlyph(san, ann.suffix, ann.suffixClass);
+    if (ann?.suffix) {
+      suffixEl.textContent = ann.suffix;
+      if (ann.suffixClass) suffixEl.classList.add(`review-move--${ann.suffixClass}`);
+    }
     // Inline luck badge for a reveal (chance) move — the reveal's variance, shown but never graded.
     if (ann?.luck) {
       luckEl.textContent = ann.luck;
@@ -282,14 +291,6 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
   function annotate(byPathKey: Map<string, MoveTreeAnnotation>): void {
     annotations = byPathKey;
     rebuild();
-  }
-
-  function appendGlyph(san: HTMLElement, suffix: string, suffixClass?: string): void {
-    const glyph = document.createElement('span');
-    glyph.className = 'review-move-list__suffix';
-    if (suffixClass) glyph.classList.add(`review-move--${suffixClass}`);
-    glyph.textContent = ` ${suffix}`;
-    san.append(glyph);
   }
 
   rebuild();

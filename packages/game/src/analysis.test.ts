@@ -60,8 +60,18 @@ test('gameAccuracy is near-100 for a clean game and punishes a blunder harmonica
 test('gameAccuracy handles degenerate inputs', () => {
   assert.deepEqual(gameAccuracy([]), { first: 0, second: 0 });
   assert.deepEqual(gameAccuracy([50]), { first: 0, second: 0 });
-  // One move: only the first mover has an accuracy sample.
+  // One move: only the first mover has an accuracy sample. The second mover made no gradeable
+  // move, so they have no errors to count → 100% (not a misleading 0%).
   const one = gameAccuracy([50, 40]);
   assert.ok(one.first > 0 && one.first < 100);
-  assert.equal(one.second, 0);
+  assert.equal(one.second, 100);
+});
+
+test('gameAccuracy excludes reveal (chance) plies from the graded accuracy', () => {
+  // A curve where the FIRST mover's ply-1 move looks like a big blunder (50 -> 15) but it is a
+  // reveal (luck): excluding ply 1 should lift their accuracy well above the un-excluded version.
+  const curve = [50, 15, 40, 45, 42];
+  const graded = gameAccuracy(curve);
+  const revealExcluded = gameAccuracy(curve, new Set([1]));
+  assert.ok(revealExcluded.first > graded.first, 'excluding the unlucky reveal raises accuracy');
 });

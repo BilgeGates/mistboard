@@ -95,8 +95,17 @@
 .review-move-list__move--current:hover {
   background: var(--site-accent, #3b73c4);
 }
+/* Judgment glyph (?!/?/??) in its own non-shrinking slot so a tight row (e.g. a reveal that also
+   carries a luck badge) truncates the move label, never the glyph. */
 .review-move-list__suffix {
+  flex: 0 0 auto;
+  margin-left: 3px;
+  font-weight: 700;
+  white-space: nowrap;
   color: var(--site-muted);
+}
+.review-move-list__suffix:empty {
+  margin-left: 0;
 }
 .review-move-list__move--current .review-move-list__suffix {
   color: inherit;

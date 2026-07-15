@@ -9,18 +9,40 @@ import type { GameAnalysis, PlayerAnalysis } from './game-analysis.js';
 /** Optional real player names; fall back to the side colors for anonymous games. */
 export type AnalysisSummaryLabels = { red?: string; black?: string };
 
+export type AnalysisSummaryOptions = {
+  /** Label for the accuracy row. Chance/hidden-info variants pass 'Non-reveal accuracy' so it
+   *  reads as distinct from the separate reveal-decision accuracy. Defaults to 'Accuracy'. */
+  accuracyLabel?: string;
+};
+
 export function createAnalysisSummary(
   analysis: GameAnalysis,
   labels?: AnalysisSummaryLabels,
+  options?: AnalysisSummaryOptions,
 ): HTMLElement {
   const el = document.createElement('section');
   el.className = 'analysis-summary';
-  el.append(playerBlock(labels?.red || 'Red', 'analysis-summary__dot--red', analysis.red));
-  el.append(playerBlock(labels?.black || 'Black', 'analysis-summary__dot--black', analysis.black));
+  const accuracyLabel = options?.accuracyLabel ?? 'Accuracy';
+  el.append(
+    playerBlock(labels?.red || 'Red', 'analysis-summary__dot--red', analysis.red, accuracyLabel),
+  );
+  el.append(
+    playerBlock(
+      labels?.black || 'Black',
+      'analysis-summary__dot--black',
+      analysis.black,
+      accuracyLabel,
+    ),
+  );
   return el;
 }
 
-function playerBlock(label: string, dotClass: string, player: PlayerAnalysis): HTMLElement {
+function playerBlock(
+  label: string,
+  dotClass: string,
+  player: PlayerAnalysis,
+  accuracyLabel: string,
+): HTMLElement {
   const block = document.createElement('div');
   block.className = 'analysis-summary__player';
 
@@ -52,7 +74,7 @@ function playerBlock(label: string, dotClass: string, player: PlayerAnalysis): H
       player.blunders > 0 ? 'blunder' : null,
     ),
     statRow(String(player.acpl), 'Average centipawn loss', null),
-    statRow(`${Math.round(player.accuracy)}%`, 'Accuracy', null),
+    statRow(`${Math.round(player.accuracy)}%`, accuracyLabel, null),
   );
 
   block.append(head, stats);

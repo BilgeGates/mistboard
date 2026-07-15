@@ -126,8 +126,11 @@ export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): Game
   }
 
   // Whole-game accuracy is lila's volatility-weighted + harmonic blend — NOT a
-  // plain mean of per-move accuracies (which reads flatteringly high).
-  const accuracies = gameAccuracy(redWinPercents);
+  // plain mean of per-move accuracies (which reads flatteringly high). CHANCE (reveal) plies are
+  // excluded so this grades only the moves a player fully controls — a reveal's swing is luck, and
+  // its skill is measured separately by the decision decomposition. Empty for deterministic
+  // variants, so their accuracy is unchanged.
+  const accuracies = gameAccuracy(redWinPercents, chancePlies);
 
   const summarize = (side: 'red' | 'black'): PlayerAnalysis => {
     const b = acc[side];

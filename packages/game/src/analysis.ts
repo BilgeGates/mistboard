@@ -67,7 +67,15 @@ export function moveJudgment(winBefore: number, winAfter: number): MoveJudgment 
  * order — one more entry than there are moves. The first mover owns the even
  * transitions (0->1, 2->3, ...). Returns 0 for a side with no moves.
  */
-export function gameAccuracy(winPercents: number[]): { first: number; second: number } {
+// `excludePlies` (1-based ply numbers) drops those move transitions from the per-player accuracy
+// samples — used by chance/hidden-info variants (jieqi/banqi/jungle-flip) to keep REVEAL plies out
+// of the accuracy, since a reveal's win% swing is luck, not a graded decision. Empty/absent for
+// deterministic variants, so their accuracy is unchanged. The volatility windows still span the
+// full curve (a reveal is real local volatility); only the attribution to a player is skipped.
+export function gameAccuracy(
+  winPercents: number[],
+  excludePlies?: ReadonlySet<number>,
+): { first: number; second: number } {
   const moves = winPercents.length - 1;
   if (moves < 1) return { first: 0, second: 0 };
 
@@ -92,6 +100,8 @@ export function gameAccuracy(winPercents: number[]): { first: number; second: nu
     second: [],
   };
   for (let i = 0; i < moves; i += 1) {
+    // Move index i produces ply i+1; skip a reveal (chance) ply so its luck never counts as skill.
+    if (excludePlies?.has(i + 1)) continue;
     const prev = winPercents[i]!;
     const next = winPercents[i + 1]!;
     const mover: 'first' | 'second' = i % 2 === 0 ? 'first' : 'second';
@@ -102,7 +112,9 @@ export function gameAccuracy(winPercents: number[]): { first: number; second: nu
 
   const sideAccuracy = (side: 'first' | 'second'): number => {
     const list = samples[side];
-    if (list.length === 0) return 0;
+    // No gradeable moves (e.g. every move this side made was an excluded reveal) → no errors to
+    // count, so treat as 100% rather than a misleading 0%.
+    if (list.length === 0) return 100;
     const weightSum = list.reduce((sum, s) => sum + s.weight, 0);
     const weighted =
       weightSum > 0
