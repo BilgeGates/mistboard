@@ -107,8 +107,9 @@ const xiangqiBoardThemes: Array<{ id: XiangqiBoardTheme; label: string }> = [
   { id: 'international', label: 'International' },
   { id: 'traditional', label: 'Traditional' },
 ];
-const xiangqiBoardLayouts: Array<{ id: XiangqiBoardLayout; label: string }> = [
-  { id: 'intersection', label: 'Classic intersections' },
+type XiangqiBoardChoice = XiangqiBoardTheme | 'cell';
+const xiangqiBoardChoices: Array<{ id: XiangqiBoardChoice; label: string }> = [
+  ...xiangqiBoardThemes,
   { id: 'cell', label: 'Square grid' },
 ];
 const xiangqiPieceSets = XIANGQI_PIECE_SETS;
@@ -369,30 +370,19 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
   if (xiangqiAppearanceEnabled()) {
     boardBody.push(
       createTileField(
-        'xqlayout',
-        t('prefs.boardLayout', {}, locale),
-        t('prefs.xiangqiBoardLayout', {}, locale),
-        xiangqiBoardLayouts,
-        readStoredXiangqiBoardLayout(),
-        (value) => {
-          writeStoredXiangqiBoardLayout(value);
-          applyXiangqiBoardLayout(value);
-          syncThemeControls();
-          dispatchXiangqiAppearanceChanged();
-        },
-        'xiangqi',
-      ),
-    );
-    boardBody.push(
-      createTileField(
         'xqboard',
         t('prefs.boardStyle', {}, locale),
         t('prefs.xiangqiBoardPresentation', {}, locale),
-        xiangqiBoardThemes,
-        readStoredXiangqiBoardTheme(),
+        xiangqiBoardChoices,
+        readXiangqiBoardChoice(),
         (value) => {
-          applyXiangqiBoardTheme(value);
-          writeStoredXiangqiBoardTheme(value);
+          if (value !== 'cell') {
+            applyXiangqiBoardTheme(value);
+            writeStoredXiangqiBoardTheme(value);
+          }
+          const layout: XiangqiBoardLayout = value === 'cell' ? 'cell' : 'intersection';
+          applyXiangqiBoardLayout(layout);
+          writeStoredXiangqiBoardLayout(layout);
           syncThemeControls();
           dispatchXiangqiAppearanceChanged();
         },
@@ -695,15 +685,7 @@ function syncBoardFamilyControls(): void {
   });
 }
 
-type TileKind =
-  | 'board'
-  | 'fog'
-  | 'piece'
-  | 'xqboard'
-  | 'xqlayout'
-  | 'xqpiece'
-  | 'shogiboard'
-  | 'shogipiece';
+type TileKind = 'board' | 'fog' | 'piece' | 'xqboard' | 'xqpiece' | 'shogiboard' | 'shogipiece';
 
 function createTileField<T extends string>(
   kind: TileKind,
@@ -911,8 +893,7 @@ function syncThemeControls(): void {
   syncSiteThemeControls(siteTheme);
   syncBoardFamilyControls();
   syncTileRow('board', boardTheme);
-  syncTileRow('xqlayout', readStoredXiangqiBoardLayout());
-  syncTileRow('xqboard', readStoredXiangqiBoardTheme());
+  syncTileRow('xqboard', readXiangqiBoardChoice());
   syncTileRow('shogiboard', readStoredShogiBoardTheme());
   syncTileRow('fog', fogTheme);
   syncTileRow('piece', pieceSet);
@@ -935,6 +916,10 @@ function syncThemeControls(): void {
   document.querySelectorAll<HTMLElement>('.theme-control-volume-field').forEach((field) => {
     field.classList.toggle('muted', soundMuted);
   });
+}
+
+function readXiangqiBoardChoice(): XiangqiBoardChoice {
+  return readStoredXiangqiBoardLayout() === 'cell' ? 'cell' : readStoredXiangqiBoardTheme();
 }
 
 function syncSiteThemeControls(activeTheme: SiteTheme): void {
