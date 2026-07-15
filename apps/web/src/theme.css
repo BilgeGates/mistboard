@@ -690,6 +690,25 @@
 }
 
 /* Xiangqi board swatches (presentation style, not an open-ended colour picker). */
+.theme-tile-preview-xqlayout {
+  background-color: #f5dca8;
+}
+.theme-tile-preview-xqlayout[data-id="intersection"] {
+  background-image:
+    linear-gradient(rgba(90, 58, 20, 0.78) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(90, 58, 20, 0.78) 1px, transparent 1px);
+  background-position: center;
+  background-size: 12px 12px;
+}
+.theme-tile-preview-xqlayout[data-id="cell"] {
+  background-image: conic-gradient(
+    rgba(90, 58, 20, 0.12) 25%,
+    transparent 0 50%,
+    rgba(90, 58, 20, 0.12) 0 75%,
+    transparent 0
+  );
+  background-size: 16px 16px;
+}
 .theme-tile-preview-xqboard[data-id="international"] {
   background: #f5dca8;
 }

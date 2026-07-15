@@ -18,7 +18,7 @@ import {
   type XiangqiMove,
   type XiangqiSquare,
 } from '@mistboard/game';
-import { xiangqiAppearanceChangedEvent } from '../theme.js';
+import { readStoredXiangqiBoardLayout, xiangqiAppearanceChangedEvent } from '../theme.js';
 import {
   animateXiangqiBoardMove,
   createXiangqiInteractiveBoard,
@@ -63,7 +63,7 @@ const xiangqiPresentation: TreePresentation<
   boardHostClassName: 'dxq-postgame__board xiangqi-live-board',
   boardWrapClassName: 'dxq-postgame__board-wrap review-board-host',
   defaultBoardAriaLabel: 'Xiangqi board',
-  boardAspect: 552 / 612,
+  boardAspect: () => (readStoredXiangqiBoardLayout() === 'cell' ? 540 / 612 : 552 / 612),
   boardCols: 9,
   // The xiangqi board renders pieces as inline SVG, so a piece-set change needs a
   // re-render (the chess board picks up its set via CSS and does not).

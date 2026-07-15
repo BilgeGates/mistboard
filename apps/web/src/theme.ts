@@ -22,10 +22,13 @@ import { SHOGI_PIECE_SETS, type ShogiPieceSet, shogiPieceTilePreview } from './s
 import { isLikelySignedIn } from './signed-in-state.js';
 import { readStoredSoundSet, SOUND_SETS, type SoundSetId, storeSoundSet } from './sound-sets.js';
 import {
+  readStoredXiangqiBoardLayout,
   readStoredXiangqiBoardTheme,
   readStoredXiangqiPieceSet,
+  writeStoredXiangqiBoardLayout,
   writeStoredXiangqiBoardTheme,
   writeStoredXiangqiPieceSet,
+  type XiangqiBoardLayout,
   type XiangqiBoardTheme,
 } from './xiangqi-appearance-storage.js';
 import {
@@ -35,7 +38,10 @@ import {
 } from './xiangqi-piece-sets.js';
 
 export { readStoredShogiPieceSet } from './shogi-appearance-storage.js';
-export { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
+export {
+  readStoredXiangqiBoardLayout,
+  readStoredXiangqiPieceSet,
+} from './xiangqi-appearance-storage.js';
 
 export type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
 export type FogTheme = 'veil' | 'solid' | 'drift' | 'mistveil' | 'void' | 'invisible';
@@ -101,6 +107,10 @@ const xiangqiBoardThemes: Array<{ id: XiangqiBoardTheme; label: string }> = [
   { id: 'international', label: 'International' },
   { id: 'traditional', label: 'Traditional' },
 ];
+const xiangqiBoardLayouts: Array<{ id: XiangqiBoardLayout; label: string }> = [
+  { id: 'intersection', label: 'Classic intersections' },
+  { id: 'cell', label: 'Square grid' },
+];
 const xiangqiPieceSets = XIANGQI_PIECE_SETS;
 const shogiBoardThemes = SHOGI_BOARD_THEMES;
 const shogiPieceSets = SHOGI_PIECE_SETS;
@@ -137,6 +147,7 @@ export function initializeThemeSettings(): void {
   applyBoardTheme(readStoredTheme());
   applyFogTheme(readStoredFogTheme());
   applyPieceSet(readStoredPieceSet());
+  applyXiangqiBoardLayout(readStoredXiangqiBoardLayout());
   applyXiangqiBoardTheme(readStoredXiangqiBoardTheme());
   applyXiangqiPieceSet(readStoredXiangqiPieceSet());
   applyShogiBoardTheme(readStoredShogiBoardTheme());
@@ -185,6 +196,10 @@ function applyPieceSet(pieceSet: PieceSet): void {
 
 function applyXiangqiBoardTheme(theme: XiangqiBoardTheme): void {
   document.documentElement.dataset.xiangqiBoardTheme = theme;
+}
+
+function applyXiangqiBoardLayout(layout: XiangqiBoardLayout): void {
+  document.documentElement.dataset.xiangqiBoardLayout = layout;
 }
 
 function applyXiangqiPieceSet(pieceSet: XiangqiPieceSet): void {
@@ -352,6 +367,22 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
     ),
   );
   if (xiangqiAppearanceEnabled()) {
+    boardBody.push(
+      createTileField(
+        'xqlayout',
+        t('prefs.boardLayout', {}, locale),
+        t('prefs.xiangqiBoardLayout', {}, locale),
+        xiangqiBoardLayouts,
+        readStoredXiangqiBoardLayout(),
+        (value) => {
+          writeStoredXiangqiBoardLayout(value);
+          applyXiangqiBoardLayout(value);
+          syncThemeControls();
+          dispatchXiangqiAppearanceChanged();
+        },
+        'xiangqi',
+      ),
+    );
     boardBody.push(
       createTileField(
         'xqboard',
@@ -664,7 +695,15 @@ function syncBoardFamilyControls(): void {
   });
 }
 
-type TileKind = 'board' | 'fog' | 'piece' | 'xqboard' | 'xqpiece' | 'shogiboard' | 'shogipiece';
+type TileKind =
+  | 'board'
+  | 'fog'
+  | 'piece'
+  | 'xqboard'
+  | 'xqlayout'
+  | 'xqpiece'
+  | 'shogiboard'
+  | 'shogipiece';
 
 function createTileField<T extends string>(
   kind: TileKind,
@@ -872,6 +911,7 @@ function syncThemeControls(): void {
   syncSiteThemeControls(siteTheme);
   syncBoardFamilyControls();
   syncTileRow('board', boardTheme);
+  syncTileRow('xqlayout', readStoredXiangqiBoardLayout());
   syncTileRow('xqboard', readStoredXiangqiBoardTheme());
   syncTileRow('shogiboard', readStoredShogiBoardTheme());
   syncTileRow('fog', fogTheme);

@@ -67,6 +67,8 @@ export type WatchPostgameMeta = {
 // The variant-specific surface. The generic owns everything else.
 export type TenantWatchAdapter<Postgame extends WatchPostgameMeta, View, ViewKey extends string> = {
   installStyles(): void;
+  /** Appearance event that repaints the current ply without changing replay state. */
+  appearanceEvent?: string;
   loadPostgame(roomId: string): Promise<{ ok: true; postgame: Postgame } | { ok: false }>;
   maxPly(postgame: Postgame): number;
   // Boards to show: a triptych [red, truth, black] for per-color hidden info
@@ -836,6 +838,8 @@ export async function mountTenantWatchReplay<
     }
   };
   if (adapter.reveal && !compact) window.addEventListener('keydown', onKeydown);
+  const onAppearance = (): void => sync();
+  if (adapter.appearanceEvent) window.addEventListener(adapter.appearanceEvent, onAppearance);
 
   // The view entry (and board orientation) for a requested perspective, resolved
   // through the adapter's paneKind. Orient a side view to that side; truth keeps
@@ -864,6 +868,9 @@ export async function mountTenantWatchReplay<
         clockTickTimer = null;
       }
       if (adapter.reveal && !compact) window.removeEventListener('keydown', onKeydown);
+      if (adapter.appearanceEvent) {
+        window.removeEventListener(adapter.appearanceEvent, onAppearance);
+      }
       root.replaceChildren();
     },
     loadGame: async (sampleId: string) => {

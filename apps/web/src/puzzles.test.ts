@@ -711,6 +711,21 @@ describe('standard xiangqi puzzles', () => {
     expect(root.querySelectorAll('[data-square]').length).toBe(90);
   });
 
+  it('repaints a mounted standard puzzle when the board layout changes', async () => {
+    const puzzle = minedByPlyCount(3);
+    vi.stubGlobal('fetch', xiangqiFetchMock([puzzle]));
+    const root = document.createElement('div');
+
+    await mountPuzzles(root, puzzle.id);
+    expect(root.querySelector('.xq-live-svg--intersection')).not.toBeNull();
+
+    window.history.replaceState(null, '', '/puzzles?xqLayout=cell');
+    window.dispatchEvent(new Event(xiangqiAppearanceChangedEvent));
+
+    await vi.waitFor(() => expect(root.querySelector('.xq-live-svg--cell')).not.toBeNull());
+    expect(root.querySelector('.xq-live-cell-river')).not.toBeNull();
+  });
+
   it('solves a mined puzzle, auto-playing the scripted opponent reply', async () => {
     const puzzle = minedByPlyCount(3);
     const solver = solverMovesOf(puzzle);

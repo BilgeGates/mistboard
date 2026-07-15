@@ -111,6 +111,18 @@ describe('mountXiangqiAnalysisPage', () => {
     root.remove();
   });
 
+  it('sizes the review shell for the square-grid river gutter', () => {
+    window.history.pushState({}, '', '/analysis/xiangqi?xqLayout=cell');
+    const root = freshRoot();
+    mountXiangqiAnalysisPage(root);
+    expect(
+      root
+        .querySelector<HTMLElement>('.review-shell__cluster')
+        ?.style.getPropertyValue('--uni-board-aspect'),
+    ).toBe((540 / 612).toFixed(4));
+    root.remove();
+  });
+
   it('imports a pasted Chinese game through the dialog', () => {
     const root = freshRoot();
     mountXiangqiAnalysisPage(root);

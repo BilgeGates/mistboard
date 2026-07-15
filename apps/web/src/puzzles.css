@@ -121,6 +121,10 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
+:root[data-xiangqi-board-layout="cell"] .puzzle-board .puzzle-xiangqi-board {
+  width: min(100%, calc(var(--puzzle-surface-size) * 540 / 612));
+}
+
 .puzzle-board-shell {
   width: min(100%, var(--puzzle-drop-surface-size));
   min-width: 360px;

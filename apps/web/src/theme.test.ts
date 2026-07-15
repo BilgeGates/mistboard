@@ -14,6 +14,7 @@ describe('site appearance preference', () => {
     });
     document.documentElement.removeAttribute('data-site-theme');
     document.documentElement.removeAttribute('data-effective-theme');
+    document.documentElement.removeAttribute('data-xiangqi-board-layout');
     document.documentElement.removeAttribute('style');
     document.head.innerHTML = '<meta name="theme-color" content="#1f2521">';
   });
@@ -51,6 +52,15 @@ describe('site appearance preference', () => {
 
     expect(document.documentElement.dataset.siteTheme).toBe('system');
     expect(document.documentElement.dataset.effectiveTheme).toBe('dark');
+  });
+
+  it('exposes the stored xiangqi layout to shared CSS sizing', () => {
+    window.localStorage.setItem('mistboard.xiangqiBoardLayout', 'cell');
+    window.localStorage.setItem('mistboard.xiangqiBoardLayoutVersion', '1');
+
+    initializeThemeSettings();
+
+    expect(document.documentElement.dataset.xiangqiBoardLayout).toBe('cell');
   });
 });
 
@@ -179,6 +189,7 @@ describe('appearance family gating', () => {
     ).toEqual(['xiangqi', 'chess']);
     expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="fog"]')).not.toBeNull();
+    expect(document.querySelector('[data-theme-tile="xqlayout"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="shogiboard"]')).toBeNull();
@@ -188,6 +199,17 @@ describe('appearance family gating', () => {
         tile.getAttribute('aria-label'),
       ),
     ).toEqual(['International', 'Traditional']);
+    expect(
+      [...document.querySelectorAll<HTMLButtonElement>('[data-theme-tile="xqlayout"]')].map(
+        (tile) => tile.getAttribute('aria-label'),
+      ),
+    ).toEqual(['Classic intersections', 'Square grid']);
+
+    document
+      .querySelector<HTMLButtonElement>('[data-theme-tile="xqlayout"][data-id="cell"]')
+      ?.click();
+    expect(window.localStorage.getItem('mistboard.xiangqiBoardLayout')).toBe('cell');
+    expect(document.documentElement.dataset.xiangqiBoardLayout).toBe('cell');
   });
 
   it('keeps Crossroads inside the xiangqi appearance family', () => {
@@ -206,6 +228,7 @@ describe('appearance family gating', () => {
     ).toEqual(['xiangqi', 'chess']);
 
     expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
+    expect(document.querySelector('[data-theme-tile="xqlayout"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
   });
@@ -214,6 +237,7 @@ describe('appearance family gating', () => {
     rebuildThemePanel();
 
     expect(document.querySelector('[data-board-family-select]')).not.toBeNull();
+    expect(document.querySelector('[data-theme-tile="xqlayout"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
   });

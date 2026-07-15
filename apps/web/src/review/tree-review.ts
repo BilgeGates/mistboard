@@ -111,8 +111,8 @@ export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
   boardWrapClassName: string;
   /** aria-label for the board host when the config supplies none. */
   defaultBoardAriaLabel: string;
-  /** Board width/height ratio for the scaffold's board-box sizing. */
-  boardAspect: number;
+  /** Board width/height ratio for the scaffold's board-box sizing. May depend on appearance. */
+  boardAspect: number | (() => number);
   /** Column count for the scaffold's board-box sizing. */
   boardCols: number;
   /** Optional hard cap on the rendered board WIDTH (px). Wide/short boards (e.g. the
@@ -546,7 +546,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       el: slot.wrap,
       tier: slot.primary ? ('primary' as const) : ('secondary' as const),
     })),
-    boardAspect: presentation.boardAspect,
+    boardAspect: resolveBoardAspect(presentation.boardAspect),
     boardCols: presentation.boardCols,
     boardMaxPx: presentation.boardMaxPx,
     underboard:
@@ -844,9 +844,14 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // event). Reuse the per-mount abort signal so a re-mount drops the stale
   // listener rather than stacking.
   if (presentation.appearanceEvent) {
-    window.addEventListener(presentation.appearanceEvent, () => render(), {
-      signal: keyboardAbort.signal,
-    });
+    window.addEventListener(
+      presentation.appearanceEvent,
+      () => {
+        render();
+        scaffold.setBoardAspect(resolveBoardAspect(presentation.boardAspect));
+      },
+      { signal: keyboardAbort.signal },
+    );
   }
   installReviewKeyboard(
     {
@@ -860,6 +865,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   );
 
   return { serialize: () => serializeTree(tree, adapter) };
+}
+
+function resolveBoardAspect(aspect: number | (() => number)): number {
+  return typeof aspect === 'function' ? aspect() : aspect;
 }
 
 function truncationNotice(legal: number): HTMLElement {
