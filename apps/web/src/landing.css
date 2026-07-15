@@ -107,9 +107,9 @@
   position: relative;
 }
 
-/* Board fills the box HEIGHT (width follows aspect, hugged to the inner edge via
-   preserveAspectRatio set in JS). Absolute fill so height:100% resolves reliably
-   through the flex chain; the SVG carries its own board background. */
+/* Board fills the box HEIGHT (width follows aspect). Absolute fill so height:100%
+   resolves reliably through the flex chain; the SVG carries its own board
+   background. */
 .home-puzzle-widget-board {
   flex: 1 1 auto;
   min-width: 0;
@@ -130,6 +130,10 @@
   max-width: 100%;
   height: 100%;
   aspect-ratio: 540 / 612;
+}
+
+.home-puzzle-box:has(.xq-live-svg--cell) {
+  justify-content: center;
 }
 
 .home-puzzle-widget-board svg {
@@ -1699,16 +1703,6 @@
     margin-left: auto;
     gap: 0;
     align-items: flex-end;
-  }
-
-  /* The left-rail viewer hugs its board to the center-facing edge; any spare
-     width from fitting the portrait board stays on the outside of the rail. */
-  .landing-page .landing-board-column
-    #landing-replay
-    .replay-layout-solo
-    .replay-board:has(.xq-live-svg--cell) {
-    margin-left: auto;
-    margin-right: 0;
   }
 
   /* The middle child (board pane, or the reserve-flanked board row) fills the box;
