@@ -690,6 +690,16 @@
 }
 
 /* Xiangqi board swatches (presentation style, not an open-ended colour picker). */
+.theme-tile-preview-xqboard[data-id="cell"] {
+  background-color: #f5dca8;
+  background-image: conic-gradient(
+    rgba(90, 58, 20, 0.12) 25%,
+    transparent 0 50%,
+    rgba(90, 58, 20, 0.12) 0 75%,
+    transparent 0
+  );
+  background-size: 16px 16px;
+}
 .theme-tile-preview-xqboard[data-id="international"] {
   background: #f5dca8;
 }

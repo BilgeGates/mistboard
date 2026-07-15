@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  normalizeXiangqiBoardLayout,
   normalizeXiangqiBoardTheme,
   normalizeXiangqiPieceSet,
+  readStoredXiangqiBoardLayout,
   readStoredXiangqiBoardTheme,
   readStoredXiangqiPieceSet,
+  writeStoredXiangqiBoardLayout,
   writeStoredXiangqiBoardTheme,
   writeStoredXiangqiPieceSet,
 } from './xiangqi-appearance-storage.js';
@@ -38,6 +41,18 @@ function installLocalStorage(): Storage {
 }
 
 describe('xiangqi appearance storage normalization', () => {
+  it('defaults unknown board layouts to classic intersections', () => {
+    expect(normalizeXiangqiBoardLayout(null)).toBe('intersection');
+    expect(normalizeXiangqiBoardLayout('unknown')).toBe('intersection');
+    expect(normalizeXiangqiBoardLayout('cell')).toBe('cell');
+  });
+
+  it('persists the opt-in square-grid layout', () => {
+    installLocalStorage();
+    writeStoredXiangqiBoardLayout('cell');
+    expect(readStoredXiangqiBoardLayout()).toBe('cell');
+  });
+
   it('uses International as the default board style and legacy migration target', () => {
     expect(normalizeXiangqiBoardTheme(null)).toBe('international');
     expect(normalizeXiangqiBoardTheme('unknown')).toBe('international');

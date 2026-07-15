@@ -182,6 +182,19 @@
     border-bottom-right-radius: 0;
     background: var(--xq-live-board-bg, #f5dca8);
   }
+  .review-shell__cluster--gauge .xiangqi-live-board .xq-live-svg {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  .review-shell__cluster--gauge .xiangqi-live-board:has(.xq-live-svg--cell) {
+    /* Match the two right-corner cells behind the SVG so antialiasing can never
+       expose the light board surface around the dark bottom-right tile. */
+    background: linear-gradient(
+      to bottom,
+      var(--xq-live-board-bg, #f5dca8) 0 50%,
+      color-mix(in srgb, var(--xq-live-board-bg, #f5dca8) 84%, var(--xq-live-ink, #5a3a14)) 50% 100%
+    );
+  }
 }
 
 @media (min-width: 1260px) {

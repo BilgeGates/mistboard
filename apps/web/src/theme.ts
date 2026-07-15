@@ -22,10 +22,13 @@ import { SHOGI_PIECE_SETS, type ShogiPieceSet, shogiPieceTilePreview } from './s
 import { isLikelySignedIn } from './signed-in-state.js';
 import { readStoredSoundSet, SOUND_SETS, type SoundSetId, storeSoundSet } from './sound-sets.js';
 import {
+  readStoredXiangqiBoardLayout,
   readStoredXiangqiBoardTheme,
   readStoredXiangqiPieceSet,
+  writeStoredXiangqiBoardLayout,
   writeStoredXiangqiBoardTheme,
   writeStoredXiangqiPieceSet,
+  type XiangqiBoardLayout,
   type XiangqiBoardTheme,
 } from './xiangqi-appearance-storage.js';
 import {
@@ -35,7 +38,10 @@ import {
 } from './xiangqi-piece-sets.js';
 
 export { readStoredShogiPieceSet } from './shogi-appearance-storage.js';
-export { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
+export {
+  readStoredXiangqiBoardLayout,
+  readStoredXiangqiPieceSet,
+} from './xiangqi-appearance-storage.js';
 
 export type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
 export type FogTheme = 'veil' | 'solid' | 'drift' | 'mistveil' | 'void' | 'invisible';
@@ -101,6 +107,11 @@ const xiangqiBoardThemes: Array<{ id: XiangqiBoardTheme; label: string }> = [
   { id: 'international', label: 'International' },
   { id: 'traditional', label: 'Traditional' },
 ];
+type XiangqiBoardChoice = XiangqiBoardTheme | 'cell';
+const xiangqiBoardChoices: Array<{ id: XiangqiBoardChoice; label: string }> = [
+  ...xiangqiBoardThemes,
+  { id: 'cell', label: 'Square grid' },
+];
 const xiangqiPieceSets = XIANGQI_PIECE_SETS;
 const shogiBoardThemes = SHOGI_BOARD_THEMES;
 const shogiPieceSets = SHOGI_PIECE_SETS;
@@ -137,6 +148,7 @@ export function initializeThemeSettings(): void {
   applyBoardTheme(readStoredTheme());
   applyFogTheme(readStoredFogTheme());
   applyPieceSet(readStoredPieceSet());
+  applyXiangqiBoardLayout(readStoredXiangqiBoardLayout());
   applyXiangqiBoardTheme(readStoredXiangqiBoardTheme());
   applyXiangqiPieceSet(readStoredXiangqiPieceSet());
   applyShogiBoardTheme(readStoredShogiBoardTheme());
@@ -185,6 +197,10 @@ function applyPieceSet(pieceSet: PieceSet): void {
 
 function applyXiangqiBoardTheme(theme: XiangqiBoardTheme): void {
   document.documentElement.dataset.xiangqiBoardTheme = theme;
+}
+
+function applyXiangqiBoardLayout(layout: XiangqiBoardLayout): void {
+  document.documentElement.dataset.xiangqiBoardLayout = layout;
 }
 
 function applyXiangqiPieceSet(pieceSet: XiangqiPieceSet): void {
@@ -357,11 +373,16 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
         'xqboard',
         t('prefs.boardStyle', {}, locale),
         t('prefs.xiangqiBoardPresentation', {}, locale),
-        xiangqiBoardThemes,
-        readStoredXiangqiBoardTheme(),
+        xiangqiBoardChoices,
+        readXiangqiBoardChoice(),
         (value) => {
-          applyXiangqiBoardTheme(value);
-          writeStoredXiangqiBoardTheme(value);
+          if (value !== 'cell') {
+            applyXiangqiBoardTheme(value);
+            writeStoredXiangqiBoardTheme(value);
+          }
+          const layout: XiangqiBoardLayout = value === 'cell' ? 'cell' : 'intersection';
+          applyXiangqiBoardLayout(layout);
+          writeStoredXiangqiBoardLayout(layout);
           syncThemeControls();
           dispatchXiangqiAppearanceChanged();
         },
@@ -872,7 +893,7 @@ function syncThemeControls(): void {
   syncSiteThemeControls(siteTheme);
   syncBoardFamilyControls();
   syncTileRow('board', boardTheme);
-  syncTileRow('xqboard', readStoredXiangqiBoardTheme());
+  syncTileRow('xqboard', readXiangqiBoardChoice());
   syncTileRow('shogiboard', readStoredShogiBoardTheme());
   syncTileRow('fog', fogTheme);
   syncTileRow('piece', pieceSet);
@@ -895,6 +916,10 @@ function syncThemeControls(): void {
   document.querySelectorAll<HTMLElement>('.theme-control-volume-field').forEach((field) => {
     field.classList.toggle('muted', soundMuted);
   });
+}
+
+function readXiangqiBoardChoice(): XiangqiBoardChoice {
+  return readStoredXiangqiBoardLayout() === 'cell' ? 'cell' : readStoredXiangqiBoardTheme();
 }
 
 function syncSiteThemeControls(activeTheme: SiteTheme): void {

@@ -158,6 +158,8 @@ export type ReviewScaffold = {
   /** Re-measure and size the primary board to fill the viewport. Call once after
    *  the first render, and whenever the underboard region changes height. */
   refit(): void;
+  /** Update the board width/height ratio after an appearance change, then refit. */
+  setBoardAspect(aspect: number): void;
 };
 
 /** Build the shared review layout into `root`. The caller renders board/move
@@ -167,6 +169,8 @@ export function createReviewScaffold(
   root: HTMLElement,
   config: ReviewScaffoldConfig,
 ): ReviewScaffold {
+  let boardAspect = config.boardAspect;
+  const sizingConfig = (): SizingInput => ({ ...config, boardAspect });
   const slots: BoardStageSlot[] = config.boards.map((board) => ({
     key: board.key,
     el: board.el,
@@ -206,7 +210,12 @@ export function createReviewScaffold(
     ? (config.materialBottom ?? adoptedMaterialBottom)
     : undefined;
 
-  applyBoardSizing(stage.el, config, !showBoardMaterial || stripsAdopted, !showBoardMaterial);
+  applyBoardSizing(
+    stage.el,
+    sizingConfig(),
+    !showBoardMaterial || stripsAdopted,
+    !showBoardMaterial,
+  );
 
   const favoriteGameId = root.dataset.favoriteGameId;
   const actions = favoriteGameId
@@ -283,11 +292,21 @@ export function createReviewScaffold(
   };
 
   function refit(): void {
-    applyBoardSizing(stage.el, config, !showBoardMaterial || stripsAdopted, !showBoardMaterial);
-    fitPrimaryToViewport(stage.el, config.boardAspect, config.boardMaxPx, {
+    applyBoardSizing(
+      stage.el,
+      sizingConfig(),
+      !showBoardMaterial || stripsAdopted,
+      !showBoardMaterial,
+    );
+    fitPrimaryToViewport(stage.el, boardAspect, config.boardMaxPx, {
       underboardOverflows: config.underboardOverflows,
     });
     setTimeout(positionGrip, 60);
+  }
+
+  function setBoardAspect(aspect: number): void {
+    boardAspect = aspect;
+    refit();
   }
 
   setTimeout(refit, 60);
@@ -303,7 +322,7 @@ export function createReviewScaffold(
     observer.observe(stage.el);
   }
 
-  return { stage, refit };
+  return { stage, refit, setBoardAspect };
 }
 
 function reviewActionsWithFavorite(existing: HTMLElement | undefined, roomId: string): HTMLElement {
