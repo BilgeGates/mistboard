@@ -372,7 +372,7 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
       );
     }
 
-    refs = createLiveLayout(app, { debugRequested: false });
+    refs = createLiveLayout(app, { debugRequested: false, roomId: room });
     setLiveLayoutGameSpec(app, config.gameSpecId);
     chrome.setRenderTarget(refs, {
       sendSocket: send,

@@ -222,7 +222,7 @@ export function bootstrapCrossroadsChessLiveRoom(): void {
     );
   }
 
-  refs = createLiveLayout(app, { debugRequested: false });
+  refs = createLiveLayout(app, { debugRequested: false, roomId: room });
   setLiveLayoutGameSpec(app, 'crossroads-chess');
   setBoardFamily('chess');
   boardHost = refs.board;

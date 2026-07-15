@@ -3,6 +3,7 @@ import { createGameTable } from './game-table.js';
 import type { LiveRefs } from './live-state.js';
 import './review/review-shell.css';
 import './live-review.css';
+import { buildLiveRoomChat } from './review/spectator-chat.js';
 import { buildNav } from './site-shell.js';
 
 export function setLiveLayoutGameSpec(target: HTMLElement, gameSpecId: string | null): void {
@@ -39,7 +40,7 @@ export function setLiveLayoutGameSpec(target: HTMLElement, gameSpecId: string | 
 // Static room chrome only. Live game decisions stay in live-render.ts.
 export function createLiveLayout(
   target: HTMLDivElement,
-  options: { debugRequested: boolean },
+  options: { debugRequested: boolean; roomId: string },
 ): LiveRefs {
   target.innerHTML = `
     <main class="shell${options.debugRequested ? ' debug-shell' : ''}">
@@ -69,7 +70,7 @@ export function createLiveLayout(
               <h2>Selections</h2>
               <div data-selections class="selection-list"></div>
             </section>
-            <div class="live-rail-filler" aria-hidden="true"></div>
+            <div data-live-room-chat></div>
           </aside>
           <div class="review-shell__center">
           <div class="board-shell">
@@ -108,6 +109,10 @@ export function createLiveLayout(
   if (!gameTableHost) throw new Error('missing game table host');
   const gameTable = createGameTable();
   gameTableHost.append(gameTable.el);
+
+  const chatHost = target.querySelector<HTMLElement>('[data-live-room-chat]');
+  if (!chatHost) throw new Error('missing live room chat host');
+  chatHost.replaceWith(buildLiveRoomChat(options.roomId));
 
   // The room rides the shared site nav (brand + Watch/Leaderboard + Learn +
   // account), prepended as an element so its dropdown and mobile toggle wire

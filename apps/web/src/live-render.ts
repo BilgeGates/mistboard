@@ -190,7 +190,10 @@ export function initRender(
   lifecycleTracker.reset();
   resetMoveListState();
   resetClockState();
-  refs = createLiveLayout(target, { debugRequested: liveState.debugRequested });
+  refs = createLiveLayout(target, {
+    debugRequested: liveState.debugRequested,
+    roomId: liveState.room,
+  });
   installSelectionClickAway({
     roots: () => [refs.board, refs.promotion],
     hasSelection: () => pendingPromotion === null && ground !== null,
