@@ -78,16 +78,16 @@ describe('Flip Jungle postgame page', () => {
     expect(root.querySelector('.review-stage')?.classList).toContain('review-stage--board-only');
     expect(root.querySelector('.review-shell__right .captures-strip')).toBeNull();
 
-    // The opening action was a flip (self-move): the move list reads it as "a1 flip"
-    // in the left cell (the first ply, `firstMover: 'a'`).
+    // The opening action was a flip (self-move): the move list reads it as the bare square
+    // "a1" (no dash = a flip; board moves are "a1-b2"), in the left cell (first ply, `firstMover: 'a'`).
     const firstMove = root.querySelector<HTMLButtonElement>(
       '.review-move-list__row .review-move-list__move',
     );
-    expect(firstMove?.querySelector('.review-move-list__san')?.textContent).toBe('a1 flip');
+    expect(firstMove?.querySelector('.review-move-list__san')?.textContent).toBe('a1');
     // Opens at the final ply (the flip is the mainline tip): the highlighted current
     // cell is that flip move. (The tree move list highlights via --current.)
     const current = root.querySelector('.review-move-list__move--current');
-    expect(current?.querySelector('.review-move-list__san')?.textContent).toBe('a1 flip');
+    expect(current?.querySelector('.review-move-list__san')?.textContent).toBe('a1');
     // Server-side computer analysis underboard is wired: a signed-out visitor sees the
     // sign-in CTA (the account-gated compute button) rather than nothing.
     const analyseButton = root.querySelector<HTMLButtonElement>('.xiangqi-review__analyse');
@@ -96,23 +96,34 @@ describe('Flip Jungle postgame page', () => {
   });
 
   it('displays first-mover analysis in the black ink revealed by the opening flip', async () => {
-    const fetchSpy = vi.fn(async (input: RequestInfo | URL) =>
-      String(input).endsWith('/analysis')
-        ? jsonResponse({
-            engineId: 'test',
-            depth: 1,
-            plies: [
-              { ply: 0, cp: 0, mate: null, best: null },
-              { ply: 1, cp: 100, mate: null, best: null },
-            ],
-            chancePlies: [1],
-          })
-        : jsonResponse(postgameFixture()),
-    );
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/analysis')) {
+        return jsonResponse({
+          engineId: 'test',
+          depth: 1,
+          plies: [
+            { ply: 0, cp: 0, mate: null, best: null },
+            { ply: 1, cp: 100, mate: null, best: null },
+          ],
+          chancePlies: [1],
+        });
+      }
+      // The decision-vs-luck tier fetches alongside analysis; a chance variant shows a "pending"
+      // note until it resolves, then renders the merged summary. Empty decisions is a valid result
+      // (the opening flip stays unjudged) and still renders the player summary this test asserts on.
+      if (url.endsWith('/decisions')) {
+        return jsonResponse({ engineId: 'test', depth: 1, decisions: [] });
+      }
+      return jsonResponse(postgameFixture());
+    });
     vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
 
     mountJungleFlipPostgame(root, 'jgf_postgame');
+    await flushPromises();
+    // The decisions fetch is chained after analysis; flush again so applyDecisions renders the
+    // merged summary (replacing the pending note) before we assert on it.
     await flushPromises();
 
     const playerRows = root.querySelectorAll('.game-meta-card__player');

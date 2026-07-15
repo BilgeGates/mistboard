@@ -64,7 +64,10 @@ export function makeJungleFlipTreeAdapter(
         ),
       },
     ],
-    moveLabel: (move) => (move.from === move.to ? `${move.from} flip` : `${move.from}-${move.to}`),
+    // A flip (self-move) reads as the bare square ("a1"); a board move/capture keeps the dash
+    // ("a1-b2"). The absence of a dash unambiguously marks a flip, and dropping the " flip" word
+    // frees the move-list cell so the notation never truncates next to the decision glyph + luck badge.
+    moveLabel: (move) => (move.from === move.to ? move.from : `${move.from}-${move.to}`),
     moveKey: (move) => `${move.from}${move.to}`,
     toEngineUci: (move) => `${move.from}${move.to}`,
     fromUci: (uci) => {

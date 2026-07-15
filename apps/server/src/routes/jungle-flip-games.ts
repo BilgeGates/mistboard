@@ -12,7 +12,10 @@ import {
 import { currentAccountUser } from './../account-session.js';
 import { jungleFlipEnabled } from './../feature-flags.js';
 import { VacuousAnalysisError } from './../game-analysis-sweep.js';
-import { resolveJungleFlipAnalysis } from './../jungle-flip-analysis.js';
+import {
+  resolveJungleFlipAnalysis,
+  resolveJungleFlipDecisions,
+} from './../jungle-flip-analysis.js';
 import { jungleFlipEngineBinaryAvailable } from './../jungle-flip-engine.js';
 import type { JungleFlipEvent } from './../jungle-flip-runtime.js';
 import { jungleFlipTenant } from './../jungle-flip-tenant.js';
@@ -178,6 +181,90 @@ export async function tryHandle(
     return true;
   }
 
+  // Decision-vs-luck decomposition (Layer 2): the heavier, opt-in tier on top of the basic eval
+  // sweep above. Per FLIP ply it returns {best, played, realized} EVs (mover POV) so the client can
+  // split the swing into decision quality vs luck. GET reads only the cache (204 on a miss,
+  // INCLUDING when the basic analysis it depends on isn't cached yet); POST computes (the basic
+  // sweep first, for the readiness gate, then the decomposition) and is account-gated.
+  const decisionsMatch = pathname.match(/^\/api\/jungle-flip\/games\/([^/]+)\/decisions$/);
+  if (decisionsMatch) {
+    const method = request.method ?? 'GET';
+    if (method !== 'GET' && method !== 'POST') {
+      writeJson(response, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    if (!jungleFlipEnabled()) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    if (method === 'POST') {
+      const user = await currentAccountUser(request);
+      if (!user) {
+        writeJson(response, 401, { error: 'not_signed_in' });
+        return true;
+      }
+      if (!jungleFlipEngineBinaryAvailable()) {
+        logger.error(
+          { kind: 'jungle_flip_decisions_engine_unavailable' },
+          'Flip Jungle decisions requested but the engine binary is not present; failing closed',
+        );
+        writeJson(response, 503, { error: 'analysis_engine_unavailable' });
+        return true;
+      }
+    }
+    if (!requirePersistence(response)) return true;
+
+    const decisionsRoomId = decodeURIComponent(decisionsMatch[1]!);
+    const inputs = await loadFinishedJungleFlipGameInputs(decisionsRoomId);
+    if (!inputs) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    const compute = method === 'POST';
+    try {
+      // Compute the basic eval sweep too, and on GET use its cache as the readiness gate: a basic-
+      // analysis miss means analysis hasn't been requested yet, so 204. The decomposition itself is
+      // self-contained (it recomputes realized), so it does not consume the sweep — it just shares
+      // the "has analysis" lifecycle.
+      const analysis = await resolveJungleFlipAnalysis(
+        decisionsRoomId,
+        inputs.moves,
+        inputs.deal,
+        undefined,
+        undefined,
+        compute,
+      );
+      if (!analysis) {
+        response.writeHead(204).end();
+        return true;
+      }
+      const decisions = await resolveJungleFlipDecisions(
+        decisionsRoomId,
+        inputs.moves,
+        inputs.deal,
+        undefined,
+        undefined,
+        compute,
+      );
+      if (!decisions) {
+        response.writeHead(204).end();
+        return true;
+      }
+      writeJson(response, 200, decisions);
+    } catch (err) {
+      if (err instanceof VacuousAnalysisError) {
+        logger.error(
+          { kind: 'jungle_flip_decisions_engine_vacuous', room_id: decisionsRoomId },
+          'Flip Jungle decisions produced no evals (engine emitted no score); failing closed',
+        );
+        writeJson(response, 503, { error: 'analysis_engine_unavailable' });
+        return true;
+      }
+      throw err;
+    }
+    return true;
+  }
+
   const postgameMatch = pathname.match(/^\/api\/jungle-flip\/games\/([^/]+)$/);
   if (!postgameMatch) return false;
 
@@ -196,6 +283,32 @@ export async function tryHandle(
   }
   writeJson(response, 200, payload);
   return true;
+}
+
+// Shared loader for the analysis tiers: the per-game deal (from the room-created event) + the
+// move list, but only for a FINISHED game. Returns null for a missing / non-jungle-flip /
+// unfinished game or a log with no deal. The `/decisions` branch uses it; the `/analysis` branch
+// inlines the same steps (kept as-is to avoid churn).
+async function loadFinishedJungleFlipGameInputs(
+  roomId: string,
+): Promise<{ deal: JungleFlipDeal; moves: JungleFlipMove[] } | null> {
+  const events = await persistence.loadRoomEvents<JungleFlipEvent>(roomId);
+  if (!events || !isTenantEventLog(jungleFlipTenant, events, roomId)) return null;
+  const projection = replayTenantEvents(jungleFlipTenant, events);
+  if (projection.state.status.type !== 'finished') return null;
+  const created = events[0];
+  const deal =
+    created && created.type === 'room-created'
+      ? (created.setup as JungleFlipDeal | undefined)
+      : undefined;
+  if (!deal) return null;
+  const moves = events
+    .filter(
+      (event): event is Extract<JungleFlipEvent, { type: 'move-played' }> =>
+        event.type === 'move-played',
+    )
+    .map((event) => event.move as JungleFlipMove);
+  return { deal, moves };
 }
 
 export async function jungleFlipPostgameForApi(
