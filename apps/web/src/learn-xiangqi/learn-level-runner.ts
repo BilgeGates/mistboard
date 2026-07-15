@@ -16,6 +16,7 @@ import type {
 import { applesEaten } from './learn-assert.js';
 import {
   applyLearnMove,
+  checkArrowShapes,
   findCaptureThreat,
   learnLegalMoves,
   makeLearnState,
@@ -105,6 +106,12 @@ export function createLevelRunner(level: LearnLevel, events: LevelRunnerEvents):
   const playerToMove = (): boolean =>
     state.status.type === 'playing' && state.status.turn === level.color;
 
+  /** Base shapes plus auto-drawn yellow check arrows (lila parity: a delivered
+   *  check is always shown, and stays visible in the final position). Apple
+   *  levels skip the scan: materialized apple-soldiers are not real threats. */
+  const withCheckArrows = (base: readonly LearnShape[]): LearnShape[] =>
+    level.apples ? [...base] : [...base, ...checkArrowShapes(state)];
+
   const succeeds = (): boolean => (level.success ?? applesEaten)(assertData());
   const failsByAssert = (): boolean =>
     scenario.isFailed() || (level.failure?.(assertData()) ?? false);
@@ -167,9 +174,12 @@ export function createLevelRunner(level: LearnLevel, events: LevelRunnerEvents):
       const wasCapture = state.board[step.move.to] !== undefined;
       state = applyLearnMove(state, level.rules, step.move);
       events.onSound(wasCapture ? 'capture' : 'move');
+      events.onShapes(withCheckArrows([]));
       events.onChange();
       const shapes = scenarioShapes(step);
-      if (shapes.length > 0) later(() => events.onShapes(shapes), SCENARIO_SHAPES_DELAY_MS);
+      if (shapes.length > 0) {
+        later(() => events.onShapes(withCheckArrows(shapes)), SCENARIO_SHAPES_DELAY_MS);
+      }
       if (failsByAssert()) fail();
       else if (succeeds()) complete();
     }, OPPONENT_REPLY_DELAY_MS);
@@ -205,7 +215,7 @@ export function createLevelRunner(level: LearnLevel, events: LevelRunnerEvents):
     const inScenario = scenario.player(move) === 'matched';
     if (inScenario) score += SCENARIO_POINTS;
 
-    events.onShapes([]);
+    events.onShapes(withCheckArrows([]));
     events.onChange();
 
     // lila pipeline order (levelCtrl.makeSendMove): a matched scenario move
@@ -222,6 +232,7 @@ export function createLevelRunner(level: LearnLevel, events: LevelRunnerEvents):
           state,
           level.color,
           level.detectCapture === true ? true : 'unprotected',
+          level.rules,
         );
         if (threat) {
           failWithThreat(threat.move);
@@ -261,7 +272,9 @@ export function createLevelRunner(level: LearnLevel, events: LevelRunnerEvents):
   }
 
   function start(): void {
-    events.onShapes(level.shapes ?? []);
+    // Check arrows at level start too: the out-of-check stage opens with the
+    // player IN check, and the arrow shows exactly where the threat comes from.
+    events.onShapes(withCheckArrows(level.shapes ?? []));
     events.onChange();
     // Opponent-to-move at the start = the scenario opens with a scripted
     // opponent move (lila: en-passant-style levels).

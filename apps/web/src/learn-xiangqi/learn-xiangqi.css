@@ -606,6 +606,24 @@
   font-weight: 400;
 }
 
+.learn-xq-score-value {
+  font-style: normal;
+}
+
+/* The run-panel star pop is quicker than the stage overlay's: it has to land
+   inside the auto-advance window. */
+.learn-xq-table .learn-xq-stars--animated .learn-xq-star.filled {
+  animation-duration: 450ms;
+}
+
+.learn-xq-table .learn-xq-stars--animated .learn-xq-star.filled:nth-child(2) {
+  animation-delay: 220ms;
+}
+
+.learn-xq-table .learn-xq-stars--animated .learn-xq-star.filled:nth-child(3) {
+  animation-delay: 440ms;
+}
+
 /* ── Overlays ───────────────────────────────────────────────────────────── */
 
 .learn-xq-overlay {
@@ -704,6 +722,32 @@
   }
   50% {
     transform: scale(1.08);
+  }
+}
+
+/* Transient pickup flash: a gold star that blooms and fades on the point the
+   player just collected. Lives for SPARKLE_MS (learn-xiangqi-page.ts). */
+.xq-marker--sparkle {
+  fill: #ffd23e;
+  stroke: none;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: learn-xq-sparkle 500ms ease-out both;
+}
+
+@keyframes learn-xq-sparkle {
+  0% {
+    transform: scale(0.7) rotate(0);
+    opacity: 0.95;
+  }
+  60% {
+    transform: scale(1.6) rotate(24deg);
+    opacity: 0.65;
+  }
+  100% {
+    transform: scale(2.2) rotate(40deg);
+    opacity: 0;
   }
 }
 

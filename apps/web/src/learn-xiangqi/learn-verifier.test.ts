@@ -190,6 +190,7 @@ function simulateSampleSolution(level: LearnLevel): string[] {
           state,
           level.color,
           level.detectCapture === true ? true : 'unprotected',
+          level.rules,
         );
         if (threat) {
           return [
@@ -248,6 +249,7 @@ function classifyFirstMoves(level: LearnLevel): { solutions: number; candidates:
         state,
         level.color,
         level.detectCapture === true ? true : 'unprotected',
+        level.rules,
       );
       if (threat) continue;
     }
