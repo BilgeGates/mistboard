@@ -100,6 +100,8 @@ export function renderFortressXiangqiPieceInline(
   }
   return renderXiangqiPieceGlyphed(piece as unknown as XiangqiPiece, set, {
     ariaLabel: `${piece.color} ${piece.role}`,
+    // Veteran soldiers draw promoted everywhere, including reserve/pocket tiles.
+    crossed: piece.role === 'soldier',
   });
 }
 
@@ -243,6 +245,10 @@ function renderFortressXiangqiPiece(
     x: left,
     y: top,
     size: PIECE_SIZE,
+    // Fortress soldiers are veterans from the start (forward + sideways step, no
+    // river gate — see variants-fortress-xiangqi.ts), so they always draw with
+    // the promoted-soldier art rather than the base soldier.
+    crossed: piece.role === 'soldier',
   });
 }
 

@@ -120,6 +120,12 @@
      SVG without a `.xiangqi-live-board` host, so the SVG must clip itself too. */
   border-radius: var(--xq-board-radius, 16px);
   overflow: hidden;
+  /* The shrouded "?" token renders as an SVG <text> node (browser-selectable
+     text). Without this, dragging across the board text-highlights those "?"
+     glyphs. Matches the guard the jieqi board already sets on `.jieqi-board`. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .xq-live-bg {

@@ -159,6 +159,28 @@ export function renderXiangqiPieceGlyphed(
       `</svg>`,
     ].join('');
   }
+  // A shrouded "?" token on an image set (international / animal) draws over that
+  // set's single-ring disc so the hidden token sits flush with its revealed
+  // neighbours. Without these branches it falls through to the generic
+  // double-ring disc below and shows an extra inner ring the image-set pieces
+  // never have.
+  if (opts.shrouded && set === 'international') {
+    return [
+      `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
+      internationalDiscMark(piece.color),
+      glyphMark('?', colorHex),
+      `</svg>`,
+    ].join('');
+  }
+  if (opts.shrouded && isAnimalPieceSet(set)) {
+    return [
+      `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
+      animalDiscMark(),
+      glyphMark('?', colorHex),
+      animalRingMark(piece.color),
+      `</svg>`,
+    ].join('');
+  }
   if (!opts.shrouded && set === 'international') {
     return [
       `<svg${classAttr}${posAttrs} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${escapeAttr(ariaLabel)}">`,
