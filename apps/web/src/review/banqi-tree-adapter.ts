@@ -84,8 +84,10 @@ export function makeBanqiTreeAdapter(
         ),
       },
     ],
-    // A flip (self-move) reads as "e2 flip"; a board move/capture as "e2-e3".
-    moveLabel: (move) => (move.from === move.to ? `${move.from} flip` : `${move.from}-${move.to}`),
+    // A flip (self-move) reads as the bare square ("e2"); a board move/capture as "e2-e3". The
+    // absence of a dash unambiguously marks a flip, and dropping the " flip" word keeps the move
+    // notation from truncating next to the decision glyph + luck badge in the move-list cell.
+    moveLabel: (move) => (move.from === move.to ? move.from : `${move.from}-${move.to}`),
     // No client engine → no UCI dialect to honor: a from+to concatenation is a
     // stable, reversible key (a flip is "e2e2") for the NodeId + sibling dedup.
     moveKey: (move) => `${move.from}${move.to}`,
