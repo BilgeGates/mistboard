@@ -686,13 +686,11 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       );
       decisionSummaryEl.replaceChildren(luckCaption());
     }
-    // Overlay the advantage chart's "if reveals ran average" ghost line: per-reveal luck is in the
-    // MOVER's POV, so a black reveal flips sign to red-POV (red moves the odd plies).
-    const redLuckByPly = new Map<number, number>();
-    for (const [ply, info] of overlay.byPly) {
-      redLuckByPly.set(ply, (ply % 2 === 1 ? 1 : -1) * info.luck);
-    }
-    chart?.setLuckOverlay(redLuckByPly);
+    // The advantage chart's "if reveals ran average" ghost line is intentionally NOT drawn for now:
+    // after the last tile flips the gap freezes and the ghost just shadows the real line for the
+    // rest of the game, which reads as confusing rather than informative. The per-move luck (🎲
+    // badges) and the luck-free accuracy already carry the decision-vs-luck story. The chart's
+    // setLuckOverlay() is kept intact so a future, better-signposted treatment can re-enable it.
     refreshMoveTreeAnnotations();
     render();
   }
