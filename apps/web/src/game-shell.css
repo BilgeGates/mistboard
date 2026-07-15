@@ -906,8 +906,6 @@
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
   width: min(100%, 178px);
-  border: 1px solid var(--board-frame);
-  background: var(--board-frame);
 }
 
 .dev-square {

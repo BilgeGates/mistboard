@@ -352,8 +352,6 @@
   /* width + snap handled centrally by .cg-snap; this sets the cap */
   --cg-w: min(100%, 620px, calc(100vh - 180px));
   aspect-ratio: 1;
-  border: 2px solid var(--board-frame);
-  background: var(--board-frame);
   box-shadow: 0 14px 40px rgba(29, 37, 34, 0.14);
 }
 

@@ -55,9 +55,6 @@ const PALETTE = {
   darkCell: '#e7ce96',
   // Borderless: no frame band or board edge (the rivers/dens/traps carry the
   // Jungle identity). The water/den/trap furniture provides all the contrast.
-  frameBg: 'transparent',
-  frameInner: 'transparent',
-  boardEdge: 'transparent',
   coord: 'rgba(60,45,30,0.55)',
   lastMove: 'rgba(255,205,80,0.5)',
   selected: 'rgba(31,111,91,0.32)',
@@ -84,14 +81,12 @@ const DESCRIPTOR: GridBoardDescriptor = {
   ranks: RANKS,
   cell: CELL,
   palette: PALETTE,
-  framePad: 0,
   pad: 0,
   // Jungle paints terrain as full-bleed SVG <image> layers, which the outer
   // [data-board="grid"] CSS border-radius/overflow:hidden does NOT clip. Round
   // the internal clip-path instead (~1.9% of the 336u board width = the shared
   // --board-corner-radius token) so the corner images are clipped too.
   boardRadius: 6,
-  boardEdgeWidth: 0,
   svgClass: 'jungle-live-svg',
 };
 

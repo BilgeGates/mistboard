@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { XIANGQI_GLYPH_PATHS } from '@mistboard/board-render';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -14,6 +15,8 @@ import {
 } from './articles.js';
 import { articles } from './articles-data.js';
 import { boardAppearanceChangedEvent } from './theme.js';
+
+const articleStyles = readFileSync('src/articles.css', 'utf8');
 
 describe('article public listing gates', () => {
   afterEach(() => {
@@ -766,6 +769,9 @@ describe('rules variant sidebar', () => {
     const jieqiHero = jieqiSvgs.filter((svg) => svg.classList.contains('xq-article-svg--hero'));
     expect(jieqiHero).toHaveLength(1);
     expect(jieqiHero[0]!.getAttribute('data-xq-layout')).toBe('single');
+    expect(articleStyles).toContain(
+      '.article-figure-xq > .xq-article-svg.xq-article-svg--hero {\n  width: min(480px, 100%);',
+    );
     expect(
       jieqiSvgs
         .filter((svg) => !svg.classList.contains('xq-article-svg--hero'))

@@ -669,21 +669,15 @@
 }
 
 /* Crossroads is a hybrid surface: chess board themes color the cells; xiangqi
-   board styles color the frame, edge, coordinates, and river accent. */
+   board styles color the coordinates and river accent. */
 :root,
 :root[data-xiangqi-board-theme="international"] {
-  --crossroads-frame: #5b4636;
-  --crossroads-frame-inner: #6e5743;
-  --crossroads-board-edge: #3a2c20;
   --crossroads-coord: rgba(60, 45, 30, 0.55);
   --crossroads-river: #5aa0d6;
   --crossroads-river-highlight: rgba(255, 255, 255, 0.4);
 }
 
 :root[data-xiangqi-board-theme="traditional"] {
-  --crossroads-frame: #5b4636;
-  --crossroads-frame-inner: #6e5743;
-  --crossroads-board-edge: #3a2c20;
   --crossroads-coord: rgba(60, 45, 30, 0.55);
   --crossroads-river: #5aa0d6;
   --crossroads-river-highlight: rgba(255, 255, 255, 0.4);

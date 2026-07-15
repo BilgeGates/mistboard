@@ -46,9 +46,6 @@ const PALETTE = {
   lightCell: '#e7ce96',
   darkCell: '#e7ce96',
   // Borderless: no frame band or board edge, matching the vanilla Jungle board.
-  frameBg: 'transparent',
-  frameInner: 'transparent',
-  boardEdge: 'transparent',
   coord: 'rgba(60,45,30,0.55)',
   lastMove: 'rgba(255,205,80,0.5)',
   selected: 'rgba(31,111,91,0.32)',
@@ -75,13 +72,11 @@ const DESCRIPTOR: GridBoardDescriptor = {
   ranks: RANKS,
   cell: CELL,
   palette: PALETTE,
-  framePad: 0,
   pad: 0,
   // Full-bleed <image> terrain (like jungle) isn't clipped by the outer CSS
   // border-radius, so round the internal clip-path (~1.9% of the 256u board
   // width = the shared --board-corner-radius token) to clip the corner images.
   boardRadius: 5,
-  boardEdgeWidth: 0,
   svgClass: 'jungle-flip-live-svg',
 };
 

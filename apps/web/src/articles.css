@@ -840,11 +840,10 @@
   width: min(48.5%, 100%);
 }
 
-/* The starting-position board is the section hero: render it large so the
-   anatomy of the board reads at a glance. Shared by Xiangqi and Jieqi so their
-   start boards match. */
-[data-article-slug="xiangqi"] .article-figure-xq > .xq-article-svg.xq-article-svg--hero,
-[data-article-slug="jieqi"] .article-figure-xq > .xq-article-svg.xq-article-svg--hero {
+/* A starting-position board marked as the section hero should match the
+   interactive board width. Scope this to the semantic hero class rather than
+   an article slug so public route aliases cannot silently disable the sizing. */
+.article-figure-xq > .xq-article-svg.xq-article-svg--hero {
   width: min(480px, 100%);
 }
 

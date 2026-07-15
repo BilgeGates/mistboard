@@ -1292,8 +1292,6 @@ export const XQ_PIECE_SIZE = tokenPieceSize(XQ_CELL);
 export const XQ_FOG_OVERLAP = 0.5;
 export const XQ_VIEWBOX_PAD = 4;
 export const XQ_BOARD_RADIUS = 8;
-export const XQ_BOARD_STROKE = '#8b5a24';
-export const XQ_BOARD_STROKE_WIDTH = 1.5;
 
 export const XQ_START = createInitialXiangqiState('article-xiangqi-start');
 
@@ -1382,10 +1380,6 @@ export function xqBoardGrid(x0: number, y0: number, perspective: XiangqiColor): 
     `<text x="${left + 4 * XQ_CELL}" y="${(riverTop + riverBottom) / 2 + 1}" font-family="serif" font-size="16" class="xq-diagram-ink xq-diagram-river-label" text-anchor="middle" dominant-baseline="central">楚 河   漢 界</text>`,
   );
   return parts.join('');
-}
-
-export function xqBoardBorder(x0: number, y0: number): string {
-  return `<rect x="${x0}" y="${y0}" width="${XQ_BOARD_W}" height="${XQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`;
 }
 
 export function xqFogLayer(
@@ -1556,7 +1550,6 @@ export function xqBoardSvg(opts: {
     xqPiecesLayer(opts.state, view, opts.x, boardY, perspective, opts.shroudedStyle),
     xqArrowLayer(opts.arrows, opts.x, boardY, perspective),
     opts.overlay ?? '',
-    xqBoardBorder(opts.x, boardY),
   ].join('');
 }
 
@@ -1686,7 +1679,6 @@ export function miniXqBoardSvg(opts: {
     mxqGridLayer(),
     mxqMarkerLayer(opts.dots ?? [], opts.captures ?? []),
     mxqPiecesLayer(opts.board),
-    `<rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
   ].join('');
   return `<svg class="xq-article-svg" data-xq-layout="single" style="--xq-svg-width: ${w}px" viewBox="0 0 ${w} ${h}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="Mini Xiangqi board"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
 }
@@ -1763,7 +1755,6 @@ export function miniXqFogBoardSvg(view: MiniXiangqiPlayerView, clipId: string): 
     mxqGridLayer(),
     mxqFogLayer(view, clipId),
     mxqViewPiecesLayer(view),
-    `<rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
   ].join('');
   return `<svg class="xq-article-svg" data-xq-layout="single" style="--xq-svg-width: ${w}px" viewBox="0 0 ${w} ${h}" role="img" xmlns="http://www.w3.org/2000/svg" aria-label="Dark Mini Xiangqi board"><g transform="translate(${XQ_VIEWBOX_PAD} ${XQ_VIEWBOX_PAD})">${body}</g></svg>`;
 }
@@ -1784,9 +1775,6 @@ export function mxqBoardCell(opts: {
   } else {
     layers.push(mxqPiecesLayer(opts.state.board));
   }
-  layers.push(
-    `<rect x="0" y="0" width="${MXQ_BOARD_W}" height="${MXQ_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
-  );
   return `<g transform="translate(${opts.x} 0)"><text x="${MXQ_BOARD_W / 2}" y="11" font-family="system-ui, sans-serif" font-size="11" font-weight="700" class="xq-diagram-title" text-anchor="middle">${opts.label}</text><g transform="translate(0 20)">${layers.join('')}</g></g>`;
 }
 
@@ -2351,7 +2339,6 @@ export const XQ_DARK_XIANGQI_THUMBNAIL = () => xqSvg(
     xqBoardGrid(0, 0, 'red'),
     xqFogLayer(XQ_START_RED, 0, 0, 'red', 'xq-fog-dark-xiangqi-thumbnail'),
     xqPiecesLayer(XQ_START, XQ_START_RED, 0, 0, 'red'),
-    xqBoardBorder(0, 0),
   ].join(''),
 );
 
@@ -2399,7 +2386,6 @@ export const JIEQI_RULES_THUMBNAIL = () => xqSvg(
   [
     xqBoardGrid(0, 0, 'red'),
     xqPiecesLayer(XQ_START, JIEQI_START_VIEW, 0, 0, 'red', 'back'),
-    xqBoardBorder(0, 0),
   ].join(''),
 );
 
@@ -2594,9 +2580,6 @@ export function banqiBoardGrid(x0: number, y0: number): string {
   // brackets. Banqi keeps none of those rules, the article prose says pieces sit
   // in the squares (not on xiangqi intersections), and the live board
   // (renderBanqiBoardSvg) draws no furniture either. Keep these consistent.
-  parts.push(
-    `<rect x="${x0}" y="${y0}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
-  );
   return parts.join('');
 }
 
@@ -2775,7 +2758,6 @@ export const BANQI_RANK_LADDER = () => {
     [
       `<text x="${BANQI_PAIR_W / 2}" y="14" font-family="system-ui, sans-serif" font-size="13" font-weight="700" class="xq-diagram-title" text-anchor="middle">CAPTURE RANK LADDER</text>`,
       `<rect x="${L}" y="${T}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" class="xq-diagram-bg"/>`,
-      `<rect x="${L}" y="${T}" width="${BANQI_BOARD_W}" height="${BANQI_BOARD_H}" rx="${XQ_BOARD_RADIUS}" fill="none" stroke="${XQ_BOARD_STROKE}" stroke-width="${XQ_BOARD_STROKE_WIDTH}"/>`,
       ...ladder.map(({ role, label, targetOnly }, index) => {
         const cx = pieceX(index);
         const marker = targetOnly

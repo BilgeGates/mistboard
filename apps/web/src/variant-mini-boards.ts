@@ -81,8 +81,7 @@ export interface VariantMiniDef {
   shortLabel: string;
   accent: string;
   blurb: string;
-  // Which board family the tile belongs to. Drives the frame colour class
-  // (chess frame tracks --board-frame; xiangqi frame is a fixed wood brown).
+  // Which board family the tile belongs to, retained as marker metadata.
   family: VariantMiniFamily;
 }
 
@@ -1094,21 +1093,12 @@ export function renderVariantMiniBoard(
   clipSeq += 1;
   const clipId = `mini-clip-${clipSeq}`;
   const body = BODIES[id](ctx);
-  const frameClass =
-    def.family === 'xiangqi'
-      ? 'vm-frame-xq'
-      : def.family === 'shogi'
-        ? 'vm-frame-shogi'
-        : def.family === 'jungle'
-          ? 'vm-frame-jungle'
-          : 'vm-frame-chess';
   const className = opts.className ? `variant-mini ${opts.className}` : 'variant-mini';
   const dataClass = opts.className ? ` data-mini-class="${escapeAttr(opts.className)}"` : '';
   return [
     `<svg class="${escapeAttr(className)}" width="${size}" height="${size}" viewBox="0 0 100 100" role="img" aria-label="${escapeAttr(label)}" data-mini-id="${id}" data-mini-size="${size}" data-mini-label="${escapeAttr(label)}"${dataClass} xmlns="http://www.w3.org/2000/svg">`,
     `<defs><clipPath id="${clipId}"><rect x="${OX}" y="${OY}" width="${SIZE}" height="${SIZE}" rx="11"/></clipPath></defs>`,
     `<g clip-path="url(#${clipId})">${body}</g>`,
-    `<rect class="${frameClass}" x="${OX}" y="${OY}" width="${SIZE}" height="${SIZE}" rx="11" fill="none" stroke-width="2.5"/>`,
     `</svg>`,
   ].join('');
 }

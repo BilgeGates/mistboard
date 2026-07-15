@@ -39,7 +39,8 @@ Edit task → find file → open only that file.
 
 | File | Owns |
 |------|------|
-| `board-svg.ts` | Server- and build-safe SVG board renderer (for OG images + article triptychs) |
+| `board-svg.ts` | Server- and build-safe, outline-free SVG board renderer (for OG images + article triptychs) |
+| `grid-board.ts` | Descriptor-driven, outline-free SVG core for cell boards, shared geometry, clipping, and interaction layers |
 | `composition.ts` | Triptych + grid compositions |
 | `layouts.ts` | Layout primitives for composed renders |
 | `pieces.ts` | Piece SVG sprite refs |
