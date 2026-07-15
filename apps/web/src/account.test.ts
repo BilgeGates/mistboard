@@ -25,7 +25,7 @@ type TestUser = {
   };
   profileVisibility: 'private' | 'unlisted' | 'public';
   accountRole: 'player' | 'admin';
-  locale: 'en' | 'zh-Hans' | 'zh-Hant' | 'ja' | null;
+  locale: 'en' | 'zh-Hans' | 'zh-Hant' | null;
   dmPolicy: 'never' | 'friends' | 'always';
 };
 

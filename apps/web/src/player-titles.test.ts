@@ -24,7 +24,7 @@ describe('player titles', () => {
   it('has a localized full name for every title in the vocabulary', () => {
     for (const title of PLAYER_TITLES) {
       expect(titleAbbr(title)).toBe(title.toUpperCase());
-      for (const locale of ['en', 'zh-Hans', 'zh-Hant', 'ja'] as const) {
+      for (const locale of ['en', 'zh-Hans', 'zh-Hant'] as const) {
         expect(titleFullName(title, locale).trim().length).toBeGreaterThan(0);
       }
     }

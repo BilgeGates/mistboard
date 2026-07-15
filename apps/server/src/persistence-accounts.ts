@@ -12,10 +12,10 @@ import {
 } from './rating-buckets.js';
 
 export type AccountRole = 'player' | 'admin';
-export type AccountLocale = 'en' | 'zh-Hans' | 'zh-Hant' | 'ja';
+export type AccountLocale = 'en' | 'zh-Hans' | 'zh-Hant';
 export type ProfileVisibility = 'private' | 'unlisted' | 'public';
 
-export const ACCOUNT_LOCALES: readonly AccountLocale[] = ['en', 'zh-Hans', 'zh-Hant', 'ja'];
+export const ACCOUNT_LOCALES: readonly AccountLocale[] = ['en', 'zh-Hans', 'zh-Hant'];
 export const PROFILE_VISIBILITIES: readonly ProfileVisibility[] = ['private', 'unlisted', 'public'];
 
 export function isAccountLocale(value: unknown): value is AccountLocale {

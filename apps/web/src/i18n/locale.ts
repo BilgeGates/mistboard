@@ -1,9 +1,6 @@
-export type Locale = 'en' | 'zh-Hans' | 'zh-Hant' | 'ja';
+export type Locale = 'en' | 'zh-Hans' | 'zh-Hant';
 
-// Japanese remains in the catalog and account contract so restoring it is a
-// reversible product decision. It is not part of the launch language surface.
-export const APP_LOCALES: readonly Locale[] = ['en', 'zh-Hans', 'zh-Hant', 'ja'];
-export const PUBLIC_LOCALES: readonly Locale[] = ['en', 'zh-Hans', 'zh-Hant'];
+export const SUPPORTED_LOCALES: readonly Locale[] = ['en', 'zh-Hans', 'zh-Hant'];
 
 export const DEFAULT_LOCALE: Locale = 'en';
 export const LOCALE_STORAGE_KEY = 'mistboard.locale';
@@ -34,20 +31,10 @@ export const LOCALE_META: Record<Locale, LocaleMeta> = {
     htmlLang: 'zh-Hant',
     pathPrefix: '/zh-hant',
   },
-  ja: {
-    dateLocale: 'ja-JP',
-    displayName: '日本語',
-    htmlLang: 'ja',
-    pathPrefix: '/ja',
-  },
 };
 
 export function isLocale(value: string | null | undefined): value is Locale {
-  return APP_LOCALES.includes(value as Locale);
-}
-
-export function isPublicLocale(value: string | null | undefined): value is Locale {
-  return PUBLIC_LOCALES.includes(value as Locale);
+  return SUPPORTED_LOCALES.includes(value as Locale);
 }
 
 export function isArticleLocale(
@@ -66,7 +53,7 @@ export function localeFromPath(pathname = currentPathname()): Locale | null {
 export function storedLocale(): Locale | null {
   try {
     const raw = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-    return isPublicLocale(raw) ? raw : null;
+    return isLocale(raw) ? raw : null;
   } catch {
     return null;
   }
@@ -111,13 +98,13 @@ export function currentLocale(): Locale {
   return localeFromPath() ?? storedLocale() ?? browserLocale() ?? DEFAULT_LOCALE;
 }
 
-export function applyAccountLocalePreference(locale: Locale | null | undefined): boolean {
+export function applyAccountLocalePreference(locale: string | null | undefined): boolean {
   if (!locale || localeFromPath()) return false;
   const previous = currentLocale();
-  const publicLocale = isPublicLocale(locale) ? locale : DEFAULT_LOCALE;
-  setStoredLocale(publicLocale);
-  applyDocumentLocale(publicLocale);
-  return previous !== publicLocale;
+  const supportedLocale = isLocale(locale) ? locale : DEFAULT_LOCALE;
+  setStoredLocale(supportedLocale);
+  applyDocumentLocale(supportedLocale);
+  return previous !== supportedLocale;
 }
 
 export function initializeLocaleFromCurrentUrl(): Locale {
@@ -149,7 +136,7 @@ export function contentLocalePrefix(locale: Locale): string {
 export function stripLocalePrefix(path: string): string {
   const { pathname, suffix } = splitPathSuffix(path);
   const lower = pathname.toLowerCase();
-  for (const locale of APP_LOCALES) {
+  for (const locale of SUPPORTED_LOCALES) {
     const prefix = LOCALE_META[locale].pathPrefix;
     if (!prefix) continue;
     if (lower === prefix || lower.startsWith(`${prefix}/`)) {

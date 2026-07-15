@@ -43,7 +43,7 @@ definePersistenceTests('account routes', () => {
     const handled = await tryHandle(
       {},
       jsonRequest(
-        { locale: 'ja' },
+        { locale: 'zh-Hant' },
         accountSessionCookie('locale-route-session', sessionToken, expiresAt).split(';')[0],
       ),
       response,
@@ -52,11 +52,14 @@ definePersistenceTests('account routes', () => {
 
     assert.equal(handled, true);
     assert.equal(response.status, 200);
-    assert.equal((JSON.parse(response.body) as { user: { locale: string } }).user.locale, 'ja');
-    assert.equal((await findUserByEmail('locale-route@example.com'))?.locale, 'ja');
+    assert.equal(
+      (JSON.parse(response.body) as { user: { locale: string } }).user.locale,
+      'zh-Hant',
+    );
+    assert.equal((await findUserByEmail('locale-route@example.com'))?.locale, 'zh-Hant');
   });
 
-  test('account preferences route rejects unknown locales', async () => {
+  test('account preferences route rejects the retired Japanese locale', async () => {
     const now = new Date('2026-05-09T12:00:00.000Z');
     const sessionToken = 'invalid-locale-route-token';
     await createUser({
@@ -79,7 +82,7 @@ definePersistenceTests('account routes', () => {
     const handled = await tryHandle(
       {},
       jsonRequest(
-        { locale: 'fr' },
+        { locale: 'ja' },
         accountSessionCookie('invalid-locale-route-session', sessionToken, expiresAt).split(';')[0],
       ),
       response,

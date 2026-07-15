@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { appTranslationKeys, CRITICAL_I18N_KEYS, hasAppTranslation, t } from './catalog.js';
-import { APP_LOCALES } from './locale.js';
+import { SUPPORTED_LOCALES } from './locale.js';
 
 describe('app i18n catalog', () => {
   it('has an English source string for every app key', () => {
@@ -9,7 +9,7 @@ describe('app i18n catalog', () => {
   });
 
   it('has every critical key translated in outreach locales', () => {
-    const locales = APP_LOCALES.filter((locale) => locale !== 'en');
+    const locales = SUPPORTED_LOCALES.filter((locale) => locale !== 'en');
     const missing: string[] = [];
     for (const locale of locales) {
       for (const key of CRITICAL_I18N_KEYS) {

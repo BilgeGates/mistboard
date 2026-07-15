@@ -174,19 +174,6 @@ describe('article public listing gates', () => {
     ).not.toBeNull();
   });
 
-  it('localizes Japanese article shell while linking to canonical content pages', () => {
-    vi.stubEnv('DEV', false);
-
-    const home = buildHomeArticleCards(50, 'ja');
-
-    expect(home?.getAttribute('aria-label')).toBe('記事');
-    expect(
-      home
-        ?.querySelector<HTMLAnchorElement>('.landing-article-card[data-card-kind="article"]')
-        ?.getAttribute('href'),
-    ).toMatch(/^\/(blog|rules)\//);
-  });
-
   it('limits the homepage article widget to editorial article cards ordered by publish date', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
 

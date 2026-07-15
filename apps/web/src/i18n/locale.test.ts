@@ -7,7 +7,6 @@ import {
   localeFromLanguageTag,
   localeFromPath,
   localizedHref,
-  setStoredLocale,
   stripLocalePrefix,
 } from './locale.js';
 
@@ -48,7 +47,7 @@ describe('locale helpers', () => {
   });
 
   it('falls back from a dormant stored locale outside localized content URLs', () => {
-    setStoredLocale('ja');
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, 'ja');
 
     expect(currentLocale()).toBe('en');
   });
@@ -80,7 +79,6 @@ describe('locale helpers', () => {
     );
     expect(localizedHref('/blog/misty', 'zh-Hans')).toBe('/zh-hans/blog/misty');
     expect(localizedHref('/account?tab=login', 'zh-Hant')).toBe('/account?tab=login');
-    expect(localizedHref('/rules/flip-xiangqi', 'ja')).toBe('/rules/flip-xiangqi');
   });
 
   it('strips existing locale prefixes before rebuilding hrefs', () => {
