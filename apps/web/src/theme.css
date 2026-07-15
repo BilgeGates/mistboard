@@ -274,7 +274,8 @@
 }
 
 .appearance-menu-row:hover,
-.appearance-menu-row:focus-visible {
+.appearance-menu-row:focus-visible,
+.appearance-menu-row:active {
   background: var(--site-accent);
   color: var(--site-on-accent);
 }

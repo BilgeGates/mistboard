@@ -127,6 +127,15 @@
   display: flex;
 }
 
+/* Keep pointer/touch feedback inside the authored menu states. Mobile WebKit
+   otherwise paints its own blue tap highlight before :hover/:active settles,
+   and a small pointer drag can briefly select an anchor label. */
+.account-nav-panel a,
+.account-nav-panel button {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
 .account-nav-links {
   padding: 5px 0;
 }
@@ -158,13 +167,15 @@
 }
 
 .account-nav-item:hover,
-.account-nav-item:focus-visible {
+.account-nav-item:focus-visible,
+.account-nav-item:active {
   background: var(--site-accent);
   color: var(--site-on-accent);
 }
 
 .account-nav-item-danger:hover,
-.account-nav-item-danger:focus-visible {
+.account-nav-item-danger:focus-visible,
+.account-nav-item-danger:active {
   background: #d32f2f;
   color: #fff;
 }
