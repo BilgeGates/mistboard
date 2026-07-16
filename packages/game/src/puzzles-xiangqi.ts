@@ -182,16 +182,25 @@ const AUDIT_FLAGGED_XIANGQI_PUZZLE_IDS: ReadonlySet<string> = new Set([
   'xq-mined-hxq_5299fe14e58a6acd13d8dd33-101',
 ]);
 
-export const XIANGQI_PUZZLES: readonly XiangqiPuzzle[] = [
-  ...CURATED_XIANGQI_PUZZLES,
-  // The mined corpus is gated at mine time — every solver ply is verified
-  // uniquely correct by the extend-while-unique miner from the standalone FEN
-  // (#180/#185) — minus the few audit-flagged near-tied cases above. The
-  // quiet-tail trim stays a defensive, idempotent normalization.
-  ...MINED_XIANGQI_PUZZLES.filter((puzzle) => !AUDIT_FLAGGED_XIANGQI_PUZZLE_IDS.has(puzzle.id)).map(
-    trimXiangqiWinningAdvantageTail,
-  ),
-];
+// Assembled by a named builder behind a @__PURE__ annotation (instead of inline
+// module-scope filter/map calls) so bundlers can prove the initializer is
+// side-effect-free and drop the mined corpus from chunks that never read it:
+// the raw module-scope transforms defeated tree-shaking and shipped the mined
+// data in the web entry chunk.
+export const XIANGQI_PUZZLES: readonly XiangqiPuzzle[] = /* @__PURE__ */ buildXiangqiPuzzles();
+
+function buildXiangqiPuzzles(): readonly XiangqiPuzzle[] {
+  return [
+    ...CURATED_XIANGQI_PUZZLES,
+    // The mined corpus is gated at mine time — every solver ply is verified
+    // uniquely correct by the extend-while-unique miner from the standalone FEN
+    // (#180/#185) — minus the few audit-flagged near-tied cases above. The
+    // quiet-tail trim stays a defensive, idempotent normalization.
+    ...MINED_XIANGQI_PUZZLES.filter(
+      (puzzle) => !AUDIT_FLAGGED_XIANGQI_PUZZLE_IDS.has(puzzle.id),
+    ).map(trimXiangqiWinningAdvantageTail),
+  ];
+}
 
 export function standardXiangqiPuzzleById(id: string): XiangqiPuzzle | null {
   return XIANGQI_PUZZLES.find((puzzle) => puzzle.id === id) ?? null;
