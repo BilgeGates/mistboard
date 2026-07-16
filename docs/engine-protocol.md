@@ -10,7 +10,7 @@ This document is the human-readable contract.
 
 ## Why this protocol exists
 
-Mistboard's trust story is that no player — including first-party engines —
+Mistboard's trust story is that no player (including first-party engines)
 can see hidden information under Fog of War rules. The same protocol applies
 to:
 
@@ -65,6 +65,7 @@ type EngineTurnRequest = {
   protocolVersion: '1';
   gameId: string;
   engineId: string;
+  gameSpecId?: string;
   sessionId: string;
   color: 'white' | 'black';
   ply: number;
@@ -81,6 +82,7 @@ type EngineTurnRequest = {
 | `protocolVersion` | Schema version | Reject unknown major versions |
 | `gameId` | Opaque game identifier | Correlate logs/diagnostics |
 | `engineId` | Which engine is being asked | Engines that serve multiple identities |
+| `gameSpecId` | Game variant, e.g. `'dark-mini-xiangqi'` | Board geometry (8x8 vs 7x7 vs 9x10) and piece-letter interpretation |
 | `sessionId` | Stable across all turns of one game | Key for stateful per-game state |
 | `color` | The engine's side | Move generation, eval sign |
 | `ply` | 0-indexed ply count | Bookkeeping, clock decisions |
@@ -98,10 +100,12 @@ Exactly one of `observationTranscript` / `latestObservationDelta` is present.
 type EngineObservation = {
   ply: number;
   kind: 'initial' | 'own_move' | 'opp_move';
+  own_move: Move | null;     // the engine's own move on 'own_move' observations
   visibility_mask: string;   // "0x..." 64-bit hex
   visible_pieces: Array<[Square, { type: PieceLetter; color: Color }]>;
   own_capture_square: Square | null;
   opp_capture_landing_square: Square | null;
+  shrouded?: Array<[Square, Color]>;   // xiangqi-family color-only occupancy
   game_over: { winner: Color | null; reason: string } | null;
 };
 ```
@@ -110,18 +114,39 @@ The observation captures everything the engine's perspective player learns
 at one ply. Reconstructed cumulatively, the transcript is the engine's
 complete information about the game.
 
-- `visibility_mask` — which squares the engine can see, as a 64-bit board
+- `own_move`: the move that produced this observation, present only when
+  `kind === 'own_move'`. The engine's belief-update step needs the exact
+  move to advance its belief set deterministically. Null for `'initial'`
+  (no move) and `'opp_move'` (the engine never sees the opp's move
+  directly; it reasons over which opp move could have produced the
+  observation).
+- `visibility_mask`: which squares the engine can see, as a 64-bit board
   bitmask in hex. Bit `i` set iff square index `i` is visible.
-- `visible_pieces` — pieces on visible squares. Squares outside the mask
+- `visible_pieces`: pieces on visible squares. Squares outside the mask
   are absent (NOT included as null). Squares in the mask but with no
   piece are absent (the engine infers empty from "visible but no piece
   reported").
-- `own_capture_square` — set when one of the engine's own pieces was
+- `own_capture_square`: set when one of the engine's own pieces was
   captured this ply. The engine sees its own pieces deterministically, so
   this is always knowable when a capture of own happens.
-- `opp_capture_landing_square` — set when the engine SAW an opp piece
+- `opp_capture_landing_square`: set when the engine SAW an opp piece
   arrive at a square it could see. Null when the opp's landing is invisible.
-- `game_over` — terminal indicator if the game ended at this ply.
+- `shrouded`: the xiangqi-family reveal channel: squares the engine can
+  infer are OCCUPIED by a given color WITHOUT seeing the piece type. A
+  cannon screen or a horse's blocking leg reveals an occupant but not its
+  identity, so the entry carries square + owner color and nothing else.
+  Absent (omitted) for dark chess, which has no color-only-occupancy
+  channel.
+- `game_over`: terminal indicator if the game ended at this ply.
+
+Piece letters in `visible_pieces` are variant-scoped. Dark chess uses
+`P N B R Q K`; Dark Mini Xiangqi uses `G H C R S`
+(general/horse/cannon/chariot/soldier); full Dark Xiangqi uses
+`K A B N R C P` (general/advisor/elephant/horse/chariot/cannon/soldier).
+Shared letters are disambiguated by the request's `gameSpecId`, which is
+omitted for dark chess (engines default to it, keeping the chess wire
+payload byte-unchanged) and present for every other variant. The same
+`gameSpecId` field also rides `EngineObservationPush`.
 
 ## Redaction guarantees (what the engine MUST NOT receive)
 
@@ -167,7 +192,7 @@ type EngineTurnResponse = {
 
 ## Versioning
 
-- `protocolVersion: '1'` — current.
+- `protocolVersion: '1'` is current.
 - Adding optional fields stays at version 1. The server MAY add new
   optional fields the engine doesn't recognize; engines MUST ignore
   unknown fields rather than reject.
@@ -223,8 +248,8 @@ The protocol supports both. The server doesn't care which the engine is.
 The canonical type definitions live in TypeScript; a Python mirror tracks
 the TS file 1:1 inside the private `mistboard-engine` sibling repo
 (`src/fow_chess/engine_protocol.py`). The first-party implementation lives
-there. The protocol stays in the public repo so any engine — first-party
-private or third-party — can implement it.
+there. The protocol stays in the public repo so any engine, first-party
+private or third-party, can implement it.
 
 ## Internal HTTP transport
 
@@ -238,9 +263,9 @@ the `x-mistboard-engine-timeout-ms` header.
 
 An engine endpoint implements one required route and one optional route:
 
-- `POST /internal/engine/turn` (required) — takes an `EngineTurnRequest`,
+- `POST /internal/engine/turn` (required): takes an `EngineTurnRequest`,
   returns an `EngineTurnResponse` with a legal move.
-- `POST /internal/engine/observe` (optional) — takes an `EngineObservationPush`
+- `POST /internal/engine/observe` (optional): takes an `EngineObservationPush`
   (the mover's own-move observation), returns an `EngineObservationAck`. Bearer
   auth, no reservation. Implement it to observe your own move immediately and
   ponder on the opponent's clock; skip it and you still get the same

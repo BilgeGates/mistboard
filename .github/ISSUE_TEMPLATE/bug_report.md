@@ -6,7 +6,7 @@ labels: bug
 assignees: ""
 ---
 
-**Do not open a public issue for security vulnerabilities.** See [`SECURITY.md`](../../SECURITY.md) for the private channel — this includes any case where hidden pieces, hidden moves, or hidden state could be reconstructed by the wrong client.
+**Do not open a public issue for security vulnerabilities.** See [`SECURITY.md`](../../SECURITY.md) for the private channel; this includes any case where hidden pieces, hidden moves, or hidden state could be reconstructed by the wrong client.
 
 ## What happened
 

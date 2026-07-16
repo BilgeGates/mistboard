@@ -22,6 +22,7 @@ setup, tokens, and internal strategy in the git-ignored `docs-private/`.
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Package layout, state model, and the hidden-information boundary. |
 | [persistence.md](persistence.md) | Event log, game aggregates, and Postgres setup. |
 | [engine-protocol.md](engine-protocol.md) | Redacted engine request/response contract. |
+| [translations.md](translations.md) | Locale policy: English source contract, domain ownership, and critical-key coverage. |
 
 ## Rules
 

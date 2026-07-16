@@ -1,94 +1,73 @@
 # Persistence
 
-How mistboard stores game state across server restarts.
+How Mistboard stores game state across server restarts.
 
-Until M6 / Phase E, `apps/server` kept everything in `rooms: Map<string, Room>` in process memory. Restart = total loss. This doc describes the move to Postgres-backed persistence and the related transition to running `apps/server` in prod (replacing today's static-only deploy).
+## Storage model: the event log is the source of truth
 
-## Goals
+Two ideas anchor the schema and have not changed since the first migration:
 
-In priority order:
+1. **`events` is append-only truth.** One row per `GameEvent`:
+   `events(room_id, seq, type, payload JSONB, created_at)`, primary key
+   `(room_id, seq)`. `payload` stores the full event object (`type` is
+   denormalized into a column for indexed filtering); `seq` is per-room,
+   starting at 0 with `room-created`. Any game's state is deterministically
+   reconstructable by replaying its event log, so replay URLs, mid-game
+   reconnect across a restart, and postgame review all ride the same
+   projection path.
+2. **`games` is a derived aggregate.** One row per game, written when a
+   terminal event fires (engine-vs-engine games also create a running row at
+   start and update it on completion). It carries variant, result,
+   termination, ply count, and timestamps, and feeds review lists, watch,
+   profiles, leaderboards, and analytics. There is no FK from `events`:
+   events stand alone, `games` is a projection convenience.
 
-1. **Replay URLs survive restart.** A finished game's URL keeps working across redeploys.
-2. **Mid-game reconnect across restart.** A live game survives a server crash or redeploy as long as both clients reconnect.
-3. **Phase E corpus capture.** Human-vs-bot games persist in a queryable form the engine work can consume offline.
-4. **Cross-game queries.** Foundation for PL3 ladder (Elo, head-to-head, per-engine stats) without retrofitting the storage layer.
+Pregame-only rooms (one player joined, never made a move) produce no `games`
+row; they remain orphan events eligible for cleanup. Mid-game disconnect needs
+no special handling: the server clock keeps running, the absent player times
+out, `clock-expired` fires, and the standard game-over path writes a normal
+row.
 
-## Non-goals (v1)
+This doc deliberately carries no inline schema dump. The raw SQL migrations in
+`apps/server/migrations/` are the authority for table shapes, indexes, and the
+result/termination enums (which have grown far past the original design);
+`migrate.ts` applies them in order, and new schema changes are always new
+numbered migrations.
 
-- Multi-instance WS scale-out. Single Node process is the assumption.
-- Multi-region replication. v1 assumes a single-region Postgres deployment.
-- Real-time analytics / OLAP. Standard transactional Postgres only.
-- User accounts or registered identities as a hard requirement. v1 stays
-  account-optional and low-friction.
+## Beyond the game core
 
-## Storage model
+The same database holds the product's other domains, each in its own
+migration-owned table family:
 
-Two tables. Events are the source of truth; `games` is a derived aggregate updated on game-end.
-
-### `events`
-
-Append-only log. One row per `GameEvent`.
-
-```sql
-CREATE TABLE events (
-  room_id    TEXT        NOT NULL,
-  seq        INTEGER     NOT NULL,
-  type       TEXT        NOT NULL,
-  payload    JSONB       NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (room_id, seq)
-);
-
-CREATE INDEX events_created_at_idx ON events (created_at);
-```
-
-- `payload` stores the full `GameEvent` object, including `type` (denormalized into the column for indexed type filtering).
-- `seq` is per-room, starting at 0 with `room-created`.
-- No FK to `games` — events stand alone, `games` is a projection convenience.
-
-### `games`
-
-Aggregate row written when a game terminates (king capture, clock expiry, etc.). One row per finished room.
-
-A `games` row is written **if and only if a terminal event fires**. Pregame-only rooms (one player joined, never made a move) produce no `games` row — they remain orphan events in the `events` table, eligible for GC later. Mid-game disconnect doesn't need special handling: the server clock keeps running, the disconnected player times out, `clock-expired` fires, and the standard game-over path produces a normal `games` row with the opposing color winning.
-
-EvE broadens this model without replacing it. PvP still writes `games` on completion, but engine-mined games may create a `games` row at start with `mode = 'eve'` and `status = 'running'`, then update it to `completed` or `aborted`. EvE-specific job, engine identity, and debug data lives in side tables keyed back to the canonical `games.room_id`.
-
-```sql
-CREATE TABLE games (
-  room_id        TEXT        PRIMARY KEY,
-  variant        TEXT        NOT NULL,
-  result         TEXT        NOT NULL    CHECK (result IN ('white-wins', 'black-wins', 'draw')),
-  termination    TEXT        NOT NULL    CHECK (termination IN ('king-captured', 'timeout', 'checkmate', 'draw')),
-  ply_count      INTEGER     NOT NULL,
-  started_at     TIMESTAMPTZ NOT NULL,
-  ended_at       TIMESTAMPTZ NOT NULL,
-  white_client   TEXT,
-  black_client   TEXT
-);
-
-CREATE INDEX games_ended_at_idx ON games (ended_at DESC);
-CREATE INDEX games_variant_idx  ON games (variant);
-```
-
-Pre-PL3, this table is light. PL3 adds engine identity columns; PL3 leaderboards read from `games` joined with a future `ratings` table.
+- **Accounts, sessions, auth**: `users`, `account_sessions`, email login and
+  account-change challenges, handle reservations, auth rate-limit buckets.
+- **Ratings**: per-bucket Glicko-2 `user_ratings`, bot profiles and published
+  bot rating snapshots.
+- **Game metadata + analysis**: cached whole-game engine evals
+  (`game_analysis`), debug artifacts, participants, favorites, room deadlines
+  for correspondence.
+- **Puzzles**: attempts, puzzle and user rating pools, daily selections.
+- **Studies**: studies, chapters (serialized move trees), likes.
+- **Broadcasts + historical corpus**: xiangqi broadcast tours/rounds/boards
+  and sync logs; historical xiangqi sources, import batches, players, games.
+- **Forum / DM / social**: forum categories, topics, posts, reports; DM
+  threads and messages; chat lines; follow/block relations; titles; coaches.
+- **Patron**: Stripe subscription projections and webhook events.
 
 ## API surface (apps/server)
 
-```ts
-// apps/server/src/persistence.ts
+`apps/server/src/persistence.ts` is a facade barrel over roughly twenty
+domain-split `persistence-*.ts` modules (`persistence-games.ts`,
+`persistence-accounts.ts`, `persistence-studies.ts`, and siblings). Import
+existing persistence APIs from the facade; add new queries to the focused
+module that owns the domain. `persistence-db.ts` owns the pool lifecycle.
 
-export async function loadRoom(roomId: string): Promise<GameEvent[] | null>;
-export async function appendEvent(roomId: string, seq: number, event: GameEvent): Promise<void>;
-export async function listActiveRoomIds(since: Date): Promise<string[]>;
-export async function recordGameEnd(roomId: string, summary: GameSummary): Promise<void>;
-```
+Wire-up for the game core:
 
-Wire-up:
-
-- `getOrCreateRoom(roomId)` first calls `loadRoom`. If non-null, rehydrate via `replayGameEvents` and skip the synthetic `room-created` event.
-- `appendEvent` (existing in-memory function) gains an `await persistence.appendEvent(...)` before the broadcast. Synchronous insert per event — Postgres handles dozens-of-rooms × low-frequency moves trivially.
-- On terminal game state in `appendEvent`'s post-projection check, call `recordGameEnd`.
+- Room hydration loads the persisted event log and rehydrates via
+  `replayGameEvents`.
+- Event append is persistence-first: the Postgres insert completes before the
+  in-memory apply and the broadcast (see "Write ordering" below).
+- Terminal projection writes the `games` row.
 
 Replay visibility:
 
@@ -320,4 +299,4 @@ Lab corpus consumers continue to read NDJSON. Live server doesn't depend on the 
 
 - **Pregame-abandoned rooms.** A room created but never moved past `room-created` clutters `events`. Lean: GC rows older than 7 days where `seq` never exceeded a threshold. Cron, not v1.
 - **Spectator semantics across restart.** Spectator state is connection-only, not persisted. After restart, spectators reconnect and see live state via fresh `PlayerView` snapshots. No data persistence concern.
-- **Schema versioning.** Skipped intentionally. Two tables, JSONB payload — versioning happens at the application layer when reading payloads.
+- **Schema versioning.** Skipped intentionally for event payloads: JSONB rows are versioned at the application layer when reading payloads.

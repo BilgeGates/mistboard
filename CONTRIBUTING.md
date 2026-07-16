@@ -54,10 +54,11 @@ npm run agent:scan        # live dirty-state, worktree, hotspot, and test map
 npm run worktree:prepare  # fresh-worktree deps, dist declarations, drift guard
 ```
 
-Fast local loop:
+Local dev loop:
 
 ```bash
-npm run dev              # in-memory server, fastest for UI work
+npm run dev              # default: starts Docker Postgres (port 5435), applies migrations, runs server + web
+npm run dev:memory       # in-memory server, no Docker needed; DB-backed pages show empty states
 ```
 
 Open `http://localhost:3000`.
@@ -75,21 +76,25 @@ npm test                 # unit and integration tests, in-memory
 For interface copy, English is the source contract and noncritical locale gaps fall back safely.
 See [`docs/translations.md`](docs/translations.md) for domain ownership and the critical-key policy.
 
-For replay, reconnect, and persistence work, use local Postgres:
+Replay, reconnect, and persistence flows already work under the default
+`npm run dev` (it is Postgres-backed). For the Postgres-backed server test
+suite and product-shaped local fixtures:
 
 ```bash
-npm run db:up      # start Docker Postgres on port 5435
-npm run db:migrate # apply migrations
-npm run dev:persistent
 npm run test:persistent  # integration tests against local Postgres
+npm run db:seed:qa       # profiles, finished variant games, watch feed, QA fixtures
 ```
 
-Good entry points for dark chess testing:
+Good entry points for local testing:
 
 ```text
+http://localhost:3000/?variant=xiangqi
 http://localhost:3000/?room=fog-dev&reset=1&variant=dark-chess
 http://localhost:3000/?room=fog-engine-dev&reset=1&variant=dark-chess&dev=engine
 ```
+
+The first opens the play picker with standard xiangqi preselected (any
+registered variant id works). The other two are dark-chess dev rooms.
 
 For mobile/article layout iteration after the dev server is running:
 
