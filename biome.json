@@ -19,7 +19,8 @@
       "!**/articles-data.ts",
       "!apps/web/src/articles",
       "!apps/web/public/engine",
-      "!apps/server/fixtures/dpxq"
+      "!apps/server/fixtures/dpxq",
+      "!packages/game/seed"
     ]
   },
   "formatter": {

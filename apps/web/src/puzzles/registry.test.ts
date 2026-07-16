@@ -1,16 +1,20 @@
 /**
- * Conformance: every variant that ships a playable puzzle corpus in
- * @mistboard/game has a registered PuzzleBoardAdapter, and the registry is
- * fail-closed for everything else.
+ * Conformance: every variant that ships a playable puzzle corpus has a
+ * registered PuzzleBoardAdapter, and the registry is fail-closed for
+ * everything else.
  *
- * The corpus enumeration is derived, not hand-listed: it scans the whole
- * @mistboard/game export namespace for `*_PUZZLES` arrays of playable puzzles
- * (id + variant + initial + solution — the shape the puzzles API serves). A
- * new corpus export for a variant with no adapter fails here loudly instead of
- * throwing at runtime when a deep link paints the board.
+ * The corpus enumeration is derived, not hand-listed, from BOTH sources:
+ *  - the SEED assets (packages/game/seed, via @mistboard/game/puzzle-seed) —
+ *    since #183 this is what the server actually serves (synced into the
+ *    `puzzles` table; served directly when persistence is off), and
+ *  - the `*_PUZZLES` fixture exports scanned off the @mistboard/game namespace
+ *    (small verbatim subsets of the seed kept for kernel/unit tests).
+ * A corpus variant with no adapter fails here loudly instead of throwing at
+ * runtime when a deep link paints the board.
  */
 
 import * as game from '@mistboard/game';
+import { loadAllSeedPuzzles } from '@mistboard/game/puzzle-seed';
 import { describe, expect, it } from 'vitest';
 import {
   allPuzzleBoardAdapters,
@@ -32,8 +36,10 @@ function isCorpusPuzzle(value: unknown): value is CorpusPuzzle {
   );
 }
 
-// Every non-empty `*_PUZZLES` export whose members are playable puzzles. This
-// is the same universe the server's /api/puzzles route aggregates from.
+// Every non-empty `*_PUZZLES` fixture export whose members are playable
+// puzzles, PLUS the seed corpus the server actually serves (#183). Scanning
+// both keeps the derivation honest: fixtures alone could shrink to a subset of
+// the served variants, the seed alone would miss a fixture-only regression.
 function playableCorpora(): Array<[name: string, puzzles: CorpusPuzzle[]]> {
   const corpora: Array<[string, CorpusPuzzle[]]> = [];
   for (const [name, value] of Object.entries(game as Record<string, unknown>)) {
@@ -41,20 +47,26 @@ function playableCorpora(): Array<[name: string, puzzles: CorpusPuzzle[]]> {
     if (!value.every(isCorpusPuzzle)) continue;
     corpora.push([name, value]);
   }
+  const seed = [...loadAllSeedPuzzles()];
+  if (seed.length > 0 && seed.every(isCorpusPuzzle)) {
+    corpora.push(['SEED_PUZZLES', seed]);
+  }
   return corpora;
 }
 
 describe('puzzle board adapter registry', () => {
-  it('finds the playable puzzle corpora in @mistboard/game (guards the scan itself)', () => {
+  it('finds the playable puzzle corpora (guards the scan itself)', () => {
     const names = playableCorpora().map(([name]) => name);
     // If this shrinks to nothing the derivation below would vacuously pass, so
-    // pin the known family corpora as a floor.
+    // pin the known family corpora as a floor: the four fixture registries and
+    // the served seed corpus.
     expect(names).toEqual(
       expect.arrayContaining([
         'MINI_XIANGQI_PUZZLES',
         'FORTRESS_XIANGQI_PUZZLES',
         'JUNGLE_PUZZLES',
         'XIANGQI_PUZZLES',
+        'SEED_PUZZLES',
       ]),
     );
   });
