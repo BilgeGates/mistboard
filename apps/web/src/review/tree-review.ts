@@ -205,7 +205,7 @@ export type TreeReviewConfig<Move> = {
   title: string;
   summary: string;
   boardAriaLabel?: string;
-  /** Optional left-rail actions row (analysis import/home, etc.). */
+  /** Optional left-rail actions row. */
   actions?: HTMLElement;
   /** Left-rail details panel. Optional. */
   details?: HTMLElement;
