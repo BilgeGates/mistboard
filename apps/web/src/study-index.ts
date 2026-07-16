@@ -2,8 +2,7 @@
 //   • All studies (default) — the public studies index (/api/studies/public)
 //   • My studies (?tab=mine) — the signed-in owner's studies (/api/studies/mine)
 // New studies are created through a metadata dialog (name + visibility) that then
-// opens the fresh study. Studies are also creatable from the analysis board
-// ("Save as study" on a position).
+// opens the fresh study.
 
 import './game-shell.css';
 import './study.css';
@@ -164,7 +163,7 @@ function buildContent(tab: StudyTab, q: string, studies: StudySummary[]): HTMLEl
 function emptyMessage(tab: StudyTab, q: string): string {
   if (q) return `No studies match “${q}”.`;
   if (tab === 'mine') {
-    return 'No studies yet. Create one, or use “Save as study” from the analysis board.';
+    return 'No studies yet. Create one to get started.';
   }
   if (tab === 'favorites') return 'No favorites yet. Like a public study to save it here.';
   return 'No public studies yet.';

@@ -84,21 +84,16 @@ describe('mountXiangqiAnalysisPage', () => {
     window.history.pushState({}, '', '/analysis/xiangqi');
   });
 
-  function buttonByText(host: ParentNode, text: string): HTMLButtonElement {
-    const button = [...host.querySelectorAll('button')].find(
-      (candidate) => candidate.textContent?.trim() === text,
-    );
-    if (!button) throw new Error(`button "${text}" not found`);
-    return button as HTMLButtonElement;
-  }
-
   it('opens the empty board at the start position when the URL carries no moves', () => {
     const root = freshRoot();
     mountXiangqiAnalysisPage(root);
     // Lichess-style: the interactive board opens directly (no paste-form gate).
     expect(root.querySelector('.xiangqi-live-board')).not.toBeNull();
     expect(root.querySelector('.move-tree')).not.toBeNull();
-    expect(buttonByText(root, 'Import game')).toBeTruthy();
+    expect(root.querySelector('.dxq-postgame__actions')).toBeNull();
+    expect(root.textContent).not.toContain('Import game');
+    expect(root.textContent).not.toContain('Save as study');
+    expect(root.textContent).not.toContain('Back home');
     root.remove();
   });
 
@@ -120,33 +115,6 @@ describe('mountXiangqiAnalysisPage', () => {
         .querySelector<HTMLElement>('.review-shell__cluster')
         ?.style.getPropertyValue('--uni-board-aspect'),
     ).toBe((540 / 612).toFixed(4));
-    root.remove();
-  });
-
-  it('imports a pasted Chinese game through the dialog', () => {
-    const root = freshRoot();
-    mountXiangqiAnalysisPage(root);
-    buttonByText(root, 'Import game').click();
-    const dialog = document.querySelector('.xqa-import-dialog') as HTMLElement;
-    expect(dialog).not.toBeNull();
-    const input = dialog.querySelector('.xqa-import-dialog__input') as HTMLTextAreaElement;
-    input.value = '炮二平五 炮8平5 马二进三';
-    buttonByText(dialog, 'Import').click();
-    expect(root.textContent).toContain('h3-e3');
-    document.querySelector('.xqa-import-dialog')?.remove();
-    root.remove();
-  });
-
-  it('shows an error in the dialog for an unparseable paste', () => {
-    const root = freshRoot();
-    mountXiangqiAnalysisPage(root);
-    buttonByText(root, 'Import game').click();
-    const dialog = document.querySelector('.xqa-import-dialog') as HTMLElement;
-    const input = dialog.querySelector('.xqa-import-dialog__input') as HTMLTextAreaElement;
-    input.value = 'not a game';
-    buttonByText(dialog, 'Import').click();
-    expect(dialog.querySelector('.xqa-import-dialog__error')?.textContent).toBeTruthy();
-    dialog.remove();
     root.remove();
   });
 });
