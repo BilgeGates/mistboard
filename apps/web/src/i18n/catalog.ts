@@ -33,6 +33,95 @@ import { currentLocale, type Locale } from './locale.js';
 
 type I18nParams = Record<string, number | string>;
 
+export type AppI18nDomain = {
+  critical: readonly string[];
+  english: Readonly<Record<string, string>>;
+  locales: Readonly<Record<Exclude<Locale, 'en'>, Readonly<Record<string, string>>>>;
+  name: string;
+  prefixes: readonly string[];
+};
+
+export const APP_I18N_DOMAINS: readonly AppI18nDomain[] = [
+  {
+    name: 'shell',
+    prefixes: [
+      'nav',
+      'home',
+      'site',
+      'footer',
+      'notFound',
+      'connection',
+      'lag',
+      'prefs',
+      'homePuzzle',
+      'homeForum',
+    ],
+    english: EN_SHELL,
+    locales: { 'zh-Hans': ZH_HANS_SHELL, 'zh-Hant': ZH_HANT_SHELL },
+    critical: CRITICAL_SHELL_I18N_KEYS,
+  },
+  {
+    name: 'content',
+    prefixes: [
+      'videos',
+      'articles',
+      'rules',
+      'news',
+      'patron',
+      'contact',
+      'about',
+      'source',
+      'contribute',
+      'thanks',
+      'faq',
+      'terms',
+      'privacy',
+    ],
+    english: EN_CONTENT,
+    locales: { 'zh-Hans': ZH_HANS_CONTENT, 'zh-Hant': ZH_HANT_CONTENT },
+    critical: CRITICAL_CONTENT_I18N_KEYS,
+  },
+  {
+    name: 'account',
+    prefixes: ['account'],
+    english: EN_ACCOUNT,
+    locales: { 'zh-Hans': ZH_HANS_ACCOUNT, 'zh-Hant': ZH_HANT_ACCOUNT },
+    critical: CRITICAL_ACCOUNT_I18N_KEYS,
+  },
+  {
+    name: 'community',
+    prefixes: [
+      'profile',
+      'inbox',
+      'friends',
+      'following',
+      'chat',
+      'title',
+      'verifyTitle',
+      'coach',
+      'streamer',
+      'challenge',
+    ],
+    english: EN_COMMUNITY,
+    locales: { 'zh-Hans': ZH_HANS_COMMUNITY, 'zh-Hant': ZH_HANT_COMMUNITY },
+    critical: CRITICAL_COMMUNITY_I18N_KEYS,
+  },
+  {
+    name: 'play',
+    prefixes: ['game', 'play', 'lobby', 'setup', 'variant', 'live', 'result'],
+    english: EN_PLAY,
+    locales: { 'zh-Hans': ZH_HANS_PLAY, 'zh-Hant': ZH_HANT_PLAY },
+    critical: CRITICAL_PLAY_I18N_KEYS,
+  },
+  {
+    name: 'review',
+    prefixes: ['replay', 'watch'],
+    english: EN_REVIEW,
+    locales: { 'zh-Hans': ZH_HANS_REVIEW, 'zh-Hant': ZH_HANT_REVIEW },
+    critical: CRITICAL_REVIEW_I18N_KEYS,
+  },
+];
+
 const EN = {
   ...EN_SHELL,
   ...EN_CONTENT,
