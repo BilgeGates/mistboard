@@ -713,6 +713,15 @@ export class UciEngineSession {
       consumer.reject(this.exitError);
       return;
     }
+    // A plain close() sets closed without an exitError. Requests registered
+    // after it must reject NOW: the child is dead (its guarded exit handler
+    // will not fire fail()), write() is a no-op, and the request timeout is
+    // unref'd, so nothing else would ever settle the promise once the event
+    // loop drains (CI: cancelledByParent).
+    if (this.closed) {
+      consumer.reject(new Error(`${this.label()} session closed`));
+      return;
+    }
     this.consumer = consumer;
   }
 
