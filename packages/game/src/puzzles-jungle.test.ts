@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import { JUNGLE_SPEC_ID } from './game-specs.js';
 import {
@@ -192,10 +193,34 @@ test('solver plies are the even indices', () => {
   assert.ok(isJunglePuzzleSolverPly(2));
 });
 
-test('every shipped Jungle puzzle validates as a forced win', () => {
-  for (const puzzle of JUNGLE_PUZZLES) {
+// Full kernel verification of the corpus (validateJunglePuzzle re-searches every
+// forced win) lives in puzzles-jungle-corpus.slowtest.ts and runs via the
+// dedicated `test:puzzles:corpus` script: it grew linearly with the corpus and
+// was the long pole of the whole unit suite (~23s of ~32s). The unit hot path
+// keeps (a) a deterministic sample through the same validator and (b) a count +
+// content-hash pin, so any corpus edit still fails fast here.
+
+test('a deterministic sample of shipped puzzles validates as forced wins', () => {
+  const sample = JUNGLE_PUZZLES.slice(0, 5);
+  assert.equal(sample.length, 5, 'corpus provides the 5-puzzle sample');
+  for (const puzzle of sample) {
     const result = validateJunglePuzzle(puzzle);
     assert.ok(result.ok, `${puzzle.id} invalid: ${result.ok ? '' : result.issue.message}`);
+  }
+});
+
+test('corpus integrity: count + content hash pin the shipped corpus', () => {
+  // Any corpus change (add/remove/edit a puzzle) breaks this pin on purpose.
+  // Re-verify the whole corpus with `npm run test:puzzles:corpus`, then update
+  // the count and hash here.
+  assert.equal(JUNGLE_PUZZLES.length, 110);
+  const hash = createHash('sha256').update(JSON.stringify(JUNGLE_PUZZLES)).digest('hex');
+  assert.equal(hash, '4fb627a5ea16fd17f3fc6a3fe8481c646de04e41114d1ff3427de1dd2cadbe92');
+});
+
+test('every shipped puzzle resolves through the lookup helpers', () => {
+  // Cheap per-puzzle invariants (no kernel search): safe to keep corpus-wide.
+  for (const puzzle of JUNGLE_PUZZLES) {
     assert.equal(junglePuzzleById(puzzle.id), puzzle);
     assert.equal(junglePuzzleSideToMove(puzzle), puzzle.goal.winner ?? null);
     assert.equal(junglePuzzleNextMove(puzzle, 0), puzzle.solution[0] ?? null);
