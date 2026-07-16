@@ -111,7 +111,7 @@ export function isDarkXiangqiEngineClientId(clientId: string | undefined): clien
 // The default Dark Mini Xiangqi PvE engine (the single player-facing DMX engine,
 // mirroring Misty for chess).
 export const DARK_MINI_XIANGQI_DEFAULT_ENGINE_ID: EngineId = 'python-dmx-v1.0';
-export const DARK_XIANGQI_DEFAULT_ENGINE_ID: EngineId = 'python-fdx-v1.0';
+export const DARK_XIANGQI_DEFAULT_ENGINE_ID: EngineId = 'python-fdx-v1.1';
 
 const PYTHON_ENGINES: Record<string, EngineDefinition> = {
   'python-tier1-v0.9.5': {
@@ -494,6 +494,31 @@ const PYTHON_ENGINES: Record<string, EngineDefinition> = {
     notes:
       'Misty DXQ 1.0 — Full Dark Xiangqi local/dev engine served through the ' +
       'variant-aware worker adapter (64x12, 20M cap, Pikafish depth 1).',
+  },
+  'python-fdx-v1.1': {
+    id: 'python-fdx-v1.1',
+    engineId: 'v2',
+    engineName: 'Misty DXQ',
+    name: 'Misty DXQ 1.1',
+    kind: 'container',
+    gameSpecId: 'dark-xiangqi',
+    configHash: 'fdx-v1.1-guarded-64x32-20m',
+    playSignature: 'fdx-v1.1-guarded-64x32-20m',
+    config: {
+      kind: 'python-subprocess',
+      strategy: 'v2-xiangqi',
+      version: '1.1',
+      config: 'fdx-guarded-64x32-20m-pikafish-d1',
+      config_hash: 'guarded-64x32-20m',
+      engine_pin: 'fdx-v1.1-local',
+    },
+    livePolicy: { timeoutMs: 60_000 },
+    notes:
+      'Misty DXQ 1.1 — Full Dark Xiangqi, guarded-64x32-20m profile: faithful ' +
+      'coverage (|I|=32, KLUSS=2, Resolve gadget + alpha) plus the material- ' +
+      'catastrophe stack (adaptive material prune tau=0.15 + general veto), all ' +
+      'baked in the engine profile (no FOW_XIANGQI_* env needed). Human-validated ' +
+      '(beat author 3/3 live PvE; opening cannon-hang class did not recur).',
   },
   'python-tier1-v0.9.1': {
     id: 'python-tier1-v0.9.1',
