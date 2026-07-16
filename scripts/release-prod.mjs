@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Push a production release only through the safe CI -> deploy -> smoke order.
 
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
 
 const DEFAULT_BASE_URL = 'https://mistboard.com';
@@ -16,6 +16,10 @@ const GITHUB_POLL_MS = 10_000;
 // declaration after the top-level call site sits in the temporal dead zone
 // (function hoisting masks it until the first web-safe release).
 const WEB_SAFE_PREFIXES = ['apps/web/', 'docs/', 'scripts/', '.github/'];
+// Carve-outs from the scripts/ web-safe prefix: build.mjs and start.mjs are
+// Railway watch paths (railway.web.json) that shape the SERVER build/boot, so
+// a diff touching them must keep the full engine tier. Same TDZ note as above.
+const SERVER_SHAPING_SCRIPTS = new Set(['scripts/build.mjs', 'scripts/start.mjs']);
 const CI_TRIGGER_PATTERNS = [
   '.github/workflows/ci.yml',
   'apps/**',
@@ -48,9 +52,13 @@ const release = {
 };
 
 try {
-  ensureCleanWorktree();
+  if (!options.plan) ensureCleanWorktree();
   release.headRevision = git(['rev-parse', '--verify', options.head]);
   release.targetRevision = readRemoteTargetRevision();
+
+  if (options.plan) {
+    runPlanModeAndExit();
+  }
 
   console.log(`# production release`);
   console.log(`head: ${release.headRevision}`);
@@ -103,7 +111,7 @@ try {
     );
   }
 
-  runSmoke({ deployRequired: release.deployRequired, headRevision: release.headRevision });
+  await runSmoke({ deployRequired: release.deployRequired, headRevision: release.headRevision });
 
   const elapsedMs = Math.round(performance.now() - startedAt);
   console.log(`release: ok in ${formatDuration(elapsedMs)}`);
@@ -122,6 +130,9 @@ function parseArgs(args) {
     head: 'HEAD',
     help: false,
     localCi: true,
+    plan: false,
+    planBase: null,
+    planFiles: [],
     push: false,
     remote: DEFAULT_REMOTE,
     smoke: DEFAULT_SMOKE,
@@ -138,6 +149,14 @@ function parseArgs(args) {
       parsed.ciWorkflow = requiredValue(args, ++index, arg);
     } else if (arg === '--head') {
       parsed.head = requiredValue(args, ++index, arg);
+    } else if (arg === '--plan') {
+      parsed.plan = true;
+    } else if (arg === '--plan-base') {
+      parsed.planBase = requiredValue(args, ++index, arg);
+      parsed.plan = true;
+    } else if (arg === '--plan-file') {
+      parsed.planFiles.push(requiredValue(args, ++index, arg));
+      parsed.plan = true;
     } else if (arg === '--push') {
       parsed.push = true;
     } else if (arg === '--remote') {
@@ -246,6 +265,10 @@ function planHostedCi({ baseRevision, headRevision }) {
     };
   }
 
+  return classifyCiFiles(changedFiles);
+}
+
+function classifyCiFiles(changedFiles) {
   const matched = [];
   const unmatched = [];
   for (const file of changedFiles) {
@@ -261,6 +284,52 @@ function planHostedCi({ baseRevision, headRevision }) {
     reason: matched.length > 0 ? 'matched_ci_workflow_path' : 'no_ci_workflow_path_match',
     unmatched,
   };
+}
+
+// --plan: dry-run the release planning (deploy plan, hosted CI plan, resolved
+// smoke tier) without ci:quick, push, waits, or smokes. --plan-base <rev>
+// swaps the tier/CI diff base to an arbitrary revision, and --plan-file <path>
+// (repeatable) injects a synthetic changed-file list, so the tier classifier
+// can be validated by EXECUTING its real code path against any diff shape.
+function runPlanModeAndExit() {
+  console.log('# release plan (dry run)');
+  console.log(`head: ${release.headRevision}`);
+  console.log(`target: ${options.remote}/${options.targetBranch}`);
+  console.log(`target_head: ${release.targetRevision ?? 'unknown'}`);
+
+  const changedOverride = planChangedFiles();
+  if (changedOverride === null) {
+    const plan = runPlan({ headRevision: release.headRevision });
+    release.deployRequired = plan.deployRequired;
+    release.planReason = plan.reason;
+    release.productionRevision = plan.productionRevision;
+  } else {
+    const source = options.planFiles.length > 0 ? 'plan-file list' : `${options.planBase}..head`;
+    console.log(`plan_diff: ${source} (${changedOverride.length} file(s))`);
+  }
+
+  const ciPlan = changedOverride
+    ? classifyCiFiles(changedOverride)
+    : planHostedCi({ baseRevision: release.targetRevision, headRevision: release.headRevision });
+  printHostedCiPlan(ciPlan);
+
+  const tier = resolveSmokeTier(release.headRevision, changedOverride);
+  console.log(`smoke_tier: ${tier}`);
+  process.exit(0);
+}
+
+// The changed-file list a --plan run should classify, or null to use the real
+// production-revision diff (which needs the network round trip to prod).
+function planChangedFiles() {
+  if (options.planFiles.length > 0) return options.planFiles.map(normalizePath);
+  if (options.planBase) {
+    const base = git(['rev-parse', '--verify', options.planBase]);
+    return git(['diff', '--name-only', `${base}..${release.headRevision}`])
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+  return null;
 }
 
 function printHostedCiPlan({ changedFiles, ciRequired, matched, reason, unmatched }) {
@@ -368,62 +437,158 @@ function pushCommand(headRevision) {
   return command;
 }
 
-function runSmoke({ deployRequired, headRevision }) {
+async function runSmoke({ deployRequired, headRevision }) {
   const smoke = resolveSmokeTier(headRevision);
   if (smoke === 'none') {
     console.log('skip: prod smoke (--smoke none)');
     return;
   }
 
-  if (smoke === 'lite') {
-    runTimed('prod lite smoke', npmCommand('prod:smoke:lite', baseArgs()));
-    return;
-  }
+  // Tiers nest (full > web > lite): every tier opens with the lite checks and
+  // the correspondence gate checks. They are a couple seconds of read-only
+  // GETs, fail fastest, and this keeps their coverage (watch shell, zh-hans
+  // page, correspondence gating) on every release, not only explicit --smoke
+  // lite runs.
+  runTimed('prod lite smoke', npmCommand('prod:smoke:lite', baseArgs()));
+  runTimed('prod correspondence smoke', [
+    'node',
+    'scripts/prod-correspondence-smoke.mjs',
+    ...baseArgs(),
+  ]);
+  if (smoke === 'lite') return;
 
   const revisionArgs = deployRequired ? ['--expect-revision', headRevision] : [];
-  if (smoke === 'web' || smoke === 'full') {
-    runTimed('prod web smoke', npmCommand('prod:smoke', [...baseArgs(), ...revisionArgs]));
-    // Headless check that the in-browser analysis engine actually loads + returns
-    // a search on /analysis/xiangqi — the class of failure the fetch-based smokes
-    // cannot see (they verify serving/isolation, not a real run).
-    runTimed('prod ceval smoke', npmCommand('prod:smoke:ceval', baseArgs()));
+  runTimed('prod web smoke', npmCommand('prod:smoke', [...baseArgs(), ...revisionArgs]));
+  // Headless check that the in-browser analysis engines actually load + return
+  // a search (FSF on /analysis/xiangqi, MistyBanqi on a finished banqi review
+  // page) — the class of failure the fetch-based smokes cannot see (they
+  // verify serving/isolation, not a real run).
+  runTimed('prod ceval smoke', npmCommand('prod:smoke:ceval', baseArgs()));
+  if (smoke !== 'full') return;
+
+  // The four engine-family smokes are independent (separate rooms, separate
+  // engines) and dominated by engine-turn latency, so run them concurrently.
+  await runParallelSmokes([
+    {
+      label: 'prod engine smoke',
+      tag: 'engines',
+      command: npmCommand('prod:smoke:engines', baseArgs()),
+    },
+    {
+      label: 'prod Fortress smoke',
+      tag: 'fortress',
+      command: npmCommand('prod:smoke:fortress', baseArgs()),
+    },
+    { label: 'prod DMX smoke', tag: 'dmx', command: npmCommand('prod:smoke:dmx', baseArgs()) },
+    { label: 'prod DXQ smoke', tag: 'dxq', command: npmCommand('prod:smoke:dxq', baseArgs()) },
+  ]);
+}
+
+// Run smokes concurrently with captured output. Each smoke's full output is
+// printed as one prefixed block when all have settled (deterministic order, no
+// interleaving), and every failure's output is repeated in the thrown report.
+async function runParallelSmokes(smokes) {
+  console.log(`\n# engine-family smokes (${smokes.length} in parallel)`);
+  for (const smoke of smokes) console.log(`$ ${quoteCommand(smoke.command)}`);
+  const results = await Promise.all(smokes.map(runSmokeProcess));
+
+  for (const result of results) {
+    const verdict = result.ok
+      ? 'ok'
+      : `FAILED (${result.signal ? `signal ${result.signal}` : `exit ${result.status}`})`;
+    console.log(`\n== ${result.label}: ${verdict} in ${formatDuration(result.elapsedMs)}`);
+    process.stdout.write(prefixLines(result.output, result.tag));
   }
 
-  if (smoke === 'full') {
-    runTimed('prod engine smoke', npmCommand('prod:smoke:engines', baseArgs()));
-    runTimed('prod Fortress smoke', npmCommand('prod:smoke:fortress', baseArgs()));
-    runTimed('prod DMX smoke', npmCommand('prod:smoke:dmx', baseArgs()));
-    runTimed('prod DXQ smoke', npmCommand('prod:smoke:dxq', baseArgs()));
+  const failed = results.filter((result) => !result.ok);
+  if (failed.length > 0) {
+    const report = failed
+      .map((result) => `--- ${result.label} output ---\n${result.output.trimEnd()}`)
+      .join('\n');
+    throw new Error(
+      `${failed.length}/${results.length} engine-family smokes failed: ${failed
+        .map((result) => result.label)
+        .join(', ')}\n${report}`,
+    );
   }
+}
+
+function runSmokeProcess({ label, tag, command }) {
+  return new Promise((resolve) => {
+    const startedAt = performance.now();
+    const child = spawn(command[0], command.slice(1), { stdio: ['ignore', 'pipe', 'pipe'] });
+    let output = '';
+    child.stdout.on('data', (chunk) => {
+      output += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      output += chunk;
+    });
+    const settle = (ok, status, signal) =>
+      resolve({
+        label,
+        tag,
+        ok,
+        status,
+        signal,
+        output,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
+    child.on('error', (error) => {
+      output += `\nspawn error: ${error.message}`;
+      settle(false, null, null);
+    });
+    child.on('close', (status, signal) => settle(status === 0 && !signal, status, signal));
+  });
+}
+
+function prefixLines(output, tag) {
+  const trimmed = output.replace(/\n+$/, '');
+  if (trimmed === '') return `  [${tag}] (no output)\n`;
+  return `${trimmed
+    .split('\n')
+    .map((line) => `  [${tag}] ${line}`)
+    .join('\n')}\n`;
 }
 
 // Diff-aware default: the engine/DMX/DXQ smokes exist for server-behavior
 // changes. When the whole prod diff stays inside web-safe prefixes (web app,
 // docs, release tooling), the default 'full' tier drops to 'web'. An explicit
 // --smoke always wins, and any doubt (no prod revision to diff against, files
-// outside the safe set) keeps 'full'.
-function resolveSmokeTier(headRevision) {
+// outside the safe set) keeps 'full'. --plan passes changedOverride so the
+// classifier can be exercised against arbitrary diff shapes.
+function resolveSmokeTier(headRevision, changedOverride = null) {
   if (options.smokeExplicit || options.smoke !== 'full') return options.smoke;
-  const base = release.productionRevision;
-  if (!base) return 'full';
-  let changed;
-  try {
-    changed = git(['diff', '--name-only', `${base}..${headRevision}`])
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
-  } catch {
-    return 'full';
+  let changed = changedOverride;
+  if (changed === null) {
+    const base = release.productionRevision;
+    if (!base) return 'full';
+    try {
+      changed = git(['diff', '--name-only', `${base}..${headRevision}`])
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean);
+    } catch {
+      return 'full';
+    }
   }
   if (changed.length === 0) return 'full';
-  const webSafe = changed.every(
-    (file) => file.endsWith('.md') || WEB_SAFE_PREFIXES.some((prefix) => file.startsWith(prefix)),
-  );
-  if (!webSafe) return 'full';
+  const unsafe = changed.filter((file) => !isWebSafePath(file));
+  if (unsafe.length > 0) {
+    printList('smoke: full tier kept by non-web-safe paths', unsafe);
+    return 'full';
+  }
   console.log(
     'smoke: full -> web (prod diff stays in web-safe paths; pass --smoke full to override)',
   );
   return 'web';
+}
+
+function isWebSafePath(file) {
+  // Carve-out first: scripts/build.mjs + start.mjs live under the web-safe
+  // scripts/ prefix but shape the SERVER build/boot (Railway watch paths).
+  if (SERVER_SHAPING_SCRIPTS.has(file)) return false;
+  return file.endsWith('.md') || WEB_SAFE_PREFIXES.some((prefix) => file.startsWith(prefix));
 }
 
 function baseArgs() {
@@ -569,6 +734,9 @@ function printHelp() {
   npm run release:prod -- --push
   npm run release:prod -- --push --smoke lite
   npm run release:prod -- --skip-local-ci --smoke web
+  node scripts/release-prod.mjs --plan
+  node scripts/release-prod.mjs --plan-base <rev> [--head <rev>]
+  node scripts/release-prod.mjs --plan-file apps/web/src/main.ts --plan-file scripts/build.mjs
 
 Order:
   local ci:quick -> optional git push -> hosted GitHub CI when matched -> production revision wait when deploying -> smoke
@@ -576,6 +744,12 @@ Order:
 Options:
   --push                   Push --head to origin/main. Without this, assume it is already pushed.
   --head <ref>             Commit/ref to release, default HEAD.
+  --plan                   Dry run: print the deploy plan, hosted CI plan, and
+                           resolved smoke tier, then exit. No ci, push, or smoke.
+  --plan-base <rev>        Plan mode with the tier/CI diff taken from <rev>..head
+                           instead of the live production revision. Implies --plan.
+  --plan-file <path>       Plan mode with an injected changed-file list (repeat
+                           the flag per file). Implies --plan.
   --target-branch <name>   Production branch to push/wait, default ${DEFAULT_TARGET_BRANCH}.
   --remote <name>          Git remote for --push, default ${DEFAULT_REMOTE}.
   --smoke <tier>           Smoke tier: full, web, lite, none. Default ${DEFAULT_SMOKE}.

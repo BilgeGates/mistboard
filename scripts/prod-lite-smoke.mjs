@@ -37,6 +37,25 @@ if (!Array.isArray(engines.body?.engines) || engines.body.engines.length === 0) 
   throw new Error('/api/engines/playable returned no engines');
 }
 
+// /watch is a registered SPA client route (unknown paths 404), so a 200 with
+// the app shell proves the route registration survived the deploy. The shell
+// markers are the SPA mount node and the brand title from apps/web/index.html.
+const watch = await fetchText(new URL('/watch', baseUrl), { timeoutMs });
+if (watch.status !== 200) throw new Error(`/watch failed: ${watch.status}`);
+if (!watch.body.includes('id="app"') || !watch.body.includes('Mistboard')) {
+  throw new Error('/watch did not serve the app shell (missing id="app" or Mistboard marker)');
+}
+
+// One Chinese-localized page: /zh-hans/rules/xiangqi is published (slug
+// "xiangqi" is in TRANSLATED_ARTICLE_SLUGS, apps/web/src/article-i18n.ts) and
+// prerendered, so the document itself must carry the translated title string
+// (the zh-Hans value of the "Xiangqi Rules" catalog key).
+const zhRules = await fetchText(new URL('/zh-hans/rules/xiangqi', baseUrl), { timeoutMs });
+if (zhRules.status !== 200) throw new Error(`/zh-hans/rules/xiangqi failed: ${zhRules.status}`);
+if (!zhRules.body.includes('象棋规则')) {
+  throw new Error('/zh-hans/rules/xiangqi missing translated title marker 象棋规则');
+}
+
 console.log(
   JSON.stringify({
     ok: true,
@@ -44,6 +63,8 @@ console.log(
     health: health.body,
     serverStatus: serverStatus.body,
     playableEngines: engines.body.engines.map((engine) => engine.id),
+    watchShell: true,
+    zhHansRulesXiangqi: true,
   }),
 );
 
