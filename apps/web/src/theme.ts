@@ -115,7 +115,7 @@ const xiangqiBoardChoices: Array<{ id: XiangqiBoardChoice; label: string }> = [
 const xiangqiPieceSets = XIANGQI_PIECE_SETS;
 const shogiBoardThemes = SHOGI_BOARD_THEMES;
 const shogiPieceSets = SHOGI_PIECE_SETS;
-const defaultBoardFamily: BoardFamily = 'chess';
+const defaultBoardFamily: BoardFamily = 'xiangqi';
 
 // Xiangqi appearance (board themes + piece sets) is shared by full Dark Xiangqi,
 // Dark Mini Xiangqi, Mini Xiangqi, and Crossroads Chess's xiangqi-side disk
@@ -154,7 +154,7 @@ export function initializeThemeSettings(): void {
   applyShogiBoardTheme(readStoredShogiBoardTheme());
   applyShogiPieceSet(readStoredShogiPieceSet());
   if (!document.documentElement.dataset.boardFamily) {
-    document.documentElement.dataset.boardFamily = 'chess';
+    document.documentElement.dataset.boardFamily = defaultBoardFamily;
   }
   watchForSystemThemeChanges();
   mountThemeControls();

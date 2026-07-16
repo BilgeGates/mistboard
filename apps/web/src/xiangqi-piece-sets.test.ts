@@ -97,10 +97,26 @@ describe('renderXiangqiPieceGlyphed', () => {
   it('renders the Chess-style prototype from the international art without a disc', () => {
     const general = renderXiangqiPieceGlyphed(redGeneral, 'international-flat', {});
     expect(general).toContain('/piece-sets/xiangqi/international-flat/red-general.png?v=1');
-    expect(general).toContain('x="-19.54" y="-19.54" width="139.08" height="139.08"');
+    expect(general).toContain('x="-26.38" y="-26.38" width="152.76" height="152.76"');
     expect(general).toContain('style="filter:none"');
     expect(general).not.toContain('<circle');
     expect(general).not.toContain('fill="#fef0d7"');
+  });
+
+  it('fits the Chess-style elephant and cannon to their silhouettes', () => {
+    const elephant = renderXiangqiPieceGlyphed(
+      { color: 'red', role: 'elephant' },
+      'international-flat',
+      {},
+    );
+    const cannon = renderXiangqiPieceGlyphed(
+      { color: 'red', role: 'cannon' },
+      'international-flat',
+      {},
+    );
+
+    expect(elephant).toContain('x="-23.7" y="-26.7" width="147.4" height="147.4"');
+    expect(cannon).toContain('x="-35.4" y="-35.4" width="170.8" height="170.8"');
   });
 
   it('keeps the international soldier at native size while larger art fills more of the disc', () => {
@@ -133,7 +149,7 @@ describe('renderXiangqiPieceGlyphed', () => {
   it('renders the Chess-style Fortress treasure without a disc', () => {
     const treasure = internationalFlatTreasureMarks('red');
     expect(treasure).toContain('/piece-sets/xiangqi/international-flat/red-treasure.png?v=1');
-    expect(treasure).toContain('width="139.08" height="139.08"');
+    expect(treasure).toContain('width="152.76" height="152.76"');
     expect(treasure).not.toContain('<circle');
   });
 
