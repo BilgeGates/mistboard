@@ -317,13 +317,13 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       },
       engineOptions: [
         {
-          id: 'python-fdx-v1.0',
-          name: 'Misty DXQ 1.0',
+          id: 'python-fdx-v1.1',
+          name: 'Misty DXQ 1.1',
           familyName: 'Misty DXQ',
           kind: 'fog-xiangqi',
         },
       ],
-      defaultEngineId: 'python-fdx-v1.0',
+      defaultEngineId: 'python-fdx-v1.1',
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: alwaysEnabled,
       acceptsDeepLink: darkMiniXiangqiEnabled,

@@ -895,7 +895,7 @@ describe('landing play panel', () => {
 
     openPlaySetup(panel, 'Play the engine');
     selectModalVariant('dark-xiangqi');
-    expect(document.querySelector('.landing-variant-control')?.textContent).toBe('Misty DXQ 1.0');
+    expect(document.querySelector('.landing-variant-control')?.textContent).toBe('Misty DXQ 1.1');
     clickModalColor('Black');
     clickModalButton('Start game');
     await flushPromises();
