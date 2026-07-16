@@ -465,7 +465,13 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `articles.css` | Article index, article page, and article interactive widget styles loaded by `articles.ts` |
 | `articles-data.ts` | Article content (large; content not code) |
 | `article-i18n.ts` | Article localization strings and language helpers |
-| `i18n/catalog.ts` | Shared client UI translation catalog and `t()` helper keyed by the current locale |
+| `i18n/catalog.ts` | Shared client UI translation registry and `t()` helper; composes the domain catalogs and provides English fallback |
+| `i18n/catalogs/shell.ts` | Navigation, site-shell, appearance, connection, homepage-widget, and error-state translation strings |
+| `i18n/catalogs/content.ts` | Editorial, rules, news, patron, contact, policy, and contribution translation strings |
+| `i18n/catalogs/account.ts` | Account settings, authentication, preferences, and account-menu translation strings |
+| `i18n/catalogs/community.ts` | Profiles, coaches, inbox, friends, chat, titles, streamers, and challenges translation strings |
+| `i18n/catalogs/play.ts` | Game setup, lobby, variant, live-game, play, and result translation strings |
+| `i18n/catalogs/review.ts` | Replay and watch-surface translation strings |
 | `i18n/locale.ts` | Client locale metadata, path/storage/browser locale detection, and document/account locale preference helpers |
 | `dark-xiangqi-postgame.ts` | Flagged Fog Xiangqi postgame/review route renderer. Rides the shared interactive tree (`review/dark-xiangqi-review.ts` → `mountTreeReview`): reconstructs positions CLIENT-side from the true move list through the fog kernel and renders the triptych (revealed truth board + per-POV fogged secondaries), letting you branch. Keeps `postgameViewAtPly`/`postgameReplayMaxPly`/`postgameViewEntries` for `watch-dark-xiangqi-replay.ts`. Loads `live-xiangqi.css` + `dark-xiangqi-postgame.css` |
 | `dxq-postgame-shell.ts` | Shared postgame review shell + replay controls for the hidden triptych SVG variants; owns the left summary rail / board grid / moves rail scaffold while variant routes keep board-specific rendering |
