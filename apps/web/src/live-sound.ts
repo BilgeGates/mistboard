@@ -24,6 +24,7 @@ import {
   type SoundKind,
 } from './live-state.js';
 import {
+  DEFAULT_SOUND_SET,
   isSynthesizedSet,
   readStoredSoundSet,
   type SoundSetId,
@@ -414,7 +415,7 @@ export type SoundTone = {
   q?: number;
 };
 
-export function tonesForSound(kind: SoundKind, set: SoundSetId = 'mist'): SoundTone[] {
+export function tonesForSound(kind: SoundKind, set: SoundSetId = DEFAULT_SOUND_SET): SoundTone[] {
   if (set === 'wood') {
     const wood = woodTonesForSound(kind);
     if (wood) return wood;

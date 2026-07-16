@@ -1,9 +1,9 @@
 // Sound-set registry: which audio source plays each SoundKind.
 //
-// 'mist' is the default — Mistboard's own WebAudio-synthesized tones in
-// live-sound.ts, zero assets. The file sets are lichess's AGPL sets
-// (public/sound/<set>/, see CREDITS.md there); they cover the universal
-// vocabulary, while the fog-native kinds keep per-kind tweaks (rate/gain)
+// 'wood' is the default: tactile recordings of pieces on a wooden board. 'mist'
+// is Mistboard's own WebAudio-synthesized set with zero assets. The other file
+// sets are lichess's AGPL sets (public/sound/<set>/, see CREDITS.md there). They
+// cover the universal vocabulary, while the fog-native kinds keep per-kind tweaks (rate/gain)
 // so 'captured' stays darker than 'capture' even when both use the same
 // source file. A kind with no file entry falls back to the synthesized
 // tones, so partial sets degrade to Mist rather than silence.
@@ -16,15 +16,15 @@ import type { SoundKind } from './live-state.js';
 export type SoundSetId = 'mist' | 'wood' | 'futuristic' | 'nes' | 'piano' | 'sfx';
 
 export const SOUND_SETS: ReadonlyArray<{ id: SoundSetId; label: string }> = [
-  { id: 'mist', label: 'Mist' },
   { id: 'wood', label: 'Wood' },
-  { id: 'futuristic', label: 'Futuristic' },
-  { id: 'nes', label: 'NES' },
+  { id: 'mist', label: 'Mist' },
   { id: 'piano', label: 'Piano' },
   { id: 'sfx', label: 'SFX' },
+  { id: 'futuristic', label: 'Futuristic' },
+  { id: 'nes', label: 'NES' },
 ];
 
-export const DEFAULT_SOUND_SET: SoundSetId = 'mist';
+export const DEFAULT_SOUND_SET: SoundSetId = 'wood';
 
 // Synthesized sets carry no asset files: every SoundKind routes to the WebAudio
 // tones in live-sound.ts. 'mist' is the only fully-synthesized set. ('wood' is a
