@@ -129,27 +129,26 @@ describe('article public listing gates', () => {
     expect(hrefs).toEqual(['/zh-hans/blog', '/zh-hans/blog/community']);
   });
 
-  it('localizes the zh-Hans articles index cards', () => {
+  it('localizes only publication-ready zh-Hans article cards', () => {
     vi.stubEnv('DEV', false);
 
     const index = buildArticlesIndex('zh-Hans');
     const text = index.textContent ?? '';
 
-    expect(index.querySelector('a[href="/zh-hans/blog/misty"]')).not.toBeNull();
-    expect(text).toContain('Misty 是怎么下棋的');
-    expect(text).toContain('用服务器端真实局面实现迷雾国际象棋');
-    expect(text).not.toContain('How Misty Plays');
-    expect(text).not.toContain('Programming Dark Chess with Server-Side Truth');
+    expect(index.querySelector('a[href="/zh-hans/blog/mistybanqi"]')).not.toBeNull();
+    expect(index.querySelector('a[href="/blog/misty"]')).not.toBeNull();
+    expect(index.querySelector('a[href="/blog/server-enforced-fog"]')).not.toBeNull();
+    expect(text).toContain('MistyBanqi 是怎么下棋的');
+    expect(text).toContain('How Misty Plays');
+    expect(text).toContain('Programming Fog Chess with Server-Side Truth');
+    expect(text).not.toContain('Misty 是怎么下棋的');
+    expect(text).not.toContain('用服务器端真实局面实现迷雾国际象棋');
   });
 
   it('localizes Traditional Chinese article chrome and content links', () => {
     vi.stubEnv('DEV', false);
 
     const home = buildHomeArticleCards(50, 'zh-Hant');
-    const firstArticleCard = home?.querySelector<HTMLAnchorElement>(
-      '.landing-article-card[data-card-kind="article"]',
-    );
-
     expect(home?.getAttribute('aria-label')).toBe('文章');
     expect(home?.querySelector('.landing-carousel-nav-prev')?.getAttribute('aria-label')).toBe(
       '上一篇文章',
@@ -157,7 +156,9 @@ describe('article public listing gates', () => {
     expect(home?.querySelector('.landing-carousel-nav-next')?.getAttribute('aria-label')).toBe(
       '更多文章',
     );
-    expect(firstArticleCard?.getAttribute('href')).toMatch(/^\/zh-hant\/(blog|rules)\//);
+    expect(home?.querySelector('a[href="/blog/misty"]')).not.toBeNull();
+    expect(home?.querySelector('a[href="/zh-hant/blog/mistybanqi"]')).not.toBeNull();
+    expect(home?.querySelector('a[href="/blog/server-enforced-fog"]')).not.toBeNull();
 
     const page = buildArticlePage('banqi', 'zh-Hant');
     expect(page.querySelector('.article-breadcrumb')).toBeNull();
@@ -175,6 +176,15 @@ describe('article public listing gates', () => {
     expect(
       page.querySelector('.article-variant-sidebar a[href="/zh-hant/rules/flip-xiangqi"]'),
     ).not.toBeNull();
+  });
+
+  it('renders an unfinished localized article wholly in English', () => {
+    const page = buildArticlePage('misty', 'zh-Hans');
+
+    expect(page.dataset.articleLang).toBeUndefined();
+    expect(page.querySelector('.article-title')?.textContent).toBe('How Misty Plays');
+    expect(page.querySelector('.article-meta-dates')?.textContent).toContain('Published');
+    expect(page.querySelector('.article-title')?.textContent).not.toContain('Misty 是怎么下棋的');
   });
 
   it('limits the homepage article widget to editorial article cards ordered by publish date', () => {

@@ -132,6 +132,27 @@ test('serveArticlePage falls back to index shell with rules metadata', async () 
   );
 });
 
+test('serveArticlePage redirects an unpublished localized article to its English prerender', async () => {
+  const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
+  await mkdir(join(staticDir, 'blog'), { recursive: true });
+  await writeFile(join(staticDir, 'index.html'), indexHtml(), 'utf-8');
+  await writeFile(join(staticDir, 'blog', 'misty.html'), '<h1>English article</h1>');
+  const response = captureResponse();
+
+  await serveArticlePage({
+    slug: 'misty',
+    base: 'blog',
+    langPrefix: 'zh-hans',
+    response,
+    publicHost: 'https://mistboard.test',
+    staticDir,
+  });
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.location, '/blog/misty');
+  assert.equal(response.body, '');
+});
+
 test('serveArticlePage marks parked Shogi rules as non-indexable', async () => {
   const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
   await writeFile(join(staticDir, 'index.html'), indexHtml(), 'utf-8');

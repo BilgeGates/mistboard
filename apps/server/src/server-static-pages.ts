@@ -283,11 +283,25 @@ export async function serveArticlePage(params: {
       params.response.end(prerendered);
       return;
     }
+
+    // A published English prerender with no matching localized file means the
+    // translation has not crossed its review gate. Redirect to the complete
+    // English article instead of booting the SPA into a mixed-language page.
+    // Keep this temporary so a future reviewed translation can claim the URL.
+    if (params.langPrefix) {
+      const englishPath = resolve(params.staticDir, canonicalBase, `${params.slug}.html`);
+      const englishPrerender = await fs.readFile(englishPath, 'utf-8').catch(() => null);
+      if (englishPrerender !== null) {
+        params.response.writeHead(302, { location: `/${canonicalBase}/${params.slug}` });
+        params.response.end();
+        return;
+      }
+    }
   }
 
   // Fallback for draft/outline articles (not pre-rendered): shell + meta only.
-  // Language-prefixed routes only ever serve pre-rendered files; a missing zh
-  // file falls through here to the English shell rather than 404, which is fine.
+  // Published language-prefixed routes without a reviewed translation redirect
+  // above; drafts can still use the shell in development.
   const indexPath = resolve(params.staticDir, 'index.html');
   let html = await fs.readFile(indexPath, 'utf-8');
   const article = ARTICLE_META[params.slug];

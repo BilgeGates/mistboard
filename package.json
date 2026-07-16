@@ -70,6 +70,8 @@
     "gate:evidence": "node scripts/gate-evidence.mjs",
     "check:drift": "node scripts/drift-check.mjs",
     "i18n:check": "npm run i18n:check --workspace @mistboard/web --",
+    "i18n:coverage": "npm run i18n:coverage --workspace @mistboard/web --",
+    "i18n:prune-articles": "npm run i18n:prune --workspace @mistboard/web",
     "index:fix": "node scripts/drift-check.mjs --only index --fix",
     "check:jungle-art": "node scripts/check-jungle-art.mjs",
     "publish:jungle-art": "node scripts/publish-jungle-art.mjs",

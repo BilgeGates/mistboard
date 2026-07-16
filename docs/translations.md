@@ -38,6 +38,21 @@ the command. Machine-readable coverage is available with:
 npm run i18n:check -- --json
 ```
 
-Article prose uses a separate value-based translation system. Inspect it with
-`npm run i18n:coverage --workspace @mistboard/web`; published articles become blocking only after
-they are explicitly added to `TRANSLATION_LOCKED_SLUGS`.
+## Translating articles
+
+Article prose uses a separate value-based dictionary. Partial article translations are valid work
+in progress, but they are not public localizations: Chinese index pages link those cards to English,
+and a direct localized URL redirects to the complete English prerender.
+
+1. Run `npm run i18n:coverage -- <slug>` to list the article's missing source strings.
+2. Add both `zh-Hans` and `zh-Hant` values without changing the English article structure.
+3. Get the editorial and terminology review appropriate for the article. Native-language quality
+   review remains a human gate; automated coverage proves presence, not correctness.
+4. Once both scripts report 100%, explicitly add the slug to `TRANSLATED_ARTICLE_SLUGS` in
+   `apps/web/src/article-i18n.ts`. That single publication list drives links, rendering, prerenders,
+   hreflang output, and the coverage contract.
+5. Run `npm run i18n:check`, the focused article coverage test, and the web build.
+
+After English article edits, `npm run i18n:prune-articles` removes dictionary keys that no longer
+have a live source string. The coverage test rejects orphaned keys, including separately localized
+SVG labels, so cleanup drift cannot accumulate silently.

@@ -18,7 +18,13 @@ import {
 import './community-rail.css';
 import './articles.css';
 import { type Announcement, announcements } from './announcements.js';
-import { type ArticleLang, translateArticle, translateArticleText } from './article-i18n.js';
+import {
+  type ArticleLang,
+  localizedArticleHref,
+  publishedArticleLang,
+  translateArticle,
+  translateArticleText,
+} from './article-i18n.js';
 import {
   type Article,
   type ArticleBlock,
@@ -225,7 +231,7 @@ function buildContentIndex(
     })
     .sort(compareArticlesNewestFirst);
   for (const article of entries) {
-    list.append(articleCard(lang ? translateArticle(article, lang) : article, lang));
+    list.append(articleCard(article, lang));
   }
 
   sheet.append(headingBlock);
@@ -313,11 +319,12 @@ function buildRulesLanding(lang?: ArticleLang): HTMLElement {
     const grid = document.createElement('ul');
     grid.className = 'rules-landing-grid';
     for (const article of group.items) {
-      const localized = lang ? translateArticle(article, lang) : article;
+      const articleLang = publishedArticleLang(article.slug, lang);
+      const localized = articleLang ? translateArticle(article, articleLang) : article;
       const li = document.createElement('li');
       const tile = document.createElement('a');
       tile.className = 'rules-landing-tile';
-      tile.href = localizedHref(`/rules/${article.slug}`, locale);
+      tile.href = localizedArticleHref(article, locale);
       const miniTile = renderVariantMiniThumb(article.slug);
       if (miniTile) tile.append(miniTile);
       else if (article.thumbnail) tile.append(renderArticleThumbnail(article.thumbnail));
@@ -463,11 +470,14 @@ function carouselNavButton(dir: 'prev' | 'next', glyph: string, locale: Locale):
 }
 
 function landingArticleCard(article: Article, locale: Locale): HTMLElement {
+  const requestedLang: ArticleLang | undefined =
+    locale === 'zh-Hans' || locale === 'zh-Hant' ? locale : undefined;
+  const articleLang = publishedArticleLang(article.slug, requestedLang);
+  const localized = articleLang ? translateArticle(article, articleLang) : article;
   const link = document.createElement('a');
   link.className = 'landing-article-card';
   link.dataset.cardKind = 'article';
-  const base = article.kind === 'rules' ? 'rules' : 'blog';
-  link.href = localizedHref(`/${base}/${article.slug}`, locale);
+  link.href = localizedArticleHref(article, locale);
 
   const thumb = document.createElement('div');
   thumb.className = 'landing-article-card-thumb';
@@ -494,7 +504,7 @@ function landingArticleCard(article: Article, locale: Locale): HTMLElement {
 
   const title = document.createElement('strong');
   title.className = 'landing-article-card-title';
-  title.textContent = article.title;
+  title.textContent = localized.title;
 
   link.append(thumb, title);
   return link;
@@ -653,16 +663,17 @@ export function initLandingCarousel(root: HTMLElement): void {
 }
 
 export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement {
-  const locale = articleLocale(lang);
   const base = findArticle(slug);
+  const articleLang = base ? publishedArticleLang(base.slug, lang) : undefined;
+  const locale = articleLocale(articleLang);
   if (!base) return buildArticleNotFound(locale);
   if (!isArticleVisibleInThisEnv(base)) return buildArticleNotFound(locale);
-  const article = lang ? translateArticle(base, lang) : base;
+  const article = articleLang ? translateArticle(base, articleLang) : base;
 
   const main = document.createElement('main');
   main.className = 'site-section article-shell article-page';
   main.dataset.articleSlug = article.slug;
-  if (lang) main.dataset.articleLang = lang;
+  if (articleLang) main.dataset.articleLang = articleLang;
 
   // The sheet is the page's single anchoring panel; both rails sit beside
   // it directly on the page background (pychess grammar).
@@ -726,7 +737,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   if (article.intro && article.intro.length > 0) {
     const intro = document.createElement('div');
     intro.className = 'article-intro';
-    for (const block of article.intro) intro.append(renderBlock(block, lang));
+    for (const block of article.intro) intro.append(renderBlock(block, articleLang));
     sheet.append(intro);
   }
 
@@ -758,7 +769,7 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
     h2.textContent = section.heading;
     h2.id = uniqueId(section.heading, usedIds, headingIndex++);
     body.append(h2);
-    for (const node of renderSectionBody(section, lang)) {
+    for (const node of renderSectionBody(section, articleLang)) {
       if (node instanceof HTMLHeadingElement && node.tagName === 'H3') {
         node.id = uniqueId(node.textContent ?? '', usedIds, headingIndex++);
       }
@@ -767,12 +778,12 @@ export function buildArticlePage(slug: string, lang?: ArticleLang): HTMLElement 
   }
 
   if (article.kind === 'rules') {
-    const variantNav = buildVariantSidebar(base.slug, lang);
+    const variantNav = buildVariantSidebar(base.slug, articleLang);
     if (variantNav) main.append(variantNav);
   }
   sheet.append(body);
   main.append(sheet);
-  const sidebar = buildTocSidebar(body, lang);
+  const sidebar = buildTocSidebar(body, articleLang);
   if (sidebar) main.append(sidebar);
 
   return main;
@@ -810,14 +821,15 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
   nav.className = 'article-toc-nav';
   const list = document.createElement('ul');
   for (const entry of buildRulesArticleRailEntries(entries)) {
+    const entryLang = publishedArticleLang(entry.slug, lang);
     const li = document.createElement('li');
     const link = document.createElement('a');
     link.className = 'article-variant-link';
-    link.href = localizedHref(`/rules/${entry.slug}`, locale);
+    link.href = localizedArticleHref(entry, locale);
     const miniRail = renderVariantMiniThumb(entry.slug);
     if (miniRail) link.append(miniRail);
     else if (entry.thumbnail) link.append(renderArticleThumbnail(entry.thumbnail));
-    const localized = lang ? translateArticle(entry, lang) : entry;
+    const localized = entryLang ? translateArticle(entry, entryLang) : entry;
     const label = document.createElement('span');
     label.className = 'article-variant-label';
     label.textContent = variantNavLabel(localized.title);
@@ -1918,15 +1930,16 @@ function renderStaticBoardsBlock(block: StaticBoardsBlock): HTMLElement {
 // spec on each pending wrap and consume it in mountArticleThumbnails.
 const pendingThumbnails = new WeakMap<HTMLElement, ArticleThumbnail>();
 
-function articleCard(article: Article, lang?: ArticleLang): HTMLLIElement {
+function articleCard(baseArticle: Article, lang?: ArticleLang): HTMLLIElement {
   const locale = articleLocale(lang);
+  const articleLang = publishedArticleLang(baseArticle.slug, lang);
+  const article = articleLang ? translateArticle(baseArticle, articleLang) : baseArticle;
   const item = document.createElement('li');
   item.className = 'articles-index-item';
 
   const link = document.createElement('a');
   link.className = 'articles-index-card';
-  const base = article.kind === 'rules' ? 'rules' : 'blog';
-  link.href = localizedHref(`/${base}/${article.slug}`, locale);
+  link.href = localizedArticleHref(article, locale);
 
   const thumb = document.createElement('div');
   thumb.className = 'articles-index-card-media';
