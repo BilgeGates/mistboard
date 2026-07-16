@@ -4,7 +4,12 @@
 import { spawnSync } from 'node:child_process';
 
 const suites = {
+  // check:drift runs first: it is near-instant and guards invariants (SQL enum
+  // parity, fog-redaction payload guard) that nothing else on the release path
+  // re-checks. release:prod pushes with --no-verify, so the pre-push hook's
+  // drift check never runs there; this is the only drift gate on that path.
   quick: [
+    ['npm', 'run', 'check:drift'],
     ['npm', 'run', 'lint'],
     ['npm', 'run', 'i18n:check'],
     ['npm', 'run', 'build'],
@@ -13,6 +18,7 @@ const suites = {
     ['npm', 'run', 'check:cycles'],
   ],
   local: [
+    ['npm', 'run', 'check:drift'],
     ['npm', 'run', 'lint'],
     ['npm', 'run', 'i18n:check'],
     ['npm', 'run', 'build'],
@@ -68,9 +74,10 @@ function printHelp() {
   npm run ci:quick
   npm run ci:local
 
-ci:quick checks formatting and translation-catalog policy, runs the local build
-so unit tests that spawn dist entrypoints do not read stale or missing output,
-then runs typecheck, unit tests, and the dependency-cycle check.
+ci:quick runs the drift check (INDEX/SQL-enum/redaction invariants), checks
+formatting and translation-catalog policy, runs the local build so unit tests
+that spawn dist entrypoints do not read stale or missing output, then runs
+typecheck, unit tests, and the dependency-cycle check.
 
 ci:local runs the full local build, typecheck, unit tests, cycle check, and
 server integration tests. Set MISTBOARD_RUN_DB_CHECKS=1 to include the

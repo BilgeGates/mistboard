@@ -61,6 +61,8 @@ jobs:
       - run: npm ci
       - name: Lint
         run: npm run lint
+      - name: Translation catalog policy
+        run: npm run i18n:check
 
   build:
     name: Build
@@ -109,6 +111,22 @@ jobs:
           npm run build --workspace @mistboard/server
       - name: Unit tests
         run: npm run test:unit
+
+  puzzle-corpus:
+    name: Puzzle corpus verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Full kernel verification of every shipped puzzle (~24s). Lives here as
+      # its own parallel job so the local test:unit hot path only runs a
+      # 5-puzzle sample plus a corpus content-hash pin.
+      - name: Verify puzzle corpus
+        run: npm run test:puzzles:corpus
 
   integration:
     name: Server integration
@@ -187,10 +205,16 @@ jobs:
       - build
       - typecheck
       - unit
+      - puzzle-corpus
       - integration
       - browser-smoke
       - audit
-    if: always()
+    # NOT always(): a concurrency-cancelled run must conclude as cancelled, not
+    # failure. With always() the aggregator ran anyway, saw cancelled needs, and
+    # exited 1, so notify-ci-failure filed phantom "CI red on main" issues
+    # (#226, #229). When this job skips, needs.node.result is 'skipped' and
+    # neither notify-ci-failure nor close-ci-failure fires.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs

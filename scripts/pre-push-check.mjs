@@ -110,13 +110,9 @@ function buildPlan(files, options) {
       reason: 'repo tooling, package, workflow, deploy, or shared package files changed',
       cleanDist: true,
       persistenceGate,
-      // check:drift is near-instant and guards push-time invariants (INDEX
-      // coverage, fog-redaction payload guard, SQL enum parity) that ci:quick
-      // does not re-check, so run it as a fast-fail prefix.
-      commands: [
-        ['npm', 'run', 'check:drift'],
-        ['npm', 'run', 'ci:quick'],
-      ],
+      // ci:quick runs check:drift as its first command (scripts/ci-checks.mjs),
+      // so the drift invariants still fail fast without a separate prefix here.
+      commands: [['npm', 'run', 'ci:quick']],
     };
   }
 
@@ -133,8 +129,14 @@ function buildPlan(files, options) {
       // dropped redaction guard) lands via this branch, which verify does not catch.
       // Whole-repo lint runs here because hosted CI lints the whole repo: latent
       // format debt in an untouched file fails CI on an app-only push and silently
-      // freezes the Railway auto-deploy (reds of 2026-07-01).
-      commands: [['npm', 'run', 'check:drift'], ['npm', 'run', 'lint'], command],
+      // freezes the Railway auto-deploy (reds of 2026-07-01). i18n:check runs for
+      // the same reason: hosted CI checks catalog policy on every app push.
+      commands: [
+        ['npm', 'run', 'check:drift'],
+        ['npm', 'run', 'lint'],
+        ['npm', 'run', 'i18n:check'],
+        command,
+      ],
     };
   }
 
@@ -156,14 +158,13 @@ function isPersistenceWatchedPath(file) {
 }
 
 function isDocsOrMetaOnly(file) {
-  return (
-    file.startsWith('docs/') ||
-    file === 'AGENTS.md' ||
-    file === 'CLAUDE.md' ||
-    file === 'INDEX.md' ||
-    file === 'README.md' ||
-    file.endsWith('.md')
-  );
+  // Markdown under apps/, packages/, or scripts/ is NOT docs-only: those
+  // trees are in the hosted CI path filters (and Railway watch paths), so a
+  // push touching them does trigger CI and a deploy.
+  if (file.startsWith('apps/') || file.startsWith('packages/') || file.startsWith('scripts/')) {
+    return false;
+  }
+  return file.startsWith('docs/') || file.endsWith('.md');
 }
 
 function needsBroadColdGate(file) {
