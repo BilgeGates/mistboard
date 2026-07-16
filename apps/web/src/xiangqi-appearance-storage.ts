@@ -90,6 +90,12 @@ export function writeStoredXiangqiBoardLayout(layout: XiangqiBoardLayout): void 
 
 export function readStoredXiangqiPieceSet(): XiangqiPieceSet {
   try {
+    // QA/share hook: preview a piece set without changing the browser's saved
+    // preference. This mirrors the xqLayout hook used for board-layout review.
+    const previewPieceSet = new URLSearchParams(window.location.search).get('xqPieces');
+    if (XIANGQI_PIECE_SETS.some((set) => set.id === previewPieceSet)) {
+      return previewPieceSet as XiangqiPieceSet;
+    }
     const version = window.localStorage.getItem(xiangqiPieceSetStorageVersionKey);
     if (version !== xiangqiPieceSetStorageVersion) {
       window.localStorage.setItem(xiangqiPieceSetStorageVersionKey, xiangqiPieceSetStorageVersion);

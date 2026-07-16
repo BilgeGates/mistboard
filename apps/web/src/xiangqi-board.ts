@@ -249,6 +249,16 @@ function lastMoveLayer(
   const to = coordOf(view.lastMove.to);
   const fromCenter = intersection(from.file, from.rank, perspective, layout);
   const toCenter = intersection(to.file, to.rank, perspective, layout);
+  if (layout === 'cell') {
+    const fromX = fromCenter.x - CELL / 2;
+    const fromY = fromCenter.y - CELL / 2;
+    const toX = toCenter.x - CELL / 2;
+    const toY = toCenter.y - CELL / 2;
+    return (
+      `<rect class="xq-live-lastmove-square xq-live-lastmove-from" x="${fromX}" y="${fromY}" width="${CELL}" height="${CELL}"/>` +
+      `<rect class="xq-live-lastmove-square xq-live-lastmove-to" x="${toX}" y="${toY}" width="${CELL}" height="${CELL}"/>`
+    );
+  }
   // Origin: a darkened "the piece came from here" shadow disc. Destination: a
   // gold ring around the moved piece (this layer sits under the pieces, so only
   // the halo outside the r=27 piece radius shows). Styling lives in
@@ -452,11 +462,15 @@ export function animateXiangqiBoardMove(
   const from = intersection(origin.file, origin.rank, perspective, layout);
   const to = intersection(settle.file, settle.rank, perspective, layout);
   glideSvgPiece(slot, from.x - to.x, from.y - to.y, duration);
-  // Draw the gold destination ring on as the piece lands (forward moves only —
-  // on a reverse step the rendered ring belongs to the earlier move, at a
-  // different square, so fading it wouldn't track this glide).
+  // Draw the destination marker on as the piece lands (forward moves only). On
+  // intersection boards this is the gold ring; on square grids it is the
+  // destination-cell wash. A reverse step renders the prior move's marker at a
+  // different square, so fading it would not track the reverse glide.
   if (!opts.reverse) {
-    drawMarkerOnArrival(host.querySelector('.xq-live-lastmove-ring'), duration);
+    drawMarkerOnArrival(
+      host.querySelector('.xq-live-lastmove-to, .xq-live-lastmove-ring'),
+      duration,
+    );
   }
 }
 

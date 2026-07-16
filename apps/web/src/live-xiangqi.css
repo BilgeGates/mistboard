@@ -223,9 +223,22 @@
    it reads as "the piece came from here" at a glance. The fog board
    (live-dark-xiangqi.ts) renders plain -cell circles on both endpoints and
    keeps the lighter wash above. */
-.xq-live-lastmove-from {
+.xq-live-lastmove-cell.xq-live-lastmove-from {
   fill: #a16207;
   opacity: 0.34;
+}
+
+/* Square-grid boards use the same spatial language as Western chess boards:
+   tint the complete source and destination cells instead of drawing token-sized
+   circles. RGBA fills keep the grid visible and let the destination marker's
+   arrival animation control element opacity without briefly becoming solid. */
+.xq-live-lastmove-square {
+  fill: rgba(245, 158, 11, 0.28);
+  pointer-events: none;
+}
+
+.xq-live-lastmove-square.xq-live-lastmove-from {
+  fill: rgba(161, 98, 7, 0.3);
 }
 
 /* Destination: a gold halo around the last-moved piece. Drawn under the piece
