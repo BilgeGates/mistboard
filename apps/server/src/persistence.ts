@@ -206,10 +206,13 @@ export {
 } from './persistence-forum.js';
 export type { StoredPlyEval } from './persistence-game-analysis.js';
 export {
+  deleteGameAnalysisProgress,
   getGameAnalysis,
   getGameAnalysisBlob,
+  getGameAnalysisProgress,
   saveGameAnalysis,
   saveGameAnalysisBlob,
+  saveGameAnalysisProgress,
 } from './persistence-game-analysis.js';
 export type {
   GameDebugArtifactInput,
