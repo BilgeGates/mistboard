@@ -7,7 +7,7 @@
 /** Variants a client engine can evaluate. `xiangqi`/`fortressxiangqi` run on the shared
  *  Fairy-Stockfish instance (ceval.ts); `banqi` runs on a separate Misty wasm backend
  *  (misty-ceval.ts) — createCeval() dispatches by variant. */
-export type CevalVariant = 'xiangqi' | 'fortressxiangqi' | 'banqi' | 'jungleflip';
+export type CevalVariant = 'xiangqi' | 'fortressxiangqi' | 'banqi' | 'jungleflip' | 'jungle';
 
 export interface CevalLine {
   /** 1-based rank within MultiPV (1 = best). */
