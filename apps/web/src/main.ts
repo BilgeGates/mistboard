@@ -4,6 +4,7 @@ import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
+import { clearChunkReloadAttempt, reloadForChunkLoadError } from './chunk-load-recovery.js';
 import { correspondenceEnabled, friendsOnlineEnabled, learnEnabled } from './feature-flags.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, initializeLocaleFromCurrentUrl } from './i18n/locale.js';
@@ -695,54 +696,13 @@ function setTitleKey(key: I18nKey): void {
   setTitle(t(key, {}, currentLocale()));
 }
 
-// Code-split routes fetch their chunk lazily, so a transient failure — most
-// often the brief server-restart window during a deploy — rejects the dynamic
-// import with a browser-specific "module load" error. Retry once with a full
-// reload (which re-fetches index.html and the current chunk hashes) before
-// surfacing the error screen. The sessionStorage flag caps it at one retry per
-// tab session so a genuinely-missing asset can't loop; it clears on any
-// successful mount so a later deploy gets its own retry budget.
-const CHUNK_RELOAD_FLAG = 'mistboard.chunkReloadAttempted';
-
-function isChunkLoadError(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err);
-  return (
-    message.includes('Failed to fetch dynamically imported module') || // Chromium
-    message.includes('error loading dynamically imported module') || // Firefox
-    message.includes('Importing a module script failed') // Safari
-  );
-}
-
-function chunkReloadAlreadyAttempted(): boolean {
-  try {
-    return sessionStorage.getItem(CHUNK_RELOAD_FLAG) !== null;
-  } catch {
-    // Storage unavailable (private mode, etc.): treat as already tried so we
-    // fall through to the error screen instead of risking a reload loop.
-    return true;
-  }
-}
-
-function setChunkReloadAttempted(value: boolean): void {
-  try {
-    if (value) sessionStorage.setItem(CHUNK_RELOAD_FLAG, '1');
-    else sessionStorage.removeItem(CHUNK_RELOAD_FLAG);
-  } catch {
-    // No-op when storage is unavailable.
-  }
-}
-
 async function mountOrReport(run: () => Promise<void>): Promise<void> {
   try {
     await run();
-    setChunkReloadAttempted(false);
+    clearChunkReloadAttempt();
   } catch (err) {
     console.error(err);
-    if (isChunkLoadError(err) && !chunkReloadAlreadyAttempted()) {
-      setChunkReloadAttempted(true);
-      location.reload();
-      return;
-    }
+    if (reloadForChunkLoadError(err)) return;
     appRoot.replaceChildren();
     appRoot.classList.add('landing-page');
     const shell = document.createElement('main');
@@ -757,7 +717,7 @@ async function mountOrReport(run: () => Promise<void>): Promise<void> {
     reload.className = 'landing-cta-primary';
     reload.textContent = 'Reload';
     reload.addEventListener('click', () => {
-      setChunkReloadAttempted(false);
+      clearChunkReloadAttempt();
       location.reload();
     });
     shell.append(heading, detail, reload);

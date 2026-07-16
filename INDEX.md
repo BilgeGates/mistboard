@@ -378,6 +378,7 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | File | Owns |
 |------|------|
 | `main.ts` | Entry point — URL routing to page modules via dynamic import; mounts theme + nav + restart banner + analytics |
+| `chunk-load-recovery.ts` | Shared one-shot reload guard for stale code-split chunks after a deployment; used by route mounts and the asynchronous homepage showcase cycler |
 | `live.ts` | Live-game page bootstrap — wires `live-state`, `live-socket`, `live-render`, and `live-view` for `/room/:id` |
 | `app-base.css` | Global site/board/fog tokens plus page-base primitives loaded before shared styles by both `main.ts` and `live.ts` |
 | `board-fog.css` | Fog theme rendering rules, including Mistveil tile URL mapping and hidden-square background behavior |
@@ -507,12 +508,12 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `landing-activity.ts` | Homepage activity box: live presence (`/api/live-stats`) + durable totals (`/api/stats/public`) in the shared `site-box` shell; omitted entirely when both fetches fail |
 | `news-page.ts` | `/news` route: full announcement history as a dated reverse-chronological feed; the landing News box "More" target. Loads `news-page.css` |
 | `news-page.css` | `/news` dated-feed styles loaded by `news-page.ts` |
-| `replay-skeleton.ts` | Neutral "Loading game" placeholder for watch/showcase replay slots while renderer kinds swap or mount asynchronously |
+| `replay-skeleton.ts` | Neutral loading and terminal-failure placeholders for watch/showcase replay slots while renderer kinds swap or mount asynchronously |
 | `showcase-board.ts` | Homepage showcase single-board mount: dispatches between chessground replay and tenant watch renderers, owns compact chess replay options and game-end handoff |
 | `showcase-sheet.ts` | Dev-only variant showcase sheet: renders one showcase board per channel (latest finished game) for quick cross-variant visual review |
 | `showcase-clock.ts` | Homepage showcase timing helpers: reconstructs per-ply clock series and autoplay delays from tenant postgame move timestamps plus Fischer time controls |
 | `showcase-compact-view.ts` | Shared compact-view picker for homepage showcase tenant renderers: chooses masked, truth, or stable per-room POV panes without being a redaction boundary |
-| `showcase-cycler.ts` | Homepage showcase cycler: rolls through finished games across renderer kinds, reuses handles when possible, remounts across kinds, and shows the replay skeleton during swaps |
+| `showcase-cycler.ts` | Homepage showcase cycler: rolls through finished games across renderer kinds, reuses handles when possible, remounts across kinds, reloads stale chunks once, and skips failed entries without hot-looping |
 | `showcase-dispatch.ts` | Showcase renderer dispatch shared with watch routing: maps persisted/spec ids to tenant renderer kinds or the chessground fallback and picks the next pool index |
 | `database.ts` | Unlisted admin game browser (`/database`): faceted completed-game query with win-rate/termination/length summary + review links; admin-gated by `/api/admin/games/query` (open in local dev), no nav entry. Loads `database.css` |
 | `database.css` | `/database` admin game-browser styles loaded by `database.ts` |
