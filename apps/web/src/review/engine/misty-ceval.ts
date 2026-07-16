@@ -1,8 +1,9 @@
 // Client-side ("local") engine analysis for the Misty family of Rust engines, compiled to
-// WebAssembly. Currently: Banqi (MistyBanqi). This is the second ceval backend — the
-// Fairy-Stockfish one in ceval.ts drives xiangqi/fortress; this one drives the hidden-info
-// flip variants whose engines are Rust, not FSF. Both satisfy the same CevalHandle contract
-// so the engine panel is backend-agnostic.
+// WebAssembly: Banqi (MistyBanqi), Flip Jungle (MistyJungleFlip), and vanilla Jungle
+// (MistyJungle). This is the second ceval backend — the Fairy-Stockfish one in ceval.ts
+// drives xiangqi/fortress; this one drives the Rust-engine variants (the hidden-info flip
+// ones AND perfect-info Jungle), which are Rust, not FSF. Both satisfy the same CevalHandle
+// contract so the engine panel is backend-agnostic.
 //
 // Key differences from the FSF backend:
 //  - SINGLE-THREADED wasm: no SharedArrayBuffer, so NO cross-origin isolation needed
@@ -24,7 +25,7 @@ import type {
 // version query. The worker's own imports are unversioned (bare path), so the main thread
 // posts the versioned URLs in `init` — bump this on any vendored-asset change to mint fresh
 // edge cache keys for the worker script, the JS glue, AND the wasm.
-const MISTY_ASSET_VERSION = '0.2.4-1';
+const MISTY_ASSET_VERSION = '0.2.4-2';
 
 interface MistyEngineConfig {
   /** Public base path of the vendored wasm build. */
@@ -53,11 +54,18 @@ const MISTY_CONFIGS: Record<string, MistyEngineConfig> = {
     // Same budget shape as banqi; the 4×4 flip board resolves comparably fast per position.
     nodesForDepth: (maxDepth) => Math.max(80_000, maxDepth * 20_000),
   },
+  jungle: {
+    base: '/engine/misty-jungle/',
+    moduleName: 'jungle_wasm',
+    engineName: 'MistyJungle',
+    // Same budget shape; the 7×9 perfect-info board reaches ~depth 6-8 in this range.
+    nodesForDepth: (maxDepth) => Math.max(80_000, maxDepth * 20_000),
+  },
 };
 
 /** Variants served by a Misty wasm backend (vs the FSF backend in ceval.ts). */
 export function isMistyCevalVariant(variant: CevalVariant): boolean {
-  return variant === 'banqi' || variant === 'jungleflip';
+  return variant === 'banqi' || variant === 'jungleflip' || variant === 'jungle';
 }
 
 export function mistyEngineName(variant: CevalVariant): string | null {
