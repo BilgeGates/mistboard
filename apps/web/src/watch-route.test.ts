@@ -1,4 +1,11 @@
 import { describe, expect, it } from 'vitest';
+// Side-effect import: populates the server tenant registry exactly like
+// apps/server/src/index.ts does (same pattern as variant-registry-sync.test.ts),
+// so the expected watch-channel list below derives from the server's source of
+// truth instead of a hand-maintained literal that drifts as channels launch.
+import '../../server/src/variant-tenant/register-tenants.js';
+import { registeredVariantTenants } from '../../server/src/variant-tenant/registry.js';
+import { listWatchChannels } from '../../server/src/watch-channels.js';
 import type { FeaturedGame } from './game-display.js';
 import { createGameTable } from './game-table.js';
 import {
@@ -246,25 +253,32 @@ describe('renderWatchChannelList', () => {
   }
 
   // Regression: every launchable channel needs either a variant marker mapping
-  // or a dedicated cross-variant marker, or its rail slot renders empty.
-  it('renders a marker for every launched watch channel', () => {
+  // (CHANNEL_MINI_BY_ID) or a dedicated cross-variant marker, or its rail slot
+  // renders empty. The expected list derives from the server's own channel
+  // sources (apps/server/src/watch-channels.ts): every channel enabled in this
+  // env via listWatchChannels() — which contributes the hardcoded dark-chess and
+  // engines channels — plus every registered tenant that declares a watch
+  // surface, INCLUDING tenants whose launch flag is off here. The marker must
+  // exist before the flag flips, so launching a new channel without one fails
+  // this test instead of shipping an empty rail slot.
+  it('renders a marker for every launched or launchable watch channel', () => {
+    const channelsById = new Map<string, ReturnType<typeof channel>>();
+    for (const serverChannel of listWatchChannels()) {
+      channelsById.set(serverChannel.id, channel(serverChannel.id, serverChannel.label));
+    }
+    for (const registration of registeredVariantTenants()) {
+      const watch = registration.watch;
+      if (!watch) continue;
+      channelsById.set(watch.channelId, channel(watch.channelId, watch.label));
+    }
+    const channels = [...channelsById.values()];
+    // Sanity: the registry side-effect import actually populated the sources
+    // (dark-chess + engines + at least one tenant channel).
+    expect(channels.length).toBeGreaterThanOrEqual(3);
+
     const feed = {
       activeChannel: 'dark-chess',
-      channels: [
-        channel('engines', 'Engines'),
-        channel('dark-chess', 'Fog Chess'),
-        channel('mini-xiangqi', 'Mini Xiangqi'),
-        channel('dark-mini-xiangqi', 'Dark Mini Xiangqi'),
-        channel('dark-xiangqi', 'Fog Xiangqi'),
-        channel('jieqi', 'Reveal Xiangqi'),
-        channel('banqi', 'Flip Xiangqi'),
-        channel('reveal-chess', 'Reveal Chess'),
-        channel('crossroads-chess', 'Crossroads Chess'),
-        channel('dark-crossroads-chess', 'Dark Crossroads Chess'),
-        channel('dark-shogi', 'Fog Shogi'),
-        channel('dark-crazyhouse', 'Dark Crazyhouse'),
-        channel('kriegspiel', 'Kriegspiel'),
-      ],
+      channels,
       now: '2026-06-17T00:00:00.000Z',
       unlockLimit: 64,
       sealedCount: 0,
@@ -274,7 +288,7 @@ describe('renderWatchChannelList', () => {
     renderWatchChannelList(root, feed);
 
     const links = root.querySelectorAll('a.watch-channel-link');
-    expect(links).toHaveLength(13);
+    expect(links).toHaveLength(channels.length);
     for (const link of links) {
       const thumb = link.querySelector('.watch-channel-thumb');
       expect(

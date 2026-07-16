@@ -7,6 +7,7 @@ import {
   actionTone,
   connectionNoticeMode,
   correspondenceAwaitingOpponent,
+  rejectedSignInHref,
 } from './live-status.js';
 
 function playingView(): PlayerView {
@@ -156,5 +157,29 @@ describe('correspondence waiting-for-opponent states', () => {
     liveState.closeReason = 'correspondence requires account';
     expect(actionTitle(null)).toBe('Access rejected');
     expect(actionBody(null, noDraft)).toContain('Both players need an account');
+  });
+});
+
+describe('rejected sign-in CTA (return-to-invite, issue #22)', () => {
+  afterEach(() => {
+    liveState.closeReason = '';
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('carries the invite URL as the auth referrer for account-gated rejections', () => {
+    window.history.replaceState(null, '', '/room/abc123?join=1');
+    liveState.connectionState = 'rejected';
+    for (const reason of ['rated requires account', 'correspondence requires account']) {
+      liveState.closeReason = reason;
+      expect(rejectedSignInHref()).toBe('/account?tab=login&referrer=%2Froom%2Fabc123%3Fjoin%3D1');
+    }
+  });
+
+  it('offers no sign-in CTA for rejections an account cannot fix', () => {
+    liveState.connectionState = 'rejected';
+    for (const reason of ['private room', 'origin not allowed', 'rate limit', '']) {
+      liveState.closeReason = reason;
+      expect(rejectedSignInHref()).toBeNull();
+    }
   });
 });

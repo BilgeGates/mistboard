@@ -21,6 +21,7 @@ import {
   recordMessageTimestamp,
   seatTokenFromProtocolHeader,
 } from './server-policy.js';
+import { SITEMAP_STATIC_ROUTES } from './server-static-pages.js';
 
 test('live persisted events are not public replay data', () => {
   const events: GameEvent[] = [
@@ -316,14 +317,20 @@ const PARKED_CLIENT_ROUTES = new Set<string>([
   '/learn', // legacy dark-chess hub; gated off in prod (learnEnabled) → branded 404
 ]);
 
-test('isClientRoute covers every literal route declared in main.ts', () => {
+function readMainTsSource(): string {
   const here = dirname(fileURLToPath(import.meta.url));
   const mainPath = resolve(here, '..', '..', 'web', 'src', 'main.ts');
-  const source = readFileSync(mainPath, 'utf-8');
+  return readFileSync(mainPath, 'utf-8');
+}
+
+test('isClientRoute covers every literal route declared in main.ts', () => {
+  const source = readMainTsSource();
   // Matches `path === '/foo'` or `path === '/foo/bar'` — the canonical pattern
   // for top-level routes in main.ts (e.g. wantsAbout, wantsContact). Parametric
-  // routes (/game/:id, /@/:handle, /blog/:slug, /room/:id) live in helper
-  // functions and are exercised by the literal startsWith branches below.
+  // routes matched against `path` (regex + startsWith) are parsed by the
+  // parametric-matcher test below; helper functions at the bottom of main.ts
+  // match against their own `value` parameter and are exercised by the explicit
+  // parametric-route assertions.
   const literalRoutes = Array.from(source.matchAll(/path === '(\/[^']*)'/g))
     .map((match) => match[1]!)
     // `/` is served as the static index.html itself, no SPA fallback needed.
@@ -334,6 +341,87 @@ test('isClientRoute covers every literal route declared in main.ts', () => {
       isClientRoute(route),
       true,
       `main.ts routes ${route} client-side but server isClientRoute() returns 404`,
+    );
+  }
+});
+
+// Sample paths for every parametric route matcher main.ts applies to `path`.
+// Keys are the regex sources exactly as written in main.ts; the test below
+// extracts the matchers from the source and fails when one has no sample here,
+// so a new parametric route cannot ship without isClientRoute parity coverage
+// (the bug class: /study/:id had no parity assert at all).
+const PARAMETRIC_ROUTE_SAMPLES: Record<string, readonly string[]> = {
+  '^\\/inbox(?:\\/([^/]+))?$': ['/inbox', '/inbox/somehandle'],
+  '^\\/coach(?:\\/([^/]+))?$': ['/coach', '/coach/somehandle'],
+  '^\\/study\\/([A-Za-z0-9]+)$': ['/study/Ab12cd'],
+};
+
+test('isClientRoute covers every parametric route matcher declared in main.ts', () => {
+  const source = readMainTsSource();
+
+  // Top-level parametric routes in main.ts are expressed against `path` in
+  // three shapes: `path.match(/regex/)`, `/regex/.exec(path)`, and
+  // `path.startsWith('/prefix/')`. Extract all three. Parser limitation: the
+  // regex extraction reads lazily up to the closing `/)`; a future route regex
+  // containing that character pair would be truncated, land outside the sample
+  // map, and fail this test loudly (asking for a sample) rather than silently
+  // passing.
+  const regexSources = [
+    ...source.matchAll(/path\.match\(\/(.*?)\/\)/g),
+    ...source.matchAll(/\/(\^.*?)\/\.exec\(path\)/g),
+  ].map((match) => match[1]!);
+  assert.ok(regexSources.length >= 3, 'expected regex route matchers in main.ts');
+  for (const regexSource of regexSources) {
+    const samples = PARAMETRIC_ROUTE_SAMPLES[regexSource];
+    assert.ok(
+      samples,
+      `main.ts matches paths against /${regexSource}/ but PARAMETRIC_ROUTE_SAMPLES has no entry for it; add sample paths so isClientRoute parity covers the route`,
+    );
+    for (const sample of samples) {
+      assert.ok(
+        new RegExp(regexSource).test(sample),
+        `sample ${sample} no longer matches /${regexSource}/ — update PARAMETRIC_ROUTE_SAMPLES`,
+      );
+      assert.equal(
+        isClientRoute(sample),
+        true,
+        `main.ts routes ${sample} client-side (via /${regexSource}/) but server isClientRoute() returns 404`,
+      );
+    }
+  }
+
+  const prefixes = Array.from(source.matchAll(/path\.startsWith\('(\/[^']*)'\)/g)).map(
+    (match) => match[1]!,
+  );
+  assert.ok(prefixes.length >= 4, 'expected startsWith route matchers in main.ts');
+  for (const prefix of prefixes) {
+    const sample = prefix.endsWith('/') ? `${prefix}sample` : `${prefix}/sample`;
+    assert.equal(
+      isClientRoute(sample),
+      true,
+      `main.ts routes ${prefix}* client-side but server isClientRoute() rejects ${sample}`,
+    );
+  }
+});
+
+// The sitemap must never advertise a route the server 404s: every static route
+// it lists (except '/', served as the static index itself) has to be accepted
+// by the SPA fallback allowlist AND stay out of the parked/prod-404 set. This
+// kills the hand-mirror class that once advertised /learn while server-policy
+// parked it.
+test('sitemap static routes are live client routes, never parked ones', () => {
+  assert.ok(SITEMAP_STATIC_ROUTES.length > 0, 'expected sitemap static routes');
+  for (const route of SITEMAP_STATIC_ROUTES) {
+    if (route === '/') continue;
+    assert.equal(
+      PARKED_CLIENT_ROUTES.has(route),
+      false,
+      `sitemap advertises ${route}, but it is parked/prod-404 (PARKED_CLIENT_ROUTES)`,
+    );
+    assert.equal(
+      isClientRoute(route),
+      true,
+      `sitemap advertises ${route}, but isClientRoute() rejects it so prod serves a 404 shell`,
     );
   }
 });

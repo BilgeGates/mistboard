@@ -176,6 +176,32 @@ export async function servePrerenderedPage(params: {
   params.response.end(html);
 }
 
+// Static, always-on public routes advertised in the sitemap. Every entry
+// (except '/', served as the static index itself) must be accepted by the SPA
+// fallback allowlist (server-policy.ts isClientRoute) and must not be a
+// parked/prod-404 route — server-policy.test.ts holds a conformance test over
+// this list so it cannot drift from the routing policy again (it once
+// advertised /learn, which prod 404s).
+export const SITEMAP_STATIC_ROUTES: readonly string[] = [
+  '/',
+  '/blog',
+  '/rules',
+  '/zh-hans/rules',
+  '/zh-hant/rules',
+  '/about',
+  '/puzzles',
+  '/videos',
+  '/streamer',
+  '/player',
+  '/player/rating-stats',
+  '/coach',
+  '/forum',
+  '/source',
+  '/faq',
+  '/patron',
+  '/contribute',
+];
+
 // Sitemap of public, indexable surfaces: static content routes plus every
 // pre-rendered article (discovered from dist/blog/*.html, so the published
 // set stays the single source of truth in articles-data -> prerender output).
@@ -184,26 +210,6 @@ export async function serveSitemap(params: {
   publicHost: string;
   staticDir: string;
 }): Promise<void> {
-  const staticRoutes = [
-    '/',
-    '/blog',
-    '/rules',
-    '/zh-hans/rules',
-    '/zh-hant/rules',
-    '/about',
-    '/learn',
-    '/puzzles',
-    '/videos',
-    '/streamer',
-    '/player',
-    '/player/rating-stats',
-    '/coach',
-    '/forum',
-    '/source',
-    '/faq',
-    '/patron',
-    '/contribute',
-  ];
   // Each article is listed once per pre-rendered language variant (dist/blog,
   // dist/zh-hans/blog, dist/zh-hant/blog), so the published+translated set
   // stays single-sourced in the prerender output.
@@ -231,7 +237,7 @@ export async function serveSitemap(params: {
       articleUrls.push(`${urlBase}/${encodeURIComponent(slug)}`);
     }
   }
-  const urls = [...staticRoutes, ...articleUrls];
+  const urls = [...SITEMAP_STATIC_ROUTES, ...articleUrls];
   const body = urls.map((path) => `  <url><loc>${params.publicHost}${path}</loc></url>`).join('\n');
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
   params.response.writeHead(200, { 'content-type': 'application/xml; charset=utf-8' });

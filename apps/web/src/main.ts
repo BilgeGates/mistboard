@@ -4,7 +4,11 @@ import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
-import { clearChunkReloadAttempt, reloadForChunkLoadError } from './chunk-load-recovery.js';
+import {
+  clearChunkReloadAttempt,
+  installGlobalChunkLoadRecovery,
+  reloadForChunkLoadError,
+} from './chunk-load-recovery.js';
 import { correspondenceEnabled, friendsOnlineEnabled, learnEnabled } from './feature-flags.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, initializeLocaleFromCurrentUrl } from './i18n/locale.js';
@@ -22,6 +26,10 @@ import {
   webVariantTenants,
 } from './variant-tenant/registry.js';
 
+// Installed before anything else so EVERY later dynamic import — including
+// post-bootstrap lazy loads on long-lived tabs (/watch) that no per-mount guard
+// wraps — gets the one-shot stale-chunk reload after a deploy.
+installGlobalChunkLoadRecovery();
 initializeLocaleFromCurrentUrl();
 initializeThemeSettings();
 // Register notification sources before the nav mounts — account-nav mounts the

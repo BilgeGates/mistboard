@@ -60,6 +60,7 @@ import {
   boardStatusTone,
   connectionNoticeMode,
   modeLabel,
+  rejectedSignInHref,
   seatLabel,
 } from './live-status.js';
 import { currentCaptures, currentProjection, currentView } from './live-view.js';
@@ -545,6 +546,16 @@ function renderActionStatus(view: PlayerView | null): void {
     reconnect.textContent = 'Reconnect now';
     reconnect.addEventListener('click', reconnectNow);
     notice.append(reconnect);
+  }
+
+  if (showBanner && liveState.connectionState === 'rejected') {
+    const signInHref = rejectedSignInHref();
+    if (signInHref) {
+      const signIn = document.createElement('a');
+      signIn.href = signInHref;
+      signIn.textContent = 'Sign in to take your seat';
+      notice.append(signIn);
+    }
   }
 
   refs.actionStatus.append(notice);

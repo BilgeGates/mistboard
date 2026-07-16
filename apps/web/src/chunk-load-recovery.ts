@@ -31,8 +31,11 @@ export function clearChunkReloadAttempt(): void {
   }
 }
 
-export function shouldReloadForChunkLoadError(err: unknown): boolean {
-  if (!isChunkLoadError(err) || chunkReloadAlreadyAttempted()) return false;
+// Claims the single session-capped reload attempt: true exactly once per
+// session (until a successful mount clears the flag), false when the attempt
+// was already spent or storage is unavailable.
+function markChunkReloadAttempt(): boolean {
+  if (chunkReloadAlreadyAttempted()) return false;
   try {
     sessionStorage.setItem(CHUNK_RELOAD_FLAG, '1');
   } catch {
@@ -41,8 +44,35 @@ export function shouldReloadForChunkLoadError(err: unknown): boolean {
   return true;
 }
 
+export function shouldReloadForChunkLoadError(err: unknown): boolean {
+  return isChunkLoadError(err) && markChunkReloadAttempt();
+}
+
 export function reloadForChunkLoadError(err: unknown): boolean {
   if (!shouldReloadForChunkLoadError(err)) return false;
   location.reload();
   return true;
+}
+
+// Global stale-chunk recovery for lazy loads that happen AFTER bootstrap (the
+// /watch page swapping games in a long-lived tab across a deploy, for example),
+// where no per-mount guard wraps the dynamic import. Vite emits
+// `vite:preloadError` on window whenever a dynamic-import chunk or one of its
+// preloaded deps fails to load, so the event itself is the stale-chunk signal;
+// no message sniffing is needed (CSS preload failures carry a message
+// isChunkLoadError would not match). Shares the per-mount guards' one-shot
+// session cap, so the two layers can never combine into a reload loop. Once the
+// one-shot is spent the event is left alone and Vite rethrows to the import()
+// caller (e.g. mountOrReport's error panel). Returns an uninstaller (for tests;
+// the app installs once for the page lifetime).
+export function installGlobalChunkLoadRecovery(
+  reload: () => void = () => location.reload(),
+): () => void {
+  const onPreloadError = (event: Event): void => {
+    if (!markChunkReloadAttempt()) return;
+    event.preventDefault();
+    reload();
+  };
+  window.addEventListener('vite:preloadError', onPreloadError);
+  return () => window.removeEventListener('vite:preloadError', onPreloadError);
 }

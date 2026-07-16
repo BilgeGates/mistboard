@@ -1,4 +1,5 @@
 import type { Color, GameEndReason, PlayerView } from '@mistboard/game';
+import { loginHrefForCurrentPage } from './auth-redirect.js';
 import type { ConnectionNoticeTier, InfoTone, Seat } from './live-state.js';
 import { liveState } from './live-state.js';
 import { isColor } from './web-utils.js';
@@ -207,14 +208,29 @@ function rejectedBody(): string {
   if (liveState.closeReason === 'private room')
     return 'This game is in progress. Mistboard never shares live game state with anyone but the seated players. The full replay will be here once the game finishes.';
   if (liveState.closeReason === 'rated requires account')
-    return 'This is a rated game. Rated games count toward the dark chess ladder, so both players need an account. Sign in or create one, then reopen the invite to take your seat.';
+    return 'This is a rated game. Rated games count toward the dark chess ladder, so both players need an account. Sign in and you will return here to take your seat.';
   if (liveState.closeReason === 'correspondence requires account')
-    return 'This is a correspondence game. Both players need an account so the game can find you across devices and remind you when it is your move. Sign in or create one, then reopen the invite to take your seat.';
+    return 'This is a correspondence game. Both players need an account so the game can find you across devices and remind you when it is your move. Sign in and you will return here to take your seat.';
   if (liveState.closeReason === 'origin not allowed')
     return 'This browser origin is not allowed to open the room.';
   if (liveState.closeReason === 'rate limit')
     return 'The room connection was closed after too many messages.';
   return 'The server rejected this room connection.';
+}
+
+// The rejection banner's sign-in CTA. Only the account-gated rejections earn
+// one. The login href carries the invite URL as the auth referrer, so after
+// sign-in the account page bounces the player straight back to the invite
+// (account.ts consumes requestedAuthReferrer() on auth success) and the
+// reconnect seats them.
+export function rejectedSignInHref(): string | null {
+  if (
+    liveState.closeReason !== 'rated requires account' &&
+    liveState.closeReason !== 'correspondence requires account'
+  ) {
+    return null;
+  }
+  return loginHrefForCurrentPage();
 }
 
 function capitalize(value: string): string {
