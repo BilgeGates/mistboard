@@ -146,7 +146,12 @@ describe('appearance family gating', () => {
       [...document.querySelectorAll<HTMLButtonElement>('button[data-sound-option]')].map(
         (option) => option.textContent,
       ),
-    ).toEqual(['Silent', 'Standard', 'Wood', 'Piano', 'NES', 'SFX', 'Futuristic']);
+    ).toEqual(['Wood', 'Mist', 'Piano', 'SFX', 'Futuristic', 'NES', 'Silent']);
+    expect(
+      document
+        .querySelector<HTMLButtonElement>('button[data-sound-option="wood"]')
+        ?.getAttribute('aria-checked'),
+    ).toBe('true');
 
     document.querySelector<HTMLButtonElement>('button[data-sound-option="silent"]')?.click();
     expect(window.localStorage.getItem('mistboard.soundMuted')).toBe('true');

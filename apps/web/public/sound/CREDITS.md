@@ -13,5 +13,5 @@ released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
 `move.mp3` (Piece Placement, 546119), `capture.mp3` (Piece Capture, 546120),
 `slide.mp3` (Piece Slide, 546118), `start.mp3` (Board Start, 546121).
 
-The default "Mist" sounds are Mistboard's own WebAudio-synthesized tones
+The "Mist" sounds are Mistboard's own WebAudio-synthesized tones
 (`apps/web/src/live-sound.ts`), no external assets.

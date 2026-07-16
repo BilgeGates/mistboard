@@ -770,10 +770,10 @@ function createSoundPanel(): HTMLDivElement {
   list.setAttribute('role', 'radiogroup');
   list.setAttribute('aria-label', t('prefs.soundSet'));
 
-  list.append(createSoundOption('silent', t('prefs.silent')));
-  for (const set of sortedSoundSetsForMenu()) {
-    list.append(createSoundOption(set.id, soundSetMenuLabel(set.id)));
+  for (const set of SOUND_SETS) {
+    list.append(createSoundOption(set.id, set.label));
   }
+  list.append(createSoundOption('silent', t('prefs.silent')));
 
   panel.append(volume, list);
   return panel;
@@ -839,18 +839,6 @@ function createSoundOption(id: SoundSetId | 'silent', label: string): HTMLButton
     syncThemeControls();
   });
   return button;
-}
-
-function sortedSoundSetsForMenu(): ReadonlyArray<{ id: SoundSetId; label: string }> {
-  const order: SoundSetId[] = ['mist', 'wood', 'piano', 'nes', 'sfx', 'futuristic'];
-  return order
-    .map((id) => SOUND_SETS.find((set) => set.id === id))
-    .filter((set): set is { id: SoundSetId; label: string } => set !== undefined);
-}
-
-function soundSetMenuLabel(id: SoundSetId): string {
-  if (id === 'mist') return 'Standard';
-  return SOUND_SETS.find((set) => set.id === id)?.label ?? id;
 }
 
 function openThemeMenu(control: HTMLElement): void {
