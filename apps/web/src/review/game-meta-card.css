@@ -4,6 +4,7 @@
    review pages. */
 
 .game-meta-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -17,6 +18,60 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  padding-inline-end: 28px;
+}
+
+.game-meta-card > .game-favorite-action--compact {
+  position: absolute;
+  inset-block-start: 10px;
+  inset-inline-end: 10px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--site-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    opacity 120ms ease,
+    color 120ms ease,
+    background-color 120ms ease;
+}
+
+.game-meta-card > .game-favorite-action--compact:hover,
+.game-meta-card > .game-favorite-action--compact:focus-visible {
+  background: var(--site-bg);
+  color: var(--site-text);
+  outline: none;
+}
+
+.game-meta-card > .game-favorite-action--compact:focus-visible {
+  box-shadow: 0 0 0 2px var(--site-accent, #237960);
+}
+
+.game-meta-card > .game-favorite-action--compact.game-favorite-action--saved {
+  color: #d29a35;
+}
+
+.game-meta-card > .game-favorite-action--compact:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .game-meta-card > .game-favorite-action--compact {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .game-meta-card:hover > .game-favorite-action--compact,
+  .game-meta-card:focus-within > .game-favorite-action--compact {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .game-meta-card__icon {

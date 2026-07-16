@@ -48,4 +48,17 @@ describe('game favorite action', () => {
     expect(button.textContent).toBe('☆ Save game');
     expect(button.title).toBe('Sign in to save');
   });
+
+  it('renders a compact star with an accessible save label', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ authenticated: true, favorited: false }), { status: 200 }),
+    );
+    const button = createGameFavoriteButton('test-game', { compact: true });
+    document.body.append(button);
+
+    await vi.waitFor(() => expect(button.hidden).toBe(false));
+    expect(button.classList).toContain('game-favorite-action--compact');
+    expect(button.textContent).toBe('☆');
+    expect(button.getAttribute('aria-label')).toBe('Save game');
+  });
 });

@@ -218,9 +218,13 @@ export function createReviewScaffold(
   );
 
   const favoriteGameId = root.dataset.favoriteGameId;
-  const actions = favoriteGameId
-    ? reviewActionsWithFavorite(config.actions, favoriteGameId)
-    : config.actions;
+  if (favoriteGameId && config.metaCard) {
+    config.metaCard.append(createGameFavoriteButton(favoriteGameId, { compact: true }));
+  }
+  const actions =
+    favoriteGameId && !config.metaCard
+      ? reviewActionsWithFavorite(config.actions, favoriteGameId)
+      : config.actions;
   const left = infoRail({ ...config, actions });
   // Right rail, lichess order: material-top · [analyse table: engine panel ·
   // move list · advice · navigation] · summary · material-bottom. The analyse

@@ -36,10 +36,13 @@ describe('Xiangqi postgame page', () => {
       if (url === '/api/xiangqi/games/xq_postgame/analysis')
         return new Response(null, { status: 204 });
       if (url === '/api/chat/game/xq_postgame') return jsonResponse(chatFixture());
+      if (url === '/api/games/xq_postgame/favorite')
+        return jsonResponse({ authenticated: true, favorited: false });
       return jsonResponse({}, { status: 404 });
     });
     vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
+    root.dataset.favoriteGameId = 'xq_postgame';
 
     mountXiangqiPostgame(root, 'xq_postgame');
     await flushPromises();
@@ -55,6 +58,12 @@ describe('Xiangqi postgame page', () => {
     );
     expect(root.querySelector('.review-actions--rail')).toBeNull();
     expect(root.querySelector('.dxq-postgame__actions')).toBeNull();
+    const favorite = root.querySelector<HTMLButtonElement>(
+      '.game-meta-card > .game-favorite-action--compact',
+    );
+    expect(favorite).not.toBeNull();
+    expect(favorite?.textContent).toBe('☆');
+    expect(favorite?.getAttribute('aria-label')).toBe('Save game');
     expect(root.textContent).not.toContain('Play again');
     expect(root.textContent).not.toContain('Back home');
     expect(root.querySelector<HTMLAnchorElement>('a[href="/room/xq_postgame"]')).toBeNull();
