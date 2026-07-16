@@ -136,13 +136,11 @@ describe('article public listing gates', () => {
     const text = index.textContent ?? '';
 
     expect(index.querySelector('a[href="/zh-hans/blog/mistybanqi"]')).not.toBeNull();
-    expect(index.querySelector('a[href="/blog/misty"]')).not.toBeNull();
-    expect(index.querySelector('a[href="/blog/server-enforced-fog"]')).not.toBeNull();
+    expect(index.querySelector('a[href="/zh-hans/blog/misty"]')).not.toBeNull();
+    expect(index.querySelector('a[href="/zh-hans/blog/server-enforced-fog"]')).not.toBeNull();
     expect(text).toContain('MistyBanqi 是怎么下棋的');
-    expect(text).toContain('How Misty Plays');
-    expect(text).toContain('Programming Fog Chess with Server-Side Truth');
-    expect(text).not.toContain('Misty 是怎么下棋的');
-    expect(text).not.toContain('用服务器端真实局面实现迷雾国际象棋');
+    expect(text).toContain('Misty 是怎么下棋的');
+    expect(text).toContain('用服务器端真实局面实现迷雾国际象棋');
   });
 
   it('localizes Traditional Chinese article chrome and content links', () => {
@@ -156,9 +154,9 @@ describe('article public listing gates', () => {
     expect(home?.querySelector('.landing-carousel-nav-next')?.getAttribute('aria-label')).toBe(
       '更多文章',
     );
-    expect(home?.querySelector('a[href="/blog/misty"]')).not.toBeNull();
+    expect(home?.querySelector('a[href="/zh-hant/blog/misty"]')).not.toBeNull();
     expect(home?.querySelector('a[href="/zh-hant/blog/mistybanqi"]')).not.toBeNull();
-    expect(home?.querySelector('a[href="/blog/server-enforced-fog"]')).not.toBeNull();
+    expect(home?.querySelector('a[href="/zh-hant/blog/server-enforced-fog"]')).not.toBeNull();
 
     const page = buildArticlePage('banqi', 'zh-Hant');
     expect(page.querySelector('.article-breadcrumb')).toBeNull();
@@ -179,12 +177,19 @@ describe('article public listing gates', () => {
   });
 
   it('renders an unfinished localized article wholly in English', () => {
-    const page = buildArticlePage('misty', 'zh-Hans');
+    const page = buildArticlePage('reveal-chess', 'zh-Hans');
 
     expect(page.dataset.articleLang).toBeUndefined();
-    expect(page.querySelector('.article-title')?.textContent).toBe('How Misty Plays');
+    expect(page.querySelector('.article-title')?.textContent).toBe('Reveal Chess Rules');
     expect(page.querySelector('.article-meta-dates')?.textContent).toContain('Published');
-    expect(page.querySelector('.article-title')?.textContent).not.toContain('Misty 是怎么下棋的');
+  });
+
+  it('publishes the completed Fortress Xiangqi localization', () => {
+    const page = buildArticlePage('fortress-xiangqi', 'zh-Hans');
+
+    expect(page.dataset.articleLang).toBe('zh-Hans');
+    expect(page.querySelector('.article-title')?.textContent).toBe('堡垒象棋规则');
+    expect(page.querySelector('.article-meta-dates')?.textContent).toContain('发布于');
   });
 
   it('limits the homepage article widget to editorial article cards ordered by publish date', () => {

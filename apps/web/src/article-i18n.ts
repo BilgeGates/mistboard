@@ -45,6 +45,9 @@ export const TRANSLATED_ARTICLE_SLUGS = [
   'mistybanqi',
   'jungle',
   'jungle-flip',
+  'fortress-xiangqi',
+  'misty',
+  'server-enforced-fog',
 ] as const;
 
 const TRANSLATED_ARTICLE_SLUG_SET = new Set<string>(TRANSLATED_ARTICLE_SLUGS);
@@ -70,6 +73,165 @@ export function localizedArticleHref(article: Article, locale: Locale): string {
 }
 
 const ZH_HANS: Record<string, string> = {
+  // -- Fortress Xiangqi --
+  'Fortress Xiangqi Rules': '堡垒象棋规则',
+  'Xiangqi with a pocket: every familiar piece moves as in xiangqi, plus crazyhouse-style drops and one new piece, the Treasure.':
+    '带持子的象棋：所有熟悉的棋子都按象棋规则移动，再加入疯狂屋式打入和一个新棋子「宝」。',
+  'Fortress Xiangqi is an [Xiangqi](/rules/xiangqi) variant with a reserve, designed by Brian H. Liou in 2026 as a Mistboard original. Every familiar piece moves exactly as it does in xiangqi, and one new piece, the Treasure, joins the back rank. The new rule is the [crazyhouse](https://en.wikipedia.org/wiki/Crazyhouse) loop: capture a piece, hold it in hand, and drop it back into the fight.':
+    '堡垒象棋是一种带持子的[象棋](/rules/xiangqi)变体，由 Brian H. Liou 于 2026 年为 Mistboard 原创设计。所有熟悉的棋子都完全按象棋规则移动，底线另加入一个新棋子「宝」。新规则采用[疯狂屋](https://en.wikipedia.org/wiki/Crazyhouse)的循环：吃掉棋子，将它收入持子，再打回战场。',
+  'Captured material never leaves the game, so every capture becomes future pressure. A quiet trade can turn into a later attack, and a fortress can be built, then cracked open by the very material it gave away. The result is fair, decisive, comeback-rich, and short.':
+    '被吃的子永远不会离开对局，因此每次吃子都会变成未来的压力。一次平静的兑子可能化为后续攻势；一座堡垒可以筑起，也可能被它送出的子力反过来攻破。由此形成的对局公平、果断、逆转机会多，而且简短。',
+  'Board and palaces': '棋盘与九宫',
+  'The board is 7 files (a to g) by 8 ranks, with a river between ranks 4 and 5. Each side has a 3 by 3 palace, but the two palaces sit in opposite corners: Red holds the bottom left (a1 to c3) and Black holds the top right (e6 to g8). The whole setup has 180 degree rotational symmetry.':
+    '棋盘为 7 路（a 至 g）、8 横线，河界位于第 4 与第 5 横线之间。双方各有一个 3×3 九宫，但两个九宫分处对角：红方占左下角（a1 至 c3），黑方占右上角（e6 至 g8）。整个布局具有 180 度旋转对称性。',
+  'The starting position. Red holds the bottom-left palace, Black the top-right, and the Treasure starts on each palace corner.':
+    '初始局面。红方占左下九宫，黑方占右上九宫，双方的「宝」都从各自九宫的角上出发。',
+  'Red moves first. This is open information: both players see the whole board and both reserves.':
+    '红方先行。这是完全信息游戏：双方都能看到整个棋盘和双方的持子。',
+  'Every standard piece moves exactly as it does in [xiangqi](/rules/xiangqi). In the diagrams below, a green dot marks a quiet destination, a green ring marks a capture, and a red cross marks a point the piece cannot reach.':
+    '所有标准棋子都完全按照[象棋](/rules/xiangqi)规则移动。在下图中，绿点表示不吃子的落点，绿圈表示吃子，红叉表示该棋子无法到达的点。',
+  '**Chariot:** slides any distance orthogonally, the strongest piece on the board. Here it can take the soldier on d7.':
+    '**车：**沿横线或竖线移动任意距离，是棋盘上最强的棋子。此处它可以吃掉 d7 的兵。',
+  '**Cannon:** moves like the Chariot on open lines, but captures only by jumping exactly one screen piece, friend or enemy. On the right, the cannon on d2 takes the chariot on d7 over its own soldier screen.':
+    '**炮：**在空线上走法与车相同，但吃子时必须恰好跳过一个炮架，不论敌我。右图中，d2 的炮隔着己方兵作炮架，吃掉 d7 的车。',
+  '**Horse:** steps one point orthogonally, then one point diagonally outward. If the orthogonal step is occupied, that whole direction is blocked. On the right, the soldier on d5 takes away both forward destinations.':
+    '**马：**先沿横向或纵向走一步，再向外斜走一步。如果第一步的位置被占据，该方向就会蹩马腿。右图中，d5 的兵封住了马向前的两个落点。',
+  '**Elephant:** moves exactly two points diagonally, is blocked by an occupied midpoint (the elephant eye), and can never cross the river.':
+    '**象：**沿对角线恰好走两点，中点（象眼）有子时会被塞象眼，而且永远不能过河。',
+  '**Advisor:** moves one point diagonally and stays inside the palace.':
+    '**士：**沿对角线走一点，并且始终留在九宫内。',
+  '**General:** moves one point orthogonally and stays inside the palace. One xiangqi rule retires itself here: because the palaces sit in opposite corners, the two generals never share a file, so the facing-generals rule never comes into play.':
+    '**将帅：**沿横向或纵向走一点，并且始终留在九宫内。有一条象棋规则在这里自然失效：两个九宫位于对角，两位将帅永远不会处于同一路，因此不会出现将帅照面的情况。',
+  '**Soldier:** moves one point forward or sideways, never backward. It has the sideways step from the opening move, where a xiangqi soldier earns it only by crossing the river. Every Fortress soldier is a veteran: the war is already on.':
+    '**兵：**向前或横向走一点，不能后退。它从开局起就能横走，而普通象棋的兵要过河后才获得这一能力。堡垒象棋里的每个兵都是老兵：战事早已开始。',
+  '**Treasure:** the one new piece. It steps one point in any of the eight directions, all game. It never promotes and is never confined. Think of it as a queen that only steps one square: a strong palace defender early, and a flexible attacker once it advances or is dropped.':
+    '**宝：**唯一的新棋子。整局都可以向八个方向中的任一方向走一点。它不会升变，也不受区域限制。可以把它看作每次只走一格的后：开局时是强力的九宫守卫，前进或打入后则是灵活的攻击子。',
+  'The Treasure steps one point in any of the eight directions. Here it has eight moves, including the capture on e5.':
+    '「宝」可以向八个方向中的任一方向走一点。此处它有八种走法，包括吃掉 e5 的棋子。',
+  'There are no promotions and no past-river changes. Soldiers move the same on both sides of the river; the river only stops the Elephant, which never crosses it.':
+    '没有升变，也没有过河后的走法变化。兵在河界两侧的走法相同；河界只限制永远不能过河的象。',
+  'Capture, hold, drop': '吃子、持子、打入',
+  'When you capture an enemy piece, it flips to your color and enters your hand. The hand is open information: it can hold any number of pieces, and they can wait there for any number of turns. On your turn you either move a piece on the board, or spend the move to drop one piece from hand onto an empty point.':
+    '吃掉敌方棋子后，它会变成你的颜色并进入持子。持子是公开信息，可以容纳任意数量的棋子，也可以保留任意多个回合。轮到你时，可以移动盘面上的棋子，也可以用这一回合把一枚持子打入空点。',
+  'Attackers drop anywhere, including deep in the enemy half: the Chariot, Horse, Cannon, Soldier, and Treasure. Defenders drop only where they could legally stand.':
+    '攻击子可以打入任何位置，包括敌方纵深：车、马、炮、兵和宝。防守子只能打入其本来可以合法停留的位置。',
+  'A captured Advisor drops only onto an empty point of your own palace.':
+    '被吃的士只能打入己方九宫内的空点。',
+  'A captured Elephant drops onto any empty point in your own half.':
+    '被吃的象可以打入己方半场的任意空点。',
+  'A dropped piece is live immediately. A drop may give check or deliver checkmate, and a dropped Soldier can step sideways wherever it lands. The one limit is the usual one: no move, drop included, may leave your own general in check.':
+    '打入的棋子立即生效。打入可以将军或将死，打入的兵无论落在哪里都可以横走。唯一限制与平常相同：任何着法，包括打入，都不能让己方将帅处于被将军状态。',
+  'How games end': '对局如何结束',
+  'Checkmate wins. A player left with no legal move loses by stalemate, the xiangqi convention. There is no fifty-move or no-progress draw and no shogi-style impasse rule: the game continues until one side breaks.':
+    '将死获胜。按照象棋惯例，无合法着法的一方因困毙而负。没有五十回合规则或无进展和棋，也没有将棋式的入玉规则：对局会继续，直到一方被攻破。',
+  'Repetition is governed by the chasing rule. When the same position occurs for the third time, the game is adjudicated: if one side gave check with every move of the repeating cycle, that side loses. You cannot perpetual-check your way out of a lost game. A repetition that neither side is forcing with checks is an honest standoff and is drawn, the only drawn result in the game.':
+    '重复局面由长将规则裁定。同一局面第三次出现时进行判定：如果一方在重复循环中的每一步都在将军，该方判负。不能靠长将逃出败势。若双方都没有用连续将军强迫重复，则视为真正的僵持并判和，这是本游戏唯一的和棋结果。',
+  'Games can also end by timeout, resignation, or abandonment.':
+    '对局也可能因超时、认输或弃局而结束。',
+  'What makes it Fortress Xiangqi': '为什么它叫堡垒象棋',
+  'Most chess variants trade fairness for decisiveness. Drops break that tradeoff: they keep the game fair while cutting draws and shortening play, and your captured material comes back at your own king, so every exchange is a real decision. Cheap pieces parachuted behind enemy lines deliver many of the finishes, which is the good kind of explosive.':
+    '多数棋类变体会用公平性换取更果断的结果。打入打破了这种取舍：它既保持公平，又减少和棋、缩短对局；你被吃掉的子力还会回头攻击自己的将帅，因此每次兑子都是实质抉择。许多终局由廉价棋子空降敌后完成，带来恰到好处的爆发力。',
+  'The rules were locked by engine testing rather than taste. Both-side attacker drops won out over a same-side variant that built beautiful fortresses but ran to 246-ply grinds. In engine sampling of the final rules, about 11 percent of games were drawn, one win in five came from behind, and the average game ran 83 plies.':
+    '规则由引擎测试定案，而不是凭个人喜好。允许攻击子打入双方半场的版本胜过了只许打入己方半场的版本；后者虽然能筑出漂亮堡垒，却会拖成长达 246 回合步的苦战。在最终规则的引擎抽样中，约 11% 的对局为和棋，五场胜局中有一场来自逆转，平均对局长度为 83 回合步。',
+  'Step through this engine game played under the production rules. Both sides spend their reserves early and often: watch Red build the attack from hand with the cannon drop at move 13 and the treasure drop at move 16, the advisor drop back into its own palace to defend at move 19, and the finish, where the mating pieces arrive by parachute.':
+    '逐步回放这盘按生产规则进行的引擎对局。双方很早就频繁使用持子：观察红方如何在第 13 回合打入炮、第 16 回合打入宝，从持子构筑攻势；又如何在第 19 回合把士打回己方九宫防守；最后，将死棋子如同空降般抵达战场。',
+
+  // -- How Misty Plays --
+  'Misty is the bot you play on Mistboard in Fog of War chess. It is not allowed to peek. The server sends it the same kind of limited view a human player gets, then Misty has to choose a move from that uncertainty.':
+    'Misty 是你在 Mistboard 迷雾国际象棋中对弈的机器人。它不允许偷看。服务器只会向它发送与人类玩家同类的受限视野，然后 Misty 必须在这种不确定性中选择着法。',
+  'It plays under the same fog you do': '它和你在同一片迷雾下对弈',
+  'Misty never sees the canonical board. Each move, it gets only what the side to move can legally observe under Fog of War: its own pieces, the squares they see, and the captures in view. Everything else is hidden. It plays under the same rules you do, and you can verify that: Mistboard is open source, so anyone can audit the server code that enforces the fog before the engine sees a position.':
+    'Misty 永远看不到规范真实棋盘。每一步，它只会得到轮到走棋的一方在迷雾国际象棋规则下可以合法观察的内容：自己的棋子、这些棋子能看见的格子，以及视野内发生的吃子。其余一切都被隐藏。它与你遵守相同规则，而且这一点可以验证：Mistboard 是开源的，任何人都能审计在引擎看到局面之前执行迷雾规则的服务器代码。',
+  'A classical chess engine like Stockfish has one advantage: it can see the whole board. It picks its move by searching the game tree, looking ahead through the lines both sides could play and backing up the best line (minimax). The search assumes a single true position and a single true continuation.':
+    'Stockfish 这样的经典国际象棋引擎有一个优势：它能看到整个棋盘。它通过搜索博弈树来选择着法，向前推演双方可能走出的变化，再回传最佳变化的价值（极小化极大算法）。这种搜索假设只有一个真实局面和一条真实的延续。',
+  "Under fog there is no single position to search. Misty can't see the opponent's pieces, so the board it has to reason about is a belief set: many legal boards consistent with what it has observed. A move that wins on one board can hang the king on another. Misty samples from that set, searches those worlds, and looks for a move that holds up across them.":
+    '迷雾下不存在一个可供搜索的单一局面。Misty 看不到对手的棋子，因此它必须推理的是一个信念集合：许多与已观察信息一致的合法棋盘。同一步棋可能在一个棋盘上获胜，却在另一个棋盘上白送国王。Misty 从集合中采样，搜索这些可能世界，并寻找在它们之中都站得住脚的着法。',
+  'That family of approach is called perfect-information Monte Carlo. It is also the family used by Obscuro, the strongest published Fog of War chess engine. The hard part is not just playing chess. It is keeping the hidden-board model honest while the clock is running.':
+    '这一类方法称为完全信息蒙特卡洛。公开发表的最强迷雾国际象棋引擎 Obscuro 也采用同类方法。难点不只是下好国际象棋，而是在时钟不停走动时，让隐藏棋盘模型始终忠于已知信息。',
+  "What's hard": '难点在哪里',
+  'Two things. The first is the possible-board set itself. A few plies into a foggy middlegame, "every consistent board" blows up fast. Misty has to keep that uncertainty under control inside a live-game time budget.':
+    '有两个难点。第一个就是可能棋盘的集合本身。迷雾中局只走几个回合步后，「所有一致的棋盘」数量就会迅速爆炸。Misty 必须在实时对局的时间预算内控制这种不确定性。',
+  'The second is picking a move over that set. Scoring one move means weighing it across thousands of possible boards at once, and the obvious way to do that, averaging the outcomes, quietly buries disasters. A move that loses the king on a small slice of boards may barely move the average, but it still loses those games outright. Reasoning well over a distribution of boards, rather than a single board, is most of what the engine does.':
+    '第二个难点是在这个集合上选择着法。为一步棋评分，意味着同时衡量它在数千个可能棋盘上的表现；最直观的办法是取结果平均值，却会悄悄掩埋灾难。如果一步棋只在少部分棋盘上丢王，平均分可能几乎不变，但那些对局仍会直接输掉。引擎的大部分工作，就是针对棋盘分布而非单一棋盘进行可靠推理。',
+  'What changed in the current release': '当前版本有哪些变化',
+  'The current production engine is Misty 1.5. Most of the work since the first public release has been hardening, not a new personality: avoid rare king walks into hidden captures, avoid major-piece hangs in fog, stop stale search memory from leaking into a new live position, see fog-castles during search, and steer away from unstable early lines with a small opening book.':
+    '当前生产引擎是 Misty 1.5。首次公开发布后的大部分工作都在加固，而不是塑造新个性：避免国王偶尔走进隐藏吃子范围，避免大子在迷雾中白送，阻止过期的搜索记忆泄漏到新的实时局面，在搜索中看见迷雾下的王车易位，并用小型开局库避开不稳定的早期变化。',
+  'That does not make Misty solved or perfectly safe. It means the cheap fog-specific failures that made earlier versions look silly are much rarer, so games against it test your understanding instead of your patience.':
+    '这并不意味着 Misty 已被彻底解决或绝对安全。它意味着那些让早期版本显得可笑的低级迷雾特有错误已经少见得多，因此与它对弈考验的是你的理解，而不是耐心。',
+  'Where it stands': '它目前处于什么水平',
+  "Misty is the strongest Fog of War chess engine I've seen available to play, but version numbers are not ratings. The yardstick that matters is human play, and I won't put a number on it until a serious human match earns one.":
+    'Misty 是我见过可以直接对弈的最强迷雾国际象棋引擎，但版本号不是等级分。真正有意义的标尺是人类实战；在一场严肃的人机比赛给出依据之前，我不会为它标上数字。',
+  "What's next": '下一步是什么',
+  'Misty itself stays focused on Fog of War chess. The same redacted engine protocol now supports variant-specific siblings, including Misty DMX for Dark Mini Xiangqi and MistyBanqi for Banqi, but those are separate engines with their own rules and evaluation problems.':
+    'Misty 本身会继续专注于迷雾国际象棋。同一套脱敏引擎协议现在也支持针对特定变体的同系引擎，包括迷雾迷你象棋的 Misty DMX 和暗棋的 MistyBanqi，但它们是独立引擎，各有自己的规则与评估问题。',
+  "Misty is live on Mistboard, and every serious game against it sharpens the estimate of where it stands. Play one, and you're part of the benchmark.":
+    'Misty 已在 Mistboard 上线，每一盘严肃的人机对局都会让我们更准确地估计它的水平。来下一盘，你也会成为这项基准的一部分。',
+  'All articles': '全部文章',
+  'For engine builders': '致引擎开发者',
+  "If you build Fog of War engines, I'd like to play yours against Misty. There's almost no public head-to-head data between engines for this variant, and engine-vs-engine games are the cleanest way to see where any of them stand. Get in touch and we'll set up a match.":
+    '如果你在开发迷雾国际象棋引擎，我希望让它与 Misty 对弈。这个变体几乎没有公开的引擎正面对战数据，而引擎之间的比赛是判断各自水平最清晰的方式。联系我们，我们可以安排一场比赛。',
+  'Get in touch': '联系我们',
+  References: '参考资料',
+  '[Obscuro (Zhang & Sandholm, ICLR 2026)](https://arxiv.org/abs/2506.01242). The academic neighbor is Reconnaissance Blind Chess, whose engine lineage runs StrangeFish (CMU, 2018), ReBeL (FAIR, 2020), Penumbra (Georgia Tech), and Obscuro (CMU, 2026).':
+    '[Obscuro（Zhang 与 Sandholm，ICLR 2026）](https://arxiv.org/abs/2506.01242)。与之相邻的学术领域是侦察盲棋，其引擎谱系包括 StrangeFish（CMU，2018）、ReBeL（FAIR，2020）、Penumbra（Georgia Tech）和 Obscuro（CMU，2026）。',
+
+  // -- Programming Fog Chess with Server-Side Truth --
+  'Truth stays server-side': '真实局面留在服务器端',
+  'The triptych is the architecture in miniature. The center board exists only on the server. White and Black each receive a different projection, and neither projection contains the full truth with a visual layer hiding it.':
+    '这组三联棋盘就是整个架构的缩影。中央棋盘只存在于服务器上。白方与黑方各自收到不同的投影视图，任何一份投影都不是用视觉图层遮住完整真实局面。',
+  'The rule is simple: compute truth once, project the allowed view per seat, and keep the full event log private until the game is over.':
+    '规则很简单：只计算一次真实状态，再为每个席位投影其获准看到的视图，并在对局结束前将完整事件日志保持私密。',
+  'That single boundary supports live PvP, engine games, calibration, tournaments, and review. This article stays focused on the player-facing live room: what each browser receives, who can receive it, and when the record becomes public.':
+    '这一条边界同时支撑实时玩家对战、引擎对局、校准、赛事和复盘。本文聚焦面向玩家的实时房间：每个浏览器会收到什么、谁可以接收，以及对局记录何时公开。',
+  'How views are computed': '视图如何计算',
+  'For a player, the boundary is `PlayerView`: visible squares, visible pieces, legal moves, status, and clock for that seat. Opponent pieces outside the visibility set are not hidden fields. They are absent.':
+    '对玩家而言，这条边界就是 `PlayerView`：该席位可见的格子、可见棋子、合法着法、状态和时钟。可见范围之外的对方棋子不是被藏在字段里，而是根本不存在于数据中。',
+  'The important part is the direction of dependency. The client can render fog because it receives a visibility mask, but it cannot remove fog to recover pieces it was never sent.':
+    '关键在于依赖方向。客户端因为收到可见性掩码而能够渲染迷雾，却无法通过移除迷雾来恢复从未发送给它的棋子。',
+  'Sample data payload': '示例数据载荷',
+  'The live move stream uses `event-appended`, a per-move frame. This is the white payload from the position above, shortened to the fields that matter:':
+    '实时走子流使用 `event-appended`，每步发送一帧。下面是上方局面中发给白方的载荷，已缩减为关键字段：',
+  '**Core fields:** `seat` identifies the recipient, `seq` orders the stream, `state.board` is the redacted board, `state.visibleSquares` is the clear-vs-fog mask, and `state.status` carries the canonical turn/result state.':
+    '**核心字段：**`seat` 标识接收者，`seq` 为数据流排序，`state.board` 是脱敏后的棋盘，`state.visibleSquares` 是清晰区域与迷雾区域的掩码，`state.status` 携带规范的轮次与结果状态。',
+  'If the appended event is visible to this seat, the frame includes one filtered `event`. If the move is hidden, `event` is omitted and the projected `state` still advances. The player knows a turn happened, not what happened in the fog.':
+    '如果新增事件对该席位可见，这一帧会包含一个经过过滤的 `event`。如果走子被隐藏，`event` 会被省略，但投影后的 `state` 仍会推进。玩家知道一回合已经发生，却不知道迷雾中发生了什么。',
+  'Snapshots still exist for first connect, explicit recovery, and final resync. They carry the filtered event history needed to hydrate the client, so they are larger than per-move frames.':
+    '首次连接、显式恢复和最终重新同步仍会使用快照。快照携带客户端初始化所需的过滤事件历史，因此比逐步帧更大。',
+  'Player move': '玩家走子',
+  'A move request is just coordinates:': '走子请求只有坐标：',
+  'The server validates the request against canonical state, applies the move, appends an event, and projects the next view. The client never decides whether hidden information exists, whether an invisible move happened, or whether the game is over.':
+    '服务器根据规范状态验证请求，执行走子，追加事件，再投影下一份视图。客户端永远不负责判断是否存在隐藏信息、是否发生了不可见走子，或对局是否结束。',
+  'Seat-gated live rooms': '按席位控制的实时房间',
+  'During a live game, the server sends game data only to the two seats. After each move, it projects one view for White and one view for Black, then sends each view only to a socket that has proven it controls that seat.':
+    '实时对局期间，服务器只向两个对局席位发送游戏数据。每步之后，它分别为白方和黑方投影一份视图，再将每份视图只发送给已经证明自己控制该席位的套接字。',
+  'Seat proof': '席位证明',
+  'A socket gets live room data only after it proves control of the white or black seat. Anonymous seats use random bearer tokens; the server stores a SHA-256 token hash and compares the presented token in constant time.':
+    '套接字只有在证明自己控制白方或黑方席位后，才能获得实时房间数据。匿名席位使用随机不记名令牌；服务器保存 SHA-256 令牌哈希，并以恒定时间比较提交的令牌。',
+  'Account seats': '账号席位',
+  'Signed-in seats add the account session check on top of the seat claim. The token proves this browser can reclaim the seat; the session proves the account still matches the seat assignment.':
+    '已登录席位会在席位声明之上增加账号会话检查。令牌证明该浏览器可以取回席位；会话则证明账号仍与席位分配相符。',
+  'No live spectator view': '没有实时观战视图',
+  'Non-players do not get a live spectator projection. A socket without a valid seat is rejected before room data is sent, and the live replay endpoint returns 403 until the game reaches a terminal state.':
+    '非对局玩家不会获得实时观战投影。没有有效席位的套接字会在房间数据发送前被拒绝，而实时回放端点会一直返回 403，直到对局进入终局状态。',
+  'Postgame review': '赛后复盘',
+  'When the game becomes terminal, the privacy rule changes. The room no longer rejects non-players after the result, and the game page becomes the durable public review surface.':
+    '对局进入终局状态后，隐私规则随之改变。结果产生后，房间不再拒绝非对局玩家，游戏页面则成为持久的公开复盘界面。',
+  'A spectator who opens the room during play gets no board. The same person can open the finished game page after the result and inspect the event log. That is the product rule: private while decisions are live, reviewable once the record is settled.':
+    '观众在对局进行时打开房间，看不到棋盘。结果产生后，同一个人可以打开已结束的游戏页面并检查事件日志。这就是产品规则：决策仍在进行时保持私密，记录确定后可以复盘。',
+  'That split is important for rated play. A rated result can point at a public completed game without giving non-players access to live hidden information.':
+    '这种区分对计分对局很重要。计分结果可以指向一盘公开的已完成对局，同时不让非对局玩家接触实时隐藏信息。',
+  'It also keeps reconnect and review on the same foundation. Live reconnect rebuilds a filtered player view from the event log. Postgame review uses the same log after the hidden-information constraint has expired.':
+    '它也让重连与复盘建立在同一基础上。实时重连从事件日志重建过滤后的玩家视图；隐藏信息限制失效后，赛后复盘使用同一份日志。',
+  'Scope and verification': '范围与验证',
+  'This is not a full anti-cheat claim. It is the narrower integrity claim this architecture can prove: during live play, hidden truth is not sent to unauthorized browser paths; after the game ends, the record is reviewable.':
+    '这并不是一项完整的反作弊声明，而是该架构能够证明的、更具体的完整性保证：实时对局期间，隐藏真实状态不会发送到未经授权的浏览器路径；对局结束后，记录可供复盘。',
+  'Anonymous casual seats are bearer-token seats, not account-grade identity, and there is no live spectator mode for hidden-information games.':
+    '匿名休闲席位依靠不记名令牌，并不具备账号级身份保证；隐藏信息游戏也没有实时观战模式。',
+  'Mistboard covers this boundary with WebSocket and payload regression tests that drive real moves and assert on the bytes each seat receives.':
+    'Mistboard 用 WebSocket 与载荷回归测试覆盖这条边界：测试会执行真实走子，并断言每个席位实际收到的字节。',
+  'That is the line Mistboard defends: during play, there is no browser-side truth to unmask. After play, there is a public record to inspect.':
+    '这就是 Mistboard 守住的界线：对局期间，浏览器端没有可以揭开的真实局面；对局结束后，则有公开记录可供检查。',
+
   // -- How MistyBanqi Plays (engine article) --
   'How MistyBanqi Plays': 'MistyBanqi 是怎么下棋的',
   'MistyBanqi is the engine you play in Banqi on Mistboard: a classical search engine with a hand-written evaluation. How it thinks, and the blind spot worth knowing: it can draw a game it has already won.':
@@ -701,6 +863,165 @@ const ZH_HANS: Record<string, string> = {
 };
 
 const ZH_HANT: Record<string, string> = {
+  // -- Fortress Xiangqi --
+  'Fortress Xiangqi Rules': '堡壘象棋規則',
+  'Xiangqi with a pocket: every familiar piece moves as in xiangqi, plus crazyhouse-style drops and one new piece, the Treasure.':
+    '帶持子的象棋：所有熟悉的棋子都按象棋規則移動，再加入瘋狂屋式打入和一個新棋子「寶」。',
+  'Fortress Xiangqi is an [Xiangqi](/rules/xiangqi) variant with a reserve, designed by Brian H. Liou in 2026 as a Mistboard original. Every familiar piece moves exactly as it does in xiangqi, and one new piece, the Treasure, joins the back rank. The new rule is the [crazyhouse](https://en.wikipedia.org/wiki/Crazyhouse) loop: capture a piece, hold it in hand, and drop it back into the fight.':
+    '堡壘象棋是一種帶持子的[象棋](/rules/xiangqi)變體，由 Brian H. Liou 於 2026 年為 Mistboard 原創設計。所有熟悉的棋子都完全按象棋規則移動，底線另加入一個新棋子「寶」。新規則採用[瘋狂屋](https://en.wikipedia.org/wiki/Crazyhouse)的循環：吃掉棋子，將它收入持子，再打回戰場。',
+  'Captured material never leaves the game, so every capture becomes future pressure. A quiet trade can turn into a later attack, and a fortress can be built, then cracked open by the very material it gave away. The result is fair, decisive, comeback-rich, and short.':
+    '被吃的子永遠不會離開對局，因此每次吃子都會變成未來的壓力。一次平靜的兌子可能化為後續攻勢；一座堡壘可以築起，也可能被它送出的子力反過來攻破。由此形成的對局公平、果斷、逆轉機會多，而且簡短。',
+  'Board and palaces': '棋盤與九宮',
+  'The board is 7 files (a to g) by 8 ranks, with a river between ranks 4 and 5. Each side has a 3 by 3 palace, but the two palaces sit in opposite corners: Red holds the bottom left (a1 to c3) and Black holds the top right (e6 to g8). The whole setup has 180 degree rotational symmetry.':
+    '棋盤為 7 路（a 至 g）、8 橫線，河界位於第 4 與第 5 橫線之間。雙方各有一個 3×3 九宮，但兩個九宮分處對角：紅方占左下角（a1 至 c3），黑方占右上角（e6 至 g8）。整個布局具有 180 度旋轉對稱性。',
+  'The starting position. Red holds the bottom-left palace, Black the top-right, and the Treasure starts on each palace corner.':
+    '初始局面。紅方占左下九宮，黑方占右上九宮，雙方的「寶」都從各自九宮的角上出發。',
+  'Red moves first. This is open information: both players see the whole board and both reserves.':
+    '紅方先行。這是完全資訊遊戲：雙方都能看到整個棋盤和雙方的持子。',
+  'Every standard piece moves exactly as it does in [xiangqi](/rules/xiangqi). In the diagrams below, a green dot marks a quiet destination, a green ring marks a capture, and a red cross marks a point the piece cannot reach.':
+    '所有標準棋子都完全按照[象棋](/rules/xiangqi)規則移動。在下圖中，綠點表示不吃子的落點，綠圈表示吃子，紅叉表示該棋子無法到達的點。',
+  '**Chariot:** slides any distance orthogonally, the strongest piece on the board. Here it can take the soldier on d7.':
+    '**車：**沿橫線或直線移動任意距離，是棋盤上最強的棋子。此處它可以吃掉 d7 的兵。',
+  '**Cannon:** moves like the Chariot on open lines, but captures only by jumping exactly one screen piece, friend or enemy. On the right, the cannon on d2 takes the chariot on d7 over its own soldier screen.':
+    '**炮：**在空線上走法與車相同，但吃子時必須恰好跳過一個炮架，不論敵我。右圖中，d2 的炮隔著己方兵作炮架，吃掉 d7 的車。',
+  '**Horse:** steps one point orthogonally, then one point diagonally outward. If the orthogonal step is occupied, that whole direction is blocked. On the right, the soldier on d5 takes away both forward destinations.':
+    '**馬：**先沿橫向或縱向走一步，再向外斜走一步。如果第一步的位置被占據，該方向就會蹩馬腿。右圖中，d5 的兵封住了馬向前的兩個落點。',
+  '**Elephant:** moves exactly two points diagonally, is blocked by an occupied midpoint (the elephant eye), and can never cross the river.':
+    '**象：**沿對角線恰好走兩點，中點（象眼）有子時會被塞象眼，而且永遠不能過河。',
+  '**Advisor:** moves one point diagonally and stays inside the palace.':
+    '**士：**沿對角線走一點，並且始終留在九宮內。',
+  '**General:** moves one point orthogonally and stays inside the palace. One xiangqi rule retires itself here: because the palaces sit in opposite corners, the two generals never share a file, so the facing-generals rule never comes into play.':
+    '**將帥：**沿橫向或縱向走一點，並且始終留在九宮內。有一條象棋規則在這裡自然失效：兩個九宮位於對角，兩位將帥永遠不會處於同一路，因此不會出現將帥照面的情況。',
+  '**Soldier:** moves one point forward or sideways, never backward. It has the sideways step from the opening move, where a xiangqi soldier earns it only by crossing the river. Every Fortress soldier is a veteran: the war is already on.':
+    '**兵：**向前或橫向走一點，不能後退。它從開局起就能橫走，而普通象棋的兵要過河後才獲得這項能力。堡壘象棋裡的每個兵都是老兵：戰事早已開始。',
+  '**Treasure:** the one new piece. It steps one point in any of the eight directions, all game. It never promotes and is never confined. Think of it as a queen that only steps one square: a strong palace defender early, and a flexible attacker once it advances or is dropped.':
+    '**寶：**唯一的新棋子。整局都可以向八個方向中的任一方向走一點。它不會升變，也不受區域限制。可以把它看作每次只走一格的后：開局時是強力的九宮守衛，前進或打入後則是靈活的攻擊子。',
+  'The Treasure steps one point in any of the eight directions. Here it has eight moves, including the capture on e5.':
+    '「寶」可以向八個方向中的任一方向走一點。此處它有八種走法，包括吃掉 e5 的棋子。',
+  'There are no promotions and no past-river changes. Soldiers move the same on both sides of the river; the river only stops the Elephant, which never crosses it.':
+    '沒有升變，也沒有過河後的走法變化。兵在河界兩側的走法相同；河界只限制永遠不能過河的象。',
+  'Capture, hold, drop': '吃子、持子、打入',
+  'When you capture an enemy piece, it flips to your color and enters your hand. The hand is open information: it can hold any number of pieces, and they can wait there for any number of turns. On your turn you either move a piece on the board, or spend the move to drop one piece from hand onto an empty point.':
+    '吃掉敵方棋子後，它會變成你的顏色並進入持子。持子是公開資訊，可以容納任意數量的棋子，也可以保留任意多個回合。輪到你時，可以移動盤面上的棋子，也可以用這一回合把一枚持子打入空點。',
+  'Attackers drop anywhere, including deep in the enemy half: the Chariot, Horse, Cannon, Soldier, and Treasure. Defenders drop only where they could legally stand.':
+    '攻擊子可以打入任何位置，包括敵方縱深：車、馬、炮、兵和寶。防守子只能打入其本來可以合法停留的位置。',
+  'A captured Advisor drops only onto an empty point of your own palace.':
+    '被吃的士只能打入己方九宮內的空點。',
+  'A captured Elephant drops onto any empty point in your own half.':
+    '被吃的象可以打入己方半場的任意空點。',
+  'A dropped piece is live immediately. A drop may give check or deliver checkmate, and a dropped Soldier can step sideways wherever it lands. The one limit is the usual one: no move, drop included, may leave your own general in check.':
+    '打入的棋子立即生效。打入可以將軍或將死，打入的兵無論落在哪裡都可以橫走。唯一限制與平常相同：任何著法，包括打入，都不能讓己方將帥處於被將軍狀態。',
+  'How games end': '對局如何結束',
+  'Checkmate wins. A player left with no legal move loses by stalemate, the xiangqi convention. There is no fifty-move or no-progress draw and no shogi-style impasse rule: the game continues until one side breaks.':
+    '將死獲勝。按照象棋慣例，無合法著法的一方因困斃而負。沒有五十回合規則或無進展和棋，也沒有將棋式的入玉規則：對局會繼續，直到一方被攻破。',
+  'Repetition is governed by the chasing rule. When the same position occurs for the third time, the game is adjudicated: if one side gave check with every move of the repeating cycle, that side loses. You cannot perpetual-check your way out of a lost game. A repetition that neither side is forcing with checks is an honest standoff and is drawn, the only drawn result in the game.':
+    '重複局面由長將規則裁定。同一局面第三次出現時進行判定：如果一方在重複循環中的每一步都在將軍，該方判負。不能靠長將逃出敗勢。若雙方都沒有用連續將軍強迫重複，則視為真正的僵持並判和，這是本遊戲唯一的和棋結果。',
+  'Games can also end by timeout, resignation, or abandonment.':
+    '對局也可能因超時、認輸或棄局而結束。',
+  'What makes it Fortress Xiangqi': '為什麼它叫堡壘象棋',
+  'Most chess variants trade fairness for decisiveness. Drops break that tradeoff: they keep the game fair while cutting draws and shortening play, and your captured material comes back at your own king, so every exchange is a real decision. Cheap pieces parachuted behind enemy lines deliver many of the finishes, which is the good kind of explosive.':
+    '多數棋類變體會用公平性換取更果斷的結果。打入打破了這種取捨：它既保持公平，又減少和棋、縮短對局；你被吃掉的子力還會回頭攻擊自己的將帥，因此每次兌子都是實質抉擇。許多終局由廉價棋子空降敵後完成，帶來恰到好處的爆發力。',
+  'The rules were locked by engine testing rather than taste. Both-side attacker drops won out over a same-side variant that built beautiful fortresses but ran to 246-ply grinds. In engine sampling of the final rules, about 11 percent of games were drawn, one win in five came from behind, and the average game ran 83 plies.':
+    '規則由引擎測試定案，而不是憑個人喜好。允許攻擊子打入雙方半場的版本勝過了只許打入己方半場的版本；後者雖然能築出漂亮堡壘，卻會拖成長達 246 回合步的苦戰。在最終規則的引擎抽樣中，約 11% 的對局為和棋，五場勝局中有一場來自逆轉，平均對局長度為 83 回合步。',
+  'Step through this engine game played under the production rules. Both sides spend their reserves early and often: watch Red build the attack from hand with the cannon drop at move 13 and the treasure drop at move 16, the advisor drop back into its own palace to defend at move 19, and the finish, where the mating pieces arrive by parachute.':
+    '逐步回放這盤按正式規則進行的引擎對局。雙方很早就頻繁使用持子：觀察紅方如何在第 13 回合打入炮、第 16 回合打入寶，從持子構築攻勢；又如何在第 19 回合把士打回己方九宮防守；最後，將死棋子如同空降般抵達戰場。',
+
+  // -- How Misty Plays --
+  'Misty is the bot you play on Mistboard in Fog of War chess. It is not allowed to peek. The server sends it the same kind of limited view a human player gets, then Misty has to choose a move from that uncertainty.':
+    'Misty 是你在 Mistboard 迷霧國際象棋中對弈的機器人。它不允許偷看。伺服器只會向它傳送與人類玩家同類的受限視野，然後 Misty 必須在這種不確定性中選擇著法。',
+  'It plays under the same fog you do': '它和你在同一片迷霧下對弈',
+  'Misty never sees the canonical board. Each move, it gets only what the side to move can legally observe under Fog of War: its own pieces, the squares they see, and the captures in view. Everything else is hidden. It plays under the same rules you do, and you can verify that: Mistboard is open source, so anyone can audit the server code that enforces the fog before the engine sees a position.':
+    'Misty 永遠看不到規範真實棋盤。每一步，它只會得到輪到走棋的一方在迷霧國際象棋規則下可以合法觀察的內容：自己的棋子、這些棋子能看見的格子，以及視野內發生的吃子。其餘一切都被隱藏。它與你遵守相同規則，而且這一點可以驗證：Mistboard 是開源的，任何人都能稽核在引擎看到局面之前執行迷霧規則的伺服器程式碼。',
+  'A classical chess engine like Stockfish has one advantage: it can see the whole board. It picks its move by searching the game tree, looking ahead through the lines both sides could play and backing up the best line (minimax). The search assumes a single true position and a single true continuation.':
+    'Stockfish 這樣的經典國際象棋引擎有一個優勢：它能看到整個棋盤。它透過搜尋博弈樹來選擇著法，向前推演雙方可能走出的變化，再回傳最佳變化的價值（極小化極大演算法）。這種搜尋假設只有一個真實局面和一條真實的延續。',
+  "Under fog there is no single position to search. Misty can't see the opponent's pieces, so the board it has to reason about is a belief set: many legal boards consistent with what it has observed. A move that wins on one board can hang the king on another. Misty samples from that set, searches those worlds, and looks for a move that holds up across them.":
+    '迷霧下不存在一個可供搜尋的單一局面。Misty 看不到對手的棋子，因此它必須推理的是一個信念集合：許多與已觀察資訊一致的合法棋盤。同一步棋可能在一個棋盤上獲勝，卻在另一個棋盤上白送國王。Misty 從集合中取樣，搜尋這些可能世界，並尋找在它們之中都站得住腳的著法。',
+  'That family of approach is called perfect-information Monte Carlo. It is also the family used by Obscuro, the strongest published Fog of War chess engine. The hard part is not just playing chess. It is keeping the hidden-board model honest while the clock is running.':
+    '這一類方法稱為完全資訊蒙地卡羅。公開發表的最強迷霧國際象棋引擎 Obscuro 也採用同類方法。難點不只是下好國際象棋，而是在時鐘不停走動時，讓隱藏棋盤模型始終忠於已知資訊。',
+  "What's hard": '難點在哪裡',
+  'Two things. The first is the possible-board set itself. A few plies into a foggy middlegame, "every consistent board" blows up fast. Misty has to keep that uncertainty under control inside a live-game time budget.':
+    '有兩個難點。第一個就是可能棋盤的集合本身。迷霧中局只走幾個回合步後，「所有一致的棋盤」數量就會迅速爆炸。Misty 必須在即時對局的時間預算內控制這種不確定性。',
+  'The second is picking a move over that set. Scoring one move means weighing it across thousands of possible boards at once, and the obvious way to do that, averaging the outcomes, quietly buries disasters. A move that loses the king on a small slice of boards may barely move the average, but it still loses those games outright. Reasoning well over a distribution of boards, rather than a single board, is most of what the engine does.':
+    '第二個難點是在這個集合上選擇著法。為一步棋評分，意味著同時衡量它在數千個可能棋盤上的表現；最直觀的辦法是取結果平均值，卻會悄悄掩埋災難。如果一步棋只在少部分棋盤上丟王，平均分可能幾乎不變，但那些對局仍會直接輸掉。引擎的大部分工作，就是針對棋盤分布而非單一棋盤進行可靠推理。',
+  'What changed in the current release': '目前版本有哪些變化',
+  'The current production engine is Misty 1.5. Most of the work since the first public release has been hardening, not a new personality: avoid rare king walks into hidden captures, avoid major-piece hangs in fog, stop stale search memory from leaking into a new live position, see fog-castles during search, and steer away from unstable early lines with a small opening book.':
+    '目前正式環境的引擎是 Misty 1.5。首次公開發布後的大部分工作都在加固，而不是塑造新個性：避免國王偶爾走進隱藏吃子範圍，避免大子在迷霧中白送，阻止過期的搜尋記憶洩漏到新的即時局面，在搜尋中看見迷霧下的王車易位，並用小型開局庫避開不穩定的早期變化。',
+  'That does not make Misty solved or perfectly safe. It means the cheap fog-specific failures that made earlier versions look silly are much rarer, so games against it test your understanding instead of your patience.':
+    '這並不意味著 Misty 已被徹底解決或絕對安全。它意味著那些讓早期版本顯得可笑的低級迷霧特有錯誤已經少見得多，因此與它對弈考驗的是你的理解，而不是耐心。',
+  'Where it stands': '它目前處於什麼水準',
+  "Misty is the strongest Fog of War chess engine I've seen available to play, but version numbers are not ratings. The yardstick that matters is human play, and I won't put a number on it until a serious human match earns one.":
+    'Misty 是我見過可以直接對弈的最強迷霧國際象棋引擎，但版本號不是等級分。真正有意義的標尺是人類實戰；在一場嚴肅的人機比賽給出依據之前，我不會為它標上數字。',
+  "What's next": '下一步是什麼',
+  'Misty itself stays focused on Fog of War chess. The same redacted engine protocol now supports variant-specific siblings, including Misty DMX for Dark Mini Xiangqi and MistyBanqi for Banqi, but those are separate engines with their own rules and evaluation problems.':
+    'Misty 本身會繼續專注於迷霧國際象棋。同一套去識別化引擎協定現在也支援針對特定變體的同系引擎，包括迷霧迷你象棋的 Misty DMX 和暗棋的 MistyBanqi，但它們是獨立引擎，各有自己的規則與評估問題。',
+  "Misty is live on Mistboard, and every serious game against it sharpens the estimate of where it stands. Play one, and you're part of the benchmark.":
+    'Misty 已在 Mistboard 上線，每一盤嚴肅的人機對局都會讓我們更準確地估計它的水準。來下一盤，你也會成為這項基準的一部分。',
+  'All articles': '全部文章',
+  'For engine builders': '致引擎開發者',
+  "If you build Fog of War engines, I'd like to play yours against Misty. There's almost no public head-to-head data between engines for this variant, and engine-vs-engine games are the cleanest way to see where any of them stand. Get in touch and we'll set up a match.":
+    '如果你在開發迷霧國際象棋引擎，我希望讓它與 Misty 對弈。這個變體幾乎沒有公開的引擎正面對戰資料，而引擎之間的比賽是判斷各自水準最清楚的方式。聯絡我們，我們可以安排一場比賽。',
+  'Get in touch': '聯絡我們',
+  References: '參考資料',
+  '[Obscuro (Zhang & Sandholm, ICLR 2026)](https://arxiv.org/abs/2506.01242). The academic neighbor is Reconnaissance Blind Chess, whose engine lineage runs StrangeFish (CMU, 2018), ReBeL (FAIR, 2020), Penumbra (Georgia Tech), and Obscuro (CMU, 2026).':
+    '[Obscuro（Zhang 與 Sandholm，ICLR 2026）](https://arxiv.org/abs/2506.01242)。與之相鄰的學術領域是偵察盲棋，其引擎譜系包括 StrangeFish（CMU，2018）、ReBeL（FAIR，2020）、Penumbra（Georgia Tech）和 Obscuro（CMU，2026）。',
+
+  // -- Programming Fog Chess with Server-Side Truth --
+  'Truth stays server-side': '真實局面留在伺服器端',
+  'The triptych is the architecture in miniature. The center board exists only on the server. White and Black each receive a different projection, and neither projection contains the full truth with a visual layer hiding it.':
+    '這組三聯棋盤就是整個架構的縮影。中央棋盤只存在於伺服器上。白方與黑方各自收到不同的投影檢視，任何一份投影都不是用視覺圖層遮住完整真實局面。',
+  'The rule is simple: compute truth once, project the allowed view per seat, and keep the full event log private until the game is over.':
+    '規則很簡單：只計算一次真實狀態，再為每個席位投影其獲准看到的檢視，並在對局結束前將完整事件紀錄保持私密。',
+  'That single boundary supports live PvP, engine games, calibration, tournaments, and review. This article stays focused on the player-facing live room: what each browser receives, who can receive it, and when the record becomes public.':
+    '這一條邊界同時支援即時玩家對戰、引擎對局、校準、賽事和複盤。本文聚焦面向玩家的即時房間：每個瀏覽器會收到什麼、誰可以接收，以及對局紀錄何時公開。',
+  'How views are computed': '檢視如何計算',
+  'For a player, the boundary is `PlayerView`: visible squares, visible pieces, legal moves, status, and clock for that seat. Opponent pieces outside the visibility set are not hidden fields. They are absent.':
+    '對玩家而言，這條邊界就是 `PlayerView`：該席位可見的格子、可見棋子、合法著法、狀態和時鐘。可見範圍之外的對方棋子不是被藏在欄位裡，而是根本不存在於資料中。',
+  'The important part is the direction of dependency. The client can render fog because it receives a visibility mask, but it cannot remove fog to recover pieces it was never sent.':
+    '關鍵在於相依方向。用戶端因為收到可見性遮罩而能夠渲染迷霧，卻無法透過移除迷霧來恢復從未傳送給它的棋子。',
+  'Sample data payload': '範例資料負載',
+  'The live move stream uses `event-appended`, a per-move frame. This is the white payload from the position above, shortened to the fields that matter:':
+    '即時走子串流使用 `event-appended`，每步傳送一個訊框。下面是上方局面中傳給白方的負載，已縮減為關鍵欄位：',
+  '**Core fields:** `seat` identifies the recipient, `seq` orders the stream, `state.board` is the redacted board, `state.visibleSquares` is the clear-vs-fog mask, and `state.status` carries the canonical turn/result state.':
+    '**核心欄位：**`seat` 標識接收者，`seq` 為資料流排序，`state.board` 是去識別化後的棋盤，`state.visibleSquares` 是清晰區域與迷霧區域的遮罩，`state.status` 攜帶規範的輪次與結果狀態。',
+  'If the appended event is visible to this seat, the frame includes one filtered `event`. If the move is hidden, `event` is omitted and the projected `state` still advances. The player knows a turn happened, not what happened in the fog.':
+    '如果新增事件對該席位可見，這個訊框會包含一個經過過濾的 `event`。如果走子被隱藏，`event` 會被省略，但投影後的 `state` 仍會推進。玩家知道一回合已經發生，卻不知道迷霧中發生了什麼。',
+  'Snapshots still exist for first connect, explicit recovery, and final resync. They carry the filtered event history needed to hydrate the client, so they are larger than per-move frames.':
+    '首次連線、明確復原和最終重新同步仍會使用快照。快照攜帶用戶端初始化所需的過濾事件歷程，因此比逐步訊框更大。',
+  'Player move': '玩家走子',
+  'A move request is just coordinates:': '走子請求只有座標：',
+  'The server validates the request against canonical state, applies the move, appends an event, and projects the next view. The client never decides whether hidden information exists, whether an invisible move happened, or whether the game is over.':
+    '伺服器根據規範狀態驗證請求，執行走子，附加事件，再投影下一份檢視。用戶端永遠不負責判斷是否存在隱藏資訊、是否發生了不可見走子，或對局是否結束。',
+  'Seat-gated live rooms': '按席位控制的即時房間',
+  'During a live game, the server sends game data only to the two seats. After each move, it projects one view for White and one view for Black, then sends each view only to a socket that has proven it controls that seat.':
+    '即時對局期間，伺服器只向兩個對局席位傳送遊戲資料。每步之後，它分別為白方和黑方投影一份檢視，再將每份檢視只傳送給已經證明自己控制該席位的通訊端。',
+  'Seat proof': '席位證明',
+  'A socket gets live room data only after it proves control of the white or black seat. Anonymous seats use random bearer tokens; the server stores a SHA-256 token hash and compares the presented token in constant time.':
+    '通訊端只有在證明自己控制白方或黑方席位後，才能取得即時房間資料。匿名席位使用隨機持有人權杖；伺服器保存 SHA-256 權杖雜湊，並以固定時間比較提交的權杖。',
+  'Account seats': '帳號席位',
+  'Signed-in seats add the account session check on top of the seat claim. The token proves this browser can reclaim the seat; the session proves the account still matches the seat assignment.':
+    '已登入席位會在席位聲明之上增加帳號工作階段檢查。權杖證明該瀏覽器可以取回席位；工作階段則證明帳號仍與席位分配相符。',
+  'No live spectator view': '沒有即時觀戰檢視',
+  'Non-players do not get a live spectator projection. A socket without a valid seat is rejected before room data is sent, and the live replay endpoint returns 403 until the game reaches a terminal state.':
+    '非對局玩家不會取得即時觀戰投影。沒有有效席位的通訊端會在房間資料傳送前被拒絕，而即時回放端點會一直回傳 403，直到對局進入終局狀態。',
+  'Postgame review': '賽後複盤',
+  'When the game becomes terminal, the privacy rule changes. The room no longer rejects non-players after the result, and the game page becomes the durable public review surface.':
+    '對局進入終局狀態後，隱私規則隨之改變。結果產生後，房間不再拒絕非對局玩家，遊戲頁面則成為持久的公開複盤介面。',
+  'A spectator who opens the room during play gets no board. The same person can open the finished game page after the result and inspect the event log. That is the product rule: private while decisions are live, reviewable once the record is settled.':
+    '觀眾在對局進行時打開房間，看不到棋盤。結果產生後，同一個人可以打開已結束的遊戲頁面並檢查事件紀錄。這就是產品規則：決策仍在進行時保持私密，紀錄確定後可以複盤。',
+  'That split is important for rated play. A rated result can point at a public completed game without giving non-players access to live hidden information.':
+    '這種區分對計分對局很重要。計分結果可以指向一盤公開的已完成對局，同時不讓非對局玩家接觸即時隱藏資訊。',
+  'It also keeps reconnect and review on the same foundation. Live reconnect rebuilds a filtered player view from the event log. Postgame review uses the same log after the hidden-information constraint has expired.':
+    '它也讓重新連線與複盤建立在同一基礎上。即時重新連線從事件紀錄重建過濾後的玩家檢視；隱藏資訊限制失效後，賽後複盤使用同一份紀錄。',
+  'Scope and verification': '範圍與驗證',
+  'This is not a full anti-cheat claim. It is the narrower integrity claim this architecture can prove: during live play, hidden truth is not sent to unauthorized browser paths; after the game ends, the record is reviewable.':
+    '這並不是一項完整的反作弊聲明，而是該架構能夠證明的、更具體的完整性保證：即時對局期間，隱藏真實狀態不會傳送到未經授權的瀏覽器路徑；對局結束後，紀錄可供複盤。',
+  'Anonymous casual seats are bearer-token seats, not account-grade identity, and there is no live spectator mode for hidden-information games.':
+    '匿名休閒席位依靠持有人權杖，並不具備帳號級身分保證；隱藏資訊遊戲也沒有即時觀戰模式。',
+  'Mistboard covers this boundary with WebSocket and payload regression tests that drive real moves and assert on the bytes each seat receives.':
+    'Mistboard 用 WebSocket 與負載迴歸測試覆蓋這條邊界：測試會執行真實走子，並斷言每個席位實際收到的位元組。',
+  'That is the line Mistboard defends: during play, there is no browser-side truth to unmask. After play, there is a public record to inspect.':
+    '這就是 Mistboard 守住的界線：對局期間，瀏覽器端沒有可以揭開的真實局面；對局結束後，則有公開紀錄可供檢查。',
+
   // Keep newly edited article strings covered while the Traditional dictionary
   // overrides shared copy below. Article-specific lexical forks can continue to
   // replace these shared translations without duplicating the whole dictionary.
