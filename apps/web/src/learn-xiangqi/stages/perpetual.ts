@@ -10,7 +10,7 @@
 import { scenarioComplete } from '../learn-assert.js';
 import { arrow, circle, type LearnLevelPartial } from '../learn-types.js';
 
-const levels: LearnLevelPartial[] = [
+const scriptedDemos: LearnLevelPartial[] = [
   {
     // Perpetual CHECK with a chariot: check on rank 1, dodge up, check on
     // rank 2, dodge back. Two full cycles; black gets nowhere.
@@ -129,6 +129,14 @@ const levels: LearnLevelPartial[] = [
     nextButton: true,
   },
 ];
+
+// forcedReplies off stage-wide: these are rules DEMOS of black CHOOSING to
+// repeat checks and chases (the whole point is that black could stop but
+// does not); no forced-sequence claim is made.
+const levels: LearnLevelPartial[] = scriptedDemos.map((level) => ({
+  forcedReplies: false,
+  ...level,
+}));
 
 export const perpetualStage = {
   key: 'perpetual',

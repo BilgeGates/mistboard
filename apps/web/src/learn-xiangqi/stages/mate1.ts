@@ -85,19 +85,19 @@ export const mate1Stage = {
     'learn.xiangqi.mate1.intro':
       'You win by checkmate: attack the enemy general so no reply can save it. Each position here hides a single move that ends the game. Find it!',
     'learn.xiangqi.mate1.complete':
-      'Well done! You now know the classic mating shapes: the cornered general, the double cannon, the smothered palace, the corner horse, and the flying-general file. Spot them in your games and finish in one!',
+      'Well done! You now know the classic mating shapes: the cornered general, the double cannon, the smothered palace, the corner horse, and the flying-general file. Each has carried a Chinese name for centuries. You will meet them again, by name, in the Mate patterns stage.',
     'learn.xiangqi.mate1.goal.chariot':
       'The black general hides in the corner, and its own cannon blocks the way out. Mate in one with your chariot!',
     'learn.xiangqi.mate1.goal.doubleCannon':
-      'Two cannons, one file: the front cannon is the screen for the back one. Line them up for the double cannon mate!',
+      'Two cannons, one file: the front cannon is the screen for the back one. Line them up for the double cannon mate, 重炮!',
     'learn.xiangqi.mate1.goal.smother':
-      'The black advisors box in their own general. Fire your cannon down the back rank: the smothered cannon mate!',
+      'The black advisors box in their own general. Fire your cannon down the back rank for the sealed palace mate, 闷宫!',
     'learn.xiangqi.mate1.goal.horse':
-      'Hop your horse onto the palace corner for the corner horse mate. Your soldier already guards the escape square.',
+      'Hop your horse onto the palace corner for the corner horse mate, 挂角马. Your soldier already guards the escape square.',
     'learn.xiangqi.mate1.goal.soldier':
       'Humble soldiers are deadly inside the palace. One small step forward is mate!',
     'learn.xiangqi.mate1.goal.flying':
-      'Generals may never face each other on an open file. Your general watches the middle file, so the black general cannot step onto it. Check from the side!',
+      'Generals may never face each other on an open file. Your general watches the middle file, so the black general cannot step onto it. Check from the side: the white-face general mate, 白脸将!',
     'learn.xiangqi.mate1.goal.capstone':
       'A real battle. Several moves give check, but only one is mate. Find it!',
   },

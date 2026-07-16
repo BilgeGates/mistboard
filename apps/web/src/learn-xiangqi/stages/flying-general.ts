@@ -59,7 +59,7 @@ export const flyingGeneralStage = {
     'learn.xiangqi.flyingGeneral.intro':
       'The two generals may never face each other on an open file. Your general beams an invisible threat down its file: the enemy general cannot step into it, ever. Great players use this rule as an extra attacker.',
     'learn.xiangqi.flyingGeneral.complete':
-      'Well done! Your general is more than a piece to protect: on an open file it fights like a hidden chariot. Watch for this in every endgame.',
+      'Well done! Your general is more than a piece to protect: on an open file it fights like a hidden chariot. Players have a name for this weapon: 白脸将 (báiliǎn jiàng), the white-face general, also called 对面笑, the face-to-face smile. Watch for it in every endgame.',
     'learn.xiangqi.flyingGeneral.goal.rule':
       "Generals may never face each other on an open file. So the black general cannot step onto your general's file. Check on the f-file is mate in one!",
     'learn.xiangqi.flyingGeneral.goal.open':

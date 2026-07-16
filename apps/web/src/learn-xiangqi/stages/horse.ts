@@ -71,7 +71,7 @@ export const horseStage = {
     'learn.xiangqi.horse.intro':
       'The horse moves one point along a line, then one point diagonally outward. It cannot jump over pieces: a piece standing on that first point blocks the move. That point is called the horse leg.',
     'learn.xiangqi.horse.complete':
-      'Well ridden! Remember the leg: a horse in the open is strong, a horse with blocked legs is helpless. Watch the legs, yours and theirs.',
+      'Well ridden! Remember the leg: a horse in the open is strong, a horse with blocked legs is helpless. Watch the legs, yours and theirs. The best horse posts even have names centuries old: the stable horse 卧槽马 and the fishing horse 钓鱼马 await you in Mate patterns.',
     'learn.xiangqi.horse.goal.1': 'One step up the line, one step out. Grab the star!',
     'learn.xiangqi.horse.goal.2': 'Four stars, four jumps. Each one bends a different way.',
     'learn.xiangqi.horse.goal.3': 'Grab all the stars. The horse jumps in eight directions.',
