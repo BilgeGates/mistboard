@@ -863,6 +863,10 @@ const ZH_HANS: Record<string, string> = {
 };
 
 const ZH_HANT: Record<string, string> = {
+  // Traditional starts from the complete Simplified key set, then every
+  // authored Taiwan lexical or glyph fork below overrides that shared value.
+  // Keep this spread first so new Traditional entries cannot be overwritten.
+  ...ZH_HANS,
   // -- Fortress Xiangqi --
   'Fortress Xiangqi Rules': '堡壘象棋規則',
   'Xiangqi with a pocket: every familiar piece moves as in xiangqi, plus crazyhouse-style drops and one new piece, the Treasure.':
@@ -1022,10 +1026,6 @@ const ZH_HANT: Record<string, string> = {
   'That is the line Mistboard defends: during play, there is no browser-side truth to unmask. After play, there is a public record to inspect.':
     '這就是 Mistboard 守住的界線：對局期間，瀏覽器端沒有可以揭開的真實局面；對局結束後，則有公開紀錄可供檢查。',
 
-  // Keep newly edited article strings covered while the Traditional dictionary
-  // overrides shared copy below. Article-specific lexical forks can continue to
-  // replace these shared translations without duplicating the whole dictionary.
-  ...ZH_HANS,
   // -- How MistyBanqi Plays (engine article) --
   'How MistyBanqi Plays': 'MistyBanqi 是怎麼下棋的',
   'MistyBanqi is the engine you play in Banqi on Mistboard: a classical search engine with a hand-written evaluation. How it thinks, and the blind spot worth knowing: it can draw a game it has already won.':

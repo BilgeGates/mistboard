@@ -185,11 +185,15 @@ describe('article public listing gates', () => {
   });
 
   it('publishes the completed Fortress Xiangqi localization', () => {
-    const page = buildArticlePage('fortress-xiangqi', 'zh-Hans');
+    const simplified = buildArticlePage('fortress-xiangqi', 'zh-Hans');
+    const traditional = buildArticlePage('fortress-xiangqi', 'zh-Hant');
 
-    expect(page.dataset.articleLang).toBe('zh-Hans');
-    expect(page.querySelector('.article-title')?.textContent).toBe('堡垒象棋规则');
-    expect(page.querySelector('.article-meta-dates')?.textContent).toContain('发布于');
+    expect(simplified.dataset.articleLang).toBe('zh-Hans');
+    expect(simplified.querySelector('.article-title')?.textContent).toBe('堡垒象棋规则');
+    expect(simplified.querySelector('.article-meta-dates')?.textContent).toContain('发布于');
+    expect(traditional.dataset.articleLang).toBe('zh-Hant');
+    expect(traditional.querySelector('.article-title')?.textContent).toBe('堡壘象棋規則');
+    expect(traditional.querySelector('.article-meta-dates')?.textContent).toContain('發布於');
   });
 
   it('limits the homepage article widget to editorial article cards ordered by publish date', () => {
