@@ -243,6 +243,26 @@ describe('appearance family gating', () => {
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
   });
+
+  it('opens board and piece settings on the first Xiangqi family option by default', () => {
+    rebuildThemePanel();
+
+    for (const key of ['board', 'pieces']) {
+      document.querySelector<HTMLButtonElement>(`[data-appearance-target="${key}"]`)?.click();
+      const submenu = document.querySelector<HTMLElement>(`.appearance-submenu[data-key="${key}"]`);
+      const xiangqi = submenu?.querySelector<HTMLButtonElement>(
+        '[data-board-family-option="xiangqi"]',
+      );
+      const chess = submenu?.querySelector<HTMLButtonElement>('[data-board-family-option="chess"]');
+
+      expect(xiangqi?.classList.contains('selected')).toBe(true);
+      expect(xiangqi?.getAttribute('aria-checked')).toBe('true');
+      expect(chess?.classList.contains('selected')).toBe(false);
+      expect(chess?.getAttribute('aria-checked')).toBe('false');
+
+      submenu?.querySelector<HTMLButtonElement>('.appearance-submenu-back')?.click();
+    }
+  });
 });
 
 // Drop any panel the persistent nav observer mounted before the flag stub, then

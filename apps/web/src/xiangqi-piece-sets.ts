@@ -289,14 +289,22 @@ function internationalImageMark(href: string, role: InternationalArtRole): strin
   return `<image href="${escapeAttr(href)}" x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}" preserveAspectRatio="xMidYMid meet"/>`;
 }
 
-const INTERNATIONAL_FLAT_IMAGE_SCALE = 1.22;
+const INTERNATIONAL_FLAT_IMAGE_SCALE = 1.34;
+const INTERNATIONAL_FLAT_IMAGE_FITS: Partial<
+  Record<InternationalArtRole, { scale: number; yOffset?: number }>
+> = {
+  cannon: { scale: 1.4 },
+  elephant: { scale: INTERNATIONAL_FLAT_IMAGE_SCALE, yOffset: -3 },
+};
 
 function internationalFlatImageMark(href: string, role: InternationalArtRole): string {
   const frame = INTERNATIONAL_IMAGE_FRAMES[role];
-  const x = frameValue(50 + (frame.x - 50) * INTERNATIONAL_FLAT_IMAGE_SCALE);
-  const y = frameValue(50 + (frame.y - 50) * INTERNATIONAL_FLAT_IMAGE_SCALE);
-  const width = frameValue(frame.width * INTERNATIONAL_FLAT_IMAGE_SCALE);
-  const height = frameValue(frame.height * INTERNATIONAL_FLAT_IMAGE_SCALE);
+  const fit = INTERNATIONAL_FLAT_IMAGE_FITS[role];
+  const scale = fit?.scale ?? INTERNATIONAL_FLAT_IMAGE_SCALE;
+  const x = frameValue(50 + (frame.x - 50) * scale);
+  const y = frameValue(50 + (frame.y - 50) * scale + (fit?.yOffset ?? 0));
+  const width = frameValue(frame.width * scale);
+  const height = frameValue(frame.height * scale);
   return `<image href="${escapeAttr(href)}" x="${x}" y="${y}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid meet"/>`;
 }
 
