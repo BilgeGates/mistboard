@@ -6,10 +6,15 @@ type FavoriteResponse = {
   favorited?: boolean;
 };
 
-export function createGameFavoriteButton(roomId: string): HTMLButtonElement {
+export function createGameFavoriteButton(
+  roomId: string,
+  options: { compact?: boolean } = {},
+): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'review-action-link game-favorite-action';
+  button.className = options.compact
+    ? 'game-favorite-action game-favorite-action--compact'
+    : 'review-action-link game-favorite-action';
   button.hidden = true;
 
   let authenticated = false;
@@ -22,7 +27,8 @@ export function createGameFavoriteButton(roomId: string): HTMLButtonElement {
     button.classList.toggle('game-favorite-action--saved', favorited);
     const icon = favorited ? '★' : '☆';
     const label = favorited ? t('game.savedGame') : t('game.saveGame');
-    button.textContent = `${icon} ${label}`;
+    button.textContent = options.compact ? icon : `${icon} ${label}`;
+    button.setAttribute('aria-label', label);
     button.title = failed ? t('game.saveFailed') : authenticated ? label : t('game.signInToSave');
     button.disabled = busy;
   };
