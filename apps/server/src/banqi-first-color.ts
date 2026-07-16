@@ -2,6 +2,7 @@ import type { BanqiColor } from '@mistboard/game';
 import { BANQI_SPEC_ID } from '@mistboard/game';
 import type { BanqiEvent } from './banqi-runtime.js';
 import { banqiTenant } from './banqi-tenant.js';
+import { FinishedGameCache } from './finished-game-cache.js';
 import * as persistence from './persistence.js';
 import { isTenantEventLog, replayTenantEvents } from './variant-tenant/runtime.js';
 
@@ -11,9 +12,13 @@ import { isTenantEventLog, replayTenantEvents } from './variant-tenant/runtime.j
 // label results correctly, so we replay the event log to recover `firstColor`.
 //
 // firstColor is immutable once a game is finished, so cache it per room: the feed
-// is polled, and a full replay on every poll would be wasteful. The cache is
-// bounded by the distinct finished banqi rooms a process serves in the feed.
-const firstColorCache = new Map<string, BanqiColor | null>();
+// is polled, and a full replay on every poll would be wasteful. LRU + TTL
+// (the FinishedGameCache pattern) keeps the cache bounded: room ids rotate
+// forever, so a plain Map would grow monotonically with every room ever served.
+// Correctness never depends on eviction (the value is immutable); an evicted or
+// expired room just replays once more. Null (unreplayable log) is a valid cached
+// value; the TTL retries it eventually.
+const firstColorCache = new FinishedGameCache<BanqiColor | null>(512);
 
 // Injectable so the derivation can be unit-tested without a database, mirroring
 // the banqi postgame route.
@@ -38,6 +43,7 @@ export async function banqiFirstColorForRoom(
   roomId: string,
   deps: BanqiFirstColorDeps = defaultDeps,
 ): Promise<BanqiColor | null> {
+  // `undefined` = miss; a cached null (unreplayable log) is a hit and short-circuits.
   const cached = firstColorCache.get(roomId);
   if (cached !== undefined) return cached;
   const firstColor = await deriveBanqiFirstColor(roomId, deps);

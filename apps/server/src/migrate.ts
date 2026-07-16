@@ -6,6 +6,46 @@ import pg from 'pg';
 const MIGRATIONS_TABLE = '_migrations';
 const MIGRATIONS_LOCK_KEY = 'mistboard:migrations';
 
+// Migrations are ordered by filename sort, so two files sharing a numeric
+// prefix apply in an order that is easy to get wrong and easy to collide on
+// across branches. These three pairs already shipped (and are recorded by
+// filename in _migrations on prod), so they cannot be renamed; every other
+// prefix must be unique. Exact file sets, not bare prefixes: a THIRD file
+// joining an allowlisted prefix is still an error.
+const LEGACY_DUPLICATE_PREFIXES: ReadonlyMap<string, readonly string[]> = new Map([
+  ['051', ['051_allow_drop_mini_xiangqi_rating_bucket.sql', '051_bot_profiles.sql']],
+  ['064', ['064_allow_jungle_rating_buckets.sql', '064_puzzle_daily_selections.sql']],
+  ['081', ['081_align_forum_categories.sql', '081_xiangqi_broadcasts.sql']],
+]);
+
+export function assertUniqueMigrationPrefixes(files: readonly string[]): void {
+  const byPrefix = new Map<string, string[]>();
+  for (const file of files) {
+    const match = /^(\d+)_/.exec(file);
+    if (!match) continue;
+    const group = byPrefix.get(match[1]);
+    if (group) group.push(file);
+    else byPrefix.set(match[1], [file]);
+  }
+
+  const collisions: string[] = [];
+  for (const [prefix, group] of byPrefix) {
+    if (group.length < 2) continue;
+    const legacy = LEGACY_DUPLICATE_PREFIXES.get(prefix);
+    const sorted = [...group].sort();
+    if (legacy && legacy.length === sorted.length && legacy.every((f, i) => f === sorted[i])) {
+      continue;
+    }
+    collisions.push(`${prefix}: ${sorted.join(', ')}`);
+  }
+
+  if (collisions.length > 0) {
+    throw new Error(
+      `duplicate migration number prefixes detected (rename the NEW file to the next free number):\n${collisions.join('\n')}`,
+    );
+  }
+}
+
 export async function runMigrations(
   client: pg.Client | pg.PoolClient,
   migrationsDir?: string,
@@ -27,6 +67,7 @@ export async function runMigrations(
     const appliedSet = new Set(applied.rows.map((row) => row.name));
 
     const files = (await readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
+    assertUniqueMigrationPrefixes(files);
 
     for (const file of files) {
       if (appliedSet.has(file)) continue;

@@ -10,6 +10,8 @@ import {
 } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
 import { xiangqiEnabled } from './../feature-flags.js';
+import { isVacuousAnalysis, VacuousAnalysisError } from './../game-analysis-sweep.js';
+import { logger } from './../obs.js';
 import * as persistence from './../persistence.js';
 import { buildTenantGameSummary } from './../variant-tenant/events.js';
 import {
@@ -17,8 +19,11 @@ import {
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
-import { analyzeXiangqiGame, type PlyEval } from './../xiangqi-analysis.js';
-import { XIANGQI_DEFAULT_ENGINE_ID as XIANGQI_ANALYSIS_ENGINE_ID } from './../xiangqi-pikafish-engine.js';
+import {
+  analyzeXiangqiGame,
+  type PlyEval,
+  XIANGQI_ANALYSIS_ENGINE_ID,
+} from './../xiangqi-analysis.js';
 import { xiangqiRooms } from './../xiangqi-registration.js';
 import type { XiangqiEvent, XiangqiRuntimeRoom } from './../xiangqi-runtime.js';
 import { xiangqiTenant } from './../xiangqi-tenant.js';
@@ -95,13 +100,28 @@ export async function tryHandle(
       writeJson(response, 404, { error: 'not_found' });
       return true;
     }
-    const analysis = await resolveXiangqiAnalysis(
-      roomId,
-      payload,
-      liveAnalysisCache,
-      undefined,
-      method === 'POST',
-    );
+    let analysis: XiangqiGameAnalysis | null;
+    try {
+      analysis = await resolveXiangqiAnalysis(
+        roomId,
+        payload,
+        liveAnalysisCache,
+        undefined,
+        method === 'POST',
+      );
+    } catch (err) {
+      // A scoreless sweep (engine emitted moves but no evals) fails closed like a
+      // missing binary: 503, nothing cached, rather than a bogus flawless-game result.
+      if (err instanceof VacuousAnalysisError) {
+        logger.error(
+          { kind: 'xiangqi_analysis_engine_vacuous', room_id: roomId },
+          'Xiangqi analysis produced no evals (engine emitted no score); failing closed',
+        );
+        writeJson(response, 503, { error: 'analysis_engine_unavailable' });
+        return true;
+      }
+      throw err;
+    }
     if (!analysis) {
       // GET cache miss: not computed yet. 204 = "nothing cached", client shows the button.
       response.writeHead(204).end();
@@ -219,6 +239,10 @@ export async function resolveXiangqiAnalysis(
 
   const compute = (async () => {
     const analysis = await analyzeXiangqiPostgame(payload, analyze);
+    // Fail closed on a scoreless sweep: never cache a vacuous (all-null) series, it
+    // would render as a flawless game forever. Throwing keeps the key uncached so a
+    // fixed engine recomputes; the route maps this to 503 analysis_engine_unavailable.
+    if (isVacuousAnalysis(analysis.plies)) throw new VacuousAnalysisError('xiangqi');
     await cache.save(roomId, engineId, depth, analysis.plies);
     return analysis;
   })();

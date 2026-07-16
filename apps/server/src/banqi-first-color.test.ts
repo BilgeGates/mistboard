@@ -116,3 +116,12 @@ test('returns null for an unreplayable / missing event log', async () => {
   const { deps } = depsFor({});
   assert.equal(await banqiFirstColorForRoom('bq_fc_missing', deps), null);
 });
+
+test('a null derivation is cached too, so a polled feed does not re-replay it', async () => {
+  // The bounded cache distinguishes a MISS (undefined) from a cached null: an
+  // unreplayable log must still load only once per TTL window, not per poll.
+  const { deps, calls } = depsFor({});
+  assert.equal(await banqiFirstColorForRoom('bq_fc_null_cache', deps), null);
+  assert.equal(await banqiFirstColorForRoom('bq_fc_null_cache', deps), null);
+  assert.deepEqual(calls(), ['bq_fc_null_cache'], 'the missing log is loaded once, not per call');
+});

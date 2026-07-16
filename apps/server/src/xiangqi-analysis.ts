@@ -10,6 +10,20 @@ import {
   type XiangqiPositionEval,
 } from './xiangqi-pikafish-engine.js';
 
+// Version of the ANALYSIS configuration (binary + net + the fixed-depth Red-POV
+// sweep), independent of the PvE ladder's XIANGQI_ENGINE_VERSION (nodes/movetime
+// tiers never apply to analysis, which runs `go depth N`). Bump whenever the
+// analysis output would change so stored evals invalidate.
+export const XIANGQI_ANALYSIS_ENGINE_VERSION = 1;
+
+// Cache engine id, version-suffixed so an engine/config change invalidates stored
+// evals (the sibling pattern: JIEQI/BANQI/JUNGLE_ANALYSIS_ENGINE_ID). Xiangqi
+// analyses were historically cached under the PvE bot id (XIANGQI_DEFAULT_ENGINE_ID),
+// so the 2026-07-10 ladder rename ('pikafish-xiangqi-strong' -> 'pikafish-xiangqi-
+// level-5') silently orphaned every cached row; migration 104 maps both old ids
+// onto this dedicated id.
+export const XIANGQI_ANALYSIS_ENGINE_ID = `pikafish-xiangqi-analysis@${XIANGQI_ANALYSIS_ENGINE_VERSION}`;
+
 export type PlyEval = {
   /** Position AFTER this many plies (0 = start position). */
   ply: number;

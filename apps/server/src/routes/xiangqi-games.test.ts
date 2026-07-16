@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { XiangqiMove } from '@mistboard/game';
-import type { PlyEval } from './../xiangqi-analysis.js';
+import { VacuousAnalysisError } from './../game-analysis-sweep.js';
+import { type PlyEval, XIANGQI_ANALYSIS_ENGINE_ID } from './../xiangqi-analysis.js';
+import { XIANGQI_DEFAULT_ENGINE_ID } from './../xiangqi-pikafish-engine.js';
 import {
   analyzeXiangqiPostgame,
   resolveXiangqiAnalysis,
@@ -51,6 +53,38 @@ test('analyzeXiangqiPostgame extracts moves, converts to Pikafish UCI, runs the 
   assert.equal(result.plies.length, 2);
   assert.equal(result.engineId.length > 0, true);
   assert.equal(result.depth, 12);
+});
+
+test('analysis rows carry the dedicated versioned id, never the PvE bot id', async () => {
+  // Regression for #169: caching under XIANGQI_DEFAULT_ENGINE_ID orphaned every
+  // stored analysis when the PvE ladder renamed its default. The cache id must be
+  // the dedicated versioned analysis id (the sibling-variant pattern).
+  assert.match(XIANGQI_ANALYSIS_ENGINE_ID, /^pikafish-xiangqi-analysis@\d+$/);
+  assert.notEqual(XIANGQI_ANALYSIS_ENGINE_ID, XIANGQI_DEFAULT_ENGINE_ID);
+  const result = await analyzeXiangqiPostgame(oneMovePayload, onePly);
+  assert.equal(result.engineId, XIANGQI_ANALYSIS_ENGINE_ID);
+  // The resolver keys the cache under the same id.
+  const cache = memoryCache();
+  const resolved = await resolveXiangqiAnalysis('room-id-pin', oneMovePayload, cache, onePly);
+  assert.equal(resolved?.engineId, XIANGQI_ANALYSIS_ENGINE_ID);
+  const hit = await cache.get('room-id-pin', XIANGQI_ANALYSIS_ENGINE_ID, 12);
+  assert.ok(hit, 'the row is stored under the versioned analysis id');
+});
+
+test('resolveXiangqiAnalysis fails closed on a scoreless (vacuous) sweep', async () => {
+  const cache = memoryCache();
+  // Every ply carries neither cp nor mate: the engine produced moves but no score.
+  const vacuous = async (moves: string[]): Promise<PlyEval[]> =>
+    moves.map((_, i) => ({ ply: i + 1, cp: null, mate: null, best: 'h2e2' }));
+  await assert.rejects(
+    resolveXiangqiAnalysis('room-vacuous', oneMovePayload, cache, vacuous),
+    VacuousAnalysisError,
+  );
+  assert.equal(cache.saved, 0, 'a vacuous sweep is never cached');
+  // The in-flight key is cleared, so a later (fixed-engine) pass recomputes fine.
+  const recovered = await resolveXiangqiAnalysis('room-vacuous', oneMovePayload, cache, onePly);
+  assert.ok(recovered);
+  assert.equal(cache.saved, 1, 'the recomputed sweep persists');
 });
 
 test('resolveXiangqiAnalysis serves a cache hit without touching the engine', async () => {

@@ -81,16 +81,21 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
       response.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
     }
 
-    // The ceval engine runs Fairy-Stockfish as an emscripten pthread worker. A
-    // dedicated worker only becomes cross-origin isolated (and can accept the
-    // SharedArrayBuffer memory the main thread hands it) when its OWN script
-    // response carries COEP; the document's credentialless header does not extend
-    // to it, so the worker spawns un-isolated and pthreads die with an opaque
-    // "pthread sent an error". Serve the vendored engine assets with their own
-    // COEP + CORP so the worker isolates. (Vite sets these on every dev response,
-    // which is why this only ever broke in prod.) setHeader survives the static
-    // serve-handler's writeHead merge, same as the review-document headers above.
-    if (pathname.startsWith('/engine/fairy-stockfish/')) {
+    // Ceval engines run as dedicated workers (Fairy-Stockfish additionally as
+    // emscripten pthreads). A dedicated worker only becomes cross-origin
+    // isolated (and can accept the SharedArrayBuffer memory the main thread
+    // hands it) when its OWN script response carries COEP; the document's
+    // credentialless header does not extend to it, so the worker spawns
+    // un-isolated and dies (pthreads: an opaque "pthread sent an error";
+    // Chrome on COEP documents: ERR_BLOCKED_BY_RESPONSE before the script
+    // runs). Serve ALL vendored engine assets (/engine/<pkg>/<file>) with
+    // their own COEP + CORP so the workers isolate; matching on the deeper
+    // segment keeps the /engine/:id admin document non-isolated. Scoping this
+    // to one engine dir is how misty-* shipped broken in prod on 2026-07-15.
+    // (Vite sets these on every dev response, which is why this class only
+    // ever breaks in prod.) setHeader survives the static serve-handler's
+    // writeHead merge, same as the review-document headers above.
+    if (isIsolatedEngineAssetPath(pathname)) {
       response.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
       response.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
     }
@@ -367,6 +372,13 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
 
     void serveHandler(request, response, { public: options.staticDir });
   };
+}
+
+// Vendored ceval engine assets live at /engine/<pkg>/<file> (fairy-stockfish,
+// misty-*, and any future engine). The deeper segment is what distinguishes
+// them from the /engine/:id admin document, which must stay non-isolated.
+export function isIsolatedEngineAssetPath(pathname: string): boolean {
+  return /^\/engine\/[^/]+\//.test(pathname);
 }
 
 // A page navigation is an extensionless GET/HEAD whose Accept header asks for
