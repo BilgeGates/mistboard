@@ -114,11 +114,40 @@ describe('standard Xiangqi board SVG', () => {
     expect(flipped).toContain('<circle class="xq-live-lastmove-ring" cx="276" cy="156" r="26"/>');
   });
 
+  it('marks the last move with complete source and destination cells on a square grid', () => {
+    const state = applyXiangqiMove(createInitialXiangqiState('xq-board-cell-lastmove'), {
+      from: 'b3',
+      to: 'e3',
+    });
+    const view = getStandardXiangqiPlayerView(state, 'red');
+
+    // The red-perspective bottom half includes the 12-unit river gutter:
+    // b3 center=(96,468), e3 center=(276,468), then inset half a 60-unit cell.
+    const svg = renderSharedXiangqiBoardSvg(view, 'red', { layout: 'cell' });
+    expect(svg).toContain(
+      '<rect class="xq-live-lastmove-square xq-live-lastmove-from" x="66" y="438" width="60" height="60"/>',
+    );
+    expect(svg).toContain(
+      '<rect class="xq-live-lastmove-square xq-live-lastmove-to" x="246" y="438" width="60" height="60"/>',
+    );
+    expect(svg).not.toContain('xq-live-lastmove-cell');
+    expect(svg).not.toContain('xq-live-lastmove-ring');
+
+    const flipped = renderSharedXiangqiBoardSvg(view, 'black', { layout: 'cell' });
+    expect(flipped).toContain(
+      '<rect class="xq-live-lastmove-square xq-live-lastmove-from" x="66" y="126" width="60" height="60"/>',
+    );
+    expect(flipped).toContain(
+      '<rect class="xq-live-lastmove-square xq-live-lastmove-to" x="246" y="126" width="60" height="60"/>',
+    );
+  });
+
   it('renders no last-move marker when the view has no lastMove', () => {
     const view = getStandardXiangqiPlayerView(createInitialXiangqiState('xq-board-fresh'), 'red');
     expect(view.lastMove).toBeUndefined();
     expect(renderSharedXiangqiBoardSvg(view)).not.toContain('xq-live-lastmove-cell');
     expect(renderSharedXiangqiBoardSvg(view)).not.toContain('xq-live-lastmove-ring');
+    expect(renderSharedXiangqiBoardSvg(view)).not.toContain('xq-live-lastmove-square');
   });
 });
 

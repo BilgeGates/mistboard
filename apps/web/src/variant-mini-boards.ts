@@ -30,6 +30,7 @@ import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import {
   animalTreasureMarks,
   cjkGlyphMark,
+  internationalFlatTreasureMarks,
   internationalTreasureMarks,
   renderXiangqiPieceGlyphed,
   treasureSymbolMark,
@@ -489,6 +490,9 @@ function fortressTreasureDisc(
   }
   if (set === 'international') {
     return place(internationalTreasureMarks(color));
+  }
+  if (set === 'international-flat') {
+    return place(internationalFlatTreasureMarks(color));
   }
   const ring = color === 'red' ? '#c2261e' : '#283a47';
   const ink = color === 'red' ? '#8a1a14' : '#283a47';

@@ -12,6 +12,7 @@ import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import {
   animalTreasureMarks,
   cjkGlyphMark,
+  internationalFlatTreasureMarks,
   internationalTreasureMarks,
   renderXiangqiPieceGlyphed,
   treasureSymbolMark,
@@ -262,6 +263,9 @@ function treasureInnerMarks(color: FortressXiangqiColor, set: XiangqiPieceSet): 
   if (set === 'international') {
     return internationalTreasureMarks(color);
   }
+  if (set === 'international-flat') {
+    return internationalFlatTreasureMarks(color);
+  }
   const colorHex = color === 'red' ? '#b91c1c' : '#1f2937';
   // Hanzi draws from the same baked Noto Sans CJK SC Bold outline every other
   // xiangqi piece uses (never the viewer's system serif), so the Treasure's
@@ -285,7 +289,8 @@ function treasureDisc(
   y: number,
   className: string,
 ): string {
-  return `<svg class="${className}" x="${x}" y="${y}" width="${PIECE_SIZE}" height="${PIECE_SIZE}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${color} treasure">${treasureInnerMarks(color, set)}</svg>`;
+  const styleAttr = set === 'international-flat' ? ' style="filter:none"' : '';
+  return `<svg class="${className}"${styleAttr} x="${x}" y="${y}" width="${PIECE_SIZE}" height="${PIECE_SIZE}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="${color} treasure">${treasureInnerMarks(color, set)}</svg>`;
 }
 
 function selectionRing(
