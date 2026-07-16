@@ -11,14 +11,23 @@ import {
 } from '@mistboard/game';
 import { fortressXiangqiEnabled } from './../feature-flags.js';
 import {
-  evaluateFortressXiangqiPosition,
   FORTRESS_XIANGQI_ANALYSIS_DEPTH,
   FORTRESS_XIANGQI_ANALYSIS_ENGINE_ID,
+  withFortressXiangqiAnalysisSession,
 } from './../fortress-xiangqi-fsf-engine.js';
 import { fortressXiangqiRooms } from './../fortress-xiangqi-registration.js';
 import { type FortressXiangqiEvent, fortressXiangqiTenant } from './../fortress-xiangqi-tenant.js';
-import { resolveCachedComputation } from './../game-analysis-kernel.js';
-import { type SweepPlyEval, sweepPlyEvals } from './../game-analysis-sweep.js';
+import {
+  type AnalysisProgressStore,
+  liveAnalysisProgressStore,
+  resolveCachedComputation,
+} from './../game-analysis-kernel.js';
+import {
+  isVacuousAnalysis,
+  type SweepPlyEval,
+  sweepPlyEvals,
+  VacuousAnalysisError,
+} from './../game-analysis-sweep.js';
 import * as persistence from './../persistence.js';
 import { buildTenantGameSummary } from './../variant-tenant/events.js';
 import {
@@ -132,16 +141,33 @@ type FortressXiangqiAnalysisPayload = {
   timeline: ReadonlyArray<{ type: string; move?: FortressXiangqiMove }>;
 };
 
+// The real whole-game sweep: the shared prefix walker bound to ONE persistent FSF
+// session (spawn + variant setup once, then incremental position/go per ply — the
+// same go command as the old per-spawn path, so evals and the engine id are
+// unchanged). With a `progress` store the sweep checkpoints after every evaluated
+// ply and resumes from the last checkpoint.
+function fortressXiangqiAnalysisSweep(
+  movesUci: string[],
+  progress?: AnalysisProgressStore<SweepPlyEval>,
+): Promise<SweepPlyEval[]> {
+  return withFortressXiangqiAnalysisSession((evaluate) =>
+    // The session evaluator carries the fixed analysis depth internally; the
+    // sweep's depth argument is the nominal cache dimension, not a search limit.
+    sweepPlyEvals(movesUci, (moves) => evaluate(moves), FORTRESS_XIANGQI_ANALYSIS_DEPTH, progress),
+  );
+}
+
 /**
  * Build the Red-POV eval series for a finished fortress game from its postgame
  * payload. `analyze` is injectable for tests; it defaults to the real FSF whole-game
- * sweep. Unlike xiangqi/Pikafish there is NO `best`-coordinate rewrite — fortress FSF
- * UCI is already our notation (board moves + `Q@d4` drops).
+ * sweep (one persistent engine process per sweep). Unlike xiangqi/Pikafish there is
+ * NO `best`-coordinate rewrite — fortress FSF UCI is already our notation (board
+ * moves + `Q@d4` drops).
  */
 export async function analyzeFortressXiangqiPostgame(
   payload: FortressXiangqiAnalysisPayload,
   analyze: (movesUci: string[]) => Promise<SweepPlyEval[]> = (movesUci) =>
-    sweepPlyEvals(movesUci, evaluateFortressXiangqiPosition, FORTRESS_XIANGQI_ANALYSIS_DEPTH),
+    fortressXiangqiAnalysisSweep(movesUci),
 ): Promise<FortressXiangqiGameAnalysis> {
   const movesUci = payload.timeline
     .filter((entry): entry is { type: 'move-played'; move: FortressXiangqiMove } =>
@@ -173,8 +199,9 @@ const liveAnalysisCache: FortressXiangqiAnalysisCache = {
  * Cache-first, coalesced whole-game analysis (shared skeleton: game-analysis-kernel).
  * A finished game's eval series is immutable given (room, engine, depth): serve a
  * stored result immediately, else compute once (sharing one in-flight promise),
- * persist it, and return. NOTE: fortress deliberately has no vacuous-sweep guard yet
- * (pre-Wave-1 behavior, kept as-is by the golden-pin refactor).
+ * persist it, and return. A scoreless (all-null) sweep throws VacuousAnalysisError
+ * and is never cached, so a fixed engine can recompute later; the route maps it to
+ * 503 analysis_engine_unavailable.
  */
 export async function resolveFortressXiangqiAnalysis(
   roomId: string,
@@ -185,13 +212,28 @@ export async function resolveFortressXiangqiAnalysis(
 ): Promise<FortressXiangqiGameAnalysis | null> {
   const engineId = FORTRESS_XIANGQI_ANALYSIS_ENGINE_ID;
   const depth = FORTRESS_XIANGQI_ANALYSIS_DEPTH;
+  // Incremental checkpoints only on the real (default-analyzer) path; injected
+  // analyzers (tests) keep the plain contract.
+  const progress = analyze
+    ? null
+    : liveAnalysisProgressStore<SweepPlyEval>(roomId, engineId, depth);
   const plies = await resolveCachedComputation<SweepPlyEval[]>({
     roomId,
     engineId,
     depth,
     cache,
     computeIfMissing,
-    compute: async () => (await analyzeFortressXiangqiPostgame(payload, analyze)).plies,
+    compute: async () =>
+      (
+        await analyzeFortressXiangqiPostgame(
+          payload,
+          analyze ?? ((movesUci) => fortressXiangqiAnalysisSweep(movesUci, progress ?? undefined)),
+        )
+      ).plies,
+    validate: (series) => {
+      if (isVacuousAnalysis(series)) throw new VacuousAnalysisError('fortress-xiangqi');
+    },
+    afterSave: progress ? () => progress.clear() : undefined,
   });
   return plies ? { engineId, depth, plies } : null;
 }

@@ -37,7 +37,12 @@ import {
   type SweepPlyEval,
   VacuousAnalysisError,
 } from './game-analysis-sweep.js';
-import { evaluateJieqiFen, evaluateJieqiMultiPv, JIEQI_ENGINE_VERSION } from './jieqi-engine.js';
+import {
+  evaluateJieqiFen,
+  evaluateJieqiMultiPv,
+  JIEQI_ENGINE_VERSION,
+  withJieqiAnalysisSession,
+} from './jieqi-engine.js';
 import {
   jieqiMoveToPikafishUci,
   jieqiStateToPikafishFen,
@@ -77,12 +82,20 @@ export type JieqiPositionEval = {
  * Pikafish reports the score from the side-to-move POV, and side-to-move IS the mover seat
  * (the FEN's stm field just encodes that seat), so we flip the sign when Black is to move —
  * exactly as banqi/jungle do. Throws (via pikaJieqiPath) when the binary is absent; callers
- * pre-check availability and fail closed.
+ * pre-check availability and fail closed. `evaluateFen` is the engine backend: the default
+ * spawns one process per call; the sweep binds it to a persistent session
+ * (withJieqiAnalysisSession) with the same depth/movetime, so the POV math lives here once.
  */
-export async function evaluateJieqiPosition(state: JieqiGameState): Promise<JieqiPositionEval> {
+export async function evaluateJieqiPosition(
+  state: JieqiGameState,
+  evaluateFen: (
+    fen: string,
+    opts: { depth: number; movetimeMs: number },
+  ) => Promise<{ cp: number | null; mate: number | null; best: string | null }> = evaluateJieqiFen,
+): Promise<JieqiPositionEval> {
   const mover: JieqiColor = state.status.type === 'playing' ? state.status.turn : 'red';
   const sign = mover === 'red' ? 1 : -1;
-  const evaluation = await evaluateJieqiFen(jieqiStateToPikafishFen(state), {
+  const evaluation = await evaluateFen(jieqiStateToPikafishFen(state), {
     depth: JIEQI_ANALYSIS_DEPTH_SEARCH,
     movetimeMs: JIEQI_ANALYSIS_MOVETIME_CAP_MS,
   });
@@ -114,12 +127,14 @@ export type JieqiGameAnalysis = {
  * Ply 0 is the initial position; ply k is the position after k moves. Reconstruction uses the
  * SAME kernel the live game did (createInitialJieqiState(deal) + applyJieqiMove), so reveals
  * reproduce exactly (a face-down piece reveals its dealt identity the first time it moves).
- * `evaluate` is injectable so tests drive the sweep without an engine.
+ * `evaluate` is injectable so tests drive the sweep without an engine; the default path runs
+ * the walk against ONE persistent PikaJieQi session (spawn + option setup once, then a
+ * FEN-per-position round-trip at the same depth/movetime the per-spawn path used).
  */
 export async function analyzeJieqiPostgame(
   moves: readonly JieqiMove[],
   deal: JieqiDeal,
-  evaluate: (state: JieqiGameState) => Promise<JieqiPositionEval> = evaluateJieqiPosition,
+  evaluate?: (state: JieqiGameState) => Promise<JieqiPositionEval>,
   progress?: AnalysisProgressStore<SweepPlyEval>,
 ): Promise<JieqiGameAnalysis> {
   let state = createInitialJieqiState('analysis', deal);
@@ -130,18 +145,28 @@ export async function analyzeJieqiPostgame(
   }
   // With a progress store the sweep checkpoints after every evaluated ply and
   // resumes from the last checkpoint (persist expensive output incrementally).
-  const resumed = progress ? await progress.load() : null;
-  const plies: SweepPlyEval[] = resumed ? [...resumed.items] : [];
-  for (let ply = plies.length; ply < states.length; ply += 1) {
-    const s = states[ply]!;
-    if (s.status.type !== 'playing') {
-      plies.push(terminalPlyEval(ply, s));
-      continue;
+  const sweep = async (
+    evaluatePosition: (state: JieqiGameState) => Promise<JieqiPositionEval>,
+  ): Promise<SweepPlyEval[]> => {
+    const resumed = progress ? await progress.load() : null;
+    const plies: SweepPlyEval[] = resumed ? [...resumed.items] : [];
+    for (let ply = plies.length; ply < states.length; ply += 1) {
+      const s = states[ply]!;
+      if (s.status.type !== 'playing') {
+        plies.push(terminalPlyEval(ply, s));
+        continue;
+      }
+      const evaluation = await evaluatePosition(s);
+      plies.push({ ply, cp: evaluation.cp, mate: evaluation.mate, best: evaluation.best });
+      if (progress) await progress.save({ nextIndex: ply + 1, items: plies });
     }
-    const evaluation = await evaluate(s);
-    plies.push({ ply, cp: evaluation.cp, mate: evaluation.mate, best: evaluation.best });
-    if (progress) await progress.save({ nextIndex: ply + 1, items: plies });
-  }
+    return plies;
+  };
+  const plies = evaluate
+    ? await sweep(evaluate)
+    : await withJieqiAnalysisSession((evaluateFen) =>
+        sweep((s) => evaluateJieqiPosition(s, evaluateFen)),
+      );
   return { engineId: JIEQI_ANALYSIS_ENGINE_ID, depth: JIEQI_ANALYSIS_DEPTH, plies };
 }
 

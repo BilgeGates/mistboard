@@ -19,6 +19,7 @@ import {
   runUciEval,
   runUciMultiPv,
   UciEnginePool,
+  UciEngineSession,
   type UciEval,
   type UciMultiPvLine,
 } from './uci-engine-harness.js';
@@ -174,6 +175,45 @@ export async function evaluateJieqiFen(
       timeoutMessage: 'pikafish-jieqi eval timed out',
     });
   } finally {
+    release();
+  }
+}
+
+/**
+ * Run `fn` with a FEN evaluator backed by ONE persistent PikaJieQi process (the
+ * xiangqi #168 pattern): binary spawn + option setup (including the optional
+ * MISTBOARD_PIKAFISH_NET EvalFile — exactly what the per-spawn path loads) happen
+ * once for the whole sweep, then each position is a `position fen …` + `go depth
+ * N movetime T` round-trip — the EXACT go command evaluateJieqiFen sends, so the
+ * eval semantics (and the versioned analysis engine id) are unchanged. Scores are
+ * side-to-move POV; the caller owns normalization, and the redacted FEN is sent
+ * as-is (the engine never sees a hidden id). Holds one analysis-pool slot for the
+ * duration, so a sweep never occupies a live bot-move slot; the session is always
+ * killed on the way out.
+ */
+export async function withJieqiAnalysisSession<T>(
+  fn: (
+    evaluateFen: (fen: string, opts: { depth: number; movetimeMs: number }) => Promise<UciEval>,
+  ) => Promise<T>,
+): Promise<T> {
+  const release = await analysisPool.acquire();
+  const session = new UciEngineSession({
+    bin: pikaJieqiPath(),
+    name: 'pikafish-jieqi-analysis',
+    initCommands: ['uci', ...netOption(), 'ucinewgame', 'isready'],
+  });
+  try {
+    await session.ready();
+    return await fn((fen, opts) =>
+      session.evalPosition({
+        positionCommand: `position fen ${fen}`,
+        goCommand: `go depth ${Math.max(1, Math.floor(opts.depth))} movetime ${opts.movetimeMs}`,
+        timeoutMs: opts.movetimeMs + 4_000,
+        timeoutMessage: 'pikafish-jieqi analysis eval timed out',
+      }),
+    );
+  } finally {
+    session.close();
     release();
   }
 }
