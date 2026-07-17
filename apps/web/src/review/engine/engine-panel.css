@@ -4,12 +4,17 @@
    .review-rail-main the card chrome is stripped and only the head tint +
    hairline separators remain. */
 .engine-panel {
+  /* No overflow:hidden here — the settings dropdown must overlay content BELOW
+     the panel's own box. */
   display: flex;
   flex-direction: column;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius, 10px);
   background: var(--site-panel, var(--site-surface));
-  overflow: hidden;
+}
+/* Head + settings wrapper: the dropdown's positioning context. */
+.engine-panel__top {
+  position: relative;
 }
 .engine-panel__head {
   display: flex;
@@ -17,6 +22,8 @@
   gap: 10px;
   padding: 7px 10px;
   background: var(--site-bg);
+  /* Standalone-card top corners (clipped flat by .review-rail-main instead). */
+  border-radius: calc(var(--site-radius, 10px) - 1px) calc(var(--site-radius, 10px) - 1px) 0 0;
 }
 
 /* On/off switch: pill track + sliding knob carrying an ✕ (off) / ✓ (on) glyph. */
@@ -115,7 +122,8 @@
   display: none;
 }
 
-/* Settings gear: ghost icon button at the far right of the head. */
+/* Settings gear: ghost icon button at the far right of the head (the canonical
+   site gear, theme.ts gearIconSvg). Menu open = accent fill, lichess-style. */
 .engine-panel__gear {
   appearance: none;
   flex: 0 0 auto;
@@ -135,40 +143,51 @@
   color: var(--site-text);
   background: var(--site-surface);
 }
-.engine-panel__gear svg {
-  width: 16px;
-  height: 16px;
+.engine-panel__gear[aria-expanded="true"] {
+  background: var(--site-accent, #237960);
+  color: #fff;
 }
 
 /* `display: flex` would override the [hidden] attribute's display:none. */
 .engine-panel__settings[hidden] {
   display: none;
 }
+/* Dropdown menu hanging off the head's bottom edge (lichess ceval settings):
+   overlays whatever follows instead of pushing it down. */
 .engine-panel__settings {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 6;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px 16px;
-  margin: 8px 10px 0;
-  padding: 8px 10px;
-  border: 1px solid var(--site-border);
-  border-radius: 8px;
-  background: var(--site-bg);
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--site-border);
+  background: var(--site-panel, var(--site-surface));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
 }
 .engine-panel__setting {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(92px, auto) 1fr auto;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--site-muted);
-}
-.engine-panel__setting select {
-  font: inherit;
-  font-size: 12px;
-  padding: 2px 4px;
-  border: 1px solid var(--site-border);
-  border-radius: 6px;
-  background: var(--site-panel, var(--site-surface));
+  gap: 12px;
+  font-size: 13px;
   color: var(--site-text);
+  cursor: pointer;
+}
+.engine-panel__setting input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--site-accent, #237960);
+  cursor: pointer;
+}
+.engine-panel__setting-value {
+  min-width: 3em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--site-muted);
 }
 
 .engine-panel__lines {

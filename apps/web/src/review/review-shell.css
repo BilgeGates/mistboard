@@ -533,24 +533,48 @@
 
 /* The analyse table (lichess round/analyse tools box): engine head · move list ·
    advice · nav controls fused into ONE box. The children drop their own card
-   chrome; hairline separators divide the sections. */
+   chrome; hairline separators divide the sections. Subtle corners (not the site
+   card radius): this is a tool surface, and it sits flush against the eval
+   gauge on the left. */
 .review-rail-main {
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
   border: 1px solid var(--site-border);
-  border-radius: var(--site-radius, 10px);
+  border-radius: 6px;
   background: var(--site-panel, var(--site-surface));
   overflow: hidden;
 }
-.review-rail-main > * {
+/* Chrome-strip for fused children. The named selectors repeat the generic `> *`
+   at higher specificity: each component's own card rule (e.g. .review-move-list
+   in move-list.css) ties the bare `> *` at 0-1-0 and can win on bundle import
+   order, which is exactly the double-border panel-in-panel regression. */
+.review-rail-main > *,
+.review-rail-main > .engine-panel,
+.review-rail-main > .review-move-list,
+.review-rail-main > .review-moves-card {
   border: none;
   border-radius: 0;
   background: transparent;
 }
 .review-rail-main > .engine-panel {
   border-bottom: 1px solid var(--site-border);
+}
+.review-rail-main .engine-panel__head {
+  border-radius: 0;
+}
+/* Move rows run edge-to-edge inside the fused box (lichess): no inset padding,
+   no per-row rounding; the number gutter carries the left inset instead. */
+.review-rail-main > .review-move-list {
+  padding: 4px 0 6px;
+  gap: 4px;
+}
+.review-rail-main .review-move-list__row {
+  border-radius: 0;
+}
+.review-rail-main .review-move-list__number {
+  padding-left: 10px;
 }
 .review-rail-main > .review-scrubber {
   border-top: 1px solid var(--site-border);
