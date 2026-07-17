@@ -203,17 +203,17 @@ function collectErrors(page) {
 }
 
 // Toggle the engine on. Programmatic click fires the handler synchronously and
-// sets aria-pressed, so we can assert the toggle actually engaged.
+// sets aria-checked, so we can assert the switch actually engaged. The panel head
+// is a lichess-style switch (button.engine-panel__switch, role=switch) with no
+// text label since 2026-07-16 — select by class, not by "Engine" text.
 async function toggleEngineOn(page) {
   const engaged = await page.evaluate(() => {
-    const button = [...document.querySelectorAll('button')].find((el) =>
-      /^Engine/.test((el.textContent ?? '').trim()),
-    );
+    const button = document.querySelector('button.engine-panel__switch');
     if (!button) return { ok: false, reason: 'engine toggle button not found' };
     if (button.disabled)
       return { ok: false, reason: 'engine toggle is disabled (engine reported unsupported)' };
     button.click();
-    return { ok: button.getAttribute('aria-pressed') === 'true', reason: 'toggle did not engage' };
+    return { ok: button.getAttribute('aria-checked') === 'true', reason: 'toggle did not engage' };
   });
   if (!engaged.ok) throw new Error(engaged.reason);
 }
@@ -237,7 +237,7 @@ function readPanel(page) {
     return {
       eval: panel?.querySelector('.engine-panel__eval')?.textContent?.trim() ?? null,
       lines: panel?.querySelectorAll('.engine-panel__line').length ?? 0,
-      meta: (panel?.textContent ?? '').match(/depth\s+\d+[\s\S]*?nps/)?.[0] ?? null,
+      meta: panel?.querySelector('.engine-panel__sub')?.textContent?.trim() ?? null,
     };
   });
 }
