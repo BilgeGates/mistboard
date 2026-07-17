@@ -15,6 +15,8 @@ export type SweepPlyEval = {
   cp: number | null;
   mate: number | null;
   best: string | null;
+  /** Principal variation (engine UCI), when the evaluator reports one. */
+  pv?: string[];
 };
 
 /**
@@ -39,7 +41,7 @@ export function isVacuousAnalysis(plies: readonly SweepPlyEval[]): boolean {
 export type PositionEvaluate = (
   moves: string[],
   opts: { depth: number },
-) => Promise<{ cp: number | null; mate: number | null; best: string | null }>;
+) => Promise<{ cp: number | null; mate: number | null; best: string | null; pv?: string[] }>;
 
 /**
  * Walk the move prefixes and evaluate each. With a `progress` store the sweep
@@ -57,7 +59,13 @@ export async function sweepPlyEvals(
   const evals: SweepPlyEval[] = resumed ? [...resumed.items] : [];
   for (let ply = evals.length; ply <= movesUci.length; ply += 1) {
     const evaluation = await evaluate([...movesUci.slice(0, ply)], { depth });
-    evals.push({ ply, cp: evaluation.cp, mate: evaluation.mate, best: evaluation.best });
+    evals.push({
+      ply,
+      cp: evaluation.cp,
+      mate: evaluation.mate,
+      best: evaluation.best,
+      ...(evaluation.pv?.length ? { pv: evaluation.pv } : {}),
+    });
     if (progress) await progress.save({ nextIndex: ply + 1, items: evals });
   }
   return evals;

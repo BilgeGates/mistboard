@@ -14,6 +14,9 @@ export type StoredPlyEval = {
   cp: number | null;
   mate: number | null;
   best: string | null;
+  /** Principal variation (capped, same dialect as `best`). Absent on rows cached
+   *  before PV capture; the client degrades to the single best move. */
+  pv?: string[];
 };
 
 export async function getGameAnalysis(

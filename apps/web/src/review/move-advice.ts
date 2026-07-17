@@ -6,7 +6,7 @@ import './move-advice.css';
 import { fsfUciToXiangqiSquares, type MoveJudgment } from '@mistboard/game';
 import type { GameAnalysis } from './game-analysis.js';
 
-const LABEL: Record<Exclude<MoveJudgment, null>, string> = {
+export const ADVICE_LABEL: Record<Exclude<MoveJudgment, null>, string> = {
   inaccuracy: 'Inaccuracy',
   mistake: 'Mistake',
   blunder: 'Blunder',
@@ -23,7 +23,7 @@ export interface MoveAdvice {
 // and jungle (their board coords match the engine dialect and they have no flips). Variants
 // whose engine UCI diverges from the board coords (banqi/jungle-flip) pass their own via the
 // presentation's `formatBestMove`.
-function defaultFormatMove(uci: string): string {
+export function defaultFormatBestMove(uci: string): string {
   const squares = fsfUciToXiangqiSquares(uci);
   return squares ? `${squares.from}-${squares.to}` : uci;
 }
@@ -58,7 +58,7 @@ export function formatJieqiBestMove(uci: string): string {
 }
 
 export function createMoveAdvice(
-  formatBest: (uci: string) => string = defaultFormatMove,
+  formatBest: (uci: string) => string = defaultFormatBestMove,
 ): MoveAdvice {
   const el = document.createElement('div');
   el.className = 'review-advice';
@@ -77,7 +77,7 @@ export function createMoveAdvice(
     el.className = `review-advice review-advice--${judgment}`;
     const label = document.createElement('span');
     label.className = 'review-advice__label';
-    label.textContent = `${LABEL[judgment]}.`;
+    label.textContent = `${ADVICE_LABEL[judgment]}.`;
     el.replaceChildren(label);
     if (best) el.append(document.createTextNode(` ${formatBest(best)} was best.`));
   }

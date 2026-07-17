@@ -25,6 +25,11 @@ export interface MoveTreeAnnotation {
   luck?: string;
   /** Tone hook for the luck badge → .review-move-list__luck--<tone>. */
   luckTone?: 'lucky' | 'unlucky' | 'even';
+  /** Full-width advice row under the move (lichess "Blunder. h3-e3 was best."),
+   *  rendered before the move's variation lines. Mainline only. */
+  comment?: string;
+  /** Colour hook for the comment row → .move-tree__comment--<class>. */
+  commentClass?: string;
 }
 
 export interface MoveTree {
@@ -45,6 +50,9 @@ export interface MoveTreeOptions {
   onPromote?(path: TreePath): void;
   /** Right-click "Delete from here" on a move. Absent = no delete item. */
   onDelete?(path: TreePath): void;
+  /** Game result block appended after the last move (lichess: a "0-1" score over
+   *  the termination line, scrolling with the list). Absent on the analysis board. */
+  result?: { score: string; label: string };
 }
 
 type MenuItem = { label: string; onClick: () => void };
@@ -209,9 +217,12 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
         row.append(numberSpan(`${node.ply / 2}…`), emptyCell(), moveCell(node));
         rows.append(row);
       }
-      if (variations.length > 0) {
-        // This ply has alternatives: emit them right here, then break the line so
-        // the reply starts on a fresh row (and a black move resumes as "N…").
+      const comment = annotations.get(pathKey(pathOf(node)))?.comment;
+      if (comment || variations.length > 0) {
+        // This ply has an advice comment and/or alternatives: emit them right here
+        // (comment first, lichess order), then break the line so the reply starts
+        // on a fresh row (and a black move resumes as "N…").
+        if (comment) rows.append(commentRow(node));
         for (const variation of variations) rows.append(variationRow(variation));
         row = null;
       } else if (!isRed(node.ply)) {
@@ -220,6 +231,16 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
       }
       node = node.children[0] ?? null;
     }
+  }
+
+  // A judged move's advice row ("Blunder. h3-e3 was best."), full-width under the
+  // move it grades, ahead of the refutation variation (lichess order).
+  function commentRow(node: GameTreeNode<M, T>): HTMLElement {
+    const ann = annotations.get(pathKey(pathOf(node)));
+    const li = document.createElement('li');
+    li.className = `move-tree__comment${ann?.commentClass ? ` move-tree__comment--${ann.commentClass}` : ''}`;
+    li.textContent = ann?.comment ?? '';
+    return li;
   }
 
   // A variation: a full-width indented row flowing its moves inline, with any
@@ -279,6 +300,20 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
     // Pass the root so alternative first moves interleave at move 1 (renderMainline
     // treats them as variations of move 1) rather than dumping at the very bottom.
     renderMainline(tree.root);
+    // Terminal result block (lichess): the score over the termination line, part
+    // of the scrollable list rather than a separate card.
+    if (opts.result) {
+      const li = document.createElement('li');
+      li.className = 'move-tree__result';
+      const score = document.createElement('div');
+      score.className = 'move-tree__result-score';
+      score.textContent = opts.result.score;
+      const label = document.createElement('div');
+      label.className = 'move-tree__result-label';
+      label.textContent = opts.result.label;
+      li.append(score, label);
+      rows.append(li);
+    }
   }
 
   function setCurrent(path: TreePath): void {

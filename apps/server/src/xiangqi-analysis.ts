@@ -38,6 +38,9 @@ export type PlyEval = {
   mate: number | null;
   /** Engine best move at this position (engine UCI). */
   best: string | null;
+  /** Principal variation at this position (engine UCI, capped) — the review's
+   *  inline best-play line at judged moves. Absent on pre-PV cached rows. */
+  pv?: string[];
 };
 
 export type AnalyzeXiangqiGameOptions = {

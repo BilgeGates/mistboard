@@ -113,6 +113,10 @@ function renderHistoricalXiangqiGame(root: HTMLElement, game: HistoricalXiangqiG
       red: game.redNameRaw ?? undefined,
       black: game.blackNameRaw ?? undefined,
     },
+    result: {
+      score: game.result === '1/2-1/2' ? '½-½' : game.result,
+      label: resultStatus(game),
+    },
     showCrosstable: true,
     // Roomless archive game: whole-game analysis is the shared client ceval sweep
     // (same as /analysis/xiangqi), computed on request. No server Pikafish cache.

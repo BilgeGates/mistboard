@@ -149,6 +149,7 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     moves,
     moveTimes: hasMoveTimes ? moveTimes : undefined,
     players: playerNames,
+    result: { score: resultScore(postgame.game.result), label: status },
     showCrosstable: true,
     // Server Pikafish whole-game analysis, DB-cached: an already-analysed game
     // loads straight from cache on open (a GET that never computes). Requesting a
@@ -194,6 +195,15 @@ export function postgameViewAtPly(
     selected = snapshot;
   }
   return selected?.view ?? null;
+}
+
+/** Scoreline for the move list's terminal result block. Red moves first, so the
+ *  Red result takes the first slot (chess "1-0" convention). */
+function resultScore(result: string): string {
+  if (result === 'red-wins') return '1-0';
+  if (result === 'black-wins') return '0-1';
+  if (result === 'draw') return '½-½';
+  return '*';
 }
 
 function loadingView(): HTMLElement {

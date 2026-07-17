@@ -327,24 +327,29 @@ export function runUciBestmove(args: RunUciBestmoveArgs): Promise<string | null>
 /**
  * Parse a UCI `info … score …` line into the fields postgame analysis needs.
  * Returns undefined for non-info or score-less lines (e.g. `info string …`). The
- * score is from the side-to-move POV, exactly as the engine reports it.
+ * score is from the side-to-move POV, exactly as the engine reports it. `pv` is
+ * the principal variation's moves (engine UCI), empty when the line carries none.
  */
 export function parseInfoScore(
   line: string,
-): { depth: number; cp: number | null; mate: number | null } | undefined {
+): { depth: number; cp: number | null; mate: number | null; pv: string[] } | undefined {
   if (!line.startsWith('info ') || !line.includes(' score ')) return undefined;
   const tokens = line.split(/\s+/);
   let depth = 0;
   let cp: number | null = null;
   let mate: number | null = null;
+  let pv: string[] = [];
   for (let i = 1; i < tokens.length; i += 1) {
     if (tokens[i] === 'depth') depth = Number(tokens[i + 1]);
     else if (tokens[i] === 'score') {
       if (tokens[i + 1] === 'cp') cp = Number(tokens[i + 2]);
       else if (tokens[i + 1] === 'mate') mate = Number(tokens[i + 2]);
+    } else if (tokens[i] === 'pv') {
+      pv = tokens.slice(i + 1); // the pv is the rest of the line
+      break;
     }
   }
-  return { depth, cp, mate };
+  return { depth, cp, mate, pv };
 }
 
 export type UciEval = {
@@ -356,6 +361,9 @@ export type UciEval = {
   mate: number | null;
   /** Depth of the last scored line seen before bestmove. */
   depth: number;
+  /** Principal variation of the last scored line (engine UCI); absent/empty when
+   *  the engine emitted none. Feeds inline best-play lines in postgame analysis. */
+  pv?: string[];
 };
 
 /**
@@ -369,7 +377,7 @@ export function runUciEval(args: RunUciBestmoveArgs): Promise<UciEval> {
     const child = spawn(bin, [], { stdio: ['pipe', 'pipe', 'pipe'] });
     let buf = '';
     let settled = false;
-    let latest: { depth: number; cp: number | null; mate: number | null } | null = null;
+    let latest: ReturnType<typeof parseInfoScore> | null = null;
     const advertisedOptions = new Set<string>();
 
     const finish = (run: () => void): void => {
@@ -412,6 +420,7 @@ export function runUciEval(args: RunUciBestmoveArgs): Promise<UciEval> {
                 cp: latest?.cp ?? null,
                 mate: latest?.mate ?? null,
                 depth: latest?.depth ?? 0,
+                pv: latest?.pv,
               });
             } catch (err) {
               reject(err);
@@ -613,7 +622,7 @@ export class UciEngineSession {
     return this.enqueue(async () => {
       await this.readyPromise;
       return await new Promise<UciEval>((resolveEval, reject) => {
-        let latest: { depth: number; cp: number | null; mate: number | null } | null = null;
+        let latest: ReturnType<typeof parseInfoScore> | null = null;
         const timer = setTimeout(() => {
           this.fail(new Error(args.timeoutMessage));
         }, args.timeoutMs);
@@ -631,6 +640,7 @@ export class UciEngineSession {
                 cp: latest?.cp ?? null,
                 mate: latest?.mate ?? null,
                 depth: latest?.depth ?? 0,
+                pv: latest?.pv,
               });
             }
           },

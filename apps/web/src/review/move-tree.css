@@ -9,6 +9,43 @@
   pointer-events: none;
 }
 
+/* A judged move's advice row ("Blunder. h3-e3 was best."): full-width, coloured
+   by severity to match the inline glyph hooks in move-list.css. */
+.move-tree__comment {
+  padding: 3px 8px 3px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--site-muted);
+}
+.move-tree__comment--inaccuracy {
+  color: #b7950b;
+}
+.move-tree__comment--mistake {
+  color: #d68910;
+}
+.move-tree__comment--blunder {
+  color: #c0392b;
+}
+
+/* Terminal result block at the end of the list (lichess): score + termination. */
+.move-tree__result {
+  margin-top: 4px;
+  padding: 8px 8px 10px;
+  border-top: 1px solid var(--site-border);
+  text-align: center;
+}
+.move-tree__result-score {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--site-text);
+}
+.move-tree__result-label {
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--site-muted);
+}
+
 /* A variation is a full-width row (flex child of the rows column), inline-flowing
    its own moves, indented and dimmed beneath the move it diverges from. */
 .move-tree__variation {

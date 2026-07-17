@@ -138,9 +138,19 @@ export async function analyzeXiangqiPostgame(
   return {
     engineId: XIANGQI_ANALYSIS_ENGINE_ID,
     depth: XIANGQI_ANALYSIS_REQUEST_DEPTH,
-    // `best` comes back as Pikafish UCI (0-indexed); hand the client our own square
-    // notation so it never has to know the engine's rank convention.
-    plies: plies.map((p) => ({ ...p, best: pikafishBestToOurUci(p.best) })),
+    // `best`/`pv` come back as Pikafish UCI (0-indexed); hand the client our own
+    // square notation so it never has to know the engine's rank convention. An
+    // unconvertible pv token TRUNCATES the line there (never splice around it —
+    // the moves after it would land on the wrong position).
+    plies: plies.map((p) => {
+      const pv: string[] = [];
+      for (const move of p.pv ?? []) {
+        const converted = pikafishBestToOurUci(move);
+        if (!converted) break;
+        pv.push(converted);
+      }
+      return { ...p, best: pikafishBestToOurUci(p.best), pv: pv.length ? pv : undefined };
+    }),
   };
 }
 

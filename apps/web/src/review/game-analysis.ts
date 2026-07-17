@@ -17,6 +17,10 @@ export type PlyEval = {
   cp: number | null;
   mate: number | null;
   best: string | null;
+  /** Engine principal variation from this position (same dialect as `best`),
+   *  capped server-side. Feeds the inline refutation lines at judged moves;
+   *  absent on rows cached before PV capture (the line degrades to `best`). */
+  pv?: string[];
 };
 
 export type XiangqiGameAnalysisResponse = {

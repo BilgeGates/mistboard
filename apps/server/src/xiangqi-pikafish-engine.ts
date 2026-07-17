@@ -332,8 +332,15 @@ export type XiangqiPositionEval = {
   mate: number | null;
   /** Engine best move (engine UCI) at this position. */
   best: string | null;
+  /** Principal variation (engine UCI), capped — feeds the review's inline
+   *  best-play lines. Absent when the engine emitted none. */
+  pv?: string[];
   depth: number;
 };
+
+/** Stored/served PV length cap: enough for a readable refutation line without
+ *  bloating cached analysis rows (the client injects at most 10 plies). */
+const ANALYSIS_PV_MAX_PLIES = 16;
 
 // Normalize a side-to-move UCI eval to RED's POV. Red moves first, so Black is
 // to move after an odd number of plies; flip the sign then. `mate 0` = the side
@@ -342,13 +349,15 @@ export type XiangqiPositionEval = {
 // looks like it dropped to a loss.
 function redPovEval(evaluation: UciEval, plyCount: number): XiangqiPositionEval {
   const sign = plyCount % 2 === 0 ? 1 : -1;
+  const pv = evaluation.pv?.length ? evaluation.pv.slice(0, ANALYSIS_PV_MAX_PLIES) : undefined;
   if (evaluation.mate === 0) {
-    return { cp: sign * -30000, mate: null, best: evaluation.best, depth: evaluation.depth };
+    return { cp: sign * -30000, mate: null, best: evaluation.best, pv, depth: evaluation.depth };
   }
   return {
     cp: evaluation.cp == null ? null : evaluation.cp * sign,
     mate: evaluation.mate == null ? null : evaluation.mate * sign,
     best: evaluation.best,
+    pv,
     depth: evaluation.depth,
   };
 }

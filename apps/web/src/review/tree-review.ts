@@ -35,7 +35,7 @@ import {
   type TreePath,
   type VariantTreeAdapter,
 } from './game-tree.js';
-import { createMoveAdvice } from './move-advice.js';
+import { ADVICE_LABEL, defaultFormatBestMove } from './move-advice.js';
 import { createMoveTree, type MoveTree, type MoveTreeAnnotation, pathKey } from './move-tree.js';
 import { createReviewControls, REVIEW_MENU_ICONS } from './review-controls.js';
 import { createReviewScaffold, installReviewKeyboard } from './review-layout.js';
@@ -249,6 +249,10 @@ export type TreeReviewConfig<Move> = {
    *  "Game info" underboard tab renders it. The historical-library caller supplies
    *  it; played/analysis surfaces leave it undefined. */
   provenance?: HTMLElement;
+  /** Game result appended to the move list as a terminal block (lichess: "0-1"
+   *  over the termination line). Postgame surfaces supply it; the analysis board
+   *  (no finished game) omits it. */
+  result?: { score: string; label: string };
 };
 
 /** Handle returned by mountTreeReview: lets a caller snapshot the current tree
@@ -441,6 +445,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   const moveTree: MoveTree = createMoveTree(tree, {
     onJump: (path) => go(path),
     onPromote: (path) => {
+      adoptCompLine(path);
       tree.promoteToMainline(path);
       moveTree.rebuild();
       render();
@@ -453,7 +458,62 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       render();
       notifyChange();
     },
+    result: config.result,
   });
+
+  // ── Computer-injected refutation lines (lichess "computer variations") ──
+  // Nodes grafted from the whole-game analysis' best-play PVs at every judged
+  // move. They are real, clickable tree branches, but ephemeral: excluded from a
+  // serialized study unless the user explicitly promotes (adopts) the line.
+  const compKeys = new Set<string>();
+  const MAX_INJECTED_PV_PLIES = 10;
+
+  function injectBestLines(analysis: GameAnalysis): void {
+    // A presentation-supplied formatBestMove marks a variant whose analysis-engine
+    // UCI diverges from the board's move dialect (banqi/jungle-flip/jieqi) —
+    // parsing those PVs via adapter.fromUci could graft WRONG moves, so only the
+    // dialect-aligned variants (default formatter) build clickable lines; the
+    // others keep the textual advice row alone.
+    if (presentation.formatBestMove) return;
+    const nodes = mainlineNodes();
+    const evalByPly = new Map(analysis.evals.map((entry) => [entry.ply, entry]));
+    let injected = false;
+    for (const move of analysis.moves) {
+      if (!move.judgment) continue;
+      const before = evalByPly.get(move.ply - 1);
+      const parent = nodes[move.ply - 1];
+      if (!before || !parent) continue;
+      const pv = before.pv?.length ? before.pv : before.best ? [before.best] : [];
+      // The refutation REPLACES the played move; when the "best" line opens with
+      // the move actually played there is nothing to graft.
+      if (pv.length === 0 || pv[0] === nodes[move.ply]?.id) continue;
+      let path = tree.pathTo(parent);
+      for (const uci of pv.slice(0, MAX_INJECTED_PV_PLIES)) {
+        const at = tree.nodeAt(path);
+        if (!at) break;
+        const pvMove = adapter.fromUci(uci, at.truth);
+        if (!pvMove) break;
+        const isNew = !at.children.some((child) => child.id === adapter.moveKey(pvMove));
+        const next = tree.addMove(path, pvMove);
+        if (!next) break;
+        if (isNew) {
+          compKeys.add(pathKey(next));
+          injected = true;
+        }
+        path = next;
+      }
+    }
+    if (injected) moveTree.rebuild();
+  }
+
+  // Promoting a computer line is an explicit adoption: clear the comp flags on the
+  // connected line (ancestors and descendants) so a saved study keeps it.
+  function adoptCompLine(path: TreePath): void {
+    const key = pathKey(path);
+    for (const k of [...compKeys]) {
+      if (k === key || key.startsWith(`${k}/`) || k.startsWith(`${key}/`)) compKeys.delete(k);
+    }
+  }
 
   // ── Control bar (below the move box): nav + a menu overlay. Flip lives in the
   // menu; the deferred analyse tools are muted placeholders. ──
@@ -495,7 +555,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // applyAnalysis/applyDecisions can re-attach it without re-creating the node.
   const decisionSummaryEl = document.createElement('div');
   decisionSummaryEl.className = 'review-decision-summary';
-  const moveAdvice = createMoveAdvice(presentation.formatBestMove);
+  // Judged-move advice ("Blunder. h3-e3 was best.") renders INLINE in the move
+  // list (move-tree comment rows), lichess-style — there is no separate advice
+  // line under the list on the tree surface.
+  const formatBestForAdvice = presentation.formatBestMove ?? defaultFormatBestMove;
   let chart: AdvantageChart | null = null;
 
   // ── Study annotation controls (glyph picker + comment editor) ──
@@ -560,7 +623,6 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     underboardOverflows: true,
     enginePanel: enginePanel?.el,
     moves: moveTree.el,
-    moveComment: moveAdvice.el,
     annotations: annotationEditor?.el,
     navigation: controls.el,
     analysisSummary: analysisSummaryEl,
@@ -644,13 +706,13 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     if (presentation.engine) shareFenInput.value = presentation.engine.fen(node.truth);
     shareMovesInput.value = uciTo(node).join(' ');
     chart?.setPly(node.ply);
-    // Reveal plies show their decision glyph + luck inline in the move list, so the advice line
-    // stays the plain "was best" line for graded (non-chance) moves only.
-    moveAdvice.update(node.ply, gameAnalysis);
   }
 
   function applyAnalysis(analysis: GameAnalysis): void {
     gameAnalysis = analysis;
+    // Graft the best-play refutation lines into the tree BEFORE the annotation
+    // rebuild so comments and variations land in one pass.
+    injectBestLines(analysis);
     const nodes = mainlineNodes();
     chart = createAdvantageChart(analysis.evals, {
       seatColors: config.seatColors,
@@ -722,10 +784,18 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
         if (!node) continue;
         const glyph = judgmentGlyph(move.judgment);
         const entry = evalByPly.get(move.ply);
+        // Judged moves carry their advice INLINE in the move list (lichess:
+        // "Blunder. h3-e3 was best." right under the move, ahead of the grafted
+        // refutation line).
+        const best = move.judgment ? evalByPly.get(move.ply - 1)?.best : null;
         byPathKey.set(pathKey(tree.pathTo(node)), {
           suffix: glyph?.suffix,
           suffixClass: glyph?.suffixClass,
           eval: entry ? formatEval(entry.cp, entry.mate) : undefined,
+          comment: move.judgment
+            ? `${ADVICE_LABEL[move.judgment]}.${best ? ` ${formatBestForAdvice(best)} was best.` : ''}`
+            : undefined,
+          commentClass: move.judgment ?? undefined,
         });
       }
       // Decision overlay (jieqi): a reveal ply carries no eval-swing judgment (it is a chance
@@ -878,7 +948,14 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     keyboardAbort.signal,
   );
 
-  return { serialize: () => serializeTree(tree, adapter) };
+  return {
+    // Computer-injected refutation lines stay out of the persisted blob unless
+    // the user adopted them via promote (adoptCompLine clears their flags).
+    serialize: () =>
+      serializeTree(tree, adapter, {
+        skip: (node) => compKeys.has(pathKey(tree.pathTo(node))),
+      }),
+  };
 }
 
 function resolveBoardAspect(aspect: number | (() => number)): number {

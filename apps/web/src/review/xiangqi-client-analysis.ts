@@ -40,6 +40,7 @@ export function buildXiangqiClientAnalysisSource(
             cp: cp === null ? null : redToMove ? cp : -cp,
             mate: mate === null ? null : redToMove ? mate : -mate,
             best: best?.pvUci[0] ?? null,
+            pv: best?.pvUci.slice(0, 16),
           });
           onProgress(ply, replay.maxPly);
         }

@@ -53,21 +53,27 @@ function hasAnnotations(a: NodeAnnotations | undefined): a is NodeAnnotations {
 function serializeNode<M, T, V>(
   node: GameTreeNode<M, T>,
   adapter: VariantTreeAdapter<M, T, V>,
+  skip?: (node: GameTreeNode<M, T>) => boolean,
 ): SerializedNode {
   const out: SerializedNode = {
-    children: node.children.map((child) => serializeNode(child, adapter)),
+    children: node.children
+      .filter((child) => !skip?.(child))
+      .map((child) => serializeNode(child, adapter, skip)),
   };
   if (node.move) out.uci = adapter.toEngineUci(node.move);
   if (hasAnnotations(node.annotations)) out.annotations = node.annotations;
   return out;
 }
 
-/** Snapshot a tree to a plain-JSON structure (safe to JSON.stringify + persist). */
+/** Snapshot a tree to a plain-JSON structure (safe to JSON.stringify + persist).
+ *  `skip` prunes a node (and its subtree) from the blob — the tree surface uses it
+ *  to keep ephemeral computer-injected refutation lines out of a saved study. */
 export function serializeTree<M, T, V>(
   tree: GameTree<M, T, V>,
   adapter: VariantTreeAdapter<M, T, V>,
+  opts?: { skip?: (node: GameTreeNode<M, T>) => boolean },
 ): SerializedTree {
-  return { version: 1, root: serializeNode(tree.root, adapter) };
+  return { version: 1, root: serializeNode(tree.root, adapter, opts?.skip) };
 }
 
 /** Rebuild a live GameTree from a serialized blob, replaying each UCI through the

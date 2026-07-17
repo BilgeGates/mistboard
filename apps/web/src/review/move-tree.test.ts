@@ -106,4 +106,52 @@ describe('createMoveTree', () => {
     const moveTree = createMoveTree(tree, { onJump: () => {} });
     expect(moveTree.el.querySelector('.review-move-list__empty')).not.toBeNull();
   });
+
+  it('renders an annotated advice comment row before the move variations', () => {
+    const { tree, m1 } = seededTree();
+    const moveTree = createMoveTree(tree, { onJump: () => {} });
+    const key = pathKey([tree.root.children[0]!.id]);
+    moveTree.annotate(
+      new Map([
+        [
+          key,
+          {
+            suffix: '??',
+            suffixClass: 'blunder',
+            comment: 'Blunder. h3-e3 was best.',
+            commentClass: 'blunder',
+          },
+        ],
+      ]),
+    );
+    const rows = [...(moveTree.el.querySelector('.review-move-list__rows')?.children ?? [])];
+    const comment = moveTree.el.querySelector('.move-tree__comment');
+    expect(comment?.textContent).toBe('Blunder. h3-e3 was best.');
+    expect(comment?.classList.contains('move-tree__comment--blunder')).toBe(true);
+    // Comment sits right after the judged move's row and BEFORE its variation
+    // (seededTree attaches a root variation to move 1).
+    const commentIndex = rows.findIndex((r) => r.classList.contains('move-tree__comment'));
+    const variationIndex = rows.findIndex((r) => r.classList.contains('move-tree__variation'));
+    expect(commentIndex).toBeGreaterThan(0);
+    expect(variationIndex).toBe(commentIndex + 1);
+    // The judged move's own row still precedes both.
+    expect(rows[commentIndex - 1]?.textContent).toContain(`${m1.from}-${m1.to}`);
+  });
+
+  it('appends a terminal result block when a result is supplied', () => {
+    const { tree } = seededTree();
+    const moveTree = createMoveTree(tree, {
+      onJump: () => {},
+      result: { score: '0-1', label: 'Black wins by Checkmate' },
+    });
+    const rows = moveTree.el.querySelector('.review-move-list__rows');
+    const result = rows?.querySelector('.move-tree__result');
+    expect(result).not.toBeNull();
+    expect(result?.querySelector('.move-tree__result-score')?.textContent).toBe('0-1');
+    expect(result?.querySelector('.move-tree__result-label')?.textContent).toBe(
+      'Black wins by Checkmate',
+    );
+    // It is the LAST element of the scrollable list.
+    expect(rows?.lastElementChild).toBe(result);
+  });
 });
