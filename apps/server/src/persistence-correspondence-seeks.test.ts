@@ -66,7 +66,8 @@ definePersistenceTests('correspondence seeks', () => {
     assert.equal(open[0]?.id, 'seek-3'); // newest first
     const aliceSeek = open.find((seek) => seek.id === 'seek-1');
     assert.equal(aliceSeek?.creatorName, 'Alice');
-    assert.equal(aliceSeek?.preferredColor, 'white');
+    // Round-trips the neutral move-order value the fixture inserted (migration 106).
+    assert.equal(aliceSeek?.preferredColor, 'first');
     assert.equal(aliceSeek?.daysPerMove, 3);
 
     assert.equal((await getCorrespondenceSeek('seek-1'))?.creatorUserId, alice.id);
