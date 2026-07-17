@@ -25,6 +25,7 @@ import { createMoveList, type MoveList } from './review/move-list.js';
 import { createReviewShell } from './review/review-shell.js';
 import { showcaseRendererKindForSpec, specIdForShowcaseVariant } from './showcase-dispatch.js';
 import { buildLoadingState, buildNav } from './site-shell.js';
+import { formatClock } from './web-utils.js';
 
 // replay.js statically pulls in chessground (~64KB). Importing it dynamically
 // keeps it out of watch-route's module-init path, so mountWatch can fire
@@ -141,16 +142,15 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     roomId: string | null,
     previousRoomIds: ReadonlySet<string> | null,
   ): void => {
+    // Keyed off the rail's OWN list, which now excludes the board's game — so promoting a
+    // rail game changes the key and forces a re-render. Keying off feed.unlocked instead
+    // would hold the key steady across that click and strand the promoted game in the rail.
     const previewKey = feed
-      ? `${feed.activeChannel}:${feed.unlocked
-          .slice(0, 2)
+      ? `${feed.activeChannel}:${watchQueueGames(feed, roomId)
           .map((game) => game.roomId)
           .join('|')}`
       : 'unavailable';
-    if (previewKey === queuePreviewKey && watch.queueRoot.childElementCount > 0) {
-      updateWatchQueueActive(watch.queueRoot, roomId);
-      return;
-    }
+    if (previewKey === queuePreviewKey && watch.queueRoot.childElementCount > 0) return;
     queuePreviewKey = previewKey;
     const version = ++queueRenderVersion;
     for (const handle of queuePreviewHandles) handle.destroy();
@@ -211,6 +211,32 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     watch.replayControlsRoot,
   );
 
+  // The rail clocks for the ply on the board: the times the players actually had there,
+  // so scrubbing rewinds the clocks with the moves (lichess TV's anatomy — clock above the
+  // top seat, clock below the bottom one). Seating matches renderWatchPlayers: second
+  // mover on top, first mover below. An untimed game (every EvE game today) or a path
+  // without clockAtPly leaves both slots empty rather than showing a fake 0:00.
+  const clearClocks = (): void => {
+    watch.clockTop.replaceChildren();
+    watch.clockBottom.replaceChildren();
+  };
+
+  const syncClocks = (): void => {
+    clearClocks();
+    const readout = replayHandle?.clockAtPly?.() ?? null;
+    if (!readout) return;
+    const seat = (remainingMs: number, live: boolean): HTMLElement => {
+      const row = document.createElement('div');
+      if (live) row.classList.add('active');
+      const time = document.createElement('strong');
+      time.textContent = formatClock(remainingMs);
+      row.append(time);
+      return row;
+    };
+    watch.clockTop.append(seat(readout.second, readout.toMove === 'second'));
+    watch.clockBottom.append(seat(readout.first, readout.toMove === 'first'));
+  };
+
   // Re-highlight the current move + refresh the scrubber bounds/status. Driven by
   // the handle's onPlyChange on every autoplay tick or manual jump.
   const syncMoveList = (ply: number, maxPly: number): void => {
@@ -222,6 +248,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     moveScrubber.setBounds(ply, maxPly);
     if (moveScrubber.status)
       moveScrubber.status.textContent = maxPly > 0 ? `${ply} / ${maxPly}` : '';
+    syncClocks();
   };
 
   const clearMoveList = (): void => {
@@ -230,6 +257,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     watchPly = 0;
     watchMaxPly = 0;
     moveScrubber.setBounds(0, 0);
+    clearClocks();
   };
 
   const clearPovToggle = (): void => {
@@ -434,7 +462,10 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     activeRoomId = roomId;
     selectedRoomByChannel.set(currentFeed.activeChannel, roomId);
     renderWatchActiveGame(watch, currentFeed, activeRoomId);
-    updateWatchQueueActive(watch.queueRoot, activeRoomId);
+    // The rail swaps rather than restyles: the promoted game leaves it and the outgoing one
+    // takes a slot. previousRoomIds stays null because nothing here is newly ARRIVED content
+    // — that animation belongs to feed polls.
+    renderQueue(currentFeed, activeRoomId, null);
     try {
       await ensureReplay(currentFeed, roomId, currentFeed.initialReplay);
       syncWatchUrl(urlMode, currentFeed.activeChannel, activeRoomId);
@@ -442,7 +473,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
       console.warn(err);
       activeRoomId = previousRoomId;
       renderWatchActiveGame(watch, currentFeed, activeRoomId);
-      updateWatchQueueActive(watch.queueRoot, activeRoomId);
+      renderQueue(currentFeed, activeRoomId, null);
     }
   };
 
@@ -797,6 +828,10 @@ type WatchSection = {
   gameTableRoot: HTMLElement;
   playerBottom: HTMLElement;
   playerTop: HTMLElement;
+  // The shared table's clock slots, seated like the player rows: second mover on top,
+  // first mover below. Driven per ply from the replay handle's clockAtPly.
+  clockTop: HTMLElement;
+  clockBottom: HTMLElement;
   movesRoot: HTMLElement;
   replayControlsRoot: HTMLElement;
 };
@@ -871,6 +906,8 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
     gameTableRoot: gameTable.el,
     playerBottom: gameTable.refs.playerBottom,
     playerTop: gameTable.refs.playerTop,
+    clockTop: gameTable.refs.clockTop,
+    clockBottom: gameTable.refs.clockBottom,
     movesRoot: gameTable.refs.movesRoot,
     replayControlsRoot: gameTable.refs.replayControlsRoot,
   };
@@ -1122,7 +1159,18 @@ function renderWatchEmptyState(root: HTMLElement, feed: WatchFeed | null): void 
 
 export type WatchQueuePreview = { game: FeaturedGame; root: HTMLElement };
 
-// The two newest completed games for the active channel, rendered as real final
+/** The rail's two slots. */
+const WATCH_QUEUE_SLOTS = 2;
+
+/** What the rail offers: the newest completed games for the channel EXCEPT the one already
+ *  on the main board (lichess TV's "previously on" never mirrors the featured game). Both
+ *  the render and its memo key derive the rail from here, so the key cannot describe a
+ *  different list than the one on screen. */
+function watchQueueGames(feed: WatchFeed, activeRoomId: string | null): FeaturedGame[] {
+  return feed.unlocked.filter((game) => game.roomId !== activeRoomId).slice(0, WATCH_QUEUE_SLOTS);
+}
+
+// The newest completed games for the active channel, rendered as real final
 // boards. Each preview remains an `a.watch-queue-row`, so selecting one still
 // promotes it into the main replay without a full navigation.
 export function renderWatchQueue(
@@ -1150,10 +1198,12 @@ export function renderWatchQueue(
     return previews;
   }
 
-  if (feed.unlocked.length === 0) {
+  // Empty means "nothing ELSE to watch": a channel holding only the game already on the
+  // board has an empty rail, not a rail mirroring the board.
+  if (watchQueueGames(feed, activeRoomId).length === 0) {
     const empty = document.createElement('p');
     empty.className = 'watch-previously-empty';
-    empty.textContent = 'No completed games in the current replay window.';
+    empty.textContent = 'No other completed games in the current replay window.';
     root.append(empty);
     return previews;
   }
@@ -1161,7 +1211,7 @@ export function renderWatchQueue(
   const list = document.createElement('ol');
   list.className = 'watch-queue-list';
 
-  for (const game of feed.unlocked.slice(0, 2)) {
+  for (const game of watchQueueGames(feed, activeRoomId)) {
     const item = document.createElement('li');
     item.className = 'watch-queue-item';
     item.dataset.roomId = game.roomId;
@@ -1170,10 +1220,6 @@ export function renderWatchQueue(
     const row = document.createElement('a');
     row.className = 'watch-queue-row';
     row.href = watchQueueGameHref(feed, game.roomId);
-    if (game.roomId === activeRoomId) {
-      item.classList.add('active');
-      row.classList.add('active');
-    }
 
     row.setAttribute('aria-label', `Watch ${watchQueueMatchupLabel(game)}`);
     const previewRoot = document.createElement('div');
@@ -1186,15 +1232,6 @@ export function renderWatchQueue(
 
   root.append(list);
   return previews;
-}
-
-function updateWatchQueueActive(root: HTMLElement, activeRoomId: string | null): void {
-  for (const item of root.querySelectorAll<HTMLElement>('.watch-queue-item')) {
-    const active = activeRoomId !== null && item.dataset.roomId === activeRoomId;
-    item.classList.toggle('active', active);
-    const row = item.querySelector<HTMLAnchorElement>('.watch-queue-row');
-    row?.classList.toggle('active', active);
-  }
 }
 
 function watchQueueGameHref(feed: WatchFeed, roomId: string): string {

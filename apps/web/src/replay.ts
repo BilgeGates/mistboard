@@ -2,6 +2,7 @@ import { boardFen, pieceFen } from '@mistboard/board-render/interactive';
 import {
   algebraicMoveLabels,
   type Color,
+  clockRemainingMs,
   coordinateMoveLabel,
   darkChessVariant,
   type GameEvent,
@@ -250,6 +251,24 @@ export type ReplayHandle = {
    *  decide whether the perspective toggle is meaningful. A single-view path
    *  returns `['truth']` or omits it. */
   availablePovs?: () => Array<'white' | 'truth' | 'black'>;
+  /** Each seat's remaining clock AT THE CURRENT PLY, so a rail clock tracks the
+   *  scrubber instead of freezing on a final time. OPTIONAL — /watch's rail is the
+   *  only caller; showcase + review never read it. Null when the game is untimed or
+   *  the path cannot reconstruct a series, which callers must render as "no clock"
+   *  rather than zero. */
+  clockAtPly?: () => ReplayClockReadout | null;
+};
+
+/** A per-ply clock snapshot, keyed by move order rather than colour so it carries across
+ *  variants (red/white both being "first"). /watch seats the second mover above the board
+ *  and the first mover below it. */
+export type ReplayClockReadout = {
+  /** Remaining ms for the first mover (red/white). */
+  first: number;
+  /** Remaining ms for the second mover (black). */
+  second: number;
+  /** Whose clock is live at this ply; null once the game has ended. */
+  toMove: 'first' | 'second' | null;
 };
 
 export async function mountReplay(
@@ -1415,6 +1434,27 @@ export async function mountReplay(
     },
     plyCount: () => moveCount,
     moveEntries: () => buildChessMoveEntries(events),
+    // The clocks as they stood at the rendered ply, read off the same state the docked
+    // clock panel draws from. Null for an untimed game (no ClockState) so the rail shows
+    // no clock rather than a bogus zero.
+    clockAtPly: () => {
+      const state = renderedClockState;
+      const clock = state?.clock;
+      if (!state || !clock) return null;
+      const at = replayClockDisplayAt(renderedClockEvents ?? [], state) ?? clock.runningSince ?? 0;
+      return {
+        first: clockRemainingMs(clock, 'white', at),
+        second: clockRemainingMs(clock, 'black', at),
+        // Mid-replay the side to move owns the running clock; a finished/pregame position
+        // parks both.
+        toMove:
+          state.status.type === 'playing'
+            ? state.status.turn === 'white'
+              ? 'first'
+              : 'second'
+            : null,
+      };
+    },
     // Switch the visible pane via a data-attr on the replay root; watch-route.css
     // maps data-watch-pov -> which of the already-rendered white/truth/black panes
     // shows. No re-render needed: all three panes render every ply (watch sets

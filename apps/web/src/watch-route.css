@@ -413,9 +413,10 @@
   text-decoration: none;
 }
 
+/* No .active here: the rail never contains the game on the board, so a rail row cannot be
+   the active one. */
 .watch-queue-row:hover,
-.watch-queue-row:focus-visible,
-.watch-queue-row.active {
+.watch-queue-row:focus-visible {
   color: var(--site-accent-strong);
   outline: none;
 }
@@ -732,8 +733,14 @@
   background: transparent;
 }
 
+/* A ~4-full-move window that scrolls within, matching the room's move list
+   (game-shell.css `.round-table__box .move-list`) and lichess TV. Watch renders the REVIEW
+   move-list widget into the shared table's slot rather than the room's `.move-list`, so the
+   room's rule never reaches it and the height is restated here. Scoped to
+   .watch-game-table: the unscoped .review-move-list__rows height belongs to the review
+   pages and the shogi postgame. */
 .watch-game-table .review-move-list__rows {
-  max-height: min(38vh, 340px);
+  max-height: 142px;
   overflow-y: auto;
 }
 
@@ -802,13 +809,19 @@
   text-align: right;
 }
 
+/* Selected/hovered channel takes the accent across the whole row, marker included
+   (lichess tints its active channel icon the same way). The marker colour has to be
+   set as well as `color`: the variant markers are CSS-mask elements painting from
+   --variant-marker-color, so they ignore `color` — only the engines <svg
+   fill="currentColor"> inherits it. Setting one and not the other is what left the
+   gears green while every mask stayed grey. */
 .watch-channel-list a:hover,
 .watch-channel-list a:focus-visible,
 .watch-channel-list a.active {
   border-color: color-mix(in srgb, var(--site-accent) 45%, transparent);
   background: var(--site-accent-soft);
   color: var(--site-accent-strong);
-  --variant-marker-color: #3f4a54;
+  --variant-marker-color: var(--site-accent-strong);
 }
 
 .watch-channel-name {

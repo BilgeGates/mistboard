@@ -300,7 +300,7 @@ describe('renderWatchChannelList', () => {
 });
 
 describe('renderWatchQueue', () => {
-  it('renders only two final-position board mount points', () => {
+  it('fills its two slots from the games that are NOT on the main board', () => {
     const game = (roomId: string): FeaturedGame => ({
       blackName: 'Black',
       corpusId: null,
@@ -335,11 +335,53 @@ describe('renderWatchQueue', () => {
       'newest',
     );
 
+    // 'newest' is on the main board, so the rail skips it and takes the next two:
+    // "Previously on" offers what ELSE to watch, never a duplicate of the feature.
     expect(previews.map(({ game: previewGame }) => previewGame.roomId)).toEqual([
-      'newest',
       'previous',
+      'older',
     ]);
     expect(root.querySelectorAll('.watch-queue-preview')).toHaveLength(2);
-    expect(root.querySelector('[data-room-id="older"]')).toBeNull();
+    expect(root.querySelector('[data-room-id="newest"]')).toBeNull();
+  });
+
+  it('empties rather than mirroring the board when it is the channel’s only game', () => {
+    const only: FeaturedGame = {
+      blackName: 'Black',
+      corpusId: null,
+      mode: 'pvp',
+      plyCount: 24,
+      result: 'white-wins',
+      roomId: 'only',
+      termination: 'resignation',
+      variant: 'dark-chess',
+      whiteName: 'White',
+    };
+    const root = document.createElement('section');
+    const previews = renderWatchQueue(
+      root,
+      {
+        activeChannel: 'dark-chess',
+        channels: [
+          {
+            family: 'chess',
+            gameSpecIds: ['dark-chess'],
+            id: 'dark-chess',
+            label: 'Fog Chess',
+            sealedCount: 0,
+            unlockedCount: 1,
+          },
+        ],
+        now: '2026-07-13T00:00:00.000Z',
+        sealedCount: 0,
+        unlockLimit: 64,
+        unlocked: [only],
+      },
+      'only',
+    );
+
+    expect(previews).toEqual([]);
+    expect(root.querySelector('[data-room-id="only"]')).toBeNull();
+    expect(root.querySelector('.watch-previously-empty')?.textContent).toContain('No other');
   });
 });
