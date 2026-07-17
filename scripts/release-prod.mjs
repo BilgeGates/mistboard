@@ -9,7 +9,10 @@ const DEFAULT_CI_WORKFLOW = 'ci.yml';
 const DEFAULT_REMOTE = 'origin';
 const DEFAULT_SMOKE = 'full';
 const DEFAULT_TARGET_BRANCH = 'main';
-const DEFAULT_TIMEOUT_MS = 900_000;
+// 35 min, matching wait-prod-revision: Railway builder-queue latency alone
+// reached ~15.5 min on 2026-07-16 (#239), so 15 min false-failed a healthy
+// release while the deploy was still queued.
+const DEFAULT_TIMEOUT_MS = 2_100_000;
 const GITHUB_POLL_MS = 10_000;
 // Prefixes whose changes never need the engine/DMX/DXQ smoke tier. Declared
 // with the other top constants: resolveSmokeTier runs mid-release-flow, so a

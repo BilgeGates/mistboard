@@ -4,7 +4,11 @@
 import { appendFileSync } from 'node:fs';
 
 const DEFAULT_BASE_URL = 'https://mistboard.com';
-const DEFAULT_TIMEOUT_MS = 900_000;
+// 35 min: Railway builder-QUEUE latency alone reached ~15.5 min on 2026-07-16
+// (#239) while the actual build stayed in its 2-4 min norm. This wait only
+// sees public endpoints, so a queued deploy is indistinguishable from a stuck
+// one; the window must absorb worst-case queue + build.
+const DEFAULT_TIMEOUT_MS = 2_100_000;
 const DEFAULT_INTERVAL_MS = 10_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
 const DEFAULT_STABLE_ATTEMPTS = 2;
@@ -115,8 +119,13 @@ try {
   }
 
   if (waitStatus !== 'ok') {
+    const phase = waitPhase(ciTracker.current(), firstExpectedRevisionAt);
+    const queueHint =
+      phase === 'railway_build_or_deploy_wait'
+        ? ` The deploy may still be QUEUED or BUILDING on Railway (builder-queue latency has reached ~15 min, #239); this script cannot see Railway state, so a timeout here does NOT mean the deploy failed. Check the dashboard or \`railway status\`, then resume with: npm run prod:wait-revision -- --expect-revision ${options.expectedRevision}`
+        : '';
     throw new Error(
-      `timed out waiting for ${options.expectedRevision}; last revision=${lastRevision}; last health=${lastHealth}`,
+      `timed out waiting for ${options.expectedRevision} (phase=${phase}); last revision=${lastRevision}; last health=${lastHealth}.${queueHint}`,
     );
   }
 } finally {
