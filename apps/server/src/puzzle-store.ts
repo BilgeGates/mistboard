@@ -73,7 +73,7 @@ export function resetPuzzleStoreForTests(): void {
 
 export async function getPuzzleStore(): Promise<PuzzleStoreSnapshot> {
   if (!isInitialized()) {
-    if (!snapshot || snapshot.source !== 'seed') {
+    if (snapshot?.source !== 'seed') {
       snapshot = buildSnapshot(loadAllSeedPuzzles() as readonly StoredPuzzle[], 'seed');
     }
     return snapshot;

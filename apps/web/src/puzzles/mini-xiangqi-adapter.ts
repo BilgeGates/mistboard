@@ -74,7 +74,7 @@ function paintBoard(board: HTMLElement, ctx: PuzzleBoardContext): void {
     canDragFrom: (square) => canDragBoardPiece(session, square as MiniXiangqiSquare),
     ghostHtml: (square) => {
       const entry = boardView.board[square as MiniXiangqiSquare];
-      if (!entry || entry.shrouded !== false) return null;
+      if (entry?.shrouded !== false) return null;
       return miniXiangqiPieceGhostSvg(entry.piece);
     },
     onDragStart: (from) => {
