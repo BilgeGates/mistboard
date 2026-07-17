@@ -88,6 +88,10 @@ export function watchRendererKindForGame(feed: WatchFeed, roomId: string): Watch
 
 const WATCH_ACTIVE_POLL_MS = 15_000;
 const WATCH_IDLE_POLL_MS = 60_000;
+// Rail clock repaint rate. Matches the renderers' own clock ticks; the displayed mm:ss
+// only changes about once a second, but a move's whole think can drain inside a ~700ms
+// playback window, so the poll has to be finer than the digits it shows.
+const WATCH_CLOCK_TICK_MS = 100;
 
 export function shouldPlayWatchMoveSound(previousPly: number | null, nextPly: number): boolean {
   return previousPly !== null && nextPly === previousPly + 1;
@@ -123,6 +127,9 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   // the board's ply so the controls'
   // relative steps (prev/next) resolve without a live getter on the handle.
   let moveList: MoveList | null = null;
+  // Rail clock rows, mounted per game and repainted by the ticker.
+  let clockSeats: { top: HTMLElement; bottom: HTMLElement } | null = null;
+  let clockTicker: number | null = null;
   let watchPly = 0;
   let watchMaxPly = 0;
   let lastSoundPly: number | null = null;
@@ -219,22 +226,55 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   const clearClocks = (): void => {
     watch.clockTop.replaceChildren();
     watch.clockBottom.replaceChildren();
+    clockSeats = null;
+  };
+
+  // Mounted once per game, then repainted in place: the ticker runs several times a
+  // second, and rebuilding the rows each pass would churn the DOM (and any transition on
+  // them) for two strings.
+  const ensureClockSeats = (): { top: HTMLElement; bottom: HTMLElement } => {
+    if (clockSeats) return clockSeats;
+    const mount = (host: HTMLElement): HTMLElement => {
+      const row = document.createElement('div');
+      row.append(document.createElement('strong'));
+      host.replaceChildren(row);
+      return row;
+    };
+    clockSeats = { top: mount(watch.clockTop), bottom: mount(watch.clockBottom) };
+    return clockSeats;
   };
 
   const syncClocks = (): void => {
-    clearClocks();
     const readout = replayHandle?.clockAtPly?.() ?? null;
-    if (!readout) return;
-    const seat = (remainingMs: number, live: boolean): HTMLElement => {
-      const row = document.createElement('div');
-      if (live) row.classList.add('active');
-      const time = document.createElement('strong');
-      time.textContent = formatClock(remainingMs);
-      row.append(time);
-      return row;
+    if (!readout) {
+      if (clockSeats) clearClocks();
+      return;
+    }
+    const seats = ensureClockSeats();
+    const paint = (row: HTMLElement, remainingMs: number, live: boolean): void => {
+      const time = row.firstElementChild;
+      const text = formatClock(remainingMs);
+      if (time && time.textContent !== text) time.textContent = text;
+      row.classList.toggle('active', live);
     };
-    watch.clockTop.append(seat(readout.second, readout.toMove === 'second'));
-    watch.clockBottom.append(seat(readout.first, readout.toMove === 'first'));
+    paint(seats.top, readout.second, readout.toMove === 'second');
+    paint(seats.bottom, readout.first, readout.toMove === 'first');
+  };
+
+  // Poll the handle rather than having it push: both renderers already interpolate the
+  // mover's clock across the move's playback window (chess walks its display instant
+  // toward the next move's timestamp; the tenant path drains between ply snapshots), so
+  // reading on an interval is all the rail needs to tick. Paused/scrubbed, the value is
+  // constant and the repaint no-ops.
+  const startClockTicker = (): void => {
+    if (clockTicker !== null) return;
+    clockTicker = window.setInterval(syncClocks, WATCH_CLOCK_TICK_MS);
+  };
+
+  const stopClockTicker = (): void => {
+    if (clockTicker === null) return;
+    window.clearInterval(clockTicker);
+    clockTicker = null;
   };
 
   // Re-highlight the current move + refresh the scrubber bounds/status. Driven by
@@ -257,6 +297,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     watchPly = 0;
     watchMaxPly = 0;
     moveScrubber.setBounds(0, 0);
+    stopClockTicker();
     clearClocks();
   };
 
@@ -291,6 +332,9 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
       watch.movesRoot.append(moveList.el);
     }
     syncMoveList(watchPly, watchMaxPly);
+    // Bounded to a loaded game: clearMoveList stops it, so the interval never outlives the
+    // board it is drawing for.
+    startClockTicker();
   };
 
   // Mount the right-kind replay handle, re-mounting when the family changes

@@ -320,8 +320,10 @@ export async function mountTenantWatchReplay<
   // Drives the compact seat clocks AND the full TV rail clocks (through clockAtPly).
   let clockSeries: ShowcaseClockPair[] | null = null;
   let moveDelays: number[] | null = null;
-  let compactIncrementMs = 0;
-  // Continuous drain of the mover's clock between ply snapshots (see tickCompactClock).
+  let clockIncrement = 0;
+  // Continuous drain of the mover's clock between ply snapshots. Armed on every sync
+  // (see armClockDrain), read by the compact seats' own ticker and by clockAtPly for the
+  // /watch rail.
   let clockAnim: {
     side: 'first' | 'second';
     startVal: number;
@@ -331,15 +333,50 @@ export async function mountTenantWatchReplay<
   } | null = null;
   let clockTickTimer: number | null = null;
 
-  const tickCompactClock = (): void => {
-    if (!compactSeats || !clockAnim) return;
+  // Red moves first, so an even ply leaves Red (first) to move; nobody is on the clock
+  // once the game has ended.
+  const toMoveAtPly = (): 'first' | 'second' | null =>
+    currentPly >= maxPly ? null : currentPly % 2 === 0 ? 'first' : 'second';
+
+  // Drain the mover's clock from this ply's recorded value toward the value it reaches
+  // just before the increment it earns on completing the move, across that move's real
+  // (clamped) playback window. The clock therefore lands EXACTLY on the recorded value at
+  // every ply — the reconstruction is the anchor, the animation only fills the gaps.
+  // Paused (a manual jump/scrub) means no drain: the clock holds the ply's true value.
+  const armClockDrain = (): void => {
+    const side = toMoveAtPly();
+    if (paused || !side || !clockSeries || !moveDelays) {
+      clockAnim = null;
+      return;
+    }
+    const startVal = clockSeries[currentPly]?.[side] ?? 0;
+    const nextVal = clockSeries[currentPly + 1]?.[side];
+    clockAnim = {
+      side,
+      startVal,
+      floorVal: nextVal === undefined ? startVal : Math.max(0, nextVal - clockIncrement),
+      shownAt: Date.now(),
+      windowMs: moveDelays[currentPly + 1] ?? SHOWCASE_MIN_MOVE_MS,
+    };
+  };
+
+  /** The drained value for the animating seat right now, or null when nothing is draining. */
+  const drainedClockNow = (): { side: 'first' | 'second'; ms: number } | null => {
+    if (!clockAnim) return null;
     const fraction = Math.min((Date.now() - clockAnim.shownAt) / clockAnim.windowMs, 1);
-    const shown = Math.max(
+    const ms = Math.max(
       0,
       clockAnim.startVal - (clockAnim.startVal - clockAnim.floorVal) * fraction,
     );
-    const seat = compactSeats.top.side === clockAnim.side ? compactSeats.top : compactSeats.bottom;
-    seat.clockEl.textContent = formatClock(shown);
+    return { side: clockAnim.side, ms };
+  };
+
+  const tickCompactClock = (): void => {
+    if (!compactSeats) return;
+    const drained = drainedClockNow();
+    if (!drained) return;
+    const seat = compactSeats.top.side === drained.side ? compactSeats.top : compactSeats.bottom;
+    seat.clockEl.textContent = formatClock(drained.ms);
   };
 
   const compactSeatRow = (name: string): { row: HTMLElement; clockEl: HTMLElement } => {
@@ -443,29 +480,13 @@ export async function mountTenantWatchReplay<
         seat.clockEl.classList.toggle('showcase-seat-result', marks !== null);
         seat.row.classList.toggle('result-win', seat.side === winner);
       }
-      // Red moves first, so an even ply leaves Red (first) to move; no active side
-      // once the game has ended.
-      const toMove: 'first' | 'second' | null =
-        currentPly >= maxPly ? null : currentPly % 2 === 0 ? 'first' : 'second';
-      compactSeats.top.row.classList.toggle('active', toMove === compactSeats.top.side);
-      compactSeats.bottom.row.classList.toggle('active', toMove === compactSeats.bottom.side);
-      // Arm the live tick: drain the mover's clock from this ply's value toward the
-      // value just before the increment it earns on completing the move, over the
-      // real move-playback window.
-      if (toMove && clockSeries && moveDelays) {
-        const startVal = clockSeries[currentPly]?.[toMove] ?? 0;
-        const nextVal = clockSeries[currentPly + 1]?.[toMove];
-        clockAnim = {
-          side: toMove,
-          startVal,
-          floorVal: nextVal === undefined ? startVal : Math.max(0, nextVal - compactIncrementMs),
-          shownAt: Date.now(),
-          windowMs: moveDelays[currentPly + 1] ?? SHOWCASE_MIN_MOVE_MS,
-        };
-      } else {
-        clockAnim = null;
-      }
+      compactSeats.top.row.classList.toggle('active', toMoveAtPly() === compactSeats.top.side);
+      compactSeats.bottom.row.classList.toggle(
+        'active',
+        toMoveAtPly() === compactSeats.bottom.side,
+      );
     }
+    armClockDrain();
     if (controls) {
       const result =
         currentPly >= maxPly
@@ -540,8 +561,16 @@ export async function mountTenantWatchReplay<
       controls.play.textContent = paused
         ? `▶ ${t('watch.play', {}, locale)}`
         : `⏸ ${t('watch.pause', {}, locale)}`;
-    if (paused) clearTimer();
-    else scheduleAuto();
+    // The drain is armed per playback window, so pausing must park the clock on the ply's
+    // true value and resuming must re-arm against the freshly scheduled window (the pause
+    // button reaches here without a sync(), unlike manualJump).
+    if (paused) {
+      clearTimer();
+      clockAnim = null;
+    } else {
+      armClockDrain();
+      scheduleAuto();
+    }
   };
 
   // A manual step pauses auto-play (TV you can pause and scrub).
@@ -612,7 +641,20 @@ export async function mountTenantWatchReplay<
             firstColor: 'red',
           })
         : null;
-    compactIncrementMs = clockIncrementMs;
+    clockIncrement = clockIncrementMs;
+    // Play each move at its real recorded duration (clamped), so a long think LINGERS and
+    // a snap move flicks by — and the draining clock reads as thinking rather than as a
+    // number spinning on a metronome. Also read by scheduleAuto for the playback pace.
+    // Hoisted out of the compact branch: the full TV board wants the same pacing its own
+    // queue previews already had.
+    moveDelays =
+      timelineMoves.length > 0
+        ? reconstructMoveDelays({
+            moves: timelineMoves,
+            minMs: SHOWCASE_MIN_MOVE_MS,
+            maxMs: SHOWCASE_MAX_MOVE_MS,
+          })
+        : null;
 
     // Compact showcase: a single board framed by a player name + real clock on
     // each side (no control-bar/ply-line).
@@ -626,18 +668,6 @@ export async function mountTenantWatchReplay<
       boardTargets = [{ pane, key: target.key }];
       controls = null;
       seatCells = null;
-
-      // Play each move at its real recorded duration (clamped), and drain the
-      // mover's clock across that window (see sync/tickCompactClock). The clock series
-      // itself is reconstructed once for both modes at the top of buildGame.
-      moveDelays =
-        timelineMoves.length > 0
-          ? reconstructMoveDelays({
-              moves: timelineMoves,
-              minMs: SHOWCASE_MIN_MOVE_MS,
-              maxMs: SHOWCASE_MAX_MOVE_MS,
-            })
-          : null;
 
       // Bottom seat = the side the board is oriented to; top = the opponent.
       // `first` is the red/first-mover clock slot.
@@ -885,17 +915,21 @@ export async function mountTenantWatchReplay<
     // onPlyChange). The /watch move list + scrubber drive the board through it.
     jumpToPly: (ply: number) => manualJump(ply),
     moveEntries: () => (activePostgame ? buildTenantMoveEntries(activePostgame) : []),
-    // The clocks the players actually had at this ply, reconstructed from the move
-    // timestamps. Null (no clock) for an untimed game — which every EvE game is today.
+    // The clocks the players actually had, reconstructed from the move timestamps. Under
+    // autoplay the mover's clock is the LIVE drained value, so polling this on a short
+    // interval ticks it down; the ply snapshots stay the anchor. Null (no clock) for an
+    // untimed game — which every EvE game is today.
     clockAtPly: () => {
       if (!clockSeries) return null;
       const at = clockSeries[Math.min(currentPly, clockSeries.length - 1)];
       if (!at) return null;
-      // Red moves first, so an odd ply count means red is to move next. Past the final
-      // ply nobody is on the clock.
-      const toMove: 'first' | 'second' | null =
-        currentPly >= maxPly ? null : currentPly % 2 === 0 ? 'first' : 'second';
-      return { first: at.first, second: at.second, toMove };
+      const toMove = toMoveAtPly();
+      const drained = drainedClockNow();
+      return {
+        first: drained?.side === 'first' ? drained.ms : at.first,
+        second: drained?.side === 'second' ? drained.ms : at.second,
+        toMove,
+      };
     },
     // Re-point the single compact board at the view whose paneKind matches, then
     // re-render at the current ply (no glide: pov swap doesn't move the ply). A
