@@ -191,12 +191,15 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
     },
     // Decision-vs-luck decomposition: flip plies get a decision-quality glyph + per-move luck
     // readout + a two-number summary. Computed on top of the basic analysis (heavier, so it runs
-    // as the follow-on pass). Signed-out never reaches run() — the analysis button redirects first.
+    // as the follow-on pass), or on a decisions cache miss under an already-cached analysis (a
+    // game analysed before the decomposition shipped). The POST is account-gated, so canRun keeps
+    // signed-out viewers on the base summary instead of a 401.
     decisions: {
       fetchCached: () =>
         fetchCachedBanqiDecisions(postgame.game.roomId).then((summary) =>
           summary ? toDecisionOverlay(summary) : null,
         ),
+      canRun: isLikelySignedIn(),
       run: () => requestBanqiDecisions(postgame.game.roomId).then(toDecisionOverlay),
     },
   });

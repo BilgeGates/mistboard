@@ -64,6 +64,7 @@ describe('jieqi decision overlay wiring', () => {
       },
       decisions: {
         fetchCached: async () => overlayWithFlaggedReveal(),
+        canRun: true,
         run: async () => overlayWithFlaggedReveal(),
       },
     });

@@ -63,6 +63,7 @@ describe('jungle-flip decision overlay wiring', () => {
       },
       decisions: {
         fetchCached: async () => overlayWithFlaggedFlip(),
+        canRun: true,
         run: async () => overlayWithFlaggedFlip(),
       },
     });
@@ -92,6 +93,116 @@ describe('jungle-flip decision overlay wiring', () => {
       true,
     );
 
+    root.remove();
+  });
+
+  // Regression (jgf_c61b057f, prod): a game whose analysis is cached but whose decomposition
+  // never was (analysed before the decomposition shipped) must not wedge on "Grading reveals…".
+  // A viewer who may compute gets an auto-run; one who may not falls back to the base summary.
+  it('auto-runs the decomposition on a decisions cache miss when the viewer can compute', async () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    const moves = firstMoves(3);
+    let ran = 0;
+
+    mountJungleFlipReview(root, 'room-x', STANDARD_JUNGLE_FLIP_DEAL, {
+      ariaLabel: 'test',
+      title: 'Flip Jungle',
+      summary: 'test',
+      moves,
+      analysis: {
+        requestLabel: 'Analyse',
+        fetchCached: async () => fakeAnalysis(moves.length),
+        run: async () => fakeAnalysis(moves.length),
+      },
+      decisions: {
+        fetchCached: async () => null,
+        canRun: true,
+        run: async () => {
+          ran += 1;
+          return overlayWithFlaggedFlip();
+        },
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(ran).toBe(1);
+    expect(root.textContent).not.toContain('Grading reveals');
+    const caption = root.querySelector('.review-decision-summary__caption');
+    expect(caption!.textContent).toContain('🎲');
+    root.remove();
+  });
+
+  it('falls back to the base summary on a cache miss when the viewer cannot compute', async () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    const moves = firstMoves(3);
+    let ran = 0;
+
+    mountJungleFlipReview(root, 'room-x', STANDARD_JUNGLE_FLIP_DEAL, {
+      ariaLabel: 'test',
+      title: 'Flip Jungle',
+      summary: 'test',
+      moves,
+      analysis: {
+        requestLabel: 'Analyse',
+        fetchCached: async () => fakeAnalysis(moves.length),
+        run: async () => fakeAnalysis(moves.length),
+      },
+      decisions: {
+        fetchCached: async () => null,
+        canRun: false,
+        run: async () => {
+          ran += 1;
+          return overlayWithFlaggedFlip();
+        },
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(ran).toBe(0);
+    expect(root.textContent).not.toContain('Grading reveals');
+    expect(root.querySelector('.analysis-summary')).not.toBeNull();
+    const caption = root.querySelector('.review-decision-summary__caption');
+    expect(caption!.textContent).toContain('Reveals are not graded');
+    root.remove();
+  });
+
+  it('falls back to the base summary when the decomposition compute fails', async () => {
+    const root = document.createElement('div');
+    document.body.append(root);
+    const moves = firstMoves(3);
+
+    mountJungleFlipReview(root, 'room-x', STANDARD_JUNGLE_FLIP_DEAL, {
+      ariaLabel: 'test',
+      title: 'Flip Jungle',
+      summary: 'test',
+      moves,
+      analysis: {
+        requestLabel: 'Analyse',
+        fetchCached: async () => fakeAnalysis(moves.length),
+        run: async () => fakeAnalysis(moves.length),
+      },
+      decisions: {
+        fetchCached: async () => null,
+        canRun: true,
+        run: async () => {
+          throw new Error('decisions_request_failed');
+        },
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(root.textContent).not.toContain('Grading reveals');
+    expect(root.querySelector('.analysis-summary')).not.toBeNull();
+    const caption = root.querySelector('.review-decision-summary__caption');
+    expect(caption!.textContent).toContain('Reveals are not graded');
     root.remove();
   });
 });

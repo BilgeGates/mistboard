@@ -201,9 +201,14 @@ export type DecisionOverlay = {
 
 /** The heavier, opt-in decision-vs-luck tier (jieqi). Fetched/computed alongside the basic
  *  analysis; `run` is triggered right after the basic analysis compute (the decomposition needs
- *  it). null/undefined disables the affordance entirely for variants without chance moves. */
+ *  it), or on a cache miss when the analysis itself loaded from cache (a game analysed before
+ *  the decomposition existed would otherwise wedge on the pending note forever).
+ *  null/undefined disables the affordance entirely for variants without chance moves. */
 export type DecisionSource = {
   fetchCached?(): Promise<DecisionOverlay | null>;
+  /** Whether run() is allowed to compute. The POST is account-gated server-side, so signed-out
+   *  viewers set false and get the base (reveals-ungraded) summary instead of a doomed 401. */
+  canRun: boolean;
   run(): Promise<DecisionOverlay>;
 };
 
@@ -820,6 +825,21 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     render();
   }
 
+  // The decomposition is off (compute failed, or this viewer can't request one): show the base
+  // summary with a caption saying reveals are ungraded, replacing the pending note. The base
+  // accuracy covers only non-reveal moves, so the caption keeps it from reading as a clean sheet.
+  function showDecisionsUnavailable(): void {
+    if (!gameAnalysis) return;
+    analysisSummaryEl.replaceChildren(
+      createAnalysisSummary(gameAnalysis, config.players, {
+        seatColors: config.seatColors,
+        phases: gamePhases,
+      }),
+      decisionSummaryEl,
+    );
+    decisionSummaryEl.replaceChildren(revealsUngradedCaption());
+  }
+
   // Build the move-list annotation map from BOTH the engine judgment (mainline, if
   // analysed) and the user's authored glyphs (whole tree). User glyphs win on any
   // node where both exist (R6 — the two glyph sources are kept distinct).
@@ -929,20 +949,31 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
 
   const decisionSource = config.decisions ?? null;
   async function loadCachedDecisions(): Promise<void> {
-    if (!decisionSource?.fetchCached) return;
+    if (!decisionSource) return;
+    let overlay: DecisionOverlay | null = null;
     try {
-      const overlay = await decisionSource.fetchCached();
-      if (overlay) applyDecisions(overlay);
+      overlay = (await decisionSource.fetchCached?.()) ?? null;
     } catch {
-      /* leave the decision overlay off — the eval graph stands on its own */
+      /* a failed cache read is a miss */
     }
+    if (overlay) {
+      applyDecisions(overlay);
+      return;
+    }
+    // Cache miss (e.g. the game was analysed before the decomposition shipped): compute it now
+    // if this viewer may, so the "Grading reveals…" note is an honest in-progress state and not
+    // a dead end. Otherwise fall straight back to the base summary.
+    if (decisionSource.canRun) await runDecisions();
+    else showDecisionsUnavailable();
   }
   async function runDecisions(): Promise<void> {
     if (!decisionSource) return;
     try {
       applyDecisions(await decisionSource.run());
     } catch {
-      /* leave the decision overlay off */
+      // The eval graph stands on its own; swap the pending note for the base summary so the
+      // page never wedges on "Grading reveals…".
+      showDecisionsUnavailable();
     }
   }
 
@@ -1103,5 +1134,14 @@ function luckCaption(): HTMLElement {
   const cap = document.createElement('div');
   cap.className = 'review-decision-summary__caption';
   cap.textContent = 'Accuracy grades your choices; 🎲 marks the luck of each reveal.';
+  return cap;
+}
+
+// Fallback caption when the decomposition never loaded: the base accuracy skips reveal plies,
+// so say so rather than letting the summary read as a full luck-free grade.
+function revealsUngradedCaption(): HTMLElement {
+  const cap = document.createElement('div');
+  cap.className = 'review-decision-summary__caption';
+  cap.textContent = 'Reveals are not graded on this game; accuracy covers the other moves.';
   return cap;
 }

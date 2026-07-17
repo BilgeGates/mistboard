@@ -64,6 +64,7 @@ describe('banqi decision overlay wiring', () => {
       },
       decisions: {
         fetchCached: async () => overlayWithFlaggedFlip(),
+        canRun: true,
         run: async () => overlayWithFlaggedFlip(),
       },
     });
