@@ -1,4 +1,5 @@
 import './challenge.css';
+import { firstMoverColorName, secondMoverColorName, variantDisplayLabel } from './game-display.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 
 // The challenge landing page (/challenge/:id): where a shared "play me" link or
@@ -10,7 +11,8 @@ type ChallengeView = {
   id: string;
   gameSpecId: string;
   daysPerMove: number;
-  preferredColor: 'white' | 'black' | 'random';
+  // Move order, not color (server migration 106).
+  preferredColor: 'first' | 'second' | 'random';
   visibility: 'public' | 'private';
   challengerName: string | null;
   isMine: boolean;
@@ -19,16 +21,17 @@ type ChallengeView = {
   expired: boolean;
 };
 
-const SPEC_LABEL: Record<string, string> = { 'dark-chess': 'Fog Chess' };
-
 function specLabel(gameSpecId: string): string {
-  return SPEC_LABEL[gameSpecId] ?? gameSpecId;
+  return variantDisplayLabel(gameSpecId);
 }
 
-function colorLabel(color: ChallengeView['preferredColor']): string {
+function colorLabel(gameSpecId: string, color: ChallengeView['preferredColor']): string {
   if (color === 'random') return 'random colors';
-  // The challenger picked their color; the accepter takes the other.
-  return color === 'white' ? 'you play Black' : 'you play White';
+  // The challenger picked their side; the accepter takes the OTHER, so the label names the
+  // opposite of what the challenger chose.
+  return color === 'first'
+    ? `you play ${secondMoverColorName(gameSpecId)}`
+    : `you play ${firstMoverColorName(gameSpecId)}`;
 }
 
 export async function mountChallengeAccept(root: HTMLElement, challengeId: string): Promise<void> {
@@ -91,7 +94,7 @@ function buildChallengeCard(view: ChallengeView): HTMLElement {
   detail.className = 'challenge-subhead';
   detail.textContent = `${specLabel(view.gameSpecId)} · ${view.daysPerMove} day${
     view.daysPerMove === 1 ? '' : 's'
-  }/move · ${colorLabel(view.preferredColor)}`;
+  }/move · ${colorLabel(view.gameSpecId, view.preferredColor)}`;
   card.append(detail);
 
   if (view.expired) {

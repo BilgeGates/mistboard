@@ -140,6 +140,20 @@ function displayParticipant(
 
 // Human label for a persisted games.variant value. Legacy/alias strings + the
 // 'Dark Chess' casing are handled explicitly (the dark-chess spec publicName is
+// Correspondence seeks store a side as MOVE ORDER ('first'/'second'), variant-neutral, so
+// one seek board serves every eligible variant. These map that axis back to the colors a
+// player recognises: chess is White/Black, xiangqi Red/Black. Both eligible specs share
+// Black as the second mover, so only the first-mover name varies. Fail-safe: an unmapped
+// spec falls back to White/Black rather than throwing (worst case a wrong color WORD on the
+// label; the seat itself is always assigned by the tenant's own colors).
+export function firstMoverColorName(gameSpecId: string): string {
+  return gameSpecId === 'xiangqi' ? 'Red' : 'White';
+}
+
+export function secondMoverColorName(_gameSpecId: string): string {
+  return 'Black';
+}
+
 // the lowercase 'Fog Chess'); everything else derives from the canonical spec
 // so new variants are labelled without editing here.
 export function variantDisplayLabel(variant: string): string {

@@ -149,4 +149,5 @@ registerVariantTenant({
   },
   // No correspondence surface (yet): DMX rooms are live-clock only.
   sweepDueDeadline: null,
+  createCorrespondenceGameForSeek: null,
 });

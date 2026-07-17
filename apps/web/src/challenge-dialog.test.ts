@@ -8,11 +8,13 @@ describe('openChallengeDialog', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders a directed-challenge modal with day + color selects and the target name', () => {
+  it('renders a directed-challenge modal with variant + day + color selects and the target name', () => {
     openChallengeDialog({ handle: 'alice' });
     const dialog = document.querySelector('dialog[data-challenge-dialog]');
     expect(dialog).not.toBeNull();
-    expect(dialog?.querySelectorAll('select')).toHaveLength(2);
+    // Variant, days, color — the variant select is hidden when only one spec is eligible but
+    // is still in the DOM.
+    expect(dialog?.querySelectorAll('select')).toHaveLength(3);
     expect(dialog?.textContent).toContain('alice');
   });
 
@@ -34,11 +36,15 @@ describe('openChallengeDialog', () => {
     expect(url).toBe('/api/correspondence/seeks');
     const body = JSON.parse(init.body as string) as {
       targetHandle: string;
+      gameSpecId: string;
       daysPerMove: number;
       preferredColor: string;
     };
     expect(body.targetHandle).toBe('bob');
+    // The challenge now names a variant, and the side is variant-neutral move order.
+    expect(typeof body.gameSpecId).toBe('string');
+    expect(body.gameSpecId.length).toBeGreaterThan(0);
     expect(typeof body.daysPerMove).toBe('number');
-    expect(['random', 'white', 'black']).toContain(body.preferredColor);
+    expect(['random', 'first', 'second']).toContain(body.preferredColor);
   });
 });

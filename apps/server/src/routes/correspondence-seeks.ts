@@ -2,14 +2,13 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { DARK_CHESS_SPEC_ID, DAY_MS } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
-import { createDarkChessCorrespondenceGameForSeek } from './../dark-chess-registration.js';
 import { correspondenceEnabled } from './../feature-flags.js';
-import type { SeekVisibility, UserAccount } from './../persistence.js';
+import type { SeekColorPreference, SeekVisibility, UserAccount } from './../persistence.js';
 import * as persistence from './../persistence.js';
+import { correspondenceTenantForSpecId } from './../variant-tenant/registry.js';
 import {
   CORRESPONDENCE_ELIGIBLE_SPECS,
   parseCorrespondenceTimeControl,
-  parsePreferredColor,
 } from './correspondence-rooms.js';
 import {
   type HttpApiContext,
@@ -18,6 +17,17 @@ import {
   requirePersistence,
   writeJson,
 } from './lib.js';
+
+/**
+ * A seek's side preference, in MOVE ORDER rather than colors, so one board serves every
+ * eligible variant (migration 106). Deliberately NOT parsePreferredColor: that one parses
+ * the chess literals the dark-chess-only room-create route still speaks. Unknown input →
+ * undefined → the caller's 'random' default, never a thrown 500.
+ */
+export function parseSeekColorPreference(value: unknown): SeekColorPreference | undefined {
+  if (value === 'first' || value === 'second' || value === 'random') return value;
+  return undefined;
+}
 
 // Cap on simultaneously-open seeks per account — bounds board spam while still
 // leaving room to offer a few time controls / colors at once. Counts directed
@@ -208,7 +218,7 @@ async function createSeek(
     writeJson(response, 400, { error: 'invalid_days_per_move' });
     return true;
   }
-  const preferredColor = parsePreferredColor(body.preferredColor) ?? 'random';
+  const preferredColor = parseSeekColorPreference(body.preferredColor) ?? 'random';
 
   // Challenge dimensions. A target forces a private, directed seek; otherwise
   // visibility defaults to the public board.
@@ -331,18 +341,29 @@ async function acceptSeek(
     writeJson(response, 409, { error: 'seek_taken' });
     return true;
   }
-  // Creator's color is honored; the accepter takes the other (random → coin flip).
-  const creatorColor =
+  // Which tenant backs this spec's correspondence rooms. Fail-closed twice over: the spec
+  // already passed CORRESPONDENCE_ELIGIBLE_SPECS above, and a spec whose tenant offers no
+  // seek factory is refused here rather than silently seated by another variant's.
+  const tenant = correspondenceTenantForSpecId(seek.gameSpecId);
+  const createGame = tenant?.createCorrespondenceGameForSeek ?? null;
+  if (!createGame) {
+    writeJson(response, 501, { error: 'correspondence_unsupported_spec' });
+    return true;
+  }
+  // Creator's side is honored; the accepter takes the other (random → coin flip). Move
+  // order, not color: the tenant maps first/second onto its own colors, so this path stays
+  // variant-neutral.
+  const creatorSide =
     seek.preferredColor === 'random'
       ? randomBytes(1)[0]! < 128
-        ? 'white'
-        : 'black'
+        ? 'first'
+        : 'second'
       : seek.preferredColor;
-  const accepterColor = creatorColor === 'white' ? 'black' : 'white';
-  const created = await createDarkChessCorrespondenceGameForSeek({
+  const accepterSide = creatorSide === 'first' ? 'second' : 'first';
+  const created = await createGame({
     timeControl,
-    white: { userId: creatorColor === 'white' ? seek.creatorUserId : user.id },
-    black: { userId: creatorColor === 'black' ? seek.creatorUserId : user.id },
+    first: { userId: creatorSide === 'first' ? seek.creatorUserId : user.id },
+    second: { userId: creatorSide === 'second' ? seek.creatorUserId : user.id },
   });
   if (!created.ok) {
     // The seek row is already deleted, so a failure here is a rare persistence
@@ -354,7 +375,8 @@ async function acceptSeek(
   writeJson(response, 201, {
     roomId: created.room.id,
     url: `/room/${encodeURIComponent(created.room.id)}`,
-    seat: accepterColor,
+    // The tenant's own color for the side the accepter took (white/black, red/black, ...).
+    seat: created.seats[accepterSide],
     gameSpecId: created.room.gameSpecId,
   });
   return true;

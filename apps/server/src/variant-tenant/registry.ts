@@ -141,6 +141,34 @@ export type VariantTenantRegistration = {
   // append the timeout/abort event through the tenant's writer with
   // broadcast (sweepTenantRoomDeadline over the ws runtime's lifecycleCtx).
   sweepDueDeadline: ((roomId: string) => Promise<void>) | null;
+  // Seek-accept capability: create a correspondence room seating BOTH accounts, for a
+  // seek the accepter just won. null = this tenant cannot back a correspondence seek.
+  //
+  // Colors never cross this boundary: the seek stores move order (migration 106) and the
+  // tenant maps `first`/`second` onto its own colors pair, which is what lets one seek
+  // board serve chess and xiangqi at once.
+  //
+  // PAIRS WITH sweepDueDeadline — a correspondence game with no deadline sweeper never
+  // times out and hangs forever. The two are separate fields rather than one object to
+  // spare 17 non-correspondence registrations a churn, so the pairing is held by
+  // correspondence-eligibility.test.ts instead of the type: every spec in
+  // CORRESPONDENCE_ELIGIBLE_SPECS must supply BOTH.
+  // `seats` reports the concrete colors first/second landed on, so the route can name the
+  // accepter's seat without knowing any variant's colors itself.
+  createCorrespondenceGameForSeek:
+    | ((args: {
+        timeControl: RoomTimeControl;
+        first: { userId: string };
+        second: { userId: string };
+      }) => Promise<
+        | {
+            ok: true;
+            room: { id: string; gameSpecId: string };
+            seats: { first: string; second: string };
+          }
+        | { ok: false; error: 'disabled' | 'persistence_failure' | 'room_id_collision' }
+      >)
+    | null;
 };
 
 const registrationsByPrefix = new Map<string, VariantTenantRegistration>();
@@ -171,6 +199,28 @@ export function variantTenantForSpecId(gameSpecId: string): VariantTenantRegistr
   for (const registration of registrationsByPrefix.values()) {
     if (!registration.ownsSpecRouting) continue;
     if (registration.gameSpecId === gameSpecId) return registration;
+  }
+  return null;
+}
+
+/**
+ * The registration that backs this spec's CORRESPONDENCE rooms, or null.
+ *
+ * Deliberately not variantTenantForSpecId: that one answers "who owns this spec's primary
+ * routing" and so skips ownsSpecRouting:false — which is exactly the dark-chess
+ * correspondence registration (it owns only the dchx_ slice and must not shadow the legacy
+ * chess lobby). Routing ownership and correspondence ownership are different questions, and
+ * for dark chess they have different answers.
+ *
+ * Selecting on the capability itself keeps it unambiguous: at most one registration per spec
+ * offers a seek factory.
+ */
+export function correspondenceTenantForSpecId(
+  gameSpecId: string,
+): VariantTenantRegistration | null {
+  for (const registration of registrationsByPrefix.values()) {
+    if (registration.gameSpecId !== gameSpecId) continue;
+    if (registration.createCorrespondenceGameForSeek) return registration;
   }
   return null;
 }

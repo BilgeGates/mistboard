@@ -135,6 +135,7 @@ function resolverHarness(options: {
     },
     lobby: null,
     sweepDueDeadline: null,
+    createCorrespondenceGameForSeek: null,
   };
   return { registration, loadCalls: () => loadCalls };
 }

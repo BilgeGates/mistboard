@@ -1,5 +1,6 @@
 import type { ServerResponse } from 'node:http';
 import {
+  CORRESPONDENCE_ELIGIBLE_SPEC_IDS,
   correspondenceTimeControl,
   DARK_CHESS_SPEC_ID,
   DAY_MS,
@@ -13,13 +14,32 @@ import * as persistence from './../persistence.js';
 import { isProductionLikeRuntime } from './../server-policy.js';
 import { writeJson } from './lib.js';
 
-// Fork-6 eligibility (decided 2026-06-11): correspondence is offered only for
-// hidden-information game specs, as a fail-closed hand-coded allowlist — a
-// new spec is correspondence-ineligible until deliberately added here.
-// Perfect-information specs stay out (engine-unenforceable everywhere they
-// exist). Dark chess launches first; DMX/kriegspiel/jieqi/banqi join by
-// adding their spec id AND a sweepDueDeadline-capable registration.
-export const CORRESPONDENCE_ELIGIBLE_SPECS: ReadonlySet<string> = new Set([DARK_CHESS_SPEC_ID]);
+// Correspondence eligibility: a fail-closed hand-coded allowlist — a new spec is
+// correspondence-ineligible until deliberately added here.
+//
+// Fork-6 (2026-06-11) originally limited this to HIDDEN-INFORMATION specs, since at
+// days-per-move cadence engine assistance is unenforceable. PARTIALLY REVERSED 2026-07-04
+// (Brian): perfect-information correspondence is allowed, because the cheating harm
+// concentrates on RATINGS and correspondence is casual-only by construction — `rated` does
+// not exist in the seek path, and isOfficialTimeControl() short-circuits on daysPerMove, so
+// a correspondence game can never produce a rating bucket (rating-buckets.ts). That
+// guardrail is what contains the harm. HARD GUARDRAIL: flag loudly if rated
+// perfect-information correspondence is ever proposed — it would undo the trade this
+// allowlist rests on.
+//
+// Deliberately NOT derived from a capability (e.g. GameSpec.visibility): xiangqi is
+// visibility 'open', so any visibility-derived rule would exclude exactly the spec this
+// reversal is for. Membership is a product decision, so it stays written down.
+//
+// Each member MUST also supply sweepDueDeadline AND createCorrespondenceGameForSeek on its
+// registration — a correspondence game with no deadline sweeper never times out.
+// correspondence-eligibility.test.ts holds that pairing.
+//
+// The member list lives in @mistboard/game (CORRESPONDENCE_ELIGIBLE_SPEC_IDS) so the web
+// pickers derive from the same source; this Set is just its lookup form.
+export const CORRESPONDENCE_ELIGIBLE_SPECS: ReadonlySet<string> = new Set(
+  CORRESPONDENCE_ELIGIBLE_SPEC_IDS,
+);
 
 // Dev/test only: accept compressed non-official allowances (fractional
 // daysPerMove, e.g. 0.002 ≈ 3 minutes) so a full deadline cycle is testable

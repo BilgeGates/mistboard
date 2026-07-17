@@ -1,5 +1,6 @@
 import './correspondence.css';
-import { DAYS_PER_MOVE_OPTIONS } from '@mistboard/game';
+import { CORRESPONDENCE_ELIGIBLE_SPEC_IDS, DAYS_PER_MOVE_OPTIONS } from '@mistboard/game';
+import { firstMoverColorName, secondMoverColorName, variantDisplayLabel } from './game-display.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { formatDayClock } from './web-utils.js';
 
@@ -26,7 +27,8 @@ type CorrespondenceSeek = {
   id: string;
   gameSpecId: string;
   daysPerMove: number;
-  preferredColor: 'white' | 'black' | 'random';
+  // Move order, not color (server migration 106): the seek board is variant-neutral.
+  preferredColor: 'first' | 'second' | 'random';
   creatorName: string | null;
   createdAt: string;
   isMine: boolean;
@@ -227,6 +229,19 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
   form.className = 'correspondence-post-form';
   form.hidden = true;
 
+  // Variant picker over the correspondence-eligible specs; hidden when only one qualifies.
+  const variant = document.createElement('select');
+  variant.className = 'correspondence-post-field';
+  variant.setAttribute('aria-label', 'Variant');
+  for (const specId of CORRESPONDENCE_ELIGIBLE_SPEC_IDS) {
+    const opt = document.createElement('option');
+    opt.value = specId;
+    opt.textContent = variantDisplayLabel(specId);
+    variant.append(opt);
+  }
+  variant.value = CORRESPONDENCE_ELIGIBLE_SPEC_IDS[0] ?? '';
+  variant.hidden = CORRESPONDENCE_ELIGIBLE_SPEC_IDS.length < 2;
+
   const days = document.createElement('select');
   days.className = 'correspondence-post-field';
   days.setAttribute('aria-label', 'Days per move');
@@ -238,19 +253,23 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
   }
   days.value = String(DAYS_PER_MOVE_OPTIONS[1] ?? DAYS_PER_MOVE_OPTIONS[0]);
 
+  // Side stored as move order; labels reflect the picked variant's colors.
   const color = document.createElement('select');
   color.className = 'correspondence-post-field';
   color.setAttribute('aria-label', 'Your color');
-  for (const [value, label] of [
-    ['random', 'Random color'],
-    ['white', 'Play White'],
-    ['black', 'Play Black'],
-  ] as const) {
+  for (const value of ['random', 'first', 'second'] as const) {
     const opt = document.createElement('option');
     opt.value = value;
-    opt.textContent = label;
     color.append(opt);
   }
+  const relabelColors = (): void => {
+    const specId = variant.value;
+    color.options[0]!.textContent = 'Random color';
+    color.options[1]!.textContent = `Play ${firstMoverColorName(specId)}`;
+    color.options[2]!.textContent = `Play ${secondMoverColorName(specId)}`;
+  };
+  relabelColors();
+  variant.addEventListener('change', relabelColors);
 
   const submit = document.createElement('button');
   submit.type = 'submit';
@@ -274,6 +293,7 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        gameSpecId: variant.value,
         daysPerMove: Number(days.value),
         preferredColor: color.value,
         visibility: 'private',
@@ -310,7 +330,11 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
     void fetch('/api/correspondence/seeks', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ daysPerMove: Number(days.value), preferredColor: color.value }),
+      body: JSON.stringify({
+        gameSpecId: variant.value,
+        daysPerMove: Number(days.value),
+        preferredColor: color.value,
+      }),
     })
       .then(async (res) => {
         if (res.ok) {
@@ -335,7 +359,7 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
       });
   });
 
-  form.append(days, color, submit, linkBtn, error);
+  form.append(variant, days, color, submit, linkBtn, error);
   return form;
 }
 
@@ -352,9 +376,11 @@ function buildSeekRow(seek: CorrespondenceSeek, onChange: () => void): HTMLLIEle
 
   const detail = document.createElement('span');
   detail.className = 'correspondence-turn';
-  detail.textContent = `${seekColorLabel(seek.preferredColor)} · ${seek.daysPerMove} day${
-    seek.daysPerMove === 1 ? '' : 's'
-  }/move`;
+  // Lead with the variant now that the board is cross-variant, then side + cadence.
+  detail.textContent = `${variantDisplayLabel(seek.gameSpecId)} · ${seekColorLabel(
+    seek.gameSpecId,
+    seek.preferredColor,
+  )} · ${seek.daysPerMove} day${seek.daysPerMove === 1 ? '' : 's'}/move`;
 
   const button = document.createElement('button');
   button.type = 'button';
@@ -400,8 +426,8 @@ function buildSeekRow(seek: CorrespondenceSeek, onChange: () => void): HTMLLIEle
   return item;
 }
 
-function seekColorLabel(color: CorrespondenceSeek['preferredColor']): string {
-  if (color === 'white') return 'Plays White';
-  if (color === 'black') return 'Plays Black';
+function seekColorLabel(gameSpecId: string, color: CorrespondenceSeek['preferredColor']): string {
+  if (color === 'first') return `Plays ${firstMoverColorName(gameSpecId)}`;
+  if (color === 'second') return `Plays ${secondMoverColorName(gameSpecId)}`;
   return 'Either color';
 }

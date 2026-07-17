@@ -236,10 +236,11 @@ export const EN_COMMUNITY = {
   'challenge.daysPerMove': 'Days per move',
   'challenge.dayOption': '{days} day/move',
   'challenge.daysOption': '{days} days/move',
+  'challenge.variant': 'Variant',
   'challenge.color': 'Your color',
   'challenge.colorRandom': 'Random color',
-  'challenge.colorWhite': 'Play White',
-  'challenge.colorBlack': 'Play Black',
+  // {color} is the variant's own color word (White/Black for chess, Red/Black for xiangqi).
+  'challenge.colorPlay': 'Play {color}',
   'challenge.send': 'Send challenge',
   'challenge.cancel': 'Cancel',
   'challenge.errorGeneric': 'Could not send the challenge. Try again.',

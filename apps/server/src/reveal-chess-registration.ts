@@ -100,4 +100,5 @@ registerVariantTenant({
   },
   lobby: null,
   sweepDueDeadline: null,
+  createCorrespondenceGameForSeek: null,
 });

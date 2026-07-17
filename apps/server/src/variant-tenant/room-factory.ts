@@ -8,7 +8,9 @@
 import { randomUUID } from 'node:crypto';
 import type { RoomTimeControl } from '@mistboard/game';
 import type * as persistence from '../persistence.js';
+import { appendTenantSeatAssigned } from './events.js';
 import { appendTenantRuntimeEvent, createTenantRuntimeRoom } from './runtime.js';
+import { mintTenantSeatToken } from './seat-session.js';
 import type {
   TenantGameStateLike,
   TenantRoomEvent,
@@ -133,4 +135,60 @@ export async function createTenantLiveRoom<
     return { ok: true, room };
   }
   return { ok: false, error: 'room_id_collision' };
+}
+
+/**
+ * Accept a correspondence seek: create the room and pre-seat BOTH accounts (the seek's
+ * creator and the accepter) up front, so the game is live the instant the seek is taken —
+ * before either player connects. Each seat-assigned event is durable in the log and
+ * persists the seat token; players reclaim their seat by account on connect
+ * (assignTenantSeat's user-id path), so no raw token is handed back.
+ *
+ * Generic over the tenant's colors: the seek stores MOVE ORDER ('first'/'second', migration
+ * 106) and this maps it onto `tenant.colors`, whose [0] is the first mover by contract. That
+ * is the whole reason a red/black variant can ride the same seek board as chess — callers
+ * never name a color. Hoisted from the dark-chess-only original, which was already written
+ * against generic Color/mintTenantSeatToken/appendTenantSeatAssigned and only looked
+ * chess-specific because its args were named white/black.
+ */
+export async function createTenantCorrespondenceGameForSeek<
+  Kind extends string,
+  C extends string,
+  M,
+  State extends TenantGameStateLike<C>,
+  View,
+  Spec extends string,
+>(
+  tenant: VariantTenant<Kind, C, M, State, View, Spec>,
+  ctx: TenantLiveRoomFactoryContext<Kind, C, M, State, Spec>,
+  args: {
+    timeControl: RoomTimeControl;
+    /** The account taking the first-mover seat (tenant.colors[0]). */
+    first: { userId: string };
+    /** The account taking the second seat (tenant.colors[1]). */
+    second: { userId: string };
+  },
+): Promise<TenantLiveRoomCreation<Kind, C, M, State, Spec>> {
+  const created = await createTenantLiveRoom(tenant, ctx, { timeControl: args.timeControl });
+  if (!created.ok) return created;
+  const room = created.room;
+  const at = Date.now();
+  const seats: ReadonlyArray<readonly [C, { userId: string }]> = [
+    [tenant.colors[0], args.first],
+    [tenant.colors[1], args.second],
+  ];
+  for (const [seat, identity] of seats) {
+    // handle/display resolve via the users join everywhere they're shown; the seat-token
+    // row persists only user_id, so null here is exact, not lossy.
+    const { state } = mintTenantSeatToken(room, seat, {
+      userId: identity.userId,
+      userHandle: null,
+      userDisplayName: null,
+    });
+    await appendTenantSeatAssigned(tenant, room, {
+      event: { type: 'seat-assigned', at, roomId: room.id, clientId: state.clientId, seat },
+      tokenState: state,
+    });
+  }
+  return { ok: true, room };
 }

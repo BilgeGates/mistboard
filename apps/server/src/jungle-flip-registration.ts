@@ -105,4 +105,5 @@ registerVariantTenant({
     },
   },
   sweepDueDeadline: null,
+  createCorrespondenceGameForSeek: null,
 });

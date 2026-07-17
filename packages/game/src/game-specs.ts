@@ -189,6 +189,19 @@ export const XIANGQI_SPEC_ID = 'xiangqi' satisfies GameSpecId;
 export const DUAL_CHESS_SPEC_ID = 'dual-chess' satisfies GameSpecAliasId;
 export const DARK_DUAL_CHESS_SPEC_ID = 'dark-dual-chess' satisfies GameSpecAliasId;
 
+// Specs that may be played by correspondence (days-per-move), in display order. The
+// SINGLE source of truth shared by the server's fail-closed allowlist
+// (CORRESPONDENCE_ELIGIBLE_SPECS builds its Set from this) and the web variant pickers, so
+// the two can never drift. This is a product decision, not a capability: the list was
+// hidden-info-only under fork-6, then opened to perfect-info xiangqi on 2026-07-04 (casual
+// -only) — see the comment on CORRESPONDENCE_ELIGIBLE_SPECS. A new member also needs a
+// tenant that supplies both a seek factory and a deadline sweeper
+// (correspondence-eligibility.test.ts).
+export const CORRESPONDENCE_ELIGIBLE_SPEC_IDS: readonly GameSpecId[] = [
+  DARK_CHESS_SPEC_ID,
+  XIANGQI_SPEC_ID,
+];
+
 // Single source of truth for variant DISPLAY order across every surface: the
 // play-menu picker, the leaderboard/profile grids, the Mistboard TV watch rail,
 // and the /rules rail. Specs not listed here sort to the end in their own order,

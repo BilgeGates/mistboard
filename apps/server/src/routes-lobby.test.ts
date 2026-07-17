@@ -101,6 +101,7 @@ function registerFakeLobbyTenant(options: {
       createRoom: options.createRoom,
     },
     sweepDueDeadline: null,
+    createCorrespondenceGameForSeek: null,
   });
 }
 

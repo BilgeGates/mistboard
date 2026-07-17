@@ -15,7 +15,13 @@
 
 import { getPool } from './persistence-db.js';
 
-export type SeekColorPreference = 'white' | 'black' | 'random';
+/**
+ * Which side the creator wants, expressed as MOVE ORDER rather than a color, so one seek
+ * board can serve every variant: 'first' is whoever moves first (chess white, xiangqi red),
+ * 'second' the responder. The accept path maps these onto the tenant's own `colors` pair,
+ * so no variant's color literals leak into the seek (migration 106).
+ */
+export type SeekColorPreference = 'first' | 'second' | 'random';
 
 // 'public' seeks sit on the open board; 'private' seeks are off-board and
 // accepted by link (the shareable "play me" URL is the seek id).

@@ -294,8 +294,8 @@ test('correspondence snapshots carry the chess-shell bridge extras', async () =>
 test('accepting a seek seats both accounts and the game is live at once', async () => {
   const created = await createDarkChessCorrespondenceGameForSeek({
     timeControl: correspondenceTimeControl(3),
-    white: { userId: 'creator-1' },
-    black: { userId: 'accepter-2' },
+    first: { userId: 'creator-1' },
+    second: { userId: 'accepter-2' },
   });
   assert.ok(created.ok);
   const room = darkChessTenantRooms.get(created.room.id);
@@ -341,8 +341,8 @@ test('the seek game seats exactly the colors it is handed (creator-chose-black c
   // explicit white/black args, so a creator who chose black lands on black.
   const created = await createDarkChessCorrespondenceGameForSeek({
     timeControl: correspondenceTimeControl(1),
-    white: { userId: 'accepter' },
-    black: { userId: 'creator' },
+    first: { userId: 'accepter' },
+    second: { userId: 'creator' },
   });
   assert.ok(created.ok);
   const room = darkChessTenantRooms.get(created.room.id);

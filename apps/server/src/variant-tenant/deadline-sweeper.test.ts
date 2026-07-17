@@ -37,6 +37,7 @@ function registrationStub(
       if (roomId === options.failFor) throw new Error(`sweep failed for ${roomId}`);
       swept.push(roomId);
     },
+    createCorrespondenceGameForSeek: null,
   };
 }
 

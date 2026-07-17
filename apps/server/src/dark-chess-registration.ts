@@ -33,7 +33,7 @@ import {
   handleCorrespondenceCreate,
   requestsCorrespondence,
 } from './routes/correspondence-rooms.js';
-import { appendTenantSeatAssigned, recordTenantPersistenceError } from './variant-tenant/events.js';
+import { recordTenantPersistenceError } from './variant-tenant/events.js';
 import { getOrLoadTenantRoom } from './variant-tenant/hydration.js';
 import { clearTenantRuntimeTimers, sweepTenantRoomDeadline } from './variant-tenant/lifecycle.js';
 import {
@@ -41,8 +41,10 @@ import {
   type TenantManagedRoom,
   variantTenantRoomIdTaken,
 } from './variant-tenant/registry.js';
-import { createTenantLiveRoom } from './variant-tenant/room-factory.js';
-import { mintTenantSeatToken } from './variant-tenant/seat-session.js';
+import {
+  createTenantCorrespondenceGameForSeek,
+  createTenantLiveRoom,
+} from './variant-tenant/room-factory.js';
 import type { TenantRuntimeRoom } from './variant-tenant/tenant.js';
 import { createTenantWsRuntime, type TenantLiveRoom } from './variant-tenant/ws.js';
 
@@ -87,34 +89,29 @@ export async function createDarkChessCorrespondenceRoom(
 // no raw token needs to be handed back here.
 export async function createDarkChessCorrespondenceGameForSeek(args: {
   timeControl: RoomTimeControl;
-  white: { userId: string };
-  black: { userId: string };
+  first: { userId: string };
+  second: { userId: string };
 }): Promise<
-  | { ok: true; room: { id: string; gameSpecId: string } }
+  | {
+      ok: true;
+      room: { id: string; gameSpecId: string };
+      seats: { first: string; second: string };
+    }
   | { ok: false; error: 'disabled' | 'persistence_failure' | 'room_id_collision' }
 > {
-  const created = await createDarkChessCorrespondenceRoom(args.timeControl);
+  // The body of this hoisted to room-factory once a second variant needed it; darkChessTenant
+  // declares colors ['white','black'], so `first` still lands on white exactly as before.
+  const created = await createTenantCorrespondenceGameForSeek(
+    darkChessTenant,
+    factoryContext(),
+    args,
+  );
   if (!created.ok) return created;
-  const room = created.room;
-  const at = Date.now();
-  const seats: ReadonlyArray<readonly [Color, { userId: string }]> = [
-    ['white', args.white],
-    ['black', args.black],
-  ];
-  for (const [seat, identity] of seats) {
-    // handle/display resolve via the users join everywhere they're shown; the
-    // seat-token row persists only user_id, so null here is exact, not lossy.
-    const { state } = mintTenantSeatToken(room, seat, {
-      userId: identity.userId,
-      userHandle: null,
-      userDisplayName: null,
-    });
-    await appendTenantSeatAssigned(darkChessTenant, room, {
-      event: { type: 'seat-assigned', at, roomId: room.id, clientId: state.clientId, seat },
-      tokenState: state,
-    });
-  }
-  return { ok: true, room: { id: room.id, gameSpecId: room.gameSpecId } };
+  return {
+    ok: true,
+    room: { id: created.room.id, gameSpecId: created.room.gameSpecId },
+    seats: { first: darkChessTenant.colors[0], second: darkChessTenant.colors[1] },
+  };
 }
 
 function factoryContext() {
@@ -206,4 +203,5 @@ registerVariantTenant({
   },
   lobby: null,
   sweepDueDeadline: sweepDarkChessDueDeadline,
+  createCorrespondenceGameForSeek: createDarkChessCorrespondenceGameForSeek,
 });
