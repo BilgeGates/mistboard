@@ -49,12 +49,13 @@
   padding: clamp(10px, 1.4vw, 18px) clamp(10px, 2vw, 24px) 24px;
   box-sizing: border-box;
   /* Review pages (NOT the live room, which shares the cluster classes but sits
-     outside .review-shell): equal fixed-width rails, lichess analyse style. The
-     board takes whatever the fixed rails leave. */
-  --uni-side-min: 320px;
-  --uni-side-max: 320px;
-  --uni-table-min: 320px;
-  --uni-table-max: 320px;
+     outside .review-shell): flexible rails, lichess analyse style (lila: side
+     minmax(250,350), table minmax(240,400)). The table is biased wider so the
+     move list gets the extra room; the board takes what the rails leave. */
+  --uni-side-min: 300px;
+  --uni-side-max: 350px;
+  --uni-table-min: 360px;
+  --uni-table-max: 420px;
 }
 
 /* Review pages top-align all three columns (lichess analyse): the board tops
@@ -194,6 +195,14 @@
       var(--xq-live-board-bg, #f5dca8) 0 50%,
       color-mix(in srgb, var(--xq-live-board-bg, #f5dca8) 84%, var(--xq-live-ink, #5a3a14)) 50% 100%
     );
+  }
+  /* Mirror on the rail side: the analyse table butts flush against the
+     (sharp-cornered) eval bar, so its LEFT corners are squared too — bar and
+     box read as one continuous edge (lichess). Right corners keep the shared
+     rounding. */
+  .review-shell__cluster--gauge .review-shell__right .review-rail-main {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
   }
 }
 

@@ -1,36 +1,145 @@
-/* Local-engine widget for the review board. See review/engine/engine-panel.ts. */
+/* Local-engine widget for the review board. See review/engine/engine-panel.ts.
+   Head anatomy follows lichess's ceval bar: [switch] [big eval] [name / status]
+   pushed apart from a ghost [gear]. Standalone the section is a card; inside
+   .review-rail-main the card chrome is stripped and only the head tint +
+   hairline separators remain. */
 .engine-panel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
   border: 1px solid var(--site-border);
   border-radius: var(--site-radius, 10px);
   background: var(--site-panel, var(--site-surface));
+  overflow: hidden;
 }
 .engine-panel__head {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 7px 10px;
+  background: var(--site-bg);
 }
-/* Settings gear, pushed to the far right of the head. */
+
+/* On/off switch: pill track + sliding knob carrying an ✕ (off) / ✓ (on) glyph. */
+.engine-panel__switch {
+  appearance: none;
+  position: relative;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--site-muted) 35%, transparent);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.engine-panel__switch--on {
+  background: var(--site-accent, #237960);
+}
+.engine-panel__switch:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.engine-panel__switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--site-muted);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+.engine-panel__switch--on .engine-panel__switch-knob {
+  transform: translateX(18px);
+  color: var(--site-accent, #237960);
+}
+.engine-panel__switch-knob svg {
+  width: 11px;
+  height: 11px;
+}
+.engine-panel__knob-on {
+  display: none;
+}
+.engine-panel__switch--on .engine-panel__knob-off {
+  display: none;
+}
+.engine-panel__switch--on .engine-panel__knob-on {
+  display: block;
+}
+
+/* Headline eval: big and bold beside the switch (lichess). Off = hidden. */
+.engine-panel__eval {
+  flex: 0 0 auto;
+  min-width: 2.4em;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--site-text);
+}
+.engine-panel:not(.engine-panel--on) .engine-panel__eval {
+  display: none;
+}
+
+/* Engine identity block: name over a small status line (depth/nps, loading,
+   or "in local browser" while off). */
+.engine-panel__id {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.engine-panel__name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--site-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.engine-panel__sub {
+  font-size: 11px;
+  color: var(--site-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.engine-panel__sub:empty {
+  display: none;
+}
+
+/* Settings gear: ghost icon button at the far right of the head. */
 .engine-panel__gear {
   appearance: none;
-  margin-left: auto;
   flex: 0 0 auto;
-  padding: 3px 7px;
-  border: 1px solid var(--site-border);
-  border-radius: 8px;
-  background: var(--site-bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--site-radius-sm, 8px);
+  background: transparent;
   color: var(--site-muted);
-  font: inherit;
-  font-size: 13px;
-  line-height: 1;
   cursor: pointer;
 }
 .engine-panel__gear:hover {
   color: var(--site-text);
+  background: var(--site-surface);
 }
+.engine-panel__gear svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* `display: flex` would override the [hidden] attribute's display:none. */
 .engine-panel__settings[hidden] {
   display: none;
@@ -39,7 +148,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px 16px;
-  margin-top: 8px;
+  margin: 8px 10px 0;
   padding: 8px 10px;
   border: 1px solid var(--site-border);
   border-radius: 8px;
@@ -61,63 +170,10 @@
   background: var(--site-panel, var(--site-surface));
   color: var(--site-text);
 }
-.engine-panel__toggle {
-  appearance: none;
-  flex: 0 0 auto;
-  padding: 5px 10px;
-  border: 1px solid var(--site-border);
-  border-radius: 8px;
-  background: var(--site-bg);
-  color: var(--site-text);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.engine-panel__toggle--on {
-  background: var(--site-accent, #5b9a4a);
-  border-color: transparent;
-  color: #fff;
-}
-.engine-panel__toggle:disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-.engine-panel__gauge {
-  position: relative;
-  flex: 1 1 auto;
-  height: 8px;
-  border-radius: 5px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--site-muted) 22%, transparent);
-}
-.engine-panel__gauge-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 50%;
-  background: var(--site-accent, #5b9a4a);
-  transition: width 0.18s ease;
-}
-.engine-panel__eval {
-  flex: 0 0 auto;
-  min-width: 3.2em;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-size: 15px;
-  color: var(--site-text);
-}
-.engine-panel__meta {
-  font-size: 12px;
-  color: var(--site-muted);
-  min-height: 1em;
-}
-/* Engine off: don't reserve a blank meta/status line under the head row. */
-.engine-panel:not(.engine-panel--on) .engine-panel__meta:empty {
-  display: none;
-}
+
 .engine-panel__lines {
   margin: 0;
-  padding: 0;
+  padding: 6px 10px 8px;
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -159,7 +215,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Only reveal the PV lines when the engine is actually on. */
-.engine-panel:not(.engine-panel--on) .engine-panel__lines {
+/* Only reveal the PV lines when the engine is actually on, and don't reserve
+   the list padding while no lines have streamed in yet. */
+.engine-panel:not(.engine-panel--on) .engine-panel__lines,
+.engine-panel__lines:empty {
   display: none;
 }
