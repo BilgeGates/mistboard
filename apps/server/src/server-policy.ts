@@ -168,10 +168,11 @@ export function isClientRoute(pathname: string): boolean {
     // review-shell route (COOP/COEP) below; the bare index is a plain client page.
     normalized === '/study' ||
     /^\/study\/[A-Za-z0-9]+$/.test(normalized) ||
-    // Standalone analysis board (/analysis/:variant), fed by a move list rather
-    // than a room. Serves the review SPA shell and mounts the ceval engine, so it
-    // must also be a review-shell route (COOP/COEP) below.
-    /^\/analysis\/[a-z0-9-]+$/.test(normalized) ||
+    // Standalone analysis board: bare /analysis (opens the flagship variant) or
+    // /analysis/:variant, fed by a move list rather than a room. Serves the
+    // review SPA shell and mounts the ceval engine, so it must also be a
+    // review-shell route (COOP/COEP) below.
+    /^\/analysis(?:\/[a-z0-9-]+)?$/.test(normalized) ||
     // /engine/:id is the admin engine-profile SPA page (single segment). Deeper
     // paths like /engine/fairy-stockfish/stockfish.js are vendored ceval assets
     // and MUST fall through to the static handler, not the index.html rewrite.
@@ -205,7 +206,7 @@ export function isReviewShellRoute(pathname: string): boolean {
   return (
     /^(?:\/[a-z0-9-]+)?\/game\/[^/]+$/.test(normalized) ||
     /^\/historical-xiangqi\/game\/[^/]+$/.test(normalized) ||
-    /^\/analysis\/[a-z0-9-]+$/.test(normalized) ||
+    /^\/analysis(?:\/[a-z0-9-]+)?$/.test(normalized) ||
     /^\/study\/[A-Za-z0-9]+$/.test(normalized) ||
     normalized === '/puzzles' ||
     /^\/puzzles\/[^/]+$/.test(normalized)

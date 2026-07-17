@@ -458,6 +458,8 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/zh-hant/rules/fog-chess'), true);
   assert.equal(isClientRoute('/engine/random-engine'), true); // admin engine-profile page
   assert.equal(isClientRoute('/analysis/xiangqi'), true); // standalone analysis board
+  assert.equal(isClientRoute('/analysis/jungle-flip'), true); // every catalog variant slug
+  assert.equal(isClientRoute('/analysis'), true); // bare /analysis opens the flagship
   assert.equal(isClientRoute('/historical-xiangqi'), true);
   assert.equal(isClientRoute('/historical-xiangqi/games'), true);
   assert.equal(isClientRoute('/historical-xiangqi/game/hxq_abc123'), true);
@@ -487,6 +489,8 @@ test('isReviewShellRoute matches postgame review documents (COOP/COEP scope)', (
   // The standalone analysis board mounts the same ceval engine, so it needs the
   // COOP/COEP isolation headers too (else SharedArrayBuffer is unavailable).
   assert.equal(isReviewShellRoute('/analysis/xiangqi'), true);
+  assert.equal(isReviewShellRoute('/analysis/banqi'), true);
+  assert.equal(isReviewShellRoute('/analysis'), true);
   // The puzzle trainer mounts the same ceval engine after a puzzle is completed.
   // Both the list and a specific puzzle must be isolated, because the isolation
   // is fixed at document load and pushState nav between puzzles never reloads.

@@ -2,6 +2,7 @@ import './app-base.css';
 import './board-fog.css';
 import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
+import { analysisVariantFromPath, analysisVariantLabel } from './analysis-catalog.js';
 import { setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
 import {
@@ -216,10 +217,10 @@ const botProfileId = path.startsWith('/bot/')
   ? decodeURIComponent(path.slice('/bot/'.length))
   : null;
 const profileHandle = profileHandleFromPath(path);
-// Standalone analysis board fed by a pasted / ?moves= coordinate list (no room).
-// No nav entry yet; direct-URL only, a shareable soft-launch primitive that lets
-// a game be reviewed off its moves alone. Ships live. See xiangqi-analysis-page.ts.
-const wantsXiangqiAnalysis = path === '/analysis/xiangqi';
+// Standalone analysis boards (lichess.org/analysis): /analysis opens the
+// flagship (xiangqi); /analysis/<variant> opens any catalog variant. Unknown
+// slugs return null and fall through to 404 (fail-closed — see analysis-catalog).
+const analysisVariant = analysisVariantFromPath(path);
 const wantsHistoricalXiangqiSearch =
   path === '/historical-xiangqi' || path === '/historical-xiangqi/games';
 const historicalXiangqiGameId = historicalXiangqiGameIdFromPath(path);
@@ -318,12 +319,12 @@ if (replaySample) {
   void mountOrReport(() =>
     import('./profile.js').then(({ mountRatingStats }) => mountRatingStats(appRoot)),
   );
-} else if (wantsXiangqiAnalysis) {
-  setTitle('Xiangqi analysis');
+} else if (analysisVariant) {
+  setTitle(`${analysisVariantLabel(analysisVariant)} analysis`);
   void mountOrReport(() =>
-    import('./xiangqi-analysis-page.js').then(({ mountXiangqiAnalysisPage }) => {
-      mountXiangqiAnalysisPage(appRoot);
-    }),
+    import('./analysis-page.js').then(({ mountAnalysisPage }) =>
+      mountAnalysisPage(appRoot, analysisVariant),
+    ),
   );
 } else if (wantsStudyIndex) {
   setTitle('Studies');

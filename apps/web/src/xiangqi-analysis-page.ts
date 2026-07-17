@@ -7,11 +7,11 @@
 import { importXiangqiGame } from './review/xiangqi-import.js';
 import { mountXiangqiAnalysis } from './xiangqi-analysis.js';
 
-export function mountXiangqiAnalysisPage(root: HTMLElement): void {
+export function mountXiangqiAnalysisPage(root: HTMLElement, picker?: HTMLElement): void {
   root.classList.add('landing-page');
   const raw = new URLSearchParams(window.location.search).get('moves');
   // Seed from a shared link if present (a parse error degrades to the legal
   // prefix, or an empty start board); otherwise open the empty board.
   const moves = raw ? importXiangqiGame(raw).moves : [];
-  mountXiangqiAnalysis(root, moves, { title: 'Xiangqi analysis' });
+  mountXiangqiAnalysis(root, moves, { title: 'Xiangqi analysis', picker });
 }

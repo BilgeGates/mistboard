@@ -36,6 +36,8 @@ function statusSummary(status: XiangqiGameStatus, plyCount: number): string {
 export interface XiangqiAnalysisOptions {
   /** Left-rail title (default "Xiangqi analysis"). */
   title?: string;
+  /** Variant dropdown (analysis-page.ts), stacked above the meta card. */
+  picker?: HTMLElement;
 }
 
 /** Mount the interactive analysis board for a standard-xiangqi move list. An empty
@@ -49,19 +51,24 @@ export function mountXiangqiAnalysis(
   const replay = buildXiangqiReplayFromMoves(moves);
 
   const finalStatus = xiangqiReplayViewAtPly(replay, replay.maxPly).status;
-  const metaCard = createGameMetaCard({
-    markerId: 'xiangqi',
-    glyph: '象',
-    headline: ['Analysis board'],
-    variantName: 'Xiangqi',
-    subline: replay.maxPly
-      ? `${replay.maxPly} ${replay.maxPly === 1 ? 'ply' : 'plies'}`
-      : 'Start position',
-    status:
-      finalStatus.type === 'finished'
-        ? `${finalStatus.winner === 'red' ? 'Red wins' : finalStatus.winner === 'black' ? 'Black wins' : 'Draw'} by ${finalStatus.reason}`
-        : null,
-  });
+  // With a variant picker (the /analysis route), the dropdown is the ENTIRE
+  // left rail, lichess-style. Without one, keep the meta card (any direct
+  // embed of the analysis board).
+  const metaCardEl =
+    opts.picker ??
+    createGameMetaCard({
+      markerId: 'xiangqi',
+      glyph: '象',
+      headline: ['Analysis board'],
+      variantName: 'Xiangqi',
+      subline: replay.maxPly
+        ? `${replay.maxPly} ${replay.maxPly === 1 ? 'ply' : 'plies'}`
+        : 'Start position',
+      status:
+        finalStatus.type === 'finished'
+          ? `${finalStatus.winner === 'red' ? 'Red wins' : finalStatus.winner === 'black' ? 'Black wins' : 'Draw'} by ${finalStatus.reason}`
+          : null,
+    }).el;
 
   root.replaceChildren(buildNav());
   mountXiangqiReview(root, {
@@ -71,7 +78,7 @@ export function mountXiangqiAnalysis(
     title: opts.title ?? 'Xiangqi analysis',
     summary: statusSummary(finalStatus, replay.maxPly),
     boardAriaLabel: 'Xiangqi board',
-    metaCard: metaCard.el,
+    metaCard: metaCardEl,
     // Pass the raw moves so the review's tree truncates an illegal seed itself and
     // surfaces the notice (the legal prefix drives the client sweep above).
     moves,
