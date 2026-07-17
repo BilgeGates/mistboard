@@ -25,7 +25,12 @@ import type { CevalLine, CevalVariant } from './engine/ceval.js';
 import { createEnginePanel } from './engine/engine-panel.js';
 import { createEvalBar } from './engine/eval-bar.js';
 import { formatEval } from './engine/eval-format.js';
-import { type GameAnalysis, judgmentGlyph, mergeDecisionAnalysis } from './game-analysis.js';
+import {
+  type GameAnalysis,
+  type GamePhases,
+  judgmentGlyph,
+  mergeDecisionAnalysis,
+} from './game-analysis.js';
 import {
   createGameTree,
   type GameTree,
@@ -149,6 +154,11 @@ export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
   shapeToArrow(shape: NodeShape): Arrow;
   /** A user-drawn annotation circle shape → board marker. */
   shapeToMarker(shape: NodeShape): Marker;
+  /** Game-phase segmentation over the mainline truths (index 0 = start position):
+   *  drives the advantage chart's Opening/Middlegame/Endgame dividers and the
+   *  summary's per-phase accuracy. Omit for variants without a phase heuristic —
+   *  the chart and summary then skip the phase chrome. */
+  gamePhases?(mainlineTruths: readonly Truth[]): GamePhases;
 }
 
 export type AnalysisSource = {
@@ -403,6 +413,8 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // NOTE: declared before createEnginePanel — its constructor clears output,
   // which fires onLines(null) → paintOverlays() synchronously.
   let gameAnalysis: GameAnalysis | null = null;
+  // Phase segmentation computed once per analysis load (variant-supplied heuristic).
+  let gamePhases: GamePhases | undefined;
   // Decision-vs-luck overlay (jieqi). Reveal plies get a decision glyph (merged into the move
   // list) + a per-move luck readout (the advice line) + a two-number summary block.
   let decisionOverlay: DecisionOverlay | null = null;
@@ -741,8 +753,14 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     // rebuild so comments and variations land in one pass.
     injectBestLines(analysis);
     const nodes = mainlineNodes();
+    // Phase segmentation (variant-supplied heuristic): chart dividers + the
+    // summary's per-phase accuracy share one computation.
+    gamePhases = presentation.gamePhases
+      ? presentation.gamePhases(nodes.map((node) => node.truth))
+      : undefined;
     chart = createAdvantageChart(analysis.evals, {
       seatColors: config.seatColors,
+      phases: gamePhases,
       onJump: (ply) => {
         const target = nodes[ply];
         if (target) go(tree.pathTo(target));
@@ -758,7 +776,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       analysisSummaryEl.replaceChildren(decisionSummaryEl);
     } else {
       analysisSummaryEl.replaceChildren(
-        createAnalysisSummary(analysis, config.players, { seatColors: config.seatColors }),
+        createAnalysisSummary(analysis, config.players, {
+          seatColors: config.seatColors,
+          phases: gamePhases,
+        }),
       );
     }
     refreshMoveTreeAnnotations(); // rebuilds the tree DOM (engine glyphs + user glyphs)
@@ -784,6 +805,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
         createAnalysisSummary({ ...gameAnalysis, ...merged }, config.players, {
           hideAcpl: true,
           seatColors: config.seatColors,
+          phases: gamePhases,
         }),
         decisionSummaryEl,
       );

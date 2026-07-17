@@ -2,6 +2,7 @@
    "Computer analysis" tab above it names the panel, so the chart itself is just
    the graph. */
 .advantage-chart {
+  position: relative; /* anchors the phase-label overlays */
   display: flex;
   flex-direction: column;
 }
@@ -24,6 +25,26 @@
 .advantage-chart__mid {
   stroke: color-mix(in srgb, var(--site-muted) 45%, transparent);
   stroke-width: 0.5;
+}
+/* Game-phase dividers + rotated segment labels (lichess: Opening / Middlegame /
+   Endgame read downward at each phase start). Labels are HTML overlays so the
+   non-uniform SVG scaling can't distort them. */
+.advantage-chart__phase {
+  stroke: color-mix(in srgb, var(--site-muted) 55%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.advantage-chart__phase-label {
+  position: absolute;
+  top: 5px;
+  margin-left: 2px;
+  writing-mode: vertical-rl;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--site-muted);
+  pointer-events: none;
+  user-select: none;
 }
 /* The advantage area wears the leading player's bound ink (clipped per half). */
 .advantage-chart__area--red {

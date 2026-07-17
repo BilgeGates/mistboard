@@ -6,7 +6,7 @@
 // raw cp so mates don't spike the axis.
 import { winPercent } from '@mistboard/game';
 import './advantage-chart.css';
-import type { PlyEval } from './game-analysis.js';
+import type { GamePhases, PlyEval } from './game-analysis.js';
 import { type ReviewSeatColors, reviewColorForSeat } from './review-seat-colors.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -34,7 +34,13 @@ function svg(tag: string, attrs: Record<string, string>): SVGElement {
 
 export function createAdvantageChart(
   evals: PlyEval[],
-  opts: { onJump: (ply: number) => void; seatColors?: ReviewSeatColors },
+  opts: {
+    onJump: (ply: number) => void;
+    seatColors?: ReviewSeatColors;
+    /** Phase boundaries → vertical dividers + rotated Opening/Middlegame/Endgame
+     *  labels (lichess). Omitted or empty = no phase chrome. */
+    phases?: GamePhases;
+  },
 ): AdvantageChart {
   const maxPly = Math.max(1, evals.length - 1);
   const xOf = (ply: number) => (ply / maxPly) * VIEW_W;
@@ -90,6 +96,36 @@ export function createAdvantageChart(
       class: 'advantage-chart__mid',
     }),
   );
+
+  // Game-phase dividers + rotated segment labels (lichess). Divider lines live in
+  // the SVG (under the curve); labels are HTML overlays — the SVG is stretched
+  // non-uniformly (preserveAspectRatio none), so rotated SVG text would distort.
+  // A game with no detected middlegame gets no phase chrome at all.
+  if (opts.phases?.middle && opts.phases.middle <= maxPly) {
+    const marks: { ply: number; label: string }[] = [{ ply: 0, label: 'Opening' }];
+    marks.push({ ply: opts.phases.middle, label: 'Middlegame' });
+    if (opts.phases.end && opts.phases.end <= maxPly) {
+      marks.push({ ply: opts.phases.end, label: 'Endgame' });
+    }
+    for (const mark of marks) {
+      if (mark.ply > 0) {
+        chart.append(
+          svg('line', {
+            x1: `${xOf(mark.ply).toFixed(1)}`,
+            y1: '0',
+            x2: `${xOf(mark.ply).toFixed(1)}`,
+            y2: `${VIEW_H}`,
+            class: 'advantage-chart__phase',
+          }),
+        );
+      }
+      const label = document.createElement('span');
+      label.className = 'advantage-chart__phase-label';
+      label.style.left = `${((mark.ply / maxPly) * 100).toFixed(2)}%`;
+      label.textContent = mark.label;
+      el.append(label);
+    }
+  }
 
   // Filled area between the curve and the midline (once per colour half), then
   // the curve on top.

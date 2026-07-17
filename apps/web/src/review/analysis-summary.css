@@ -1,22 +1,24 @@
 /* Per-player accuracy summary. See review/analysis-summary.ts. */
 /* Sits transparently on the page background (lichess analyse ACC block), not in a
-   card — the counts read as plain text below the controls. */
+   card — a centered player row over two columns: counts + ACPL left, Accuracy +
+   per-phase accuracy right. */
 .analysis-summary {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 4px 2px;
+  gap: 14px;
+  padding: 6px 2px;
   border: none;
   background: transparent;
 }
 .analysis-summary__player {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 .analysis-summary__head {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
 }
 .analysis-summary__dot {
@@ -36,13 +38,20 @@
   font-weight: 700;
   color: var(--site-text);
 }
-/* lichess ACC block anatomy: right-aligned count column, then the label. */
+/* Two-column body (lichess): counts left, accuracy/phases right. */
+.analysis-summary__cols {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 4px;
+}
+/* lichess ACC block anatomy: right-aligned value column, then the label. */
 .analysis-summary__stats {
   display: grid;
-  grid-template-columns: 2.4em 1fr;
+  grid-template-columns: 2.2em 1fr;
   column-gap: 8px;
-  row-gap: 1px;
-  margin-left: 15px;
+  row-gap: 2px;
+  align-content: start;
 }
 .analysis-summary__stat {
   display: contents;
@@ -72,4 +81,46 @@
 .analysis-summary__stat--blunder .analysis-summary__stat-label {
   color: #c0392b;
   font-weight: 700;
+}
+/* Right column: headline accuracy, then per-phase rows toned by value. */
+.analysis-summary__phases {
+  display: grid;
+  grid-template-columns: 2.6em 1fr;
+  column-gap: 8px;
+  row-gap: 2px;
+  align-content: start;
+}
+.analysis-summary__phase {
+  display: contents;
+}
+.analysis-summary__phase-value {
+  text-align: right;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--site-muted);
+}
+.analysis-summary__phase-label {
+  font-size: 12px;
+  color: var(--site-muted);
+}
+.analysis-summary__phase--headline .analysis-summary__phase-value,
+.analysis-summary__phase--headline .analysis-summary__phase-label {
+  color: var(--site-text);
+}
+.analysis-summary__phase--high .analysis-summary__phase-value,
+.analysis-summary__phase--high .analysis-summary__phase-label {
+  color: #2f8a4d;
+}
+.analysis-summary__phase--mid .analysis-summary__phase-value,
+.analysis-summary__phase--mid .analysis-summary__phase-label {
+  color: #3b73c4;
+}
+.analysis-summary__phase--low .analysis-summary__phase-value,
+.analysis-summary__phase--low .analysis-summary__phase-label {
+  color: #d68910;
+}
+.analysis-summary__phase--poor .analysis-summary__phase-value,
+.analysis-summary__phase--poor .analysis-summary__phase-label {
+  color: #c0392b;
 }

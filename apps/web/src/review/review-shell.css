@@ -225,34 +225,43 @@
 
 /* Underboard panel: boxed region under the board with a lichess-style tab
    header (Computer analysis today; move times / crosstable later). */
+/* Unboxed (lichess analyse): flat text tabs with an active underline directly on
+   the page background; the chart and tab bodies flow with the page, no card. */
 .review-underboard-panel {
-  border: 1px solid var(--site-border);
-  border-radius: var(--site-radius, 10px);
-  background: var(--site-panel, var(--site-surface));
-  overflow: hidden;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
 }
 .review-underboard-tabs {
   display: flex;
-  gap: 2px;
   border-bottom: 1px solid var(--site-border);
-  background: var(--site-bg);
+  background: transparent;
 }
+/* Tabs share the strip equally (lichess): each takes the same width, label
+   centered, so the active underline cells are evenly spaced across the bar. */
 .review-underboard-tab {
-  padding: 7px 14px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 7px 6px;
   border: none;
   background: transparent;
   color: var(--site-muted);
   font-size: 12px;
   font-weight: 700;
+  text-align: center;
   cursor: pointer;
+}
+.review-underboard-tab:hover {
+  color: var(--site-text);
 }
 .review-underboard-tab--active {
   color: var(--site-text);
-  background: var(--site-panel, var(--site-surface));
+  background: transparent;
   box-shadow: inset 0 -2px 0 var(--site-accent, #237960);
 }
 .review-underboard-panel__body {
-  padding: 10px;
+  padding: 10px 2px;
 }
 .review-underboard-panel__body[hidden] {
   display: none;
@@ -363,14 +372,13 @@
   flex-direction: column;
   gap: 12px;
 }
+/* Unboxed like the underboard panel above it (lichess): the bordered fields carry
+   the visual structure themselves. */
 .review-import {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--site-border);
-  border-radius: var(--site-radius, 10px);
-  background: var(--site-panel, var(--site-surface));
+  padding: 2px;
 }
 .review-import__moves-row {
   align-items: start;

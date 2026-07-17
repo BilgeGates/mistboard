@@ -33,6 +33,7 @@ import {
   type TreeReviewConfig,
   type TreeReviewHandle,
 } from './tree-review.js';
+import { xiangqiGamePhases } from './xiangqi-phases.js';
 import { xiangqiTreeAdapter } from './xiangqi-tree-adapter.js';
 
 /** Whole-game analysis source (variant-neutral; re-exported for the callers). */
@@ -83,6 +84,9 @@ const xiangqiPresentation: TreePresentation<
     kind: 'circle',
     className: `xq-shape--${s.brush}`,
   }),
+  // Opening/Middlegame/Endgame segmentation for the chart dividers + per-phase
+  // accuracy (heuristic; see xiangqi-phases.ts).
+  gamePhases: xiangqiGamePhases,
 };
 
 export function mountXiangqiReview(

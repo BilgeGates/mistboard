@@ -165,6 +165,42 @@ export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): Game
   };
 }
 
+/** Game-phase boundaries as MOVE plies: `middle` = the first middlegame move,
+ *  `end` = the first endgame move. Absent field = the game never reached that
+ *  phase. Computed per variant (see xiangqi-phases.ts); drives the advantage
+ *  chart's dividers and the summary's per-phase accuracy. */
+export type GamePhases = { middle?: number; end?: number };
+
+export type PhaseAccuracies = { opening?: number; middlegame?: number; endgame?: number };
+
+/** Plain-mean accuracy of one player's moves inside each phase (chance/reveal
+ *  plies excluded — their realized swing is luck). A phase the player never moved
+ *  in is absent. This is the summary's "96% Opening" column, not the headline
+ *  accuracy (which stays lila's volatility-weighted blend). */
+export function playerPhaseAccuracies(
+  analysis: GameAnalysis,
+  phases: GamePhases,
+  mover: 'red' | 'black',
+): PhaseAccuracies {
+  const chance = new Set(analysis.chancePlies);
+  const lastPly = analysis.moves.at(-1)?.ply ?? 0;
+  const segment = (from: number, to: number): number | undefined => {
+    const accs = analysis.moves
+      .filter((m) => m.mover === mover && m.ply >= from && m.ply <= to && !chance.has(m.ply))
+      .map((m) => m.accuracy);
+    if (accs.length === 0) return undefined;
+    return accs.reduce((sum, a) => sum + a, 0) / accs.length;
+  };
+  const { middle, end } = phases;
+  if (!middle) return { opening: segment(1, lastPly) };
+  if (!end) return { opening: segment(1, middle - 1), middlegame: segment(middle, lastPly) };
+  return {
+    opening: segment(1, middle - 1),
+    middlegame: segment(middle, end - 1),
+    endgame: segment(end, lastPly),
+  };
+}
+
 /** A reveal ply's luck-free decision grade, from the decomposition (see review/jieqi-decisions). */
 export type PlyDecision = {
   /** Accuracy in [0, 100] of the CHOICE (best-vs-played pool means), luck stripped. */
