@@ -351,10 +351,16 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
     if (isClientRoute(pathname)) {
       // Known client route: serve the SPA shell with the route's chunk preloads
       // baked into <head> (issue #31) so a cold load fetches the route graph in
-      // parallel with the entry instead of one round-trip after it. Routes
-      // without a manifest entry (and older builds without the manifest file)
-      // fall back to the plain static shell exactly as before.
-      void serveSpaShellWithRoutePreloads({ response, staticDir: options.staticDir, pathname })
+      // parallel with the entry instead of one round-trip after it, plus the
+      // route's own title/description where it has one. Routes with neither a
+      // manifest entry nor route meta fall back to the plain static shell
+      // exactly as before.
+      void serveSpaShellWithRoutePreloads({
+        response,
+        staticDir: options.staticDir,
+        pathname,
+        publicHost: options.publicHost,
+      })
         .catch(() => false)
         .then((served) => {
           if (served) return;

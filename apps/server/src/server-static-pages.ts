@@ -15,6 +15,30 @@ export type PageMeta = {
   imageUrl?: string; // omit to keep the default OG image from index.html
 };
 
+// Per-route title/description for SPA shell routes. Without these, every client
+// route serves index.html's generic homepage <title>, so /learn/xiangqi,
+// /analysis and /puzzles are byte-identical to a crawler and read as duplicates
+// of one another. Keyed by exact pathname; a route absent here keeps the default
+// homepage meta. Only list a route in SITEMAP_STATIC_ROUTES once it has an entry
+// here, or the sitemap advertises a set of identical shells.
+const SPA_ROUTE_META: Record<string, { title: string; description: string }> = {
+  '/learn/xiangqi': {
+    title: 'Learn Xiangqi (Chinese Chess) | Mistboard',
+    description:
+      'A free interactive xiangqi course in English. Learn the pieces, the rules, and core tactics by playing them.',
+  },
+  '/analysis': {
+    title: 'Xiangqi Analysis Board | Mistboard',
+    description:
+      'Analyse xiangqi (Chinese chess) positions with a free engine. Import moves or a FEN, branch variations, review any game. Mistboard variants supported too.',
+  },
+  '/puzzles': {
+    title: 'Xiangqi Puzzles | Mistboard',
+    description:
+      'Free xiangqi (Chinese chess) puzzles drawn from real games, with puzzles for Mistboard variants alongside.',
+  },
+};
+
 const ARTICLES_INDEX_META: Record<
   'en' | 'zh-hans' | 'zh-hant',
   { title: string; description: string; htmlLang: string }
@@ -167,11 +191,24 @@ export async function serveSpaShellWithRoutePreloads(params: {
   response: ServerResponse;
   staticDir: string;
   pathname: string;
+  publicHost?: string;
 }): Promise<boolean> {
   const links = await routePreloadLinksForPath(params);
-  if (!links) return false;
+  const routeMeta = SPA_ROUTE_META[params.pathname];
+  // Either signal alone is worth serving the shell ourselves: a route can have
+  // meta but no preload manifest entry, or vice versa. Only bail when we would
+  // add nothing over the plain static file.
+  if (!links && !routeMeta) return false;
   const indexPath = resolve(params.staticDir, 'index.html');
-  const html = (await fs.readFile(indexPath, 'utf-8')).replace('</head>', `${links}</head>`);
+  let html = await fs.readFile(indexPath, 'utf-8');
+  if (routeMeta && params.publicHost) {
+    html = injectPageMeta(html, {
+      title: routeMeta.title,
+      description: routeMeta.description,
+      url: `${params.publicHost}${params.pathname}`,
+    });
+  }
+  if (links) html = html.replace('</head>', `${links}</head>`);
   params.response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
   params.response.end(html);
   return true;
@@ -266,6 +303,8 @@ export const SITEMAP_STATIC_ROUTES: readonly string[] = [
   '/zh-hant/rules',
   '/about',
   '/puzzles',
+  '/learn/xiangqi',
+  '/analysis',
   '/videos',
   '/streamer',
   '/player',

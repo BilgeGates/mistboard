@@ -434,6 +434,65 @@ test('serveSpaShellWithRoutePreloads injects hints into the shell head for a kno
   assert.match(response.body, /<div id="app"><\/div>/);
 });
 
+test('serveSpaShellWithRoutePreloads gives a route with meta its own title and canonical url', async () => {
+  const staticDir = await staticDirWithPreloadManifest();
+  const response = captureResponse();
+
+  const served = await serveSpaShellWithRoutePreloads({
+    response,
+    staticDir,
+    pathname: '/learn/xiangqi',
+    publicHost: 'https://mistboard.com',
+  });
+
+  assert.equal(served, true);
+  assert.match(response.body, /<title>Learn Xiangqi \(Chinese Chess\) \| Mistboard<\/title>/);
+  assert.match(
+    response.body,
+    /<meta property="og:url" content="https:\/\/mistboard\.com\/learn\/xiangqi">/,
+  );
+  // Still the SPA shell: the meta is the only thing prerendered.
+  assert.match(response.body, /<div id="app"><\/div>/);
+});
+
+test('serveSpaShellWithRoutePreloads serves route meta even with no preload manifest entry', async () => {
+  // /learn/xiangqi has route meta but no manifest entry in the fixture. The old
+  // early-return on missing preloads would have dropped the meta entirely.
+  const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
+  await writeFile(join(staticDir, 'index.html'), indexHtml(), 'utf-8');
+  const response = captureResponse();
+
+  const served = await serveSpaShellWithRoutePreloads({
+    response,
+    staticDir,
+    pathname: '/learn/xiangqi',
+    publicHost: 'https://mistboard.com',
+  });
+
+  assert.equal(served, true);
+  assert.match(response.body, /<title>Learn Xiangqi \(Chinese Chess\) \| Mistboard<\/title>/);
+});
+
+test('every sitemap SPA route that is not prerendered carries its own title', async () => {
+  // Guard against re-advertising a set of byte-identical shells: a client route
+  // in the sitemap must be distinguishable to a crawler.
+  const staticDir = await staticDirWithPreloadManifest();
+  const titles = new Set<string>();
+  for (const route of ['/learn/xiangqi', '/analysis', '/puzzles']) {
+    const response = captureResponse();
+    await serveSpaShellWithRoutePreloads({
+      response,
+      staticDir,
+      pathname: route,
+      publicHost: 'https://mistboard.com',
+    });
+    const title = response.body.match(/<title>([^<]*)<\/title>/)?.[1];
+    assert.ok(title && title !== 'Mistboard', `${route} still serves the default shell title`);
+    titles.add(title);
+  }
+  assert.equal(titles.size, 3, 'sitemap SPA routes must not share a title');
+});
+
 test('serveSpaShellWithRoutePreloads leaves the response untouched when nothing matches', async () => {
   const staticDir = await staticDirWithPreloadManifest();
   const response = captureResponse();
