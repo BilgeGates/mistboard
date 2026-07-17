@@ -107,6 +107,24 @@ describe('createMoveTree', () => {
     expect(moveTree.el.querySelector('.review-move-list__empty')).not.toBeNull();
   });
 
+  it('keeps the eval on a chance ply that also carries a luck badge', () => {
+    // The three slots read orthogonally: glyph = decision quality, luck = the reveal's variance,
+    // eval = the objective value of the position that resulted. A reveal shows all three. Pin
+    // against the old rule (eval suppressed wherever a luck badge rendered), which also made eval
+    // visibility track auth state, since the decomposition only runs for signed-in viewers.
+    const { tree, m1 } = seededTree();
+    const moveTree = createMoveTree(tree, { onJump: () => {} });
+    const key = pathKey([tree.root.children[0]!.id]);
+    moveTree.annotate(
+      new Map([[key, { eval: '+2.0', luck: '🎲 +11%', luckTone: 'lucky' as const }]]),
+    );
+    const cell = [...moveTree.el.querySelectorAll('.review-move-list__move')].find((c) =>
+      c.textContent?.includes(`${m1.from}-${m1.to}`),
+    );
+    expect(cell?.querySelector('.review-move-list__luck')?.textContent).toBe('🎲 +11%');
+    expect(cell?.querySelector('.review-move-list__eval')?.textContent).toBe('+2.0');
+  });
+
   it('renders an annotated advice comment row before the move variations', () => {
     const { tree, m1 } = seededTree();
     const moveTree = createMoveTree(tree, { onJump: () => {} });
