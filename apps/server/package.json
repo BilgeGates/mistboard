@@ -53,8 +53,8 @@
     "predev:persistent": "node ../../scripts/ensure-packages-built.mjs",
     "pretypecheck": "node ../../scripts/ensure-packages-built.mjs",
     "pretest:unit": "node ../../scripts/ensure-packages-built.mjs",
-    "pretest": "node ../../scripts/ensure-packages-built.mjs",
-    "pretest:persistent": "node ../../scripts/ensure-packages-built.mjs",
+    "pretest": "node ../../scripts/ensure-packages-built.mjs && node ../../scripts/prune-orphan-dist.mjs .",
+    "pretest:persistent": "node ../../scripts/ensure-packages-built.mjs && node ../../scripts/prune-orphan-dist.mjs .",
     "pretest:integration": "node ../../scripts/ensure-packages-built.mjs"
   },
   "dependencies": {
