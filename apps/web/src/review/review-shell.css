@@ -356,6 +356,42 @@
   background: var(--site-surface);
 }
 
+/* Always-visible FEN + moves-import block under the underboard tools panel (the
+   lichess.org/analysis anatomy; analysis board only — see tree-review.ts). */
+.review-underboard-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.review-import {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel, var(--site-surface));
+}
+.review-import__moves-row {
+  align-items: start;
+}
+.review-import__moves-row .review-share__label {
+  padding-top: 7px;
+}
+.review-import__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.review-import__error {
+  font-size: 12px;
+  color: #c0392b;
+}
+.review-import__error:empty {
+  display: none;
+}
+
 /* Right-rail captured-material rows (lichess round: mat-top / mat-bot). Fixed
    compact tile size (not board-relative — the rail width is stable). Empty
    rows collapse to nothing. */

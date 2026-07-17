@@ -14,6 +14,7 @@ import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
 import { createGameMetaCard } from './review/game-meta-card.js';
 import { buildXiangqiClientAnalysisSource } from './review/xiangqi-client-analysis.js';
+import { importXiangqiGame } from './review/xiangqi-import.js';
 import { mountXiangqiReview } from './review/xiangqi-review.js';
 import {
   buildXiangqiReplayFromMoves,
@@ -77,5 +78,24 @@ export function mountXiangqiAnalysis(
     // Roomless import: whole-game analysis is a client ceval sweep (shared with the
     // historical library). Null when there is no game yet to analyse.
     analysis: buildXiangqiClientAnalysisSource(replay),
+    // Underboard FEN + moves boxes (lichess.org/analysis): a successful import
+    // re-mounts via the shareable ?moves= link, so the seeded board has a URL.
+    importPanel: {
+      onImport: (text) => {
+        const trimmed = text.trim();
+        if (!trimmed) return 'Paste a game to import.';
+        const result = importXiangqiGame(trimmed);
+        if (result.error || result.moves.length === 0) {
+          return result.error ?? 'No moves recognized.';
+        }
+        const url = new URL(window.location.href);
+        url.searchParams.set(
+          'moves',
+          result.moves.map((move) => `${move.from}-${move.to}`).join(' '),
+        );
+        window.location.assign(url.toString());
+        return null;
+      },
+    },
   });
 }

@@ -253,6 +253,12 @@ export type TreeReviewConfig<Move> = {
    *  over the termination line). Postgame surfaces supply it; the analysis board
    *  (no finished game) omits it. */
   result?: { score: string; label: string };
+  /** Always-visible FEN + moves-import block under the underboard panel (the
+   *  lichess.org/analysis anatomy). `onImport` receives the pasted game text and
+   *  returns an error message to display, or null when it navigated/re-mounted.
+   *  Only the analysis board supplies it; played/historical games keep these
+   *  fields in the Share & export tab. */
+  importPanel?: { onImport(text: string): string | null };
 };
 
 /** Handle returned by mountTreeReview: lets a caller snapshot the current tree
@@ -549,6 +555,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     shareMovesInput,
     gameUrl: typeof window !== 'undefined' ? window.location.href : '',
   });
+  // FEN + moves-import block below the underboard tools (analysis board only);
+  // its FEN mirrors the current node, its moves box prefills with the current
+  // line but never clobbers in-progress typing (see render()).
+  const importPanel = config.importPanel ? createImportPanel(config.importPanel.onImport) : null;
   const analysisSummaryEl = document.createElement('div');
   // Chance-variant (jieqi) caption slot under the accuracy summary: a "Grading reveals…" placeholder
   // until the decomposition loads, then a one-line luck caption. Kept as a persistent child so
@@ -618,8 +628,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     boardAspect: resolveBoardAspect(presentation.boardAspect),
     boardCols: presentation.boardCols,
     boardMaxPx: presentation.boardMaxPx,
-    underboard:
+    underboard: composeUnderboard(
       config.analysis || config.provenance || config.showCrosstable ? underboardEl : undefined,
+      importPanel?.el,
+    ),
     underboardOverflows: true,
     enginePanel: enginePanel?.el,
     moves: moveTree.el,
@@ -705,7 +717,22 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     // Live-refresh the Share tab's FEN + move export for the current node/line.
     if (presentation.engine) shareFenInput.value = presentation.engine.fen(node.truth);
     shareMovesInput.value = uciTo(node).join(' ');
+    // The import block mirrors the same live state: FEN of the current node, and
+    // the current line in display notation — but never over a paste in progress.
+    if (importPanel) {
+      if (presentation.engine) importPanel.fenInput.value = presentation.engine.fen(node.truth);
+      if (document.activeElement !== importPanel.movesInput) {
+        importPanel.movesInput.value = lineLabels(node).join(' ');
+      }
+    }
     chart?.setPly(node.ply);
+  }
+
+  /** Move labels from the root down to `node` (the current line, display notation). */
+  function lineLabels(node: Node): string[] {
+    const labels: string[] = [];
+    for (let n: Node | null = node; n?.parent; n = n.parent) labels.unshift(n.label);
+    return labels;
   }
 
   function applyAnalysis(analysis: GameAnalysis): void {
@@ -960,6 +987,72 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
 
 function resolveBoardAspect(aspect: number | (() => number)): number {
   return typeof aspect === 'function' ? aspect() : aspect;
+}
+
+/** Stack the underboard tools panel and the FEN/import block into one region;
+ *  pass through whichever exists alone; undefined when neither does. */
+function composeUnderboard(
+  panel: HTMLElement | undefined,
+  importEl: HTMLElement | undefined,
+): HTMLElement | undefined {
+  if (!importEl) return panel;
+  if (!panel) return importEl;
+  const stack = document.createElement('div');
+  stack.className = 'review-underboard-stack';
+  stack.append(panel, importEl);
+  return stack;
+}
+
+/** The lichess.org/analysis FEN + moves boxes: a read-only FEN of the current
+ *  position over a moves textarea with an Import action. Field refresh is driven
+ *  by the controller's render(); the import handler is variant-supplied. */
+function createImportPanel(onImport: (text: string) => string | null): {
+  el: HTMLElement;
+  fenInput: HTMLInputElement;
+  movesInput: HTMLTextAreaElement;
+} {
+  const el = document.createElement('section');
+  el.className = 'review-import';
+
+  const fenRow = document.createElement('div');
+  fenRow.className = 'review-share__row';
+  const fenLabel = document.createElement('span');
+  fenLabel.className = 'review-share__label';
+  fenLabel.textContent = 'FEN';
+  const fenInput = document.createElement('input');
+  fenInput.className = 'review-share__field';
+  fenInput.readOnly = true;
+  fenInput.setAttribute('aria-label', 'Current position FEN');
+  fenInput.addEventListener('focus', () => fenInput.select());
+  fenRow.append(fenLabel, fenInput);
+
+  const movesRow = document.createElement('div');
+  movesRow.className = 'review-share__row review-import__moves-row';
+  const movesLabel = document.createElement('span');
+  movesLabel.className = 'review-share__label';
+  movesLabel.textContent = 'Moves';
+  const movesInput = document.createElement('textarea');
+  movesInput.className = 'review-share__field review-share__field--moves';
+  movesInput.rows = 3;
+  movesInput.placeholder = 'Paste a game to import';
+  movesInput.setAttribute('aria-label', 'Moves to import');
+  movesRow.append(movesLabel, movesInput);
+
+  const error = document.createElement('span');
+  error.className = 'review-import__error';
+  const importButton = document.createElement('button');
+  importButton.type = 'button';
+  importButton.className = 'review-share__copy';
+  importButton.textContent = 'Import moves';
+  importButton.addEventListener('click', () => {
+    error.textContent = onImport(movesInput.value) ?? '';
+  });
+  const actions = document.createElement('div');
+  actions.className = 'review-import__actions';
+  actions.append(error, importButton);
+
+  el.append(fenRow, movesRow, actions);
+  return { el, fenInput, movesInput };
 }
 
 function truncationNotice(legal: number): HTMLElement {
