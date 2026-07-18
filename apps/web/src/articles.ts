@@ -60,7 +60,6 @@ import {
   type CrossroadsChessReplayController,
   mountCrossroadsChessReplay,
 } from './crossroads-chess-replay.js';
-import { buildDobutsuUiIcon, dobutsuIconForAnnouncementKind } from './dobutsu-ui-icons.js';
 import {
   type DropMiniXiangqiReplayController,
   mountDropMiniXiangqiReplay,
@@ -83,6 +82,7 @@ import {
   shogiAppearanceChangedEvent,
   xiangqiAppearanceChangedEvent,
 } from './theme.js';
+import { buildUiIcon, uiIconForAnnouncementKind } from './ui-icon.js';
 import { hasFinalVariantMarker, renderVariantMarker } from './variant-markers.js';
 import type { VariantMiniId } from './variant-mini-boards.js';
 import {
@@ -537,7 +537,7 @@ function landingAnnouncementCard(announcement: Announcement, locale: Locale): HT
   const icon = document.createElement('span');
   icon.className = 'landing-announcement-thumb-icon';
   icon.setAttribute('aria-hidden', 'true');
-  icon.append(buildDobutsuUiIcon(dobutsuIconForAnnouncementKind(announcement.kind)));
+  icon.append(buildUiIcon(uiIconForAnnouncementKind(announcement.kind)));
   thumb.append(icon);
 
   const date = document.createElement('span');

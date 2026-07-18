@@ -24,6 +24,7 @@
   "dependencies": {
     "@mistboard/game": "0.0.0",
     "chessground": "^9.2.1",
+    "lucide": "^1.25.0",
     "posthog-js": "^1.402.3"
   },
   "devDependencies": {

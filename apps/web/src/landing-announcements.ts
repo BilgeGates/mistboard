@@ -1,8 +1,8 @@
 import './landing-announcements.css';
 import { type Announcement, announcements } from './announcements.js';
-import { buildDobutsuUiIcon, dobutsuIconForAnnouncementKind } from './dobutsu-ui-icons.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
+import { buildUiIcon, uiIconForAnnouncementKind } from './ui-icon.js';
 import { rulesHrefPublicSurfaceEnabled } from './variant-public-surfaces.js';
 
 // All announcements render as one dated News feed box (lichess lobby__feed
@@ -65,9 +65,7 @@ function renderFeedEntry(entry: Announcement, locale: Locale): HTMLElement {
   marker.dataset.futureDobutsuSlot = kindMeta.futureDobutsuSlot ?? '';
   marker.title = kindMeta.label;
   marker.setAttribute('aria-hidden', 'true');
-  marker.append(
-    buildDobutsuUiIcon(dobutsuIconForAnnouncementKind(entry.kind), 'landing-news-marker-icon'),
-  );
+  marker.append(buildUiIcon(uiIconForAnnouncementKind(entry.kind), 'landing-news-marker-icon'));
 
   const content = document.createElement('div');
   content.className = 'landing-news-content';

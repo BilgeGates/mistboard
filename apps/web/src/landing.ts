@@ -3,7 +3,6 @@ import './landing-play.css';
 import './landing.css';
 import './game-route.css';
 import { buildHomeArticleCards, initLandingCarousel, mountArticleThumbnails } from './articles.js';
-import { buildDobutsuUiIcon } from './dobutsu-ui-icons.js';
 import {
   displayParticipantName,
   type FeaturedGame,
@@ -41,6 +40,7 @@ import { roomIdFromPath } from './room-url.js';
 import { mountShowcaseCycler, type ShowcaseEntry } from './showcase-cycler.js';
 import { specIdForShowcaseVariant } from './showcase-dispatch.js';
 import { buildHomeFooter, buildNav, buildNotice } from './site-shell.js';
+import { buildUiIcon } from './ui-icon.js';
 import { type WebVariantTenant, webVariantTenantForRoomId } from './variant-tenant/registry.js';
 
 // Adaptive hero-pool refresh. Poll faster while games are being played (they
@@ -569,7 +569,7 @@ function buildHomeSupportCard(opts: {
   const icon = document.createElement('span');
   icon.className = 'landing-support-icon landing-support-icon-dobutsu';
   icon.setAttribute('aria-hidden', 'true');
-  icon.append(buildDobutsuUiIcon(opts.variant));
+  icon.append(buildUiIcon(opts.variant));
   const text = document.createElement('span');
   text.className = 'landing-support-text';
   const title = document.createElement('span');

@@ -105,10 +105,9 @@
   color: inherit;
 }
 
-.landing-news-marker-dobutsu .dobutsu-ui-icon {
-  width: 36px;
-  height: 36px;
-  filter: none;
+.landing-news-marker-dobutsu .ui-icon {
+  width: 22px;
+  height: 22px;
 }
 
 .landing-news-marker-all {

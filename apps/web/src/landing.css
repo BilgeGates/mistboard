@@ -274,23 +274,13 @@
   color: var(--site-accent);
 }
 
-.landing-support-icon-dobutsu {
-  width: 48px;
-  height: 48px;
-  margin-inline: -4px 0;
-}
-
-.landing-support-icon-dobutsu .dobutsu-ui-icon {
-  filter: none;
-}
-
 .landing-support-card.is-disabled .landing-support-icon {
   color: var(--site-accent);
 }
 
 .landing-support-icon svg {
-  width: 100%;
-  height: 100%;
+  width: 28px;
+  height: 28px;
 }
 
 .landing-support-text {
@@ -825,13 +815,17 @@
 }
 
 .landing-announcement-thumb-icon {
-  display: block;
+  display: grid;
+  place-items: center;
   width: min(74%, 132px);
   aspect-ratio: 1;
+  color: #ffffff;
 }
 
-.landing-announcement-thumb-icon .dobutsu-ui-icon {
-  filter: drop-shadow(0 7px 12px rgba(31, 24, 15, 0.2));
+.landing-announcement-thumb-icon .ui-icon {
+  width: 50%;
+  height: 50%;
+  filter: drop-shadow(0 6px 12px rgba(31, 24, 15, 0.26));
 }
 
 .landing-article-card-date {

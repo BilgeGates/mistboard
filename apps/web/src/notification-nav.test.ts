@@ -32,7 +32,6 @@ describe('notification nav', () => {
 
     const trigger = nav.querySelector('.notif-nav-trigger');
     expect(trigger?.querySelector('svg')).not.toBeNull();
-    expect(trigger?.querySelector('img.dobutsu-ui-icon-notification')).toBeNull();
   });
 
   it('does not fetch or surface inbox entries when the DM bell is disabled', async () => {

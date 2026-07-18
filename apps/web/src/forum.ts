@@ -1,6 +1,6 @@
 import './forum.css';
-import { buildDobutsuUiIcon } from './dobutsu-ui-icons.js';
 import { type AuthUser, buildNav, buildNotice, fetchCurrentUser } from './site-shell.js';
+import { buildUiIcon } from './ui-icon.js';
 
 type ForumCategory = {
   id: string;
@@ -606,8 +606,8 @@ function forumPanelTitle(title: string, options: { icon?: boolean } = {}): HTMLE
   return wrap;
 }
 
-function forumPanelIcon(): HTMLElement {
-  return buildDobutsuUiIcon('forum-topic', 'forum-panel-icon forum-panel-icon-dobutsu');
+function forumPanelIcon(): SVGElement {
+  return buildUiIcon('forum-topic', 'forum-panel-icon');
 }
 
 function forumBackLink(href: string, label: string): HTMLAnchorElement {
@@ -655,7 +655,7 @@ function newTopicPanelAction(
   button.className = 'forum-panel-action forum-panel-action-create';
   const label = document.createElement('span');
   label.textContent = 'Create a new topic';
-  button.append(buildDobutsuUiIcon('create-topic', 'forum-create-topic-icon'), label);
+  button.append(buildUiIcon('create-topic', 'forum-create-topic-icon'), label);
   button.addEventListener('click', () => {
     composer.hidden = !composer.hidden;
     button.setAttribute('aria-expanded', String(!composer.hidden));

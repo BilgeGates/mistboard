@@ -1372,17 +1372,10 @@ a.forum-post-author-name:focus-visible {
 }
 
 .forum-panel-icon {
-  width: 70px;
-  height: 70px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
-}
-
-.forum-panel-icon-dobutsu {
-  margin-inline: -10px -4px;
-}
-
-.forum-panel-icon-dobutsu.dobutsu-ui-icon {
-  filter: none;
+  color: var(--forum-heading);
 }
 
 .forum-panel-title-stack {
@@ -1476,12 +1469,8 @@ a.forum-post-author-name:focus-visible {
 }
 
 .forum-create-topic-icon {
-  width: 48px;
-  height: 48px;
-  flex: 0 0 auto;
-  margin-block: -14px;
-  transform: translateY(1px);
-  filter: none;
+  width: 18px;
+  height: 18px;
 }
 
 .forum-panel-actions {
@@ -2229,12 +2218,8 @@ a.forum-post-author-name:focus-visible {
   }
 
   .forum-panel-icon {
-    width: 58px;
-    height: 58px;
-  }
-
-  .forum-panel-icon-dobutsu {
-    margin-inline: -8px -2px;
+    width: 34px;
+    height: 34px;
   }
 
   .forum-composer-tabs,

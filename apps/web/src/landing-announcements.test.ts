@@ -103,12 +103,12 @@ describe('landing announcements', () => {
     expect(marker?.textContent).toBe('☆');
   });
 
-  it('marks feed rows by supported post type and renders Dobutsu markers', () => {
+  it('marks feed rows by supported post type and renders icon markers', () => {
     const firstRow = buildLandingAnnouncements().querySelector<HTMLElement>('.landing-news-update');
     const marker = firstRow?.querySelector<HTMLElement>('.landing-news-marker');
 
     expect(firstRow?.dataset.announcementKind).toBe('release');
-    expect(marker?.querySelector('img.dobutsu-ui-icon-announcement-a')).not.toBeNull();
+    expect(marker?.querySelector('svg.ui-icon-announcement-release')).not.toBeNull();
     expect(marker?.dataset.announcementKind).toBe('release');
     expect(marker?.dataset.futureDobutsuSlot).toBe('announcement-a');
   });

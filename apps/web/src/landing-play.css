@@ -67,11 +67,11 @@
 }
 
 .landing-play-action.landing-play-action-dobutsu {
-  /* Sized to match the support/store cards (min-height 60, ~64 rendered) so the
-     right rail reads as one button family. Icon column + padding shrink to keep
-     the animal mark centered in the shorter tile. */
-  grid-template-columns: 48px minmax(0, 1fr);
-  min-height: 64px;
+  /* Sized to match the support/store cards so the right rail reads as one
+     button family. A compact icon column keeps the glyph aligned with the
+     label baseline. */
+  grid-template-columns: 34px minmax(0, 1fr);
+  min-height: 60px;
   gap: 14px;
   font-size: clamp(15px, 0.98vw, 16px);
   font-weight: 580;
@@ -80,22 +80,15 @@
 }
 
 .landing-play-icon.landing-play-icon-dobutsu {
-  width: 44px;
-  height: 44px;
-  overflow: visible;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
 }
 
-.landing-play-icon-dobutsu .dobutsu-ui-icon {
-  filter: none;
-}
-
-.landing-play-icon-dobutsu .dobutsu-ui-icon-play-engine {
-  transform: scale(1.04);
-}
-
-.landing-play-icon-dobutsu .dobutsu-ui-icon-challenge-friend,
-.landing-play-icon-dobutsu .dobutsu-ui-icon-find-opponent {
-  transform: scale(1.42);
+.landing-play-icon-dobutsu .ui-icon {
+  width: 28px;
+  height: 28px;
 }
 
 :root[data-effective-theme="dark"] .landing-play-action {

@@ -30,12 +30,12 @@ import {
   gameSpecAnalyticsPropsForId,
   track,
 } from './analytics.js';
-import { buildDobutsuUiIcon, type DobutsuUiIconId } from './dobutsu-ui-icons.js';
 import { correspondenceEnabled, crossroadsChessEnabled } from './feature-flags.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, type Locale } from './i18n/locale.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isLikelySignedIn } from './signed-in-state.js';
+import { buildUiIcon, type UiIconName } from './ui-icon.js';
 import { renderVariantMarker } from './variant-markers.js';
 import { webVariantTenantForSpecId, webVariantTenants } from './variant-tenant/registry.js';
 import { isVariantEnabled, variantMiniIdForGameSpec } from './variants.js';
@@ -381,7 +381,7 @@ export function buildLandingPlayPanel(
 }
 
 type LandingPlayIcon = 'computer' | 'friend' | 'lobby';
-const LANDING_PLAY_ICON_ID: Record<LandingPlayIcon, DobutsuUiIconId> = {
+const LANDING_PLAY_ICON_ID: Record<LandingPlayIcon, UiIconName> = {
   computer: 'play-engine',
   friend: 'challenge-friend',
   lobby: 'find-opponent',
@@ -403,7 +403,7 @@ function appendLandingActionContent(
   const iconEl = document.createElement('span');
   iconEl.className = 'landing-play-icon landing-play-icon-dobutsu';
   iconEl.setAttribute('aria-hidden', 'true');
-  iconEl.append(buildDobutsuUiIcon(LANDING_PLAY_ICON_ID[icon]));
+  iconEl.append(buildUiIcon(LANDING_PLAY_ICON_ID[icon]));
   const labelEl = document.createElement('span');
   labelEl.className = 'landing-play-action-label';
   labelEl.textContent = label;

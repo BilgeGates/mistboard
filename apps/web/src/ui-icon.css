@@ -1,0 +1,13 @@
+/* Base for every house UI icon (Lucide line glyph). `:where()` pins this at
+   ZERO specificity so any consumer sizing selector — even a lone class on the
+   <svg> itself — wins deterministically, regardless of CSS-bundle order. The
+   glyph inherits `currentColor` for its stroke, so colour comes from the
+   surrounding text. Consumers set width/height (and colour, where it should
+   differ from the text) in their own stylesheet. */
+:where(.ui-icon) {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+}
