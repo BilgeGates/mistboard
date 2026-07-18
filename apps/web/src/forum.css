@@ -1371,7 +1371,11 @@ a.forum-post-author-name:focus-visible {
   margin: 0;
 }
 
-.forum-panel-icon {
+/* Two-class specificity so this beats the single-class `.dobutsu-ui-icon`
+   base rule (`width: 100%`) regardless of CSS-bundle order. At equal
+   specificity the prod bundle can order the base rule last and blow the
+   icon up to fill the 1fr title column. */
+.forum-panel-icon.dobutsu-ui-icon {
   width: 70px;
   height: 70px;
   flex: 0 0 auto;
@@ -2228,7 +2232,7 @@ a.forum-post-author-name:focus-visible {
     font-size: 31px;
   }
 
-  .forum-panel-icon {
+  .forum-panel-icon.dobutsu-ui-icon {
     width: 58px;
     height: 58px;
   }
