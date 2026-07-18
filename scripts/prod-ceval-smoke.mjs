@@ -118,6 +118,17 @@ async function checkMisty(browser) {
       throw new Error(`${url} returned HTTP ${response?.status() ?? 'no response'}`);
 
     await page.locator('.engine-panel').waitFor({ state: 'attached', timeout: timeoutMs });
+
+    // The review opens at the game's final ply. If that game ended in checkmate
+    // or stalemate the terminal position has no legal moves, and the single-shot
+    // Misty wasm search never returns for a no-move position — it hangs at
+    // "thinking…" rather than erroring, timing this smoke out (product bug
+    // tracked separately). This smoke's job is to prove the engine RUNS, so step
+    // back one ply to a guaranteed-legal position (a move was played from it)
+    // before engaging the engine. The keyboard handler is a document listener
+    // (review-layout.ts) that fires from the default body focus.
+    await page.keyboard.press('ArrowLeft');
+
     await toggleEngineOn(page);
     await waitForEvalAndLines(page);
     const result = await readPanel(page);
