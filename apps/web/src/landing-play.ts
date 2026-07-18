@@ -484,12 +484,107 @@ export function buildLobbyRequestsWindow(
   return shell;
 }
 
+// Engine "seeds": the always-available computer opponents, rendered as a standing
+// list at the top of the Lobby tab so the seeks surface is never an empty hooks
+// table even at zero human liquidity. These are NOT server seeks — every listed
+// engine is playable by anyone at any time, so the list is deterministic and
+// derived client-side. Clicking one opens the vetted PvE setup dialog pre-set to
+// that variant + engine (which enforces the per-tenant time-control allowlist and
+// engine selection); slice 1 deliberately does not direct-create.
+type LandingEngineSeed = {
+  gameSpecId: LandingGameSpecId;
+  variantLabel: string;
+  // Only set when the default engine is confidently resolvable (a tenant engine
+  // option, or dark chess's fallback Misty). Left undefined for server-default
+  // engines (fog xiangqi, dark mini) so the dialog/server picks — never a guess.
+  engineId: string | undefined;
+  engineName: string;
+};
+
+function landingEngineSeeds(locale: Locale): LandingEngineSeed[] {
+  const seeds: LandingEngineSeed[] = [];
+  for (const { gameSpecId, label } of enabledLandingVariantGameSpecs('pve', locale)) {
+    if (!landingVariantSupportsPve(gameSpecId)) continue;
+    const tenantOptions = webVariantTenantForSpecId(gameSpecId)?.landing?.engineOptions;
+    if (tenantOptions && tenantOptions.length > 0) {
+      const engineId = defaultEngineIdForGameSpec(gameSpecId, tenantOptions);
+      const engineName =
+        tenantOptions.find((option) => option.id === engineId)?.name ??
+        tenantOptions[0]?.name ??
+        t('play.playEngine', {}, locale);
+      seeds.push({ gameSpecId, variantLabel: label, engineId, engineName });
+      continue;
+    }
+    if (gameSpecId === DARK_CHESS_SPEC_ID) {
+      const fallback = fallbackPlayableEngines();
+      seeds.push({
+        gameSpecId,
+        variantLabel: label,
+        engineId: fallback[0]?.id,
+        engineName: fallback[0]?.name ?? 'Misty',
+      });
+      continue;
+    }
+    // Server-default engine (fog xiangqi, dark mini): list it without guessing an
+    // engine id or name; the setup dialog resolves the real one.
+    seeds.push({ gameSpecId, variantLabel: label, engineId: undefined, engineName: 'Computer' });
+  }
+  return seeds;
+}
+
+function engineSeedRow(seed: LandingEngineSeed, locale: Locale): HTMLElement {
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.className = 'landing-lobby-seed';
+  row.setAttribute('aria-label', `${t('play.playEngine', {}, locale)}: ${seed.variantLabel}`);
+
+  const miniId = variantMiniIdForGameSpec(seed.gameSpecId);
+  if (miniId) {
+    const thumb = document.createElement('span');
+    thumb.className = 'landing-lobby-seed-thumb';
+    thumb.setAttribute('aria-hidden', 'true');
+    thumb.innerHTML = renderVariantMarker(miniId, {
+      size: 100,
+      label: `${seed.variantLabel} marker`,
+    });
+    row.append(thumb);
+  }
+
+  const name = document.createElement('span');
+  name.className = 'landing-lobby-seed-variant';
+  name.textContent = seed.variantLabel;
+
+  const opponent = document.createElement('span');
+  opponent.className = 'landing-lobby-seed-opponent';
+  opponent.append(
+    buildUiIcon('play-engine', 'landing-lobby-seed-boticon'),
+    document.createTextNode(seed.engineName),
+  );
+
+  const cta = document.createElement('span');
+  cta.className = 'landing-lobby-seed-cta';
+  cta.setAttribute('aria-hidden', 'true');
+  cta.textContent = '▸';
+
+  row.append(name, opponent, cta);
+  row.addEventListener('click', () => {
+    openLandingSetupDialog({
+      mode: 'pve',
+      initialGameSpecId: seed.gameSpecId,
+      engineId: seed.engineId,
+      locale,
+      title: t('play.playEngine', {}, locale),
+    });
+  });
+  return row;
+}
+
 // The homepage lobby board (lichess / PlayStrategy-shaped): three tabs over a
-// framed panel — Lobby (open real-time seeks as a Game/Time/Mode table), Quick
-// pairing (the time-control pool grid), and Correspondence (open days-per-move
-// seeks). The "start a game" CTAs stay in the right column; this is the
-// browse-and-join surface. Reuses the existing lobby fetch/join, setup dialog,
-// and presets. English tab/column labels for now (i18n keys are a follow-up).
+// framed panel — Lobby (a standing engine-seed list plus open real-time human
+// seeks as a Game/Time/Mode table), Quick pairing (the time-control pool grid),
+// and Correspondence (open days-per-move seeks). The "start a game" CTAs stay in
+// the right column; this is the browse-and-join surface. Reuses the existing
+// lobby fetch/join, setup dialog, and presets.
 export function buildLobbyPanel(
   locale: Locale = currentLocale(),
   options: { hydrate?: boolean } = {},
@@ -554,13 +649,23 @@ export function buildLobbyPanel(
   lobbyPlaceholder.className = 'landing-lobby-empty';
   lobbyPlaceholder.textContent = ' ';
   lobbyRows.append(lobbyPlaceholder);
-  lobbyPanelEl.append(lobbyHead, lobbyRows);
+
+  // Standing engine-seed list: always-available computer opponents so the seeks
+  // tab is never empty. Sits above the (usually empty) human-seek table; the two
+  // are visually separated so a bot offer is never mistaken for a human seek.
+  const seeds = landingEngineSeeds(locale);
+  const seedsBlock = document.createElement('div');
+  seedsBlock.className = 'landing-lobby-seeds';
+  for (const seed of seeds) seedsBlock.append(engineSeedRow(seed, locale));
+
+  lobbyPanelEl.append(seedsBlock, lobbyHead, lobbyRows);
   const renderLobby = (requests: OpenLobbyRequest[]): void => {
     lobbyRows.replaceChildren();
     if (requests.length === 0) {
       const empty = document.createElement('p');
       empty.className = 'landing-lobby-empty';
-      empty.textContent = 'No open games right now. Start one from the panel on the right.';
+      empty.textContent =
+        'No open challenges from other players yet. Play a bot above, or start your own.';
       lobbyRows.append(empty);
       return;
     }

@@ -450,6 +450,92 @@
   display: none;
 }
 
+/* Standing engine-seed list at the top of the Lobby tab: always-available bot
+   opponents so the seeks surface is never empty. Separated from the human-seek
+   table below by a hairline so a bot offer never reads as a human seek. */
+.landing-lobby-seeds {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--site-border-soft);
+}
+
+.landing-lobby-seeds:empty {
+  display: none;
+}
+
+.landing-lobby-seed {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: var(--site-radius-sm, 6px);
+  background: transparent;
+  color: var(--site-text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.landing-lobby-seed:nth-of-type(even) {
+  background: var(--site-zebra);
+}
+
+.landing-lobby-seed:hover,
+.landing-lobby-seed:focus-visible {
+  background: var(--site-stage-bg);
+  outline: none;
+}
+
+.landing-lobby-seed-thumb {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.landing-lobby-seed-thumb svg,
+.landing-lobby-seed-thumb .variant-marker {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.landing-lobby-seed-variant {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.landing-lobby-seed-opponent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--site-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.landing-lobby-seed-boticon {
+  width: 15px;
+  height: 15px;
+}
+
+.landing-lobby-seed-cta {
+  color: var(--site-muted);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.landing-lobby-seed:hover .landing-lobby-seed-cta,
+.landing-lobby-seed:focus-visible .landing-lobby-seed-cta {
+  color: var(--site-accent-strong);
+}
+
 .landing-lobby-thead,
 .landing-lobby-trow {
   display: grid;
