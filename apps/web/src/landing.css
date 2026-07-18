@@ -670,54 +670,26 @@
   background: var(--site-accent-strong);
 }
 
+/* Quick-pairing tab: the variant quick-play grid fills the panel, with the
+   opponent-kind toggle pinned below it. */
 .landing-lobby-quickpair {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  /* Only three pools, so center the single row in the tall panel instead of
-     pinning it to the top over an empty void (lichess fills the grid with 12). */
-  align-content: center;
-}
-
-.landing-lobby-pool {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  min-height: 120px;
-  padding: 20px 12px;
-  border: 1px solid transparent;
-  border-radius: var(--site-radius);
-  background: var(--site-panel-soft);
-  color: var(--site-text);
-  font: inherit;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
+  gap: 12px;
 }
 
-.landing-lobby-pool:hover {
-  background: var(--site-accent-soft);
-  border-color: var(--site-accent);
+/* The variant grid grows to fill the tall panel. Three columns (the panel is
+   narrower than the setup dialog) give chunkier cards and more rows, and the
+   rows stretch to fill the height so the grid never floats over an empty void
+   (the old three-pool problem). */
+.landing-quickplay-grid {
+  flex: 1 1 auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: stretch;
 }
 
-.landing-lobby-pool-clock {
-  font-size: 27px;
-  font-weight: 600;
-  line-height: 1.1;
-  color: var(--site-heading);
-}
-
-.landing-lobby-pool-speed {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--site-muted);
-}
-
-.landing-lobby-pool:hover .landing-lobby-pool-clock {
-  color: var(--site-accent-strong);
+.landing-quickplay-mode {
+  flex: 0 0 auto;
 }
 
 .landing-board-column {

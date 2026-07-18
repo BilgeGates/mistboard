@@ -155,11 +155,6 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
 
 // Lichess pairs every quick-pairing pool with its speed category (Bullet / Blitz /
 // Rapid) under the clock. English-for-now, matching the rest of the lobby board.
-const TIME_CLASS_LABEL: Record<TimeClass, string> = {
-  bullet: 'Bullet',
-  blitz: 'Blitz',
-  rapid: 'Rapid',
-};
 // Which time-control presets the picker offers, per variant. Dark chess and DMX
 // are scoped to bullet + blitz: 5+5 is hidden because dark/fog games are
 // low-calc and decisive, and fewer TCs merge players into fewer pools.
@@ -672,34 +667,105 @@ export function buildLobbyPanel(
     for (const request of requests) lobbyRows.append(lobbyTableRow(request, locale));
   };
 
-  // Quick pairing tab: the time-control pool grid. For v1 a tile opens the standard
-  // Find-opponent setup dialog (variant + rated chosen there); per-pool direct
-  // pairing at the tile's time control is a follow-up.
+  // Quick pairing tab: a variant quick-play grid. Pick the opponent kind
+  // (Computer / Friend) with the toggle, then a variant card opens the vetted
+  // setup dialog pre-set to that variant + mode (which owns time control, engine
+  // resolution, and color). This replaces three time-preset tiles that floated in
+  // a mostly-empty panel; leading with the variant catalog fills the space with
+  // the differentiated, always-populated surface, and time selection stays in the
+  // dialog where the per-tenant allowlist is authoritative.
   const quickPanelEl = document.createElement('div');
   quickPanelEl.className = 'landing-lobby-tabpanel landing-lobby-quickpair';
   quickPanelEl.setAttribute('role', 'tabpanel');
   quickPanelEl.hidden = true;
-  for (const preset of LANDING_TIME_PRESETS) {
-    const tile = document.createElement('button');
-    tile.type = 'button';
-    tile.className = 'landing-lobby-pool';
-    const clock = document.createElement('span');
-    clock.className = 'landing-lobby-pool-clock';
-    clock.textContent = preset.label;
-    const speed = document.createElement('span');
-    speed.className = 'landing-lobby-pool-speed';
-    speed.textContent = TIME_CLASS_LABEL[preset.timeClass];
-    tile.append(clock, speed);
-    tile.addEventListener('click', () => {
+
+  let quickMode: 'pve' | 'pvp' = 'pve';
+  const quickModeButtons = new Map<'pve' | 'pvp', HTMLButtonElement>();
+  const quickVariantCards: {
+    gameSpecId: LandingGameSpecId;
+    card: HTMLButtonElement;
+    badge: HTMLElement;
+  }[] = [];
+
+  const syncQuickPlay = (): void => {
+    for (const [mode, button] of quickModeButtons) {
+      const on = mode === quickMode;
+      button.classList.toggle('selected', on);
+      button.setAttribute('aria-checked', on ? 'true' : 'false');
+    }
+    // Computer mode greys variants with no engine yet (same rule as the dialog's
+    // own variant grid); Friend mode enables every playable variant.
+    for (const { gameSpecId, card, badge } of quickVariantCards) {
+      const disabled = quickMode === 'pve' && !landingVariantSupportsPve(gameSpecId);
+      card.disabled = disabled;
+      card.classList.toggle('landing-variant-card-disabled', disabled);
+      card.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+      badge.hidden = !disabled;
+    }
+  };
+
+  const quickGrid = document.createElement('div');
+  quickGrid.className = 'landing-variant-grid landing-quickplay-grid';
+  quickGrid.setAttribute('aria-label', t('setup.variant', {}, locale));
+  for (const { gameSpecId, label } of enabledLandingVariantGameSpecs('pve', locale)) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'landing-variant-card';
+    card.dataset.gameSpec = gameSpecId;
+    const miniId = variantMiniIdForGameSpec(gameSpecId);
+    if (miniId) {
+      const thumb = document.createElement('span');
+      thumb.className = 'landing-variant-card-thumb';
+      thumb.innerHTML = renderVariantMarker(miniId, { size: 100, label: `${label} marker` });
+      card.append(thumb);
+    }
+    const name = document.createElement('span');
+    name.className = 'landing-variant-card-name';
+    name.textContent = label;
+    const badge = document.createElement('span');
+    badge.className = 'landing-variant-card-badge';
+    badge.textContent = t('setup.soon', {}, locale);
+    badge.hidden = true;
+    card.append(name, badge);
+    card.addEventListener('click', () => {
+      if (card.disabled) return;
       openLandingSetupDialog({
         locale,
-        mode: 'lobby',
-        title: t('play.findOpponent', {}, locale),
-        ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
+        mode: quickMode,
+        initialGameSpecId: gameSpecId,
+        title:
+          quickMode === 'pve'
+            ? t('play.playEngine', {}, locale)
+            : t('play.challengeFriend', {}, locale),
       });
     });
-    quickPanelEl.append(tile);
+    quickVariantCards.push({ gameSpecId, card, badge });
+    quickGrid.append(card);
   }
+
+  const quickModeToggle = document.createElement('div');
+  quickModeToggle.className = 'landing-start-options landing-quickplay-mode';
+  quickModeToggle.setAttribute('role', 'radiogroup');
+  quickModeToggle.setAttribute('aria-label', t('setup.gameType', {}, locale));
+  for (const [mode, optionLabel] of [
+    ['pve', t('play.playEngine', {}, locale)],
+    ['pvp', t('play.challengeFriend', {}, locale)],
+  ] as const) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'landing-start-option';
+    button.setAttribute('role', 'radio');
+    button.textContent = optionLabel;
+    button.addEventListener('click', () => {
+      quickMode = mode;
+      syncQuickPlay();
+    });
+    quickModeButtons.set(mode, button);
+    quickModeToggle.append(button);
+  }
+
+  syncQuickPlay();
+  quickPanelEl.append(quickGrid, quickModeToggle);
 
   // Correspondence tab: open days-per-move seeks (they carry a creator name). A row
   // links to the challenge/accept page.

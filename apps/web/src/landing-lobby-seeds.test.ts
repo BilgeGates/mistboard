@@ -41,3 +41,28 @@ describe('landing lobby engine seeds', () => {
     expect(seedsBlock?.querySelector('.landing-lobby-trow')).toBeNull();
   });
 });
+
+// The Quick-pairing tab leads with a variant quick-play grid (variants as cards)
+// plus a Computer/Friend opponent toggle, replacing the old three time-preset
+// tiles. The invariants: a populated grid and a two-option toggle.
+describe('landing quick-play variant grid', () => {
+  it('renders variant cards with a two-option opponent toggle', () => {
+    const panel = buildLobbyPanel('en', { hydrate: false });
+    const grid = panel.querySelector('.landing-quickplay-grid');
+    expect(grid).not.toBeNull();
+    const names = [...grid!.querySelectorAll('.landing-variant-card-name')].map(
+      (name) => name.textContent,
+    );
+    expect(names.length).toBeGreaterThan(1);
+    expect(names).toContain('Fog Chess');
+
+    const toggle = panel.querySelector('.landing-quickplay-mode');
+    expect(toggle).not.toBeNull();
+    expect(toggle?.querySelectorAll('.landing-start-option').length).toBe(2);
+  });
+
+  it('replaces the old time-preset pool tiles', () => {
+    const panel = buildLobbyPanel('en', { hydrate: false });
+    expect(panel.querySelector('.landing-lobby-pool')).toBeNull();
+  });
+});
