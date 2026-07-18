@@ -1,7 +1,7 @@
 /* Lila-style lower News feed: a boxed vertical timeline with compact narrative
    entries. */
 .landing-announcements {
-  --landing-feed-accent: #d69b3a;
+  --landing-feed-accent: var(--site-accent);
   --landing-feed-content-x: 86px;
   --landing-feed-line-half: 1px;
   --landing-feed-line-width: 2px;
@@ -117,7 +117,7 @@
   font-size: 27px;
   font-weight: 500;
   line-height: 1;
-  text-shadow: 0 1px 0 rgba(105, 64, 11, 0.12);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
 }
 
 .landing-news-content {

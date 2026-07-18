@@ -9,12 +9,10 @@
   --landing-chat-height: 292px;
   --landing-chat-bg: #fff;
   --landing-chat-border: rgba(0, 0, 0, 0.13);
-  --landing-chat-shadow: rgba(0, 0, 0, 0.11);
-  --landing-chat-ambient-shadow: rgba(0, 0, 0, 0.055);
   --landing-chat-title: #5c5c5c;
   --landing-chat-text: #555;
   --landing-chat-handle: #7a7a7a;
-  --landing-chat-token: #1d86f2;
+  --landing-chat-token: var(--site-link);
   --landing-chat-input-bg: #fff;
   --landing-chat-input-text: #555;
   --landing-chat-input-placeholder: #777;
@@ -23,12 +21,9 @@
   height: var(--landing-chat-height);
   display: flex;
   flex-direction: column;
-  border-color: var(--landing-chat-border);
-  border-radius: 5px;
+  border: 1px solid var(--landing-chat-border);
+  border-radius: var(--site-radius);
   background: var(--landing-chat-bg);
-  box-shadow:
-    0 1px 2px var(--landing-chat-shadow),
-    0 7px 16px var(--landing-chat-ambient-shadow);
 }
 
 .landing-chat .site-box-top {
@@ -221,12 +216,9 @@
 :root[data-effective-theme="dark"] .landing-chat {
   --landing-chat-bg: #242320;
   --landing-chat-border: rgba(255, 255, 255, 0.14);
-  --landing-chat-shadow: rgba(0, 0, 0, 0.28);
-  --landing-chat-ambient-shadow: rgba(0, 0, 0, 0.22);
   --landing-chat-title: #a9a9a4;
   --landing-chat-text: #c7c3bb;
   --landing-chat-handle: #d5d1c9;
-  --landing-chat-token: #58a6ff;
   --landing-chat-input-bg: #302f2b;
   --landing-chat-input-text: #eee9df;
   --landing-chat-input-placeholder: #b6b1a8;

@@ -227,37 +227,27 @@
 }
 
 .landing-support-card {
-  --landing-support-gold: #c98716;
-
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 16px;
   min-height: 60px;
   padding: 7px 24px;
-  border: 1px solid rgba(29, 37, 34, 0.1);
+  border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
   background: var(--site-panel);
   color: inherit;
-  box-shadow: 0 2px 8px rgba(27, 31, 27, 0.1);
   text-decoration: none;
   transition:
     border-color 120ms ease,
     background 120ms ease,
-    box-shadow 120ms ease,
-    color 120ms ease,
-    filter 120ms ease;
+    color 120ms ease;
 }
 
 .landing-support-card:hover,
 .landing-support-card:focus-visible {
-  border-color: color-mix(in srgb, var(--landing-support-gold) 74%, transparent);
-  background: var(--landing-support-gold);
-  box-shadow:
-    0 8px 22px rgba(105, 64, 11, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.28);
-  color: #fff;
-  filter: saturate(1.04);
+  border-color: var(--site-accent);
+  background: var(--site-panel-soft);
   outline: none;
 }
 
@@ -294,34 +284,29 @@
   font-size: 21px;
   font-weight: 600;
   line-height: 1.2;
-  color: var(--landing-support-gold);
+  color: var(--site-heading);
 }
 
 .landing-support-card.is-disabled .landing-support-title {
-  color: var(--landing-support-gold);
+  color: var(--site-heading);
 }
 
 .landing-support-subtitle {
   overflow: hidden;
   font-size: 15px;
   line-height: 1.3;
-  color: var(--landing-support-gold);
+  color: var(--site-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .landing-support-card:hover .landing-support-title,
-.landing-support-card:hover .landing-support-subtitle,
-.landing-support-card:focus-visible .landing-support-title,
-.landing-support-card:focus-visible .landing-support-subtitle,
-.landing-support-card.is-disabled:hover .landing-support-title,
-.landing-support-card.is-disabled:hover .landing-support-subtitle {
-  color: #fff;
+.landing-support-card:focus-visible .landing-support-title {
+  color: var(--site-link);
 }
 
 :root[data-effective-theme="dark"] .landing-support-card {
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.34);
+  border-color: var(--site-border-soft);
 }
 
 /* Lower strip: lila-style News + Forum pair, full width beneath the
@@ -411,16 +396,7 @@
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
   background: var(--site-panel);
-  box-shadow:
-    0 2px 7px rgba(29, 37, 34, 0.14),
-    0 14px 30px rgba(29, 37, 34, 0.07);
   overflow: hidden;
-}
-
-:root[data-effective-theme="dark"] .landing-lobby-board {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 12px 32px rgba(0, 0, 0, 0.55);
 }
 
 /* Lichess-style underline tabs: no segmented backgrounds or vertical dividers —
@@ -753,27 +729,23 @@
      title a normal block child so the clamp (and its ellipsis) is honored, and
      lets the card grow rather than shrink-clip the title if a clamp fails. */
   display: block;
-  border: 2px solid #d4932c;
+  border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
   background: var(--site-panel);
   overflow: hidden;
   text-decoration: none;
   color: inherit;
-  box-shadow: 0 2px 7px rgba(29, 37, 34, 0.18);
   transition:
     border-color 120ms ease,
-    background 120ms ease,
-    box-shadow 120ms ease;
+    background 120ms ease;
 }
 
-/* No lift/scale on hover; only the white title strip under the thumbnail warms
-   to the soft grey panel tone so the whole card reads as active. */
+/* No lift/scale on hover; the border warms to the brand accent and the title
+   strip under the thumbnail shifts to the soft panel tone so the card reads as
+   active without a material lift. */
 .landing-article-card:hover {
-  border-color: #d4932c;
+  border-color: var(--site-accent);
   background: var(--site-panel-soft);
-  box-shadow:
-    0 2px 8px rgba(29, 37, 34, 0.2),
-    0 0 14px color-mix(in srgb, var(--site-accent) 22%, transparent);
 }
 
 .landing-article-card-thumb {
@@ -855,7 +827,7 @@
   height: 18px;
   border-radius: 0 var(--site-radius) 0 7px;
   background: color-mix(in srgb, var(--site-panel) 86%, transparent);
-  color: #d4932c;
+  color: var(--site-accent);
   font-size: 15px;
   font-weight: 700;
   line-height: 1;
@@ -996,10 +968,7 @@
   padding: 8px;
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
-  background: linear-gradient(180deg, var(--site-panel-soft), var(--site-bg));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.82),
-    0 16px 38px rgba(34, 39, 36, 0.12);
+  background: var(--site-panel);
 }
 
 /* Homepage board slot: hug the widget (was stretched to the 600px center track,
@@ -1124,7 +1093,6 @@
   --cg-w: var(--showcase-widget-size);
   border: none;
   background: transparent;
-  box-shadow: 0 12px 26px rgba(43, 49, 45, 0.14);
 }
 
 /* Chessground floors the inner container width to a multiple of 8 physical
