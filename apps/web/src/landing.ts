@@ -621,17 +621,13 @@ function buildLandingStage(
   const section = document.createElement('section');
   section.className = 'landing-demo';
 
-  // ── News column (grid-area: news, top-left): chat sits at the top of the left
-  // rail when enabled. During local dev, mock chat data paints here so the widget
-  // can be reviewed without flipping the server flag or seeding a database. ──
+  // ── News column (grid-area: news, top-left): the News feed leads the left rail
+  // above the fold (fresh releases/announcements — a live-looking surface, the
+  // lishogi pattern). Chat moved down to the lower strip (it reads "Quiet right
+  // now" most of the time and doesn't earn prime real estate). ──
   const newsColumn = document.createElement('div');
   newsColumn.className = 'landing-news-column';
-  newsColumn.append(
-    buildLandingChat({
-      hydrate: !opts.skipLiveWidgets,
-      mode: import.meta.env.DEV ? 'mock' : 'live',
-    }),
-  );
+  newsColumn.append(buildLandingAnnouncements(locale));
 
   // ── Left viewer column (grid-area: viewer, row 2): the cycling showcase board,
   // top-aligned with the article row across the gutter (beneath the news column). The
@@ -677,11 +673,17 @@ function buildLandingStage(
   // cards — the second half of the feed block the boards bottom-align to.
   centerBelow.append(buildHomeSupportRow(locale));
 
-  // ── Lower strip (grid-area: lower): lila-style paired columns, News feed on the
-  // left and active Forum topics in the tournament-widget slot on the right. ──
+  // ── Lower strip (grid-area: lower): lila-style paired columns, global Chat on
+  // the left (moved down from the top-left rail — community chatter, not prime
+  // real estate) and active Forum topics on the right. ──
   const lowerStrip = document.createElement('div');
   lowerStrip.className = 'landing-lower-strip';
-  lowerStrip.append(buildLandingAnnouncements(locale));
+  lowerStrip.append(
+    buildLandingChat({
+      hydrate: !opts.skipLiveWidgets,
+      mode: import.meta.env.DEV ? 'mock' : 'live',
+    }),
+  );
   lowerStrip.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
 
   const communityStrip = buildLandingCommunityWidgets({ hydrate: !opts.skipLiveWidgets });

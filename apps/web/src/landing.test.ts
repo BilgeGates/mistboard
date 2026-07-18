@@ -108,6 +108,20 @@ describe('landing shell', () => {
     expect(demo?.querySelector('.landing-viewer-column .landing-board-column')).not.toBeNull();
   });
 
+  it('leads the top-left rail with News and demotes chat to the lower strip', () => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = renderLandingShellForPrerender();
+
+    const newsColumn = wrap.querySelector('.landing-news-column');
+    const lowerStrip = wrap.querySelector('.landing-lower-strip');
+    // The News feed leads the prime top-left rail; chat no longer sits there.
+    expect(newsColumn?.querySelector('.landing-announcements')).not.toBeNull();
+    expect(newsColumn?.querySelector('.landing-chat-mount')).toBeNull();
+    // Chat moved down into the lower strip alongside the forum.
+    expect(lowerStrip?.querySelector('.landing-chat-mount')).not.toBeNull();
+    expect(lowerStrip?.querySelector('.landing-announcements')).toBeNull();
+  });
+
   it('links only the About Mistboard tagline tail', () => {
     const wrap = document.createElement('div');
     wrap.innerHTML = renderLandingShellForPrerender();
