@@ -1,5 +1,9 @@
 /* Landing play/setup/lobby */
 
+/* Flat lishogi-style start buttons: a tinted action surface with a hairline
+   border (no metal gradient, no drop-shadow) that fills solid accent-green on
+   hover. Shares the support/store cards' flat family so the right rail reads as
+   one set of controls. */
 .landing-play-action {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr);
@@ -7,13 +11,10 @@
   gap: 14px;
   width: 100%;
   min-height: 58px;
-  border: 1px solid color-mix(in srgb, var(--site-border) 72%, transparent);
-  border-radius: 8px;
-  background: linear-gradient(to bottom, var(--site-metal-top-hover), var(--site-metal-bottom));
-  color: color-mix(in srgb, var(--site-text) 88%, black);
-  box-shadow:
-    0 2px 8px rgba(27, 31, 27, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel-soft);
+  color: var(--site-text);
   cursor: pointer;
   font-family:
     "Noto Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -24,36 +25,22 @@
   text-align: left;
   text-decoration: none;
   transition:
-    background 75ms ease,
-    border-color 75ms ease,
-    color 75ms ease,
-    box-shadow 75ms ease;
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
 }
 
 .landing-play-action:hover:not(:disabled),
 .landing-play-action:focus-visible {
-  border-color: color-mix(in srgb, var(--site-border) 80%, #ffffff 20%);
-  background: linear-gradient(
-    to bottom,
-    #ffffff,
-    color-mix(in srgb, var(--site-metal-top) 86%, #ffffff 14%)
-  );
-  box-shadow:
-    0 3px 10px rgba(27, 31, 27, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+  border-color: var(--site-accent);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
   outline: none;
 }
 
 .landing-play-action:hover:not(:disabled) .landing-play-icon,
 .landing-play-action:focus-visible .landing-play-icon {
-  color: #d65f2e;
-}
-
-/* The engine action remains first, but the Lichess-like tile treatment is neutral. */
-.landing-play-action-primary,
-.landing-play-action-primary:hover:not(:disabled),
-.landing-play-action-primary:focus-visible {
-  color: color-mix(in srgb, var(--site-text) 88%, black);
+  color: var(--site-on-accent);
 }
 
 .landing-play-action:disabled {
@@ -91,40 +78,11 @@
   height: 28px;
 }
 
-:root[data-effective-theme="dark"] .landing-play-action {
-  background: linear-gradient(to bottom, var(--site-metal-top-hover), var(--site-metal-bottom));
-  color: var(--site-heading);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-:root[data-effective-theme="dark"] .landing-play-action:hover:not(:disabled),
-:root[data-effective-theme="dark"] .landing-play-action:focus-visible {
-  border-color: color-mix(in srgb, var(--site-border) 58%, #ffffff 42%);
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--site-metal-top-hover) 82%, #ffffff 18%),
-    color-mix(in srgb, var(--site-metal-top) 86%, #ffffff 14%)
-  );
-  box-shadow:
-    0 3px 10px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-:root[data-effective-theme="dark"] .landing-play-action-primary,
-:root[data-effective-theme="dark"] .landing-play-action-primary:hover:not(:disabled),
-:root[data-effective-theme="dark"] .landing-play-action-primary:focus-visible {
-  color: var(--site-heading);
-}
-
+/* Dark theme inherits the same token-driven flat treatment; only the panel's
+   own spacing differs. */
 :root[data-effective-theme="dark"] .landing-play-panel {
   gap: 10px;
   background: transparent;
-}
-
-:root[data-effective-theme="dark"] .landing-play-panel .landing-play-action {
-  border-radius: 8px;
 }
 
 /* Pairing CTAs stack: play tiles + activity box, aligned with the lobby panel. */
@@ -994,7 +952,7 @@
   display: block;
   width: 30px;
   height: 30px;
-  color: #b6b6b6;
+  color: var(--site-accent);
   transition: color 120ms ease;
 }
 
