@@ -92,15 +92,12 @@ describe('landing announcements', () => {
     expect(hrefs).toContain('/?play=computer');
   });
 
-  it('links the feed tail to /feed', () => {
-    const more =
-      buildLandingAnnouncements().querySelector<HTMLAnchorElement>('a.landing-news-all-link');
-    const marker = buildLandingAnnouncements().querySelector<HTMLElement>(
-      '.landing-news-marker-all',
-    );
-    expect(more?.getAttribute('href')).toBe('/feed');
+  it('links the feed header to /feed', () => {
+    const panel = buildLandingAnnouncements();
+    const top = panel.querySelector<HTMLAnchorElement>('a.site-box-top');
+    const more = panel.querySelector<HTMLElement>('.site-box-more');
+    expect(top?.getAttribute('href')).toBe('/feed');
     expect(more?.textContent).toBe('All updates »');
-    expect(marker?.textContent).toBe('☆');
   });
 
   it('marks feed rows by supported post type and renders icon markers', () => {
@@ -118,7 +115,7 @@ describe('landing announcements', () => {
 
     const landing = buildLandingAnnouncements('zh-Hant');
     const firstRow = landing.querySelector<HTMLAnchorElement>('a.landing-news-link');
-    const more = landing.querySelector<HTMLAnchorElement>('a.landing-news-all-link');
+    const more = landing.querySelector<HTMLElement>('.site-box-more');
     const news = buildNewsPage('zh-Hant');
 
     expect(landing.getAttribute('aria-label')).toBe('新聞');
