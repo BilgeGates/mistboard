@@ -28,8 +28,8 @@
   overflow: hidden;
 }
 .study-actions__chapter--active {
-  border-color: var(--c-accent, #3893e8);
-  background: color-mix(in srgb, var(--c-accent, #3893e8) 14%, transparent);
+  border-color: var(--site-accent);
+  background: color-mix(in srgb, var(--site-accent) 14%, transparent);
 }
 
 .study-actions__chapter-label {
@@ -95,8 +95,8 @@
   cursor: pointer;
 }
 .study-actions__vis--active {
-  background: var(--c-accent, #3893e8);
-  border-color: var(--c-accent, #3893e8);
+  background: var(--site-accent);
+  border-color: var(--site-accent);
   color: #fff;
 }
 
@@ -139,7 +139,7 @@
 }
 .study-actions__name:focus {
   outline: none;
-  border-color: var(--c-accent, #3893e8);
+  border-color: var(--site-accent);
 }
 
 .study-actions__status {

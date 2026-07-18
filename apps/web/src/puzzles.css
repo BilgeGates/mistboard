@@ -21,15 +21,6 @@
   background: var(--site-page-gradient);
 }
 
-:root:not([data-effective-theme="dark"]) .puzzles-shell {
-  /* Keep the lichess-style blue puzzle actions local to the puzzle surface.
-     Page-level overrides leak into the shared profile and settings menus. */
-  --site-accent: hsl(209, 77%, 48%);
-  --site-accent-strong: hsl(209, 77%, 40%);
-  --site-accent-soft: hsl(209, 77%, 94%);
-  --site-link: hsl(209, 77%, 48%);
-}
-
 .puzzles-shell {
   --puzzle-nav-height: 53px;
   --puzzle-page-height: calc(100dvh - var(--puzzle-nav-height));

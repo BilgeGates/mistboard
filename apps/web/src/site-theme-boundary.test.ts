@@ -21,7 +21,10 @@ describe('site theme boundaries', () => {
 
     expect(siteAccent(window, document.body)).toBe('');
     expect(siteAccent(window, nav!)).toBe('hsl(165, 56%, 28%)');
-    expect(siteAccent(window, puzzles!)).toBe('hsl(209, 77%, 48%)');
+    // Mono-green accent: the puzzle surface no longer overrides --site-accent
+    // (the old blue island was retired), so it carries no route-scoped value and
+    // inherits the shared brand green like everything else.
+    expect(siteAccent(window, puzzles!)).toBe('');
   });
 });
 

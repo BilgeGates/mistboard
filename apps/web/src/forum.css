@@ -1222,10 +1222,10 @@ a.forum-post-author-name:focus-visible {
   --forum-heading: hsl(0, 0%, 30%);
   --forum-text: hsl(0, 0%, 33%);
   --forum-muted: hsl(0, 0%, 47%);
-  --forum-link: hsl(209, 77%, 46%);
-  --forum-link-hover: hsl(209, 77%, 38%);
-  --forum-create: hsl(88, 63%, 37%);
-  --forum-create-hover: hsl(88, 63%, 30%);
+  --forum-link: hsl(165, 58%, 32%);
+  --forum-link-hover: hsl(165, 64%, 25%);
+  --forum-create: hsl(165, 56%, 32%);
+  --forum-create-hover: hsl(165, 60%, 25%);
   --forum-etiquette-rule: hsl(38, 58%, 64%);
   --forum-shadow: rgba(0, 0, 0, 0.12);
   --forum-input-bg: hsl(37, 12%, 97%);
@@ -1235,7 +1235,7 @@ a.forum-post-author-name:focus-visible {
   --site-bg: var(--forum-page-bg);
   --site-border: var(--forum-border);
   --site-border-soft: var(--forum-border-soft);
-  --site-focus: rgba(54, 146, 231, 0.26);
+  --site-focus: hsla(165, 56%, 40%, 0.26);
   --site-heading: var(--forum-heading);
   --site-link: var(--forum-link);
   --site-muted: var(--forum-muted);
@@ -1276,15 +1276,15 @@ a.forum-post-author-name:focus-visible {
   --forum-heading: #bebeb9;
   --forum-text: #b5b5b0;
   --forum-muted: #979793;
-  --forum-link: #3692e7;
-  --forum-link-hover: #5aa8f2;
-  --forum-create: hsl(88, 52%, 56%);
-  --forum-create-hover: hsl(88, 52%, 66%);
+  --forum-link: hsl(165, 48%, 55%);
+  --forum-link-hover: hsl(165, 54%, 64%);
+  --forum-create: hsl(165, 46%, 52%);
+  --forum-create-hover: hsl(165, 50%, 60%);
   --forum-etiquette-rule: hsl(38, 42%, 46%);
   --forum-shadow: rgba(0, 0, 0, 0.28);
   --forum-input-bg: #211f1c;
   --forum-input-border: #45413b;
-  --site-focus: rgba(54, 146, 231, 0.26);
+  --site-focus: hsla(165, 56%, 40%, 0.26);
 }
 
 .forum-route .site-nav {

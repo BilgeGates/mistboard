@@ -100,7 +100,7 @@
   padding: 12px 24px;
   border: none;
   border-radius: 6px;
-  background: var(--site-accent, #3893e8);
+  background: var(--site-accent, hsl(165, 56%, 32%));
   color: #fff;
   font: inherit;
   font-weight: 700;
