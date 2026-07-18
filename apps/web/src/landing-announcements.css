@@ -1,5 +1,6 @@
-/* Lila-style lower News feed: a boxed vertical timeline with compact narrative
-   entries. */
+/* Lila-style lower News feed: a shared site-box header ("News" + "All updates »")
+   over a boxed vertical timeline with compact narrative entries. The header is
+   pinned; only the timeline body scrolls. */
 .landing-announcements {
   --landing-feed-accent: var(--site-accent);
   --landing-feed-content-x: 86px;
@@ -10,37 +11,45 @@
   --landing-feed-rail-x: 44px;
 
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   height: var(--landing-lower-widget-height, 20em);
-  padding: 18px 22px 18px 0;
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
   background: var(--site-panel);
-  overflow: hidden auto;
+  overflow: hidden;
   min-width: 0;
+}
+
+.landing-news-scroll {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  padding: 18px 22px 18px 0;
+  overflow: hidden auto;
   scrollbar-color: transparent transparent;
   scrollbar-width: thin;
 }
 
-.landing-announcements:hover {
+.landing-news-scroll:hover {
   scrollbar-color: color-mix(in srgb, var(--site-muted) 46%, transparent) transparent;
 }
 
-.landing-announcements::-webkit-scrollbar {
+.landing-news-scroll::-webkit-scrollbar {
   width: 10px;
 }
 
-.landing-announcements::-webkit-scrollbar-track {
+.landing-news-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.landing-announcements::-webkit-scrollbar-thumb {
+.landing-news-scroll::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
   background-clip: content-box;
   background-color: transparent;
 }
 
-.landing-announcements:hover::-webkit-scrollbar-thumb {
+.landing-news-scroll:hover::-webkit-scrollbar-thumb {
   background-color: color-mix(in srgb, var(--site-muted) 46%, transparent);
 }
 
@@ -110,16 +119,6 @@
   height: 22px;
 }
 
-.landing-news-marker-all {
-  border: 3px solid var(--landing-feed-accent);
-  background: var(--landing-feed-accent);
-  color: #ffffff;
-  font-size: 27px;
-  font-weight: 500;
-  line-height: 1;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
-}
-
 .landing-news-content {
   grid-column: 2;
   min-width: 0;
@@ -150,14 +149,7 @@
 }
 
 .landing-news-link:hover,
-.landing-news-link:focus-visible,
-.landing-news-all-link:hover,
-.landing-news-all-link:focus-visible {
+.landing-news-link:focus-visible {
   text-decoration: underline;
   outline: none;
-}
-
-.landing-news-update-all {
-  margin-top: 18px;
-  align-items: center;
 }

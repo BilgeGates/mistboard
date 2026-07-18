@@ -1,3 +1,4 @@
+import './site-box.css';
 import './landing-announcements.css';
 import { type Announcement, announcements } from './announcements.js';
 import { t } from './i18n/catalog.js';
@@ -39,6 +40,20 @@ export function buildLandingAnnouncements(locale: Locale = currentLocale()): HTM
   const entries = announcements();
   if (entries.length === 0) return panel;
 
+  // Shared site-box header ("News" + "All updates »") so the News box matches
+  // the forum/players boxes beside it in the lower strip. The header's more-link
+  // replaces the old trailing "☆ All updates" timeline row, which was redundant.
+  const top = document.createElement('a');
+  top.className = 'site-box-top';
+  top.href = localizedHref('/feed', locale);
+  const title = document.createElement('h2');
+  title.className = 'site-box-title';
+  title.textContent = t('news.heading', {}, locale);
+  const more = document.createElement('span');
+  more.className = 'site-box-more';
+  more.textContent = t('news.allUpdates', {}, locale);
+  top.append(title, more);
+
   const ordered = entries
     .filter((entry) => rulesHrefPublicSurfaceEnabled(entry.href))
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -47,8 +62,13 @@ export function buildLandingAnnouncements(locale: Locale = currentLocale()): HTM
   for (const entry of ordered.slice(0, MAX_FEED_ROWS)) {
     updates.append(renderFeedEntry(entry, locale));
   }
-  updates.append(renderAllUpdates(locale));
-  panel.append(updates);
+
+  // The timeline scrolls independently below the pinned header.
+  const scroll = document.createElement('div');
+  scroll.className = 'landing-news-scroll';
+  scroll.append(updates);
+
+  panel.append(top, scroll);
 
   return panel;
 }
@@ -96,21 +116,6 @@ function renderFeedEntry(entry: Announcement, locale: Locale): HTMLElement {
   }
 
   row.append(marker, content);
-  return row;
-}
-
-function renderAllUpdates(locale: Locale): HTMLElement {
-  const row = document.createElement('article');
-  row.className = 'landing-news-update landing-news-update-all';
-  const marker = document.createElement('span');
-  marker.className = 'landing-news-marker landing-news-marker-all';
-  marker.setAttribute('aria-hidden', 'true');
-  marker.textContent = '☆';
-  const link = document.createElement('a');
-  link.className = 'landing-news-date landing-news-all-link';
-  link.href = localizedHref('/feed', locale);
-  link.textContent = t('news.allUpdates', {}, locale);
-  row.append(marker, link);
   return row;
 }
 
