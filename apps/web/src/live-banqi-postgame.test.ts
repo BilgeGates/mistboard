@@ -63,8 +63,17 @@ describe('Banqi postgame page', () => {
     // Single clean left rail (meta card + spectator room) — no action buttons.
     expect(root.textContent).toContain('Spectator room');
     expect(root.textContent).toContain('Flip Xiangqi');
-    expect(root.textContent).toContain('Red wins');
+    expect(root.textContent).toContain('Black wins');
     expect(root.querySelector('.game-meta-card')).not.toBeNull();
+    const playerRows = root.querySelectorAll('.game-meta-card__player');
+    expect(playerRows[0]?.textContent).toContain('MistyBanqi');
+    expect(playerRows[0]?.querySelector('.game-meta-card__disc')?.classList).toContain(
+      'game-meta-card__disc--dark',
+    );
+    expect(playerRows[1]?.textContent).toContain('Guest');
+    expect(playerRows[1]?.querySelector('.game-meta-card__disc')?.classList).toContain(
+      'game-meta-card__disc--red',
+    );
     expect(root.textContent).not.toContain('Play again');
     // Exactly one board (banqi is symmetric — no per-seat split). Its presence
     // proves the deal reconstructed from history.revealed and the tree replayed.
@@ -118,6 +127,49 @@ describe('Banqi postgame page', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
     expect(nav('Next move')?.disabled).toBe(true);
   });
+
+  it('attributes first-mover analysis and move time to the opening flip’s black ink', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/analysis')) {
+        return jsonResponse({
+          engineId: 'test',
+          depth: 1,
+          plies: [
+            { ply: 0, cp: 0, mate: null, best: null },
+            { ply: 1, cp: 100, mate: null, best: null },
+          ],
+          chancePlies: [1],
+        });
+      }
+      if (url.endsWith('/decisions')) {
+        return jsonResponse({ engineId: 'test', depth: 1, decisions: [] });
+      }
+      return jsonResponse(postgameFixture());
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const root = document.createElement('div');
+
+    mountBanqiPostgame(root, 'bq_postgame');
+    await flushPromises();
+    await flushPromises();
+
+    const analysisPlayers = root.querySelectorAll('.analysis-summary__player');
+    expect(analysisPlayers[0]?.textContent).toContain('MistyBanqi');
+    expect(analysisPlayers[0]?.querySelector('.analysis-summary__dot')?.classList).toContain(
+      'analysis-summary__dot--black',
+    );
+    expect(analysisPlayers[1]?.textContent).toContain('Guest');
+    expect(analysisPlayers[1]?.querySelector('.analysis-summary__dot')?.classList).toContain(
+      'analysis-summary__dot--red',
+    );
+    expect(root.querySelector('.advantage-chart__zone')?.classList).toContain(
+      'advantage-chart__zone--black',
+    );
+    expect(root.querySelector('.review-move-times__bar')?.classList).toContain(
+      'review-move-times__bar--black',
+    );
+  });
 });
 
 function postgameFixture() {
@@ -126,7 +178,10 @@ function postgameFixture() {
   // standard fixed arrangement, the opening move is the a1 flip (a real banqi game
   // always opens with a flip), then black resigns. Generating from the kernel keeps
   // the fixture legal — the tree replays through the same isBanqiLegalMove gate.
-  const initial = createInitialBanqiState('bq_postgame', STANDARD_BANQI_DEAL);
+  const deal = [...STANDARD_BANQI_DEAL];
+  const blackIndex = deal.findIndex((piece) => piece.color === 'black');
+  [deal[0], deal[blackIndex]] = [deal[blackIndex]!, deal[0]!];
+  const initial = createInitialBanqiState('bq_postgame', deal);
   const flip: BanqiMove = { from: 'a1', to: 'a1' };
   const afterFlip = applyBanqiMove(initial, flip);
   return {
@@ -143,6 +198,10 @@ function postgameFixture() {
       visibility: 'private',
       initialMs: 180000,
       incrementMs: 2000,
+      players: [
+        { color: 'red', name: 'MistyBanqi', rating: null, kind: 'engine' },
+        { color: 'black', name: 'Guest', rating: null, kind: 'guest' },
+      ],
     },
     state: {
       status: { type: 'finished', winner: 'red', reason: 'resignation' },
@@ -150,6 +209,7 @@ function postgameFixture() {
       timeControl: { initialMs: 180000, incrementMs: 2000 },
     },
     timeline: [
+      { type: 'room-created', at: 0 },
       { type: 'move-played', at: 4, color: 'red', move: flip, ply: 1 },
       { type: 'seat-resigned', at: 5, color: 'black', winner: 'red' },
     ],

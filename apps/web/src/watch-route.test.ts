@@ -343,6 +343,50 @@ describe('renderWatchQueue', () => {
     ]);
     expect(root.querySelectorAll('.watch-queue-preview')).toHaveLength(2);
     expect(root.querySelector('[data-room-id="newest"]')).toBeNull();
+    expect(root.querySelector('[data-room-id="previous"] a')?.getAttribute('href')).toBe(
+      '/game/previous',
+    );
+  });
+
+  it('links tenant previews to their native review pages', () => {
+    const banqi: FeaturedGame = {
+      blackName: null,
+      corpusId: null,
+      mode: 'pve',
+      plyCount: 160,
+      result: 'draw',
+      roomId: 'bq_review',
+      termination: 'progress-clock',
+      variant: 'banqi',
+      whiteName: null,
+    };
+    const root = document.createElement('section');
+
+    renderWatchQueue(
+      root,
+      {
+        activeChannel: 'banqi',
+        channels: [
+          {
+            family: 'xiangqi',
+            gameSpecIds: ['banqi'],
+            id: 'banqi',
+            label: 'Flip Xiangqi',
+            sealedCount: 0,
+            unlockedCount: 2,
+          },
+        ],
+        now: '2026-07-17T00:00:00.000Z',
+        sealedCount: 0,
+        unlockLimit: 64,
+        unlocked: [banqi, { ...banqi, roomId: 'bq_active' }],
+      },
+      'bq_active',
+    );
+
+    const reviewLink = root.querySelector('[data-room-id="bq_review"] a');
+    expect(reviewLink?.getAttribute('href')).toBe('/banqi/game/bq_review');
+    expect(reviewLink?.getAttribute('aria-label')).toContain('Review');
   });
 
   it('empties rather than mirroring the board when it is the channel’s only game', () => {

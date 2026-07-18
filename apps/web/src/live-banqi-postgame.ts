@@ -152,13 +152,21 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
     red: gamePlayers.find((p) => p.color === 'red')?.name,
     black: gamePlayers.find((p) => p.color === 'black')?.name,
   };
+  const firstColor = postgame.view.firstColor;
+  const seatColors = firstColor
+    ? ({
+        red: firstColor,
+        black: firstColor === 'red' ? 'black' : 'red',
+      } as const)
+    : undefined;
 
-  const status = `${banqiResultLabel(postgame.game.result, postgame.view.firstColor)} by ${labelize(postgame.game.termination)}`;
+  const status = `${banqiResultLabel(postgame.game.result, firstColor)} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
     markerId: 'banqi',
     variantName: 'Flip Xiangqi',
     game: postgame.game,
     status,
+    seatColors,
   });
 
   root.replaceChildren(buildNav());
@@ -172,6 +180,7 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
     moves,
     moveTimes: hasMoveTimes ? moveTimes : undefined,
     players: playerNames,
+    seatColors,
     showCrosstable: true,
     // Server-side MistyBanqi whole-game analysis, DB-cached: an already-analysed game
     // loads straight from cache on open (a GET that never computes). Requesting a fresh

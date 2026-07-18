@@ -16,7 +16,7 @@ import {
   sourceLabel,
   variantDisplayLabel,
 } from './game-display.js';
-import { gameMetaForGame, timeControlLabelForGame } from './game-meta.js';
+import { gameMetaForGame, reviewUrlForGame, timeControlLabelForGame } from './game-meta.js';
 import { initLiveSound, playSound } from './live-sound.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { renderWatchReplaySkeleton } from './replay-skeleton.js';
@@ -1215,8 +1215,8 @@ function watchQueueGames(feed: WatchFeed, activeRoomId: string | null): Featured
 }
 
 // The newest completed games for the active channel, rendered as real final
-// boards. Each preview remains an `a.watch-queue-row`, so selecting one still
-// promotes it into the main replay without a full navigation.
+// boards. Each preview links to the finished game's variant-aware review page.
+// Corpus samples have no review page, so those keep the in-place TV fallback.
 export function renderWatchQueue(
   root: HTMLElement,
   feed: WatchFeed | null,
@@ -1263,9 +1263,15 @@ export function renderWatchQueue(
 
     const row = document.createElement('a');
     row.className = 'watch-queue-row';
-    row.href = watchQueueGameHref(feed, game.roomId);
+    const reviewUrl = reviewUrlForGame(game);
+    row.href = reviewUrl ?? watchQueueGameHref(feed, game.roomId);
 
-    row.setAttribute('aria-label', `Watch ${watchQueueMatchupLabel(game)}`);
+    row.setAttribute(
+      'aria-label',
+      reviewUrl
+        ? `Review ${watchQueueMatchupLabel(game)}`
+        : `Watch ${watchQueueMatchupLabel(game)}`,
+    );
     const previewRoot = document.createElement('div');
     previewRoot.className = 'watch-queue-preview';
     row.append(previewRoot);
