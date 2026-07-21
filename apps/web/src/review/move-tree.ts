@@ -28,6 +28,9 @@ export interface MoveTreeAnnotation {
   /** Full-width advice row under the move (lichess "Blunder. h3-e3 was best."),
    *  rendered before the move's variation lines. Mainline only. */
   comment?: string;
+  /** The node carries authored commentary shown in the under-board panel; the
+   *  move cell renders a small bubble marker instead of the text. */
+  commentMarker?: boolean;
   /** Colour hook for the comment row → .move-tree__comment--<class>. */
   commentClass?: string;
 }
@@ -168,6 +171,17 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
     // the position you got, not a counterfactual. (Keying this off luck-badge presence instead made
     // eval visibility track auth state, since the decomposition only runs for signed-in viewers.)
     if (ann?.eval) evalEl.textContent = ann.eval;
+    // Authored-comment marker: a small bubble; the text itself lives in the
+    // under-board comment panel for the node the cursor is on.
+    if (ann?.commentMarker) {
+      const marker = document.createElement('span');
+      marker.className = 'review-move-list__comment-marker';
+      marker.setAttribute('aria-label', 'Has a comment');
+      marker.innerHTML =
+        '<svg viewBox="0 0 14 14" width="10" height="10" aria-hidden="true" focusable="false">' +
+        '<path d="M2 2h10a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H7l-3 3v-3H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" fill="currentColor"/></svg>';
+      button.append(marker);
+    }
     button.addEventListener('click', () => opts.onJump(pathOf(node)));
     if (opts.onPromote || opts.onDelete) {
       button.addEventListener('contextmenu', (event) => {

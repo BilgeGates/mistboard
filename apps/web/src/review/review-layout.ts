@@ -429,6 +429,8 @@ export function installReviewKeyboard(
     toStart(): void;
     toEnd(): void;
     flip(): void;
+    /** Optional: dismiss a transient chooser (the tree surface's variation picker). */
+    escape?(): void;
   },
   /** Optional abort signal to remove the listener (e.g. when a surface re-mounts). */
   signal?: AbortSignal,
@@ -462,6 +464,9 @@ export function installReviewKeyboard(
       } else if (event.key === 'f' || event.key === 'F') {
         event.preventDefault();
         handlers.flip();
+      } else if (event.key === 'Escape' && handlers.escape) {
+        event.preventDefault();
+        handlers.escape();
       }
     },
     { signal },

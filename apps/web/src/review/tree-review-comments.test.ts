@@ -1,7 +1,7 @@
-// Authored study comments must be visible to VIEWERS, not just in the owner's
-// editor box: they render as inline move-tree comment rows, and the root
-// comment renders as the intro row above move 1. (Before this, a public study's
-// annotations were invisible to everyone but the owner.)
+// Authored study comments must reach VIEWERS, not just the owner's editor box:
+// the current node's text renders in the under-board comment panel, commented
+// moves carry a bubble marker in the move list, and right-arrow at a branch
+// point opens the variation picker (up/down select, right descends).
 import { describe, expect, it } from 'vitest';
 import type { SerializedTree } from './tree-serialize.js';
 import { mountXiangqiReview } from './xiangqi-review.js';
@@ -25,29 +25,102 @@ const ANNOTATED_TREE: SerializedTree = {
   },
 };
 
+function mount(): HTMLElement {
+  const root = document.createElement('div');
+  document.body.append(root);
+  mountXiangqiReview(root, {
+    ariaLabel: 'Study',
+    title: 'Study',
+    summary: '',
+    moves: [],
+    initialTree: ANNOTATED_TREE,
+    analysis: null,
+  });
+  return root;
+}
+
+function key(name: string): void {
+  document.body.dispatchEvent(
+    new KeyboardEvent('keydown', { key: name, bubbles: true, cancelable: true }),
+  );
+}
+
 describe('viewer-visible study comments', () => {
-  it('renders root and node comments as inline rows without annotationEditing', () => {
-    const root = document.createElement('div');
-    document.body.append(root);
-    mountXiangqiReview(root, {
-      ariaLabel: 'Study',
-      title: 'Study',
-      summary: '',
-      moves: [],
-      initialTree: ANNOTATED_TREE,
-      analysis: null,
-    });
-    const rows = [...root.querySelectorAll('.move-tree__comment--user')];
-    expect(rows.map((r) => r.textContent)).toEqual([
-      'The intro: a hand-set composition.',
-      'The cannon centralises.',
-    ]);
-    // A comment on a VARIATION node flows inline inside its line.
-    const inline = root.querySelector('.move-tree__variation .move-tree__inline-comment--user');
-    expect(inline?.textContent).toBe('The other cannon is passive.');
-    // The intro is the first row in the list, above move 1.
-    const first = root.querySelector('.review-move-list__rows')?.children[0];
-    expect(first?.textContent).toBe('The intro: a hand-set composition.');
+  it('marks commented moves and shows the current node text under the board', () => {
+    const root = mount();
+    // Two commented MOVES carry bubble markers (the root has no move cell).
+    expect(root.querySelectorAll('.review-move-list__comment-marker')).toHaveLength(2);
+    // No inline comment text in the list itself.
+    expect(root.querySelector('.move-tree__comment--user')).toBeNull();
+
+    // Mount lands on the mainline tip (h8e8, uncommented): panel hidden.
+    const panel = root.querySelector('.review-comment-panel');
+    expect(panel?.classList.contains('review-comment-panel--empty')).toBe(true);
+
+    // Click the commented move: its text appears in the panel.
+    const cell = [...root.querySelectorAll('.review-move-list__move')].find((c) =>
+      c.textContent?.includes('h3-e3'),
+    ) as HTMLElement;
+    cell.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(panel?.textContent).toBe('The cannon centralises.');
+    expect(panel?.classList.contains('review-comment-panel--empty')).toBe(false);
+
+    // Step back to the root: the intro shows.
+    key('ArrowLeft');
+    expect(panel?.textContent).toBe('The intro: a hand-set composition.');
+    root.remove();
+  });
+
+  it('right-arrow at a branch point opens the picker; up/down select; right descends', () => {
+    const root = mount();
+    key('Home'); // to the root (two children: h3e3 mainline, b3e3)
+    key('ArrowRight');
+    const picker = root.querySelector('.review-var-picker');
+    expect(picker).not.toBeNull();
+    const rows = [...(picker?.querySelectorAll('.review-var-picker__row') ?? [])];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.classList.contains('is-selected')).toBe(true);
+    expect(rows[0]?.textContent).toContain('main line');
+    expect(rows[1]?.textContent).toContain('The other cannon is passive.');
+
+    key('ArrowDown');
+    expect(
+      root.querySelectorAll('.review-var-picker__row')[1]?.classList.contains('is-selected'),
+    ).toBe(true);
+
+    key('ArrowRight'); // descend the selected variation
+    expect(root.querySelector('.review-var-picker')).toBeNull();
+    expect(root.querySelector('.review-move-list__move--current')?.textContent).toContain('b3-e3');
+    expect(root.querySelector('.review-comment-panel')?.textContent).toBe(
+      'The other cannon is passive.',
+    );
+    root.remove();
+  });
+
+  it('left arrow and escape cancel the picker without moving', () => {
+    const root = mount();
+    key('Home');
+    key('ArrowRight');
+    expect(root.querySelector('.review-var-picker')).not.toBeNull();
+    key('ArrowLeft');
+    expect(root.querySelector('.review-var-picker')).toBeNull();
+    // Still at the root: right reopens rather than stepping.
+    key('ArrowRight');
+    expect(root.querySelector('.review-var-picker')).not.toBeNull();
+    key('Escape');
+    expect(root.querySelector('.review-var-picker')).toBeNull();
+    root.remove();
+  });
+
+  it('single-continuation nodes step forward without a picker', () => {
+    const root = mount();
+    key('Home');
+    key('ArrowRight'); // picker at the branch point
+    key('ArrowRight'); // descend mainline (h3e3, preselected)
+    expect(root.querySelector('.review-move-list__move--current')?.textContent).toContain('h3-e3');
+    key('ArrowRight'); // h3e3 has ONE child: plain step, no picker
+    expect(root.querySelector('.review-var-picker')).toBeNull();
+    expect(root.querySelector('.review-move-list__move--current')?.textContent).toContain('h8-e8');
     root.remove();
   });
 });

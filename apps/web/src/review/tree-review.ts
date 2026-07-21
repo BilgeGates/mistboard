@@ -591,6 +591,11 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // its FEN mirrors the current node, its moves box prefills with the current
   // line but never clobbers in-progress typing (see render()).
   const importPanel = config.importPanel ? createImportPanel(config.importPanel) : null;
+  // Authored comment for the CURRENT node, under the board. The move list shows
+  // only a bubble marker per commented move; navigation brings the text here.
+  const commentPanelEl = document.createElement('section');
+  commentPanelEl.className = 'review-comment-panel review-comment-panel--empty';
+  commentPanelEl.setAttribute('aria-live', 'polite');
   const analysisSummaryEl = document.createElement('div');
   // Chance-variant (jieqi) caption slot under the accuracy summary: a "Grading reveals…" placeholder
   // until the decomposition loads, then a one-line luck caption. Kept as a persistent child so
@@ -622,6 +627,9 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
           tree.annotateAt(currentPath, { comments: text.trim() ? [{ text }] : [] });
           refreshMoveTreeAnnotations();
           moveTree.setCurrent(currentPath); // the rebuild dropped the highlight
+          const trimmed = text.trim();
+          commentPanelEl.textContent = trimmed;
+          commentPanelEl.classList.toggle('review-comment-panel--empty', !trimmed);
           notifyChange();
         },
         onClearShapes: () => {
@@ -665,6 +673,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     boardCols: presentation.boardCols,
     boardMaxPx: presentation.boardMaxPx,
     underboard: composeUnderboard(
+      commentPanelEl,
       config.analysis || config.provenance || config.showCrosstable ? underboardEl : undefined,
       importPanel?.el,
     ),
@@ -679,10 +688,93 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   });
 
   function go(path: TreePath): void {
+    closeVariationPicker();
     const fromPath = currentPath;
     currentPath = path;
     render();
     animateStep(fromPath, path);
+  }
+
+  // ── Variation picker (keyboard grammar for branch points) ─────────────────
+  // Right-arrow on a node with several continuations opens a chooser over the
+  // board: up/down select (mainline preselected), right/enter descend, left or
+  // escape cancel. Mouse clicks on moves are untouched — this is arrow-key-only
+  // navigation for the tree.
+  let variationPicker: { index: number; el: HTMLElement } | null = null;
+
+  function closeVariationPicker(): void {
+    if (!variationPicker) return;
+    variationPicker.el.remove();
+    variationPicker = null;
+  }
+
+  function renderVariationPicker(): void {
+    if (!variationPicker) return;
+    const options = currentNode().children;
+    const rows = options.map((child, i) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'review-var-picker__row';
+      if (i === variationPicker!.index) row.classList.add('is-selected');
+      const label = document.createElement('span');
+      label.className = 'review-var-picker__label';
+      label.textContent = child.label;
+      row.append(label);
+      if (i === 0) {
+        const tag = document.createElement('span');
+        tag.className = 'review-var-picker__tag';
+        tag.textContent = 'main line';
+        row.append(tag);
+      }
+      const snippet = child.annotations?.comments?.[0]?.text;
+      if (snippet) {
+        const note = document.createElement('span');
+        note.className = 'review-var-picker__snippet';
+        note.textContent = snippet.length > 90 ? `${snippet.slice(0, 90)}…` : snippet;
+        row.append(note);
+      }
+      row.addEventListener('click', (event) => {
+        event.stopPropagation();
+        go(tree.pathTo(child)); // go() closes the picker
+      });
+      return row;
+    });
+    const title = document.createElement('div');
+    title.className = 'review-var-picker__title';
+    title.textContent = 'Choose a line';
+    variationPicker.el.replaceChildren(title, ...rows);
+  }
+
+  function openVariationPicker(): void {
+    if (currentNode().children.length < 2) return;
+    const el = document.createElement('div');
+    el.className = 'review-var-picker';
+    el.setAttribute('role', 'menu');
+    boardSlots[0]!.wrap.append(el);
+    variationPicker = { index: 0, el };
+    renderVariationPicker();
+  }
+
+  function stepForwardAction(): void {
+    if (variationPicker) {
+      const child = currentNode().children[variationPicker.index];
+      if (child) go(tree.pathTo(child)); // go() closes the picker
+      return;
+    }
+    const node = currentNode();
+    if (node.children.length > 1) {
+      openVariationPicker();
+      return;
+    }
+    go(tree.stepForward(currentPath));
+  }
+
+  function movePickerSelection(delta: number): boolean {
+    if (!variationPicker) return false;
+    const count = currentNode().children.length;
+    variationPicker.index = Math.min(count - 1, Math.max(0, variationPicker.index + delta));
+    renderVariationPicker();
+    return true;
   }
   // Adjacent tree steps glide (pieceAnimation pref, no-op at duration 0):
   // stepping INTO a child animates that node's move; stepping back to the
@@ -748,6 +840,11 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     }
     paintOverlays();
     annotationEditor?.setAnnotations(node.annotations);
+    // Under-board comment panel: the current node's authored text (hidden when
+    // the node carries none). The move list only marks commented moves.
+    const authoredComment = node.annotations?.comments?.[0]?.text ?? '';
+    commentPanelEl.textContent = authoredComment;
+    commentPanelEl.classList.toggle('review-comment-panel--empty', !authoredComment);
     moveTree.setCurrent(currentPath);
     controls.setBounds({ atStart: currentPath.length === 0, atEnd: node.children.length === 0 });
     // Live-refresh the Share tab's FEN + move export for the current node/line.
@@ -920,14 +1017,12 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       const prev = map.get(key);
       map.set(key, { ...prev, suffix: GLYPH_LABEL[code] ?? prev?.suffix, suffixClass: undefined });
     }
-    // Authored comments render inline in the move list for EVERY viewer (the
-    // owner also sees them in the editor box). On a node that carries both, the
-    // author's text wins over the derived engine advice; the root's comment is
-    // the study intro row above move 1.
-    const text = node.annotations?.comments?.[0]?.text;
-    if (text) {
+    // Authored comments show a small bubble marker on the move cell; the text
+    // itself renders in the under-board comment panel when the cursor reaches
+    // the node (visible to EVERY viewer, not just the owner's editor box).
+    if (node.annotations?.comments?.[0]?.text && node.parent) {
       const key = pathKey(tree.pathTo(node));
-      map.set(key, { ...map.get(key), comment: text, commentClass: 'user' });
+      map.set(key, { ...map.get(key), commentMarker: true });
     }
     for (const child of node.children) applyUserAnnotations(child, map);
   }
@@ -1049,11 +1144,26 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   }
   installReviewKeyboard(
     {
-      stepBack: () => go(tree.stepBack(currentPath)),
-      stepForward: () => go(tree.stepForward(currentPath)),
-      toStart: () => go(ROOT_PATH),
-      toEnd: () => go(tree.mainlinePath()),
+      // With the picker open, left cancels it in place; up/down move the
+      // selection instead of jumping to the ends of the game.
+      stepBack: () => {
+        if (variationPicker) {
+          closeVariationPicker();
+          return;
+        }
+        go(tree.stepBack(currentPath));
+      },
+      stepForward: () => stepForwardAction(),
+      toStart: () => {
+        if (movePickerSelection(-1)) return;
+        go(ROOT_PATH);
+      },
+      toEnd: () => {
+        if (movePickerSelection(1)) return;
+        go(tree.mainlinePath());
+      },
       flip: () => flipBoard(),
+      escape: () => closeVariationPicker(),
     },
     keyboardAbort.signal,
   );
@@ -1073,17 +1183,15 @@ function resolveBoardAspect(aspect: number | (() => number)): number {
   return typeof aspect === 'function' ? aspect() : aspect;
 }
 
-/** Stack the underboard tools panel and the FEN/import block into one region;
- *  pass through whichever exists alone; undefined when neither does. */
-function composeUnderboard(
-  panel: HTMLElement | undefined,
-  importEl: HTMLElement | undefined,
-): HTMLElement | undefined {
-  if (!importEl) return panel;
-  if (!panel) return importEl;
+/** Stack the under-board pieces (comment panel, tools panel, FEN/import block)
+ *  into one region; pass through a single element alone; undefined when none. */
+function composeUnderboard(...parts: Array<HTMLElement | undefined>): HTMLElement | undefined {
+  const present = parts.filter((el): el is HTMLElement => !!el);
+  if (present.length === 0) return undefined;
+  if (present.length === 1) return present[0];
   const stack = document.createElement('div');
   stack.className = 'review-underboard-stack';
-  stack.append(panel, importEl);
+  stack.append(...present);
   return stack;
 }
 
