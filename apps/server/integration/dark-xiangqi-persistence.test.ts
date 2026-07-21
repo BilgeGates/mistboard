@@ -245,14 +245,16 @@ if (!testDbUrl) {
         color: 'black',
         subject_type: 'guest',
         subject_id: null,
-        display_name: 'Black',
+        // Anonymous seats are named 'Guest', not a color word (which read as a
+        // side label and mislabeled the seat on watch thumbnails / reviews).
+        display_name: 'Guest',
         visibility: 'private',
       },
       {
         color: 'red',
         subject_type: 'guest',
         subject_id: null,
-        display_name: 'Red',
+        display_name: 'Guest',
         visibility: 'private',
       },
     ]);
