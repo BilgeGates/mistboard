@@ -617,6 +617,23 @@
   container-type: inline-size;
 }
 
+/* The viewer is a link to /watch?channel=top. It wraps the board as a bare,
+   full-width block so it neither frames the widget nor becomes a positioning /
+   query context: the board still sizes from .landing-board-column (100cqw) and
+   the absolute seats keep their containing block. */
+.landing-viewer-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.landing-viewer-link:focus-visible {
+  outline: 2px solid var(--site-accent);
+  outline-offset: 3px;
+  border-radius: var(--board-corner-radius);
+}
+
 .landing-board-column #landing-replay {
   /* Stacked-band board size: container width (minus the seat inset), capped for
      very tall screens. In the desktop band (min-width 1241px) the grid-line-

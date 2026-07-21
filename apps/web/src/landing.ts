@@ -578,12 +578,22 @@ function buildLandingStage(
   viewerColumn.className = 'landing-viewer-column';
   const boardColumn = document.createElement('div');
   boardColumn.className = 'landing-board-column';
+  // The viewer is a link to the Top Rated channel on Mistboard TV: /watch's Top
+  // channel follows the very same top-election game this widget shows (live,
+  // ply-synced, else frozen on the latest), so clicking through keeps watching
+  // it full-size. Wrapping the board (not just the caption) makes the whole
+  // widget the click target.
+  const viewerLink = document.createElement('a');
+  viewerLink.className = 'landing-viewer-link';
+  viewerLink.href = localizedHref('/watch?channel=top', locale);
+  viewerLink.setAttribute('aria-label', 'Watch the top game on Mistboard TV');
   const replayRoot = document.createElement('div');
   replayRoot.id = 'landing-replay';
   // Widget styling (compact board + name/clock seats) is keyed on this class,
   // shared with the dev variant sheet's cells.
   replayRoot.classList.add('showcase-widget');
-  boardColumn.append(replayRoot);
+  viewerLink.append(replayRoot);
+  boardColumn.append(viewerLink);
   // Honest "recent · 2h ago" caption: kept wired (the cycler's onGameChange still
   // updates it) but NOT mounted for now — the viewer shows only players/clock/result
   // and the board, no variant/time metadata. Re-append to restore.

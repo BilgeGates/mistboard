@@ -16,8 +16,9 @@ import { defaultWatchChannel, listWatchChannels, watchChannelForId } from './wat
 // on 2026-07-05 (xiangqi pivot): their registrations carry `watch: null`, so no
 // channel derives for them and their `?channel=` ids resolve to null. Fog Chess
 // is the only baseline VARIANT channel in a launched-flags-off environment; the
-// composition-keyed Engines channel is always on and sorts to the end of the rail.
-const BASELINE_WATCH_CHANNELS = ['dark-chess', 'engines'] as const;
+// cross-variant Top Rated channel leads the rail (the flagship default) and the
+// composition-keyed Engines channel is always on and closes the rail.
+const BASELINE_WATCH_CHANNELS = ['top', 'dark-chess', 'engines'] as const;
 
 // Retired sub-family ids that must NOT resolve to a watch channel.
 const RETIRED_WATCH_CHANNEL_IDS = [
@@ -26,17 +27,29 @@ const RETIRED_WATCH_CHANNEL_IDS = [
   'dark-mini-xiangqi',
 ] as const;
 
-test('watch channels expose Fog Chess as the default channel', () => {
+test('watch channels expose Top Rated as the default channel', () => {
   const channel = defaultWatchChannel();
-  assert.equal(channel.id, 'dark-chess');
+  assert.equal(channel.id, 'top');
+  assert.equal(channel.label, 'Top Rated');
+  // Cross-variant flagship: no fixed spec, the client dispatches a renderer per
+  // game (live-followed or completed).
+  assert.deepEqual(channel.gameSpecIds, []);
+  assert.deepEqual([...channel.modes].sort(), ['pve', 'pvp']);
+});
+
+test('Fog Chess stays a launched variant channel, just not the default', () => {
+  const channel = watchChannelForId('dark-chess');
+  assert.ok(channel);
+  assert.equal(channel.default, false);
   assert.equal(channel.label, 'Fog Chess');
   assert.deepEqual(channel.gameSpecIds, [DARK_CHESS_SPEC_ID, DARK_DRAFT960_SPEC_ID]);
   assert.deepEqual(channel.legacyVariants, ['dark-chess', 'draft960']);
 });
 
 test('watch channel lookup defaults empty input and rejects unknown channels', () => {
-  assert.equal(watchChannelForId(null)?.id, 'dark-chess');
-  assert.equal(watchChannelForId(undefined)?.id, 'dark-chess');
+  assert.equal(watchChannelForId(null)?.id, 'top');
+  assert.equal(watchChannelForId(undefined)?.id, 'top');
+  assert.equal(watchChannelForId('top')?.id, 'top');
   assert.equal(watchChannelForId('dark-chess')?.id, 'dark-chess');
   assert.equal(watchChannelForId('unknown'), null);
 });
@@ -54,8 +67,27 @@ test('watch channels expose every launched baseline variant in canonical order',
     channels.map((entry) => entry.id),
     BASELINE_WATCH_CHANNELS,
   );
-  assert.equal(channels[0]?.id, 'dark-chess');
-  assert.equal(defaultWatchChannel().id, 'dark-chess');
+  // Top Rated leads the rail and is the default landing channel.
+  assert.equal(channels[0]?.id, 'top');
+  assert.equal(defaultWatchChannel().id, 'top');
+});
+
+test('the Top Rated channel is cross-variant, human-only, deep-linkable, and leads', () => {
+  const top = watchChannelForId('top');
+  assert.ok(top, 'top channel must be enabled + reachable by deep link');
+  assert.equal(top.default, true);
+  assert.deepEqual([...top.modes].sort(), ['pve', 'pvp']);
+  // No per-channel renderer spec — the client dispatches a renderer per game.
+  assert.deepEqual([...top.gameSpecIds], []);
+  // Bounded to the union of the enabled variant channels' variants (like Engines)
+  // so its completed feed never surfaces a game the client can't render.
+  const watchableVariants = new Set(
+    listWatchChannels()
+      .filter((channel) => channel.id !== 'top' && channel.id !== 'engines')
+      .flatMap((channel) => [...channel.legacyVariants]),
+  );
+  assert.deepEqual(new Set(top.legacyVariants), watchableVariants);
+  assert.ok(top.legacyVariants.includes('dark-chess'));
 });
 
 test('variant/family channels surface human play only (pvp + pve, never eve)', () => {

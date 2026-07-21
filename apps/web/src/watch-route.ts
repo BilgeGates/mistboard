@@ -88,10 +88,24 @@ export function watchRendererKindForGame(feed: WatchFeed, roomId: string): Watch
 
 const WATCH_ACTIVE_POLL_MS = 15_000;
 const WATCH_IDLE_POLL_MS = 60_000;
+// Top Rated live-follow poll: matches the homepage viewer's cadence so both
+// surfaces advance the same live game on the same beat.
+const LIVE_TV_TOP_POLL_MS = 4_000;
 // Rail clock repaint rate. Matches the renderers' own clock ticks; the displayed mm:ss
 // only changes about once a second, but a move's whole think can drain inside a ~700ms
 // playback window, so the poll has to be finer than the digits it shows.
 const WATCH_CLOCK_TICK_MS = 100;
+
+// The featured LIVE game from /api/watch/live?channel=top (the cross-channel
+// election). Mirrors landing-tv.ts's shape; the payload is the tenant's
+// postgame-SHAPED live payload the watch renderers replay.
+type LiveFeatured = {
+  roomId: string;
+  gameSpecId: string;
+  ply: number;
+  players?: Array<{ color: string; name: string | null; isEngine: boolean }>;
+  payload?: Record<string, unknown>;
+};
 
 export function shouldPlayWatchMoveSound(previousPly: number | null, nextPly: number): boolean {
   return previousPly !== null && nextPly === previousPly + 1;
@@ -148,6 +162,40 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   // feeds its compact boards.
   const namesByRoomId: Record<string, { first: string; second: string }> = {};
   const abortController = new AbortController();
+
+  // ── Top Rated channel live-follow ──────────────────────────────────────────
+  // Only the cross-variant 'top' channel follows a LIVE game. It polls
+  // /api/watch/live?channel=top and, when a game is featured, the center board
+  // follows it ply-synced — exactly what the homepage viewer shows. With no live
+  // game the channel is an ordinary cross-variant completed-replay channel (the
+  // normal renderFeed path). This is a focused re-implementation of
+  // landing-tv.ts's live half; both share the /api/watch/live server contract,
+  // which owns all fog/hidden-identity redaction (this client only renders what
+  // the fail-closed server elects).
+  let liveActive = false;
+  let liveRoomId: string | null = null;
+  let liveShownPly = -1;
+  let liveHandle: ReplayHandle | null = null;
+  let livePayload: { roomId: string; payload: Record<string, unknown> } | null = null;
+  let livePollTimer: number | null = null;
+  const liveLoadPostgameOverride = async (
+    roomId: string,
+  ): Promise<{ ok: true; postgame: unknown } | { ok: false }> =>
+    livePayload && livePayload.roomId === roomId
+      ? { ok: true, postgame: livePayload.payload }
+      : { ok: false };
+
+  // Tear down the live board + its state without re-rendering (callers decide
+  // what replaces it). Idempotent.
+  const dropLiveBoard = (): void => {
+    liveActive = false;
+    liveRoomId = null;
+    liveShownPly = -1;
+    livePayload = null;
+    liveHandle?.destroy();
+    liveHandle = null;
+    watch.el.classList.remove('watch-live-mode');
+  };
 
   const renderQueue = (
     feed: WatchFeed | null,
@@ -404,6 +452,20 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     mergeWatchMetadata(metadataByRoomId, namesByRoomId, nextFeed);
     renderWatchChannelList(watch.channelRoot, nextFeed);
 
+    const isTopChannel = nextFeed?.activeChannel === 'top';
+    // Leaving Top tears down any live board; its poll idles (gated on the active
+    // channel below), and the completed-feed render repaints the board.
+    if (!isTopChannel && liveActive) dropLiveBoard();
+    // On Top with a live game in progress the live board OWNS the center slot:
+    // refresh the rail + "Previously on" queue (completed games only) but leave
+    // the live board and its meta untouched.
+    if (isTopChannel && liveActive && nextFeed) {
+      renderQueue(nextFeed, null, previousRoomIds);
+      currentFeed = nextFeed;
+      if (options.urlMode) syncWatchUrl(options.urlMode, nextFeed.activeChannel, null);
+      return;
+    }
+
     if (!nextFeed || nextFeed.unlocked.length === 0) {
       replayHandle?.destroy();
       replayHandle = null;
@@ -511,6 +573,9 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
 
   const switchWatchGame = async (roomId: string, urlMode: 'push' | 'replace'): Promise<void> => {
     if (!currentFeed?.unlocked.some((game) => game.roomId === roomId)) return;
+    // Deliberately picking a completed game on Top hands the board back from the
+    // live feed to a VOD; the live poll may re-air a live game on a later tick.
+    if (liveActive) dropLiveBoard();
     if (roomId === activeRoomId) {
       syncWatchUrl(urlMode, currentFeed.activeChannel, activeRoomId);
       return;
@@ -546,15 +611,159 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     if (roomId) void switchWatchGame(roomId, 'replace');
   };
 
+  // ── Top Rated live-follow: poll the cross-channel election and drive the board ──
+  const registerLiveNames = (featured: LiveFeatured): void => {
+    const players = featured.players ?? [];
+    if (players.length < 2 || namesByRoomId[featured.roomId]) return;
+    const first = players.find((p) => p.color === 'red' || p.color === 'white') ?? players[0]!;
+    const second = players.find((p) => p !== first) ?? players[1]!;
+    namesByRoomId[featured.roomId] = {
+      first: first.name ?? 'Anonymous',
+      second: second.name ?? 'Anonymous',
+    };
+  };
+
+  // The featured live game's seats as meta players, first mover (red/white) first
+  // so the rows seat like every other watch board. Live payloads carry no
+  // ratings, so the rows are name + BOT only.
+  const liveMetaPlayers = (featured: LiveFeatured): GameMetaPlayer[] => {
+    const players = featured.players ?? [];
+    const first = players.find((p) => p.color === 'red' || p.color === 'white') ?? players[0];
+    const ordered = first ? [first, ...players.filter((p) => p !== first)] : players;
+    return ordered.map((p) => ({
+      color: p.color,
+      name: p.name ?? 'Anonymous',
+      rating: null,
+      isEngine: p.isEngine,
+    }));
+  };
+
+  // Left meta card + right-rail seat rows + LIVE badge for the featured game.
+  const renderLiveMeta = (featured: LiveFeatured): void => {
+    const players = liveMetaPlayers(featured);
+    const variantName = variantDisplayLabel(featured.gameSpecId);
+    watch.metaRoot.replaceChildren();
+    const badge = document.createElement('div');
+    badge.className = 'watch-live-badge';
+    badge.textContent = 'LIVE';
+    const card = createGameMetaCard({
+      markerId: variantMiniIdForRawVariant(featured.gameSpecId) ?? undefined,
+      headline: ['In progress'],
+      variantName,
+      players,
+      status: null,
+    });
+    watch.metaRoot.append(badge, card.el);
+    watch.gameTableRoot.hidden = false;
+    renderWatchPlayerRows(watch.playerTop, watch.playerBottom, players);
+  };
+
+  const enterLive = async (featured: LiveFeatured): Promise<void> => {
+    if (!featured.payload) return; // need a payload to mount; the next poll carries one
+    registerLiveNames(featured);
+    livePayload = { roomId: featured.roomId, payload: featured.payload };
+    // The live board takes the center slot from the completed-feed board.
+    replayHandle?.destroy();
+    replayHandle = null;
+    replayHandleKind = null;
+    clearMoveList();
+    clearPovToggle();
+    activeRoomId = null;
+    renderWatchReplaySkeleton(watch.replayRoot);
+    liveHandle = await mountWatchReplay(
+      watch.replayRoot,
+      featured.roomId,
+      metadataByRoomId,
+      namesByRoomId,
+      undefined,
+      showcaseRendererKindForSpec(featured.gameSpecId),
+      undefined,
+      false,
+      { loadPostgameOverride: liveLoadPostgameOverride },
+    );
+    liveHandle.jumpToPly?.(liveHandle.plyCount?.() ?? 0);
+    liveActive = true;
+    liveRoomId = featured.roomId;
+    liveShownPly = featured.ply;
+    watch.el.classList.add('watch-live-mode');
+    renderLiveMeta(featured);
+    renderQueue(currentFeed, null, null);
+    // Top always follows the CURRENT top game, so the shareable URL is
+    // channel-only — drop any stale ?game= the completed-feed render left.
+    syncWatchUrl('replace', currentFeed?.activeChannel ?? 'top', null);
+  };
+
+  const updateLive = async (featured: LiveFeatured): Promise<void> => {
+    registerLiveNames(featured);
+    if (featured.payload) livePayload = { roomId: featured.roomId, payload: featured.payload };
+    if (featured.ply > liveShownPly && featured.payload && liveHandle) {
+      await liveHandle.loadGame(featured.roomId);
+      liveHandle.jumpToPly?.(liveHandle.plyCount?.() ?? 0);
+      liveShownPly = featured.ply;
+      renderLiveMeta(featured);
+    }
+  };
+
+  // The live game ended (or vanished): drop the live board and fall back to the
+  // completed cross-variant feed for the Top channel.
+  const exitLive = async (): Promise<void> => {
+    dropLiveBoard();
+    // Repaint the completed cross-variant board and refresh the URL to whatever
+    // game it lands on (the live game just finished; its ?game= is now valid).
+    await renderFeed(currentFeed, currentFeed, false, { urlMode: 'replace' });
+  };
+
+  let liveTickInFlight = false;
+  const liveTick = async (): Promise<void> => {
+    if (abortController.signal.aborted || liveTickInFlight) return;
+    // Only the Top channel follows live; other channels leave the board to the
+    // feed poll. Hidden tabs skip the fetch (the reschedule keeps ticking).
+    if (currentFeed?.activeChannel !== 'top' || document.hidden) return;
+    liveTickInFlight = true;
+    try {
+      const query =
+        liveActive && liveRoomId
+          ? `?channel=top&room=${encodeURIComponent(liveRoomId)}&ply=${liveShownPly}`
+          : '?channel=top';
+      const resp = await fetch(`/api/watch/live${query}`);
+      if (resp.ok) {
+        const data = (await resp.json()) as { featured: LiveFeatured | null };
+        if (data.featured) {
+          if (liveActive && data.featured.roomId === liveRoomId) await updateLive(data.featured);
+          else await enterLive(data.featured);
+        } else if (liveActive) {
+          await exitLive();
+        }
+      }
+    } catch {
+      // Transient network failure: keep whatever is on the board.
+    } finally {
+      liveTickInFlight = false;
+    }
+  };
+
+  const scheduleLivePoll = (): void => {
+    livePollTimer = window.setTimeout(async () => {
+      if (!watch.el.isConnected || abortController.signal.aborted) return;
+      await liveTick();
+      scheduleLivePoll();
+    }, LIVE_TV_TOP_POLL_MS);
+  };
+
   document.addEventListener('visibilitychange', handleVisibilityChange, {
     signal: abortController.signal,
   });
   window.addEventListener('popstate', handlePopState, { signal: abortController.signal });
   watch.el.addEventListener('click', handleNavigationClick, { signal: abortController.signal });
+  abortController.signal.addEventListener('abort', () => {
+    if (livePollTimer !== null) window.clearTimeout(livePollTimer);
+    dropLiveBoard();
+  });
   await renderFeed(currentFeed, null, false, { urlMode: 'replace' });
   if (!document.hidden) {
     pollTimer = window.setTimeout(() => void refreshFeed(), pollDelay(currentFeed));
   }
+  scheduleLivePoll();
 }
 
 async function mountWatchQueuePreview(
@@ -591,6 +800,17 @@ function renderWatchQueuePreviewError(root: HTMLElement): void {
   root.append(message);
 }
 
+// LIVE-follow mount option for the Top Rated channel: the tenant renderer draws
+// an IN-PROGRESS game from the /api/watch/live payload (served through
+// loadPostgameOverride) instead of a finished-game endpoint, and suppresses the
+// end-of-game marks at the final known ply. Only the tenant path honors it — no
+// chess-stack spec is live-observable (the live election is fail-closed on fog).
+type WatchLiveMountOptions = {
+  loadPostgameOverride: (
+    roomId: string,
+  ) => Promise<{ ok: true; postgame: unknown } | { ok: false }>;
+};
+
 async function mountWatchReplay(
   root: HTMLElement,
   roomId: string,
@@ -600,6 +820,7 @@ async function mountWatchReplay(
   kind: WatchRendererKind = 'chess',
   onPlyChange?: (ply: number, maxPly: number) => void,
   autoplay = false,
+  live?: WatchLiveMountOptions,
 ): Promise<ReplayHandle> {
   // Playback ends exactly once: onGameEnd holds the final position instead of
   // the renderers' default loop (the TV model — a game never replays once
@@ -620,6 +841,7 @@ async function mountWatchReplay(
       namesByRoomId,
       onGameEnd: holdAtEnd,
       onPlyChange,
+      ...(live ? { live: true, loadPostgameOverride: live.loadPostgameOverride } : {}),
     });
   }
   // Chess (chessground): fog channels (dark-chess, reveal-chess, kriegspiel,
@@ -1055,10 +1277,22 @@ function renderWatchPlayers(
   bottom: HTMLElement,
   game: FeaturedGame | null,
 ): void {
+  renderWatchPlayerRows(top, bottom, game ? watchGamePlayers(game) : null);
+}
+
+// The seat rows for an already-resolved player list (first mover below the board,
+// second mover above). Shared by the completed-game path and the Top Rated
+// channel's live path, which resolves players from the /api/watch/live payload
+// rather than a FeaturedGame.
+function renderWatchPlayerRows(
+  top: HTMLElement,
+  bottom: HTMLElement,
+  players: GameMetaPlayer[] | null,
+): void {
   top.replaceChildren();
   bottom.replaceChildren();
-  if (!game) return;
-  const [firstMover, secondMover] = watchGamePlayers(game);
+  if (!players) return;
+  const [firstMover, secondMover] = players;
   if (secondMover) top.append(watchGameTablePlayer(secondMover));
   if (firstMover) bottom.append(watchGameTablePlayer(firstMover));
 }
@@ -1120,6 +1354,12 @@ const CHANNEL_MINI_BY_ID: Record<string, VariantMiniId> = {
 // extracted outline: https://github.com/lichess-org/lila/blob/master/public/font/lichess.sfd
 const ENGINES_CHANNEL_MARKER = `<svg class="watch-channel-gears" viewBox="-18 4 548 504" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M216 204Q195 183 165 183Q134 183 113 204Q91 228 91 256Q91 284 113 308Q134 329 165 329Q195 329 216 308Q238 286 238 256Q238 226 216 204ZM457 402Q457 387 446 377Q436 366 421 366Q405 366 395 377Q384 388 384 402Q384 417 395 428Q406 439 421 439Q435 439 446 428Q457 418 457 402ZM457 110Q457 94 446 84Q435 73 421 73Q406 73 395 84Q384 95 384 110Q384 123 395 136Q405 146 421 146Q436 146 446 136Q457 125 457 110ZM347 230V283Q347 287 345 288Q344 291 341 291L297 298Q291 312 287 320Q309 348 313 353Q315 357 315 359Q315 362 313 364Q311 367 290 390Q271 407 267 407Q265 407 261 405L228 379Q214 385 206 388Q203 419 200 432Q197 439 191 439H138Q136 439 132 437Q132 436 131 435Q130 433 129 432L123 388Q114 385 101 379L68 405Q64 407 62 407Q59 407 56 404Q15 366 15 359Q15 357 17 353Q20 348 29 338Q32 334 37 328Q42 322 42 321Q33 301 32 297L-11 290Q-14 290-16 288Q-18 286-18 282V229Q-18 225-16 224Q-14 221-12 221L33 214Q36 205 42 192Q20 164 16 159Q14 155 14 153Q14 150 16 148Q18 145 39 122Q58 105 62 105Q64 105 68 107L101 133Q107 130 123 124Q126 94 129 80Q132 73 138 73H191Q193 73 197 75Q200 78 200 80L206 124Q215 127 228 133L261 107Q265 105 267 105Q270 105 273 108Q314 145 314 153Q314 157 312 159Q309 164 300 174Q298 178 296 181Q293 184 291 187Q288 190 287 191Q294 206 297 215L341 221Q342 222 343 223Q344 224 345 224Q347 226 347 230ZM530 382V422Q530 426 488 431Q487 433 486 436Q484 439 483 442Q481 444 479 446Q494 479 494 485L493 487L457 508Q455 508 444 494Q440 490 436 484Q431 477 429 475H412Q410 477 405 484Q400 490 397 494Q386 508 384 508Q372 501 349 487Q347 487 347 485Q347 479 362 446L353 431Q311 426 311 422V382Q311 378 353 373Q359 363 362 359Q347 326 347 319L349 317Q353 315 359 311Q362 309 368 306Q373 303 375 302L384 297Q386 297 397 310Q400 314 403 318Q406 322 409 326Q411 329 412 330Q416 329 421 329Q425 329 429 330Q438 318 455 298L457 297Q458 297 493 317Q493 318 494 318Q494 318 494 319Q494 326 479 359Q482 363 488 373Q530 378 530 382ZM530 90V130Q530 134 488 139Q480 151 479 153Q494 186 494 193Q494 194 494 194Q493 194 493 195Q488 198 484 201Q479 203 476 205Q472 207 469 209Q466 210 464 211Q462 212 461 213Q459 214 458 214L457 215Q454 215 444 202Q441 198 438 194Q435 190 433 187Q430 183 429 182Q425 183 421 183Q416 183 412 182Q411 183 409 187Q406 190 403 194Q400 198 397 202Q387 215 384 215Q372 208 349 195L347 193Q347 186 362 153Q359 149 353 139Q311 134 311 130V90Q311 86 353 81Q358 72 362 66Q347 33 347 27Q347 25 349 25Q349 24 359 19Q361 17 375 9L384 5Q387 5 397 18Q400 22 405 29Q410 35 412 37H429Q444 18 455 5H457Q460 5 493 25Q494 26 494 27Q494 33 479 66Q484 72 488 81Q530 86 530 90Z"/></svg>`;
 
+// Top Rated channel marker: a crown, the site-neutral "featured/best" glyph
+// (an original outline, not extracted from any font). Mirrors the Engines
+// channel's dedicated cross-variant marker so the flagship rail slot never
+// renders empty (the marker-coverage regression test enforces this).
+const TOP_CHANNEL_MARKER = `<svg class="watch-channel-crown" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M3 8.5l4.2 3.1L12 4l4.8 7.6L21 8.5 19 19H5L3 8.5zm3.4 8.5h11.2l.1-.5H6.3l.1.5z"/></svg>`;
+
 export function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null): void {
   root.replaceChildren();
   root.hidden = !feed || feed.channels.length <= 1;
@@ -1146,7 +1386,9 @@ export function renderWatchChannelList(root: HTMLElement, feed: WatchFeed | null
     thumb.className = 'watch-channel-thumb';
     thumb.setAttribute('aria-hidden', 'true');
     const miniId = CHANNEL_MINI_BY_ID[channel.id];
-    if (channel.id === 'engines') {
+    if (channel.id === 'top') {
+      thumb.innerHTML = TOP_CHANNEL_MARKER;
+    } else if (channel.id === 'engines') {
       thumb.innerHTML = ENGINES_CHANNEL_MARKER;
     } else if (miniId) {
       thumb.classList.add('notranslate');

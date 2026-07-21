@@ -32,15 +32,39 @@ export type WatchChannel = {
 
 // Fog Chess is the one channel that cannot be derived from the registry: it is
 // a registry MISS (the legacy chess stack is deliberately unregistered), so it
-// stays a hardcoded constant and is always enabled + the default. Every other
-// channel derives from a registered tenant's `watch` field.
+// stays a hardcoded constant and is always enabled. Every other variant channel
+// derives from a registered tenant's `watch` field.
 const DARK_CHESS_CHANNEL: WatchChannel = {
-  default: true,
+  default: false,
   family: 'chess',
   gameSpecIds: [DARK_CHESS_SPEC_ID, DARK_DRAFT960_SPEC_ID],
   id: 'dark-chess',
   label: 'Fog Chess',
   legacyVariants: ['dark-chess', 'draft960'],
+  modes: VARIANT_CHANNEL_MODES,
+};
+
+// The Top Rated channel: the flagship, cross-variant channel that mirrors the
+// homepage viewer. It has no fixed variant — the client follows the top LIVE
+// game (the cross-channel election, PvP over PvE, served by
+// /api/watch/live?channel=top) when one exists, and otherwise browses the
+// freshest completed human games across every watchable variant. Like Engines
+// it spans families, so it carries no per-channel gameSpecIds (the watch client
+// picks a renderer per game). Human play only (pvp+pve) — the live election is
+// fail-closed on fog and headless EvE never features here. Its `legacyVariants`
+// is filled in listWatchChannels() with the union of the ENABLED variant
+// channels' variants (same as Engines) so its completed feed only ever surfaces
+// games the client can render. Always enabled; sorts to the FRONT of the rail
+// and is the default landing channel. `family` is an inert placeholder.
+export const TOP_CHANNEL_ID = 'top';
+
+const TOP_CHANNEL: WatchChannel = {
+  default: true,
+  family: 'chess',
+  gameSpecIds: [],
+  id: TOP_CHANNEL_ID,
+  label: 'Top Rated',
+  legacyVariants: [],
   modes: VARIANT_CHANNEL_MODES,
 };
 
@@ -113,22 +137,24 @@ function channelEnabled(channel: WatchChannel): boolean {
 
 export function listWatchChannels(): readonly WatchChannel[] {
   // Fog Chess sorts into its canonical rail position alongside the derived
-  // channels rather than always leading — the xiangqi pivot deranks chess, so
-  // the watch rail must match the play menu / rules rail order. It stays the
-  // default landing channel (see defaultWatchChannel) regardless of position.
+  // channels rather than leading — the xiangqi pivot deranks chess, so the watch
+  // rail must match the play menu / rules rail order. Top Rated is the default
+  // landing channel and leads the rail (see defaultWatchChannel).
   const variantChannels = [DARK_CHESS_CHANNEL, ...channelsDerivedFromRegistry()].filter(
     channelEnabled,
   );
   variantChannels.sort((a, b) => channelOrderIndex(a.id) - channelOrderIndex(b.id));
-  // The Engines channel spans exactly the watchable variants — the union of the
-  // enabled variant channels' variant strings — so it never surfaces an EvE game
-  // the client has no renderer for, and it grows automatically as variants launch.
-  // It always sorts to the end (appended after the ordered variant channels).
+  // The Top Rated and Engines channels both span exactly the watchable variants
+  // — the union of the enabled variant channels' variant strings — so their
+  // completed feeds never surface a game the client has no renderer for, and they
+  // grow automatically as variants launch. Top Rated leads the rail (the flagship
+  // default), Engines closes it (appended after the ordered variant channels).
   const watchableVariants = [
     ...new Set(variantChannels.flatMap((channel) => [...channel.legacyVariants])),
   ];
+  const topChannel: WatchChannel = { ...TOP_CHANNEL, legacyVariants: watchableVariants };
   const enginesChannel: WatchChannel = { ...ENGINES_CHANNEL, legacyVariants: watchableVariants };
-  return [...variantChannels, enginesChannel];
+  return [topChannel, ...variantChannels, enginesChannel];
 }
 
 export function defaultWatchChannel(): WatchChannel {
