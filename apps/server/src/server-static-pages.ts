@@ -37,6 +37,11 @@ const SPA_ROUTE_META: Record<string, { title: string; description: string }> = {
     description:
       'Free xiangqi (Chinese chess) puzzles drawn from real games, with puzzles for Mistboard variants alongside.',
   },
+  '/study': {
+    title: 'Xiangqi Studies | Mistboard',
+    description:
+      'Browse public xiangqi (Chinese chess) studies: annotated games, classical endgame compositions, and opening lines on an interactive board.',
+  },
 };
 
 const ARTICLES_INDEX_META: Record<
@@ -246,6 +251,42 @@ export async function serveGamePage(params: {
   params.response.end(html);
 }
 
+// /study/:id — a public study gets its own title/description (the study name is
+// the content; without this every study serves the generic homepage shell and
+// reads as a duplicate to a crawler). Unlisted/private studies get the plain
+// shell: their names must not leak into a shared-link preview or the index.
+export async function serveStudyPage(params: {
+  studyId: string;
+  response: ServerResponse;
+  publicHost: string;
+  staticDir: string;
+}): Promise<void> {
+  const indexPath = resolve(params.staticDir, 'index.html');
+  let html = await fs.readFile(indexPath, 'utf-8');
+
+  const study = await persistence.getStudyById(params.studyId).catch(() => null);
+  if (study && study.visibility === 'public') {
+    const chapterCount = study.chapters.length;
+    const description =
+      study.description ||
+      `A xiangqi study on Mistboard with ${chapterCount} ${chapterCount === 1 ? 'chapter' : 'chapters'}: annotated moves on an interactive board.`;
+    html = injectPageMeta(html, {
+      title: `${study.name} | Mistboard study`,
+      description,
+      url: `${params.publicHost}/study/${encodeURIComponent(params.studyId)}`,
+    });
+  }
+
+  const preloadLinks = await routePreloadLinksForPath({
+    staticDir: params.staticDir,
+    pathname: `/study/${encodeURIComponent(params.studyId)}`,
+  });
+  if (preloadLinks) html = html.replace('</head>', `${preloadLinks}</head>`);
+
+  params.response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+  params.response.end(html);
+}
+
 // Serves the SPA shell with a 404 status for an unknown page navigation, so the
 // client boots and renders its branded not-found page (nav + panel) instead of
 // serve-handler's bare default 404. The status is a real 404 (crawlers must not
@@ -305,6 +346,7 @@ export const SITEMAP_STATIC_ROUTES: readonly string[] = [
   '/puzzles',
   '/learn/xiangqi',
   '/analysis',
+  '/study',
   '/videos',
   '/streamer',
   '/player',
@@ -352,7 +394,13 @@ export async function serveSitemap(params: {
       articleUrls.push(`${urlBase}/${encodeURIComponent(slug)}`);
     }
   }
-  const urls = [...SITEMAP_STATIC_ROUTES, ...articleUrls];
+  // Public studies are indexable dynamic content (each serves real per-study
+  // meta via serveStudyPage). Absent persistence (in-memory dev) lists none.
+  const studyUrls = await persistence
+    .listTopPublicStudies(100)
+    .then((studies) => studies.map((s) => `/study/${encodeURIComponent(s.id)}`))
+    .catch(() => [] as string[]);
+  const urls = [...SITEMAP_STATIC_ROUTES, ...articleUrls, ...studyUrls];
   const body = urls.map((path) => `  <url><loc>${params.publicHost}${path}</loc></url>`).join('\n');
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
   params.response.writeHead(200, { 'content-type': 'application/xml; charset=utf-8' });

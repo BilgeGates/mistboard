@@ -16,6 +16,7 @@ import {
   serveRulesIndexPage,
   serveSitemap,
   serveSpaShellWithRoutePreloads,
+  serveStudyPage,
 } from './server-static-pages.js';
 import type { LobbyTicket, Room } from './server-types.js';
 
@@ -206,6 +207,23 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
       const roomId = decodeURIComponent(gameRouteMatch[1]!);
       void serveGamePage({
         roomId,
+        response,
+        publicHost: options.publicHost,
+        staticDir: options.staticDir,
+      }).catch(() => {
+        request.url = '/';
+        void serveHandler(request, response, { public: options.staticDir });
+      });
+      return;
+    }
+
+    // /study/:id mirrors /game/:id: a public study bakes its own title/meta into
+    // the shell (crawlers + link previews); unlisted/private serve the plain shell.
+    const studyRouteMatch = pathname.match(/^\/study\/([^/]+)$/);
+    if (studyRouteMatch && persistence.isInitialized()) {
+      const studyId = decodeURIComponent(studyRouteMatch[1]!);
+      void serveStudyPage({
+        studyId,
         response,
         publicHost: options.publicHost,
         staticDir: options.staticDir,

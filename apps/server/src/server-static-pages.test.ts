@@ -13,6 +13,7 @@ import {
   serveRulesIndexPage,
   serveSitemap,
   serveSpaShellWithRoutePreloads,
+  serveStudyPage,
 } from './server-static-pages.js';
 
 type ResponseCapture = {
@@ -506,4 +507,39 @@ test('serveSpaShellWithRoutePreloads leaves the response untouched when nothing 
   assert.equal(served, false);
   assert.equal(response.status, null);
   assert.equal(response.body, '');
+});
+
+test('serveStudyPage without persistence serves the plain shell (no meta leak, no crash)', async () => {
+  const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
+  await writeFile(join(staticDir, 'index.html'), indexHtml(), 'utf-8');
+  const response = captureResponse();
+
+  await serveStudyPage({
+    studyId: 'AbCd1234',
+    response,
+    staticDir,
+    publicHost: 'https://mistboard.com',
+  });
+
+  assert.equal(response.status, 200);
+  // Uninitialized persistence -> no study -> the generic shell title survives.
+  assert.match(response.body, /<title>Mistboard<\/title>/);
+});
+
+test('the /study index carries its own route meta and sitemap entry', async () => {
+  const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
+  await writeFile(join(staticDir, 'index.html'), indexHtml(), 'utf-8');
+  const response = captureResponse();
+  const served = await serveSpaShellWithRoutePreloads({
+    response,
+    staticDir,
+    pathname: '/study',
+    publicHost: 'https://mistboard.com',
+  });
+  assert.equal(served, true);
+  assert.match(response.body, /<title>Xiangqi Studies \| Mistboard<\/title>/);
+
+  const sitemap = captureResponse();
+  await serveSitemap({ response: sitemap, publicHost: 'https://mistboard.com', staticDir });
+  assert.match(sitemap.body, /<loc>https:\/\/mistboard\.com\/study<\/loc>/);
 });
