@@ -1,0 +1,244 @@
+import type { ElephantChessPilotGame } from './elephantchess-pilot-manifest.js';
+import { buildElephantChessPilotManifest } from './elephantchess-pilot-manifest.js';
+import { getPool } from './persistence-db.js';
+import { assert, definePersistenceTests, sha256, test } from './persistence-test-support.js';
+import {
+  checkpointXiangqiPuzzleMiningShard,
+  claimNextXiangqiPuzzleMiningShard,
+  completeXiangqiPuzzleMiningShard,
+  failXiangqiPuzzleMiningShard,
+  heartbeatXiangqiPuzzleMiningShard,
+  initializeXiangqiPuzzleMiningRun,
+} from './persistence-xiangqi-puzzle-mining.js';
+
+const SOURCE_ID = 'source-elephant-pilot-test';
+const BATCH_ID = 'batch-elephant-pilot-test';
+
+function pilotGame(index: number, correspondence = false): ElephantChessPilotGame {
+  return {
+    historicalGameId: `pilot-historical-${index}`,
+    sourceGameId: `pilot-source-${index}`,
+    importBatchId: BATCH_ID,
+    plyCount: 30 + index,
+    result: index % 2 === 0 ? '1-0' : '0-1',
+    redEloBefore: index < 4 ? 1_000 : 980 + index * 3,
+    blackEloBefore: index < 4 ? 1_000 : 990 + index * 4,
+    timeControlCategory: correspondence ? 'CORRESPONDENCE' : index % 2 ? 'RAPID' : 'BLITZ',
+    ratingMode: index % 3 ? 'rated' : 'casual',
+    redPlayerId: `pilot-red-${index % 5}`,
+    blackPlayerId: `pilot-black-${index % 6}`,
+  };
+}
+
+async function seedEligibleGames(games: readonly ElephantChessPilotGame[]): Promise<void> {
+  const pool = getPool();
+  await pool.query(
+    `INSERT INTO historical_xiangqi_sources
+       (id, slug, name, source_type, license, license_status)
+     VALUES ($1, 'elephantchess-pvp', 'ElephantChess', 'platform-export', 'GPL-3.0', 'cleared')`,
+    [SOURCE_ID],
+  );
+  await pool.query(
+    `INSERT INTO historical_xiangqi_import_batches
+       (id, source_id, status, input_sha256, finished_at)
+     VALUES ($1, $2, 'completed', $3, now())`,
+    [BATCH_ID, SOURCE_ID, 'a'.repeat(64)],
+  );
+  for (const game of games) {
+    await pool.query(
+      `INSERT INTO historical_xiangqi_games
+         (id, source_id, import_batch_id, source_game_id, content_sha256,
+          result, ply_count, move_format, moves, tags, quality_flags, visibility)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'uci-0indexed', '[]'::jsonb,
+               '{}'::jsonb, '{}'::text[], 'unlisted')`,
+      [
+        game.historicalGameId,
+        SOURCE_ID,
+        BATCH_ID,
+        game.sourceGameId,
+        sha256(game.historicalGameId),
+        game.result,
+        game.plyCount,
+      ],
+    );
+  }
+}
+
+definePersistenceTests('xiangqi puzzle mining', () => {
+  test('run initialization is idempotent and shard claims resume with fencing', async () => {
+    const games = [
+      ...Array.from({ length: 12 }, (_, index) => pilotGame(index)),
+      ...Array.from({ length: 4 }, (_, index) => pilotGame(12 + index, true)),
+    ];
+    await seedEligibleGames(games);
+    const manifest = buildElephantChessPilotManifest(games, {
+      importBatchId: BATCH_ID,
+      seed: 'persistence-pilot-v1',
+      targets: { representativeLiveBase: 4, coverageLive: 2, correspondenceMax: 2 },
+    });
+
+    const first = await initializeXiangqiPuzzleMiningRun({
+      manifest,
+      serializedSha256: 'b'.repeat(64),
+      shardSize: 3,
+      engineProfile: { engine: 'pikafish-test' },
+    });
+    const second = await initializeXiangqiPuzzleMiningRun({
+      manifest,
+      serializedSha256: 'b'.repeat(64),
+      shardSize: 3,
+      engineProfile: { engine: 'pikafish-test' },
+    });
+    assert.deepEqual(second, first);
+    assert.equal(first.selectedGames, 8);
+    assert.equal(first.shards, 3);
+
+    const counts = await getPool().query<{ games: number; shards: number }>(
+      `SELECT
+         (SELECT count(*)::int FROM xiangqi_puzzle_mining_games WHERE run_id = $1) AS games,
+         (SELECT count(*)::int FROM xiangqi_puzzle_mining_shards WHERE run_id = $1) AS shards`,
+      [first.id],
+    );
+    assert.deepEqual(counts.rows, [{ games: 8, shards: 3 }]);
+    await assert.rejects(
+      initializeXiangqiPuzzleMiningRun({
+        manifest,
+        serializedSha256: 'b'.repeat(64),
+        shardSize: 4,
+        engineProfile: { engine: 'pikafish-test' },
+      }),
+      /different shard layout/,
+    );
+    await assert.rejects(
+      initializeXiangqiPuzzleMiningRun({
+        manifest,
+        serializedSha256: 'b'.repeat(64),
+        shardSize: 3,
+        engineProfile: { engine: 'different-engine' },
+      }),
+      /different immutable settings/,
+    );
+
+    const claimed = await claimNextXiangqiPuzzleMiningShard({
+      runId: first.id,
+      workerId: 'worker-a',
+      claimToken: 'claim-a',
+      leaseMs: 60_000,
+    });
+    assert.equal(claimed?.shardIndex, 0);
+    assert.equal(claimed?.nextSelectionIndex, 0);
+    assert.equal(claimed?.attemptCount, 1);
+
+    const checkpoint = await checkpointXiangqiPuzzleMiningShard({
+      runId: first.id,
+      shardIndex: 0,
+      claimToken: 'claim-a',
+      nextSelectionIndex: 2,
+    });
+    assert.equal(checkpoint.nextSelectionIndex, 2);
+    await assert.rejects(
+      checkpointXiangqiPuzzleMiningShard({
+        runId: first.id,
+        shardIndex: 0,
+        claimToken: 'claim-a',
+        nextSelectionIndex: 1,
+      }),
+      /is not claimed/,
+    );
+
+    const heartbeat = await heartbeatXiangqiPuzzleMiningShard({
+      runId: first.id,
+      shardIndex: 0,
+      claimToken: 'claim-a',
+      leaseMs: 120_000,
+    });
+    assert.ok((heartbeat.leaseExpiresAt?.getTime() ?? 0) > Date.now());
+
+    const failed = await failXiangqiPuzzleMiningShard({
+      runId: first.id,
+      shardIndex: 0,
+      claimToken: 'claim-a',
+      failure: { code: 'test-interruption' },
+    });
+    assert.equal(failed.status, 'failed');
+    assert.equal(failed.nextSelectionIndex, 2);
+
+    const resumed = await claimNextXiangqiPuzzleMiningShard({
+      runId: first.id,
+      workerId: 'worker-b',
+      claimToken: 'claim-b',
+      leaseMs: 60_000,
+    });
+    assert.equal(resumed?.shardIndex, 0);
+    assert.equal(resumed?.nextSelectionIndex, 2);
+    assert.equal(resumed?.attemptCount, 2);
+    await assert.rejects(
+      checkpointXiangqiPuzzleMiningShard({
+        runId: first.id,
+        shardIndex: 0,
+        claimToken: 'claim-a',
+        nextSelectionIndex: 3,
+      }),
+      /is not claimed/,
+    );
+    await assert.rejects(
+      completeXiangqiPuzzleMiningShard({
+        runId: first.id,
+        shardIndex: 0,
+        claimToken: 'claim-b',
+      }),
+      /is not claimed/,
+    );
+    await checkpointXiangqiPuzzleMiningShard({
+      runId: first.id,
+      shardIndex: 0,
+      claimToken: 'claim-b',
+      nextSelectionIndex: 3,
+    });
+    const completed = await completeXiangqiPuzzleMiningShard({
+      runId: first.id,
+      shardIndex: 0,
+      claimToken: 'claim-b',
+    });
+    assert.equal(completed.status, 'completed');
+    assert.equal(completed.nextSelectionIndex, 3);
+
+    const next = await claimNextXiangqiPuzzleMiningShard({
+      runId: first.id,
+      workerId: 'worker-c',
+      claimToken: 'claim-c',
+      leaseMs: 60_000,
+    });
+    assert.equal(next?.shardIndex, 1);
+    await getPool().query(
+      `UPDATE xiangqi_puzzle_mining_shards
+       SET lease_expires_at = now() - interval '1 second'
+       WHERE run_id = $1 AND shard_index = 1`,
+      [first.id],
+    );
+    await assert.rejects(
+      heartbeatXiangqiPuzzleMiningShard({
+        runId: first.id,
+        shardIndex: 1,
+        claimToken: 'claim-c',
+      }),
+      /is not claimed/,
+    );
+    const reclaimed = await claimNextXiangqiPuzzleMiningShard({
+      runId: first.id,
+      workerId: 'worker-d',
+      claimToken: 'claim-d',
+      leaseMs: 60_000,
+    });
+    assert.equal(reclaimed?.shardIndex, 1);
+    assert.equal(reclaimed?.attemptCount, 2);
+    await assert.rejects(
+      heartbeatXiangqiPuzzleMiningShard({
+        runId: first.id,
+        shardIndex: 1,
+        claimToken: 'claim-c',
+      }),
+      /is not claimed/,
+    );
+  });
+});

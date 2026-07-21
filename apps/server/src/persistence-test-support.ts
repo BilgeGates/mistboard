@@ -43,6 +43,13 @@ export function definePersistenceTests(area: string, registerTests: () => void):
     const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
     await client.connect();
     try {
+      // Mining runs cascade through shards/candidates/judgments/reviews. Clear
+      // the optional promoted-puzzle backlink first so cleanup does not need to
+      // TRUNCATE the persistent seed-backed puzzles table through FK CASCADE.
+      await client.query(
+        `UPDATE puzzles SET mining_candidate_id = NULL WHERE mining_candidate_id IS NOT NULL`,
+      );
+      await client.query(`DELETE FROM xiangqi_puzzle_mining_runs`);
       await client.query(
         `TRUNCATE
            auth_rate_limit_buckets,

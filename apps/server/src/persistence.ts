@@ -454,3 +454,19 @@ export {
   recordXiangqiBroadcastSyncLog,
   setXiangqiBroadcastTourSchedule,
 } from './persistence-xiangqi-broadcasts.js';
+export type {
+  XiangqiPuzzleMiningRun,
+  XiangqiPuzzleMiningRunStatus,
+  XiangqiPuzzleMiningShard,
+  XiangqiPuzzleMiningShardStatus,
+} from './persistence-xiangqi-puzzle-mining.js';
+export {
+  checkpointXiangqiPuzzleMiningShard,
+  claimNextXiangqiPuzzleMiningShard,
+  completeXiangqiPuzzleMiningShard,
+  failXiangqiPuzzleMiningShard,
+  getXiangqiPuzzleMiningRun,
+  heartbeatXiangqiPuzzleMiningShard,
+  initializeXiangqiPuzzleMiningRun,
+  xiangqiPuzzleMiningRunId,
+} from './persistence-xiangqi-puzzle-mining.js';
