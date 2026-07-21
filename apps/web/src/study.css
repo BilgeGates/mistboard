@@ -8,6 +8,38 @@
   gap: 0.5rem;
 }
 
+/* Long study descriptions clamp to three lines so the chapter list and chat
+ * keep the rail; the JS-added toggle expands in place. */
+.study-summary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.study-summary.is-open {
+  display: block;
+  overflow: visible;
+}
+.study-summary__toggle {
+  align-self: flex-start;
+  margin: -2px 0 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--site-link);
+  cursor: pointer;
+}
+.study-summary__toggle:hover {
+  text-decoration: underline;
+}
+
+/* The chat never collapses below a usable feed, even under a tall info card. */
+.study-review .review-spectator-chat {
+  min-height: 13rem;
+}
+
 .study-actions__row {
   display: flex;
   align-items: center;
@@ -134,6 +166,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+.study-aside .review-spectator-chat {
+  min-height: 13rem;
 }
 
 .study-actions__label {

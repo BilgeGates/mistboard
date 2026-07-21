@@ -241,7 +241,7 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
             return;
           }
           if (response.status === 409) {
-            setStatus(status, 'conflict', 'Edited in another tab — reload to continue');
+            setStatus(status, 'conflict', 'Edited in another tab, reload to continue');
             return;
           }
           setStatus(status, 'error', 'Save failed');
@@ -250,13 +250,13 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     }, 700);
 
     handle = mountXiangqiReview(root, {
-      pageClassName: 'xiangqi-review',
+      pageClassName: 'xiangqi-review study-review',
       ariaLabel: 'Study',
       // Empty eyebrow: the info card leads with the study name itself.
       eyebrow: '',
       title: study.name,
       summary:
-        study.description || (study.isOwner ? 'Draw, comment, and branch — edits autosave.' : ''),
+        study.description || (study.isOwner ? 'Draw, comment, and branch. Edits autosave.' : ''),
       boardAriaLabel: 'Xiangqi board',
       actions: buildActions(study, chapters, activeId, status, chapterActions, owner),
       details: buildStudyChat(study.id),
@@ -277,9 +277,30 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
       moves: [],
       analysis: null,
     });
+    clampSummary(root);
   }
 
   renderActive();
+}
+
+/** Clamp a long study description to a few lines (with a more/less toggle) so
+ * the chapter list and chat keep most of the left rail. */
+function clampSummary(root: HTMLElement): void {
+  const summary = root.querySelector<HTMLElement>('.review-info-card__summary');
+  if (!summary?.textContent) return;
+  summary.classList.add('study-summary');
+  requestAnimationFrame(() => {
+    if (summary.scrollHeight <= summary.clientHeight + 1) return;
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'study-summary__toggle';
+    toggle.textContent = 'more';
+    toggle.addEventListener('click', () => {
+      const open = summary.classList.toggle('is-open');
+      toggle.textContent = open ? 'less' : 'more';
+    });
+    summary.after(toggle);
+  });
 }
 
 type ChapterActions = {
