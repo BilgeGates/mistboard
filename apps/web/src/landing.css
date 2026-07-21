@@ -1483,6 +1483,31 @@
 }
 
 @media (min-width: 1241px) {
+  /* ── Band-1 bottom alignment ─────────────────────────────────────────────────
+     The three band-1 columns share one bottom edge: the play rail already
+     stretches (chat pinned to its bottom), the lobby panel stretches so the
+     board's bottom edge rides the same line, and the left rail stretches with
+     the viewer pushed down to it (banners stay pinned to the top). */
+  .landing-lobby-panel {
+    align-self: stretch;
+  }
+
+  .landing-left-column {
+    align-self: stretch;
+  }
+
+  .landing-left-column .landing-viewer-column {
+    margin-top: auto;
+  }
+
+  /* ── Band-2 equal heights ────────────────────────────────────────────────────
+     The puzzle box adopts the shared widget height (the forum/players boxes'
+     20em), so all three band-2 boxes align top AND bottom; the square board
+     shrinks to match instead of running past the row. */
+  .landing-puzzle-column .home-puzzle-box {
+    width: min(100%, var(--landing-lower-widget-height));
+  }
+
   /* ── Homepage viewer: flush box model (Stage 2) ──────────────────────────────
    Gated to the desktop band (min-width 1241px, where .landing-demo is a 3-column
    grid). Below that the band stacks and the viewer reverts to its in-flow,
