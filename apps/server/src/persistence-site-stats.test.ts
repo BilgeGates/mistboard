@@ -29,6 +29,8 @@ definePersistenceTests('site stats', () => {
             'engine:white', 'engine:black', 'White Engine', 'Black Engine', 'eve', 'completed', 'unlisted'),
            ('stats-pvp-recent', 'dark-chess', 'black-wins', 'resignation', 18, $3, $3,
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'private'),
+           ('stats-xiangqi-recent', 'xiangqi', 'red-wins', 'resignation', 44, $3, $3,
+            'red', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
            ('stats-imported', 'dark-chess', 'white-wins', 'resignation', 50, $3, $3,
             'white', 'black', NULL, NULL, 'imported', 'completed', 'public'),
            ('stats-running', 'dark-chess', NULL, NULL, 0, $3, NULL,
@@ -44,12 +46,15 @@ definePersistenceTests('site stats', () => {
     const stats = await getPublicSiteStats({ now });
 
     assert.equal(stats.generatedAt, now.toISOString());
-    assert.equal(stats.totalCompletedGames, 3);
-    assert.equal(stats.last30dCompletedGames, 1);
-    assert.equal(stats.publicGames, 1);
-    assert.deepEqual(stats.modeTotals, { pvp: 2, pve: 1, eve: 1 });
+    assert.equal(stats.totalCompletedGames, 4);
+    assert.equal(stats.last30dCompletedGames, 2);
+    assert.equal(stats.publicGames, 2);
+    assert.deepEqual(stats.modeTotals, { pvp: 3, pve: 1, eve: 1 });
     // Variant split covers the same completed pvp/pve scope as the totals.
-    assert.deepEqual(stats.variantTotals, [{ variant: 'dark-chess', count: 3 }]);
+    assert.deepEqual(stats.variantTotals, [
+      { variant: 'dark-chess', count: 3 },
+      { variant: 'xiangqi', count: 1 },
+    ]);
     assert.equal(stats.dailyCompletedGames.length, 54);
     assert.deepEqual(stats.dailyCompletedGames[0], {
       date: '2026-04-06',
@@ -63,8 +68,40 @@ definePersistenceTests('site stats', () => {
     });
     assert.deepEqual(stats.dailyCompletedGames.at(-1), {
       date: '2026-05-29',
+      completedGames: 2,
+      cumulativeGames: 4,
+    });
+
+    // Per-variant series ride the same 54-day axis, most-played first, each with
+    // its own cumulative running total.
+    assert.deepEqual(
+      stats.variantDaily.map((v) => ({ variant: v.variant, total: v.total, days: v.days.length })),
+      [
+        { variant: 'dark-chess', total: 3, days: 54 },
+        { variant: 'xiangqi', total: 1, days: 54 },
+      ],
+    );
+    const darkChess = stats.variantDaily.find((v) => v.variant === 'dark-chess');
+    assert.deepEqual(darkChess?.days[0], {
+      date: '2026-04-06',
+      completedGames: 2,
+      cumulativeGames: 2,
+    });
+    assert.deepEqual(darkChess?.days.at(-1), {
+      date: '2026-05-29',
       completedGames: 1,
       cumulativeGames: 3,
+    });
+    const xiangqi = stats.variantDaily.find((v) => v.variant === 'xiangqi');
+    assert.deepEqual(xiangqi?.days[0], {
+      date: '2026-04-06',
+      completedGames: 0,
+      cumulativeGames: 0,
+    });
+    assert.deepEqual(xiangqi?.days.at(-1), {
+      date: '2026-05-29',
+      completedGames: 1,
+      cumulativeGames: 1,
     });
   });
 

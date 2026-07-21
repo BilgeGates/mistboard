@@ -20,6 +20,15 @@ export interface PublicStatsDay {
   cumulativeGames: number;
 }
 
+export interface PublicVariantSeries {
+  variant: string;
+  total: number;
+  // Cumulative completed games for this variant on the SAME date axis as
+  // {@link PublicSiteStats.dailyCompletedGames}, so every series lines up when
+  // the client switches the chart between them.
+  days: PublicStatsDay[];
+}
+
 export interface PublicSiteStats {
   generatedAt: string;
   totalCompletedGames: number;
@@ -30,6 +39,10 @@ export interface PublicSiteStats {
   // safe for the public /stats surface.
   variantTotals: Array<{ variant: string; count: number }>;
   dailyCompletedGames: PublicStatsDay[];
+  // Per-variant cumulative daily series (most-played first) for the filterable
+  // stats chart. Same public/aggregate scope as variantTotals; the client
+  // decides which variants to surface.
+  variantDaily: PublicVariantSeries[];
 }
 
 export type PublicSiteStatsOptions = {
@@ -160,6 +173,37 @@ export async function getPublicSiteStats(
     };
   });
 
+  // Per-(day, variant) completed counts, projected onto the same date axis as
+  // dailyCompletedGames so each variant series is directly comparable.
+  const dailyByVariant = await pool.query<{ day: Date | string; variant: string; n: number }>(
+    `SELECT ended_at::date AS day, variant, count(*)::int AS n
+     FROM games
+     WHERE status = 'completed'
+       AND mode IN ('pvp', 'pve')
+     GROUP BY day, variant`,
+  );
+  const perVariantByDate = new Map<string, Map<string, number>>();
+  for (const r of dailyByVariant.rows) {
+    const dateKey = isoDate(r.day);
+    let byDate = perVariantByDate.get(r.variant);
+    if (!byDate) {
+      byDate = new Map();
+      perVariantByDate.set(r.variant, byDate);
+    }
+    byDate.set(dateKey, r.n);
+  }
+  const axis = dailyCompletedGames.map((d) => d.date);
+  const variantDaily = byVariant.rows.map((r) => {
+    const byDate = perVariantByDate.get(r.variant);
+    let cumulative = 0;
+    const days = axis.map((date) => {
+      const completedGames = byDate?.get(date) ?? 0;
+      cumulative += completedGames;
+      return { date, completedGames, cumulativeGames: cumulative };
+    });
+    return { variant: r.variant, total: r.n, days };
+  });
+
   const row = scalar.rows[0];
   return {
     generatedAt: now.toISOString(),
@@ -174,6 +218,7 @@ export async function getPublicSiteStats(
     },
     variantTotals: byVariant.rows.map((r) => ({ variant: r.variant, count: r.n })),
     dailyCompletedGames,
+    variantDaily,
   };
 }
 

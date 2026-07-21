@@ -51,8 +51,9 @@
   margin-bottom: 12px;
 }
 
-.metrics-chart {
-  max-width: 520px;
+/* The interactive activity chart spans the full section width. */
+.metrics-chart-section > .stats-chart {
+  width: 100%;
 }
 
 .metrics-breakdown {

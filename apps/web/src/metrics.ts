@@ -10,11 +10,29 @@ import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, type Locale } from './i18n/locale.js';
 import { buildNav, buildNotice } from './site-shell.js';
 import {
-  buildActivityChart,
+  type ActivitySeries,
+  buildInteractiveActivityChart,
   formatStatNumber,
   type PublicSiteStats,
   type PublicStatsMode,
 } from './stats-charts.js';
+
+// The curated set of live variants shown on the public /stats surface, in
+// canonical order (game-specs.ts CANONICAL_VARIANT_ORDER, open/flip/fog bands),
+// minus the parked/retired ids. This is the product's "home of Chinese chess +
+// variants" shelf, so retired experiments (mini/drop, dark-shogi, luzhanqi) and
+// hidden chess variants stay off the public breakdown and chart filter. Admin
+// /metrics still shows the full diagnostic list.
+const STATS_VARIANTS: readonly string[] = [
+  'xiangqi',
+  'banqi',
+  'jungle',
+  'jungle-flip',
+  'fortress-xiangqi',
+  'jieqi',
+  'dark-xiangqi',
+  'dark-chess',
+];
 
 type LiveStats = { playing: number; online: number };
 
@@ -69,23 +87,21 @@ export async function mountMetrics(root: HTMLElement, options: { admin: boolean 
     parts.push(
       buildChartSection(
         'Games over time',
-        buildActivityChart(
-          publicStats.dailyCompletedGames,
-          `Cumulative games played: ${formatStatNumber(
-            publicStats.dailyCompletedGames.at(-1)?.cumulativeGames ?? 0,
-            locale,
-          )}`,
-          locale,
-        ),
+        buildInteractiveActivityChart(buildActivitySeries(publicStats, locale), locale),
       ),
     );
   }
 
-  // Variant split: the admin view has every game (all modes); the public view
-  // has the completed pvp/pve breakdown from /api/stats/public.
-  const variantEntries = admin
-    ? sortedEntries(admin.gamesByVariant)
-    : (publicStats?.variantTotals ?? []).map((v) => ({ label: v.variant, count: v.count }));
+  // Variant split, narrowed to the curated live shelf (STATS_VARIANTS) on both
+  // views. Admin counts every game (all modes) from /api/stats; public has the
+  // completed pvp/pve breakdown from /api/stats/public.
+  const variantEntries = (
+    admin
+      ? sortedEntries(admin.gamesByVariant).map((e) => ({ variant: e.label, count: e.count }))
+      : (publicStats?.variantTotals ?? [])
+  )
+    .filter((v) => STATS_VARIANTS.includes(v.variant))
+    .map((v) => ({ label: v.variant, count: v.count }));
   if (variantEntries.length > 0) {
     parts.push(
       buildBreakdownSection(
@@ -169,15 +185,35 @@ function statCard(label: string, value: number, note?: string): HTMLElement {
 }
 
 // ── sections ─────────────────────────────────────────────────────────────────
-function buildChartSection(title: string, chart: SVGElement): HTMLElement {
+function buildChartSection(title: string, chart: HTMLElement): HTMLElement {
   const section = document.createElement('section');
-  section.className = 'metrics-section';
+  section.className = 'metrics-section metrics-chart-section';
   section.append(sectionHeading(title));
-  const panel = document.createElement('div');
-  panel.className = 'platform-activity-chart metrics-chart';
-  panel.append(chart);
-  section.append(panel);
+  section.append(chart);
   return section;
+}
+
+// "All games" (the true cumulative total, matching the headline) plus one
+// cumulative series per curated live variant that has games, in canonical order.
+function buildActivitySeries(publicStats: PublicSiteStats, locale: Locale): ActivitySeries[] {
+  const all: ActivitySeries = {
+    key: '__all',
+    label: 'All games',
+    days: publicStats.dailyCompletedGames,
+  };
+  const byVariant = new Map((publicStats.variantDaily ?? []).map((v) => [v.variant, v]));
+  const variantSeries: ActivitySeries[] = [];
+  for (const id of STATS_VARIANTS) {
+    const series = byVariant.get(id);
+    if (series && series.total > 0) {
+      variantSeries.push({
+        key: id,
+        label: variantPublicName(id, locale),
+        days: series.days,
+      });
+    }
+  }
+  return [all, ...variantSeries];
 }
 
 type BreakdownEntry = { label: string; count: number };
