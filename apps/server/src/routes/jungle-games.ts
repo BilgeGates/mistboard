@@ -10,6 +10,7 @@ import {
 import { jungleEnabled } from './../feature-flags.js';
 import { resolveJungleAnalysis } from './../jungle-analysis.js';
 import { jungleEngineBinaryAvailable } from './../jungle-engine.js';
+import { jungleRooms } from './../jungle-registration.js';
 import type { JungleEvent } from './../jungle-runtime.js';
 import { jungleTenant } from './../jungle-tenant.js';
 import * as persistence from './../persistence.js';
@@ -18,6 +19,7 @@ import {
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
+import { registerLiveWatchPayloadBuilder } from './../watch-live.js';
 import { createGameAnalysisRoutes } from './game-analysis-route.js';
 import {
   type HttpApiContext,
@@ -146,6 +148,50 @@ export async function junglePostgameForApi(
     history: junglePostgameHistory(events),
   };
 }
+
+// Mistboard TV live payload: the postgame shape built from an IN-PROGRESS
+// room's events so far, so the watch renderer can draw and follow the live
+// board. Jungle is PERFECT-INFORMATION — every field here is already public to
+// both players. Mirrors xiangqiLiveWatchPayload.
+async function jungleLiveWatchPayload(roomId: string): Promise<Record<string, unknown> | null> {
+  if (!jungleTenant.enabled()) return null;
+  const room = jungleRooms.get(roomId) ?? null;
+  if (!room || room.id !== roomId) return null;
+  await room.pendingWrites.catch(() => undefined);
+  const projection = room.projection;
+  if (projection.state.status.type !== 'playing') return null;
+  if (!isTenantEventLog(jungleTenant, room.events, roomId)) return null;
+  const timeline = junglePostgameTimeline(room.events);
+  const isEngine = jungleTenant.engine?.isEngineClientId ?? (() => false);
+  const hasEngineSeat = Object.values(projection.seats).some((clientId) => isEngine(clientId));
+  return {
+    game: {
+      roomId,
+      variant: JUNGLE_SPEC_ID,
+      mode: hasEngineSeat ? 'pve' : 'pvp',
+      result: 'in-progress',
+      termination: 'in-progress',
+      plyCount: timeline.filter((entry) => entry.type === 'move-played').length,
+      startedAt: new Date(room.events[0]?.at ?? Date.now()).toISOString(),
+      endedAt: null,
+      rated: projection.rated,
+      visibility: 'public',
+      initialMs: projection.timeControl?.initialMs ?? null,
+      incrementMs: projection.timeControl?.incrementMs ?? null,
+    },
+    state: {
+      status: projection.state.status,
+      moveNumber: projection.state.moveNumber,
+      ...(projection.clock ? { clock: projection.clock } : {}),
+      ...(projection.timeControl ? { timeControl: projection.timeControl } : {}),
+    },
+    timeline,
+    view: getJunglePlayerView(projection.state, 'red'),
+    history: junglePostgameHistory(room.events),
+  };
+}
+
+registerLiveWatchPayloadBuilder('jungle', jungleLiveWatchPayload);
 
 function junglePostgameHistory(events: readonly JungleEvent[]): JunglePostgameSnapshot[] {
   const created = events[0];

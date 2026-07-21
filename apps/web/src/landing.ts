@@ -33,11 +33,12 @@ import {
   setRoomNavigator,
 } from './landing-play.js';
 import { homepageShowcaseGames, pickHeroPovForGame } from './landing-showcase.js';
+import { mountLandingTv } from './landing-tv.js';
 import { type GameMeta, mountReplay } from './replay.js';
 import { renderWatchReplaySkeleton } from './replay-skeleton.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
 import { roomIdFromPath } from './room-url.js';
-import { mountShowcaseCycler, type ShowcaseEntry } from './showcase-cycler.js';
+import type { ShowcaseEntry } from './showcase-cycler.js';
 import { specIdForShowcaseVariant } from './showcase-dispatch.js';
 import { buildHomeFooter, buildNav, buildNotice } from './site-shell.js';
 import { type WebVariantTenant, webVariantTenantForRoomId } from './variant-tenant/registry.js';
@@ -175,18 +176,20 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     }
   }
 
-  // The showcase cycler owns cross-game advancement so it can cross renderer kinds
-  // (dark-chess chessground -> jieqi/banqi/jungle SVG). Each game plays as a single
-  // compact board and hands off at its end; the pool refreshes live below.
-  const cycler = await mountShowcaseCycler(stage.replayRoot, cyclePool, {
+  // Mistboard TV controller (2026-07-20, replaces the endless replay cycler):
+  // follow the top-rated LIVE game when one exists, else air the freshest
+  // unseen completed game once, else hold the last final position. Each game
+  // shows as a single compact board; the completed pool refreshes below.
+  const tv = await mountLandingTv(stage.replayRoot, cyclePool, {
     metadataByRoomId,
     namesByRoomId,
     loaderForId: landingEventLoader,
-    onGameChange: (roomId) => {
-      stage.caption.textContent = showcaseCaptionText(
-        variantByRoomId[roomId],
-        endedAtByRoomId[roomId],
-      );
+    isConnected: () => stage.el.isConnected,
+    onGameChange: ({ roomId, specId, mode }) => {
+      stage.caption.textContent =
+        mode === 'live'
+          ? `${variantDisplayLabel(variantByRoomId[roomId] ?? specId)} · live`
+          : showcaseCaptionText(variantByRoomId[roomId] ?? specId, endedAtByRoomId[roomId]);
     },
   });
 
@@ -266,11 +269,11 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     poolIds.clear();
     for (const id of nextIds) poolIds.add(id);
     // First time real games arrive, jump straight to one instead of letting the
-    // static Misty-vs-Misty placeholder play out — it runs minutes before the loop
-    // would rotate, so visitors otherwise only ever see the fallback.
+    // static Misty-vs-Misty placeholder play out — it runs minutes before it
+    // would end, so visitors otherwise only ever see the fallback.
     const leavingStaticFallback = !usingRealGames;
     if (leavingStaticFallback) usingRealGames = true;
-    cycler.updatePool(nextEntries, { jumpNow: leavingStaticFallback });
+    tv.updateCompletedPool(nextEntries, { jumpNow: leavingStaticFallback });
   };
   let firstRefreshTick = true;
   const tickShowcaseRefresh = async () => {
@@ -318,7 +321,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     closeActiveLandingDialog();
     stopShowcaseRefresh();
     document.removeEventListener('visibilitychange', refetchEnginesOnFocus);
-    cycler.destroy();
+    tv.destroy();
   };
   setRoomNavigator((url) => {
     void transitionToRoom(root, url, teardownLanding);

@@ -18,6 +18,7 @@ import {
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
+import { registerLiveWatchPayloadBuilder } from './../watch-live.js';
 import {
   analyzeXiangqiGame,
   type PlyEval,
@@ -261,6 +262,54 @@ export async function xiangqiPostgameForApi(
     history: xiangqiPostgameHistory(source.events),
   };
 }
+
+// Mistboard TV live payload: the postgame shape (timeline / truth views /
+// per-ply history) built from an IN-PROGRESS room's events so far, so the watch
+// renderer can draw and follow the live board. Standard Xiangqi is OPEN
+// INFORMATION — every field here is public to both players already. `game`
+// carries an 'in-progress' result/termination the compact showcase never reads
+// before the game ends (the live flag suppresses end-of-game marks).
+async function xiangqiLiveWatchPayload(roomId: string): Promise<Record<string, unknown> | null> {
+  if (!xiangqiTenant.enabled()) return null;
+  const room = xiangqiRooms.get(roomId) ?? null;
+  if (!room || room.id !== roomId) return null;
+  await room.pendingWrites.catch(() => undefined);
+  const projection = room.projection;
+  if (projection.state.status.type !== 'playing') return null;
+  if (!isTenantEventLog(xiangqiTenant, room.events, roomId)) return null;
+  const timeline = xiangqiPostgameTimeline(room.events);
+  const isEngine = xiangqiTenant.engine?.isEngineClientId ?? (() => false);
+  const hasEngineSeat = Object.values(projection.seats).some((clientId) => isEngine(clientId));
+  const view = getStandardXiangqiPlayerView(projection.state, 'red');
+  return {
+    game: {
+      roomId,
+      variant: XIANGQI_SPEC_ID,
+      mode: hasEngineSeat ? 'pve' : 'pvp',
+      result: 'in-progress',
+      termination: 'in-progress',
+      plyCount: timeline.filter((entry) => entry.type === 'move-played').length,
+      startedAt: new Date(room.events[0]?.at ?? Date.now()).toISOString(),
+      endedAt: null,
+      rated: projection.rated,
+      visibility: 'public',
+      initialMs: projection.timeControl?.initialMs ?? null,
+      incrementMs: projection.timeControl?.incrementMs ?? null,
+    },
+    state: {
+      status: projection.state.status,
+      moveNumber: projection.state.moveNumber,
+      ...(projection.clock ? { clock: projection.clock } : {}),
+      ...(projection.timeControl ? { timeControl: projection.timeControl } : {}),
+    },
+    timeline,
+    view,
+    views: { truth: view },
+    history: xiangqiPostgameHistory(room.events),
+  };
+}
+
+registerLiveWatchPayloadBuilder('xiangqi', xiangqiLiveWatchPayload);
 
 function xiangqiPostgameFromLiveRoom(
   roomId: string,

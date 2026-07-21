@@ -32,6 +32,14 @@ export type ShowcaseBoardOptions = {
   // Chess event loader (static bundled samples vs the games API). Tenants load
   // their own postgame payloads internally and ignore this.
   loaderForId: (roomId: string) => Promise<GameEvent[]>;
+  // LIVE-follow mode for the tenant path (homepage TV): no end-of-game marks at
+  // the final known ply, payload served by loadPostgameOverride (the
+  // /api/watch/live payload) instead of the finished-game endpoint. The chess
+  // path ignores both — no chess-stack spec is live-observable.
+  live?: boolean;
+  loadPostgameOverride?: (
+    roomId: string,
+  ) => Promise<{ ok: true; postgame: unknown } | { ok: false }>;
 };
 
 export async function mountShowcaseBoard(
@@ -49,6 +57,10 @@ export async function mountShowcaseBoard(
       compact: true,
       onGameEnd: options.onGameEnd,
       namesByRoomId: options.namesByRoomId,
+      ...(options.live ? { live: true } : {}),
+      ...(options.loadPostgameOverride
+        ? { loadPostgameOverride: options.loadPostgameOverride }
+        : {}),
     });
   }
 

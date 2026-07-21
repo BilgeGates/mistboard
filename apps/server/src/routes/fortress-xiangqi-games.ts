@@ -37,6 +37,7 @@ import {
   tenantPveEngineId,
 } from './../variant-tenant/runtime.js';
 import type { TenantRuntimeRoom } from './../variant-tenant/tenant.js';
+import { registerLiveWatchPayloadBuilder } from './../watch-live.js';
 import { createGameAnalysisRoutes } from './game-analysis-route.js';
 import { type HttpApiContext, postgamePlayers, requireMethod, writeJson } from './lib.js';
 
@@ -298,6 +299,54 @@ export async function fortressXiangqiPostgameForApi(
     history: fortressXiangqiPostgameHistory(source.events),
   };
 }
+
+// Mistboard TV live payload: the postgame shape built from an IN-PROGRESS
+// room's events so far, so the watch renderer can draw and follow the live
+// board. Fortress Xiangqi is OPEN INFORMATION — every field here is already
+// public to both players. Mirrors xiangqiLiveWatchPayload.
+async function fortressXiangqiLiveWatchPayload(
+  roomId: string,
+): Promise<Record<string, unknown> | null> {
+  if (!fortressXiangqiTenant.enabled()) return null;
+  const room = fortressXiangqiRooms.get(roomId) ?? null;
+  if (!room || room.id !== roomId) return null;
+  await room.pendingWrites.catch(() => undefined);
+  const projection = room.projection;
+  if (projection.state.status.type !== 'playing') return null;
+  if (!isTenantEventLog(fortressXiangqiTenant, room.events, roomId)) return null;
+  const timeline = fortressXiangqiPostgameTimeline(room.events);
+  const isEngine = fortressXiangqiTenant.engine?.isEngineClientId ?? (() => false);
+  const hasEngineSeat = Object.values(projection.seats).some((clientId) => isEngine(clientId));
+  const view = getFortressXiangqiPlayerView(projection.state, 'red');
+  return {
+    game: {
+      roomId,
+      variant: FORTRESS_XIANGQI_SPEC_ID,
+      mode: hasEngineSeat ? 'pve' : 'pvp',
+      result: 'in-progress',
+      termination: 'in-progress',
+      plyCount: timeline.filter((entry) => entry.type === 'move-played').length,
+      startedAt: new Date(room.events[0]?.at ?? Date.now()).toISOString(),
+      endedAt: null,
+      rated: projection.rated,
+      visibility: 'public',
+      initialMs: projection.timeControl?.initialMs ?? null,
+      incrementMs: projection.timeControl?.incrementMs ?? null,
+    },
+    state: {
+      status: projection.state.status,
+      moveNumber: projection.state.moveNumber,
+      ...(projection.clock ? { clock: projection.clock } : {}),
+      ...(projection.timeControl ? { timeControl: projection.timeControl } : {}),
+    },
+    timeline,
+    view,
+    views: { truth: view },
+    history: fortressXiangqiPostgameHistory(room.events),
+  };
+}
+
+registerLiveWatchPayloadBuilder('fortress-xiangqi', fortressXiangqiLiveWatchPayload);
 
 function fortressXiangqiPostgameFromLiveRoom(
   roomId: string,

@@ -142,6 +142,25 @@ export type TenantWatchReplayOptions = {
    * showcase omits it.
    */
   onPlyChange?: (ply: number, maxPly: number) => void;
+  /**
+   * LIVE-follow mode: the loaded payload is an in-progress game's position so
+   * far, not a finished replay. Standing at the final known ply means "caught
+   * up", not "game over" — end-of-game result marks are suppressed and the
+   * side to move keeps its active highlight. The outer controller re-loads the
+   * game (via loadPostgameOverride) as new moves arrive and jumps to the end.
+   */
+  live?: boolean;
+  /**
+   * Payload source override for live games: returns the postgame-SHAPED payload
+   * (from /api/watch/live) instead of fetching the tenant's finished-game
+   * endpoint. `{ ok: false }` falls back to the adapter's normal loader — which
+   * is exactly the live→finished handoff (the real postgame exists once the
+   * game ends). The postgame is cast to the adapter's payload type; the caller
+   * owns shape fidelity.
+   */
+  loadPostgameOverride?: (
+    roomId: string,
+  ) => Promise<{ ok: true; postgame: unknown } | { ok: false }>;
 };
 
 type ControlRefs = {
@@ -275,6 +294,7 @@ export async function mountTenantWatchReplay<
   const autoplay = options.autoplay ?? true;
   const locale = options.locale ?? currentLocale();
   const compact = options.compact === true;
+  const live = options.live === true;
   const onGameEnd = options.onGameEnd;
   const namesByRoomId = options.namesByRoomId;
   const onPlyChange = options.onPlyChange;
@@ -334,9 +354,10 @@ export async function mountTenantWatchReplay<
   let clockTickTimer: number | null = null;
 
   // Red moves first, so an even ply leaves Red (first) to move; nobody is on the clock
-  // once the game has ended.
+  // once the game has ended. In live mode the final known ply is "caught up",
+  // not "game over", so the side to move keeps its turn there.
   const toMoveAtPly = (): 'first' | 'second' | null =>
-    currentPly >= maxPly ? null : currentPly % 2 === 0 ? 'first' : 'second';
+    currentPly >= maxPly && !live ? null : currentPly % 2 === 0 ? 'first' : 'second';
 
   // Drain the mover's clock from this ply's recorded value toward the value it reaches
   // just before the increment it earns on completing the move, across that move's real
@@ -461,8 +482,9 @@ export async function mountTenantWatchReplay<
     if (compactSeats) {
       // At the final ply the clocks give way to the result (1 / 0 / ½) for the
       // hold; earlier plies show the reconstructed clocks (toggles also clear the
-      // result state when a loop restarts the same game at ply 0).
-      const atGameEnd = maxPly > 0 && currentPly >= maxPly;
+      // result state when a loop restarts the same game at ply 0). Live games
+      // have no result yet, so the final known ply keeps showing clocks.
+      const atGameEnd = !live && maxPly > 0 && currentPly >= maxPly;
       const marks = atGameEnd ? showcaseResultMarks(activePostgame.game.result) : null;
       const winner =
         marks === null || marks.first === marks.second
@@ -830,6 +852,28 @@ export async function mountTenantWatchReplay<
     clearTimer();
     activeId = nextId;
     let result: Awaited<ReturnType<typeof adapter.loadPostgame>>;
+    if (options.loadPostgameOverride) {
+      // Live-follow source. An empty override answer falls through to the
+      // adapter's normal finished-game loader (the live→finished handoff).
+      const overridden = await options
+        .loadPostgameOverride(nextId)
+        .catch(() => ({ ok: false as const }));
+      if (overridden.ok) {
+        result = { ok: true, postgame: overridden.postgame as Postgame };
+      } else {
+        result = await adapter.loadPostgame(nextId);
+      }
+      if (destroyed) return;
+      if (!result.ok) {
+        const notice = document.createElement('p');
+        notice.className = 'watch-empty';
+        notice.textContent = t('watch.gameLoadFailed', {}, locale);
+        root.replaceChildren(notice);
+        return;
+      }
+      buildGame(result.postgame);
+      return;
+    }
     if (prefetched && prefetched.roomId === nextId) {
       const cached = prefetched.promise;
       prefetched = null;

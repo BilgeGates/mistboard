@@ -1,6 +1,12 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
-import { type GameEvent, type GameProjection, replayGameEvents } from '@mistboard/game';
+import {
+  type GameEvent,
+  type GameProjection,
+  maybeGameSpecForId,
+  replayGameEvents,
+  type VisibilityRulesId,
+} from '@mistboard/game';
 
 // Visibility rule: live games are visible only to seated players; finished
 // games are public via replay endpoints. This is enforced at two layers —
@@ -66,6 +72,39 @@ export function isServerEngineClient(clientId: string | undefined): boolean {
 
 export function canObserveLiveRoom(projection: GameProjection): boolean {
   return projection.state.status.type === 'finished';
+}
+
+// Per-visibility-class live-observation policy for Mistboard TV. This is the
+// single decision point for whether an IN-PROGRESS game's board may leave the
+// server, keyed on the spec's visibility axis and exhaustive over it (a new
+// VisibilityRulesId member fails the build until it gets an explicit branch —
+// the same fail-closed rule as variant dispatch):
+//   'open'   — nothing is hidden; the live board is servable to anyone.
+//   'masked' — hidden-identity variants COULD go live behind their redacted
+//              spectator views, but those views are not built yet, so no
+//              serving site may treat 'masked' as servable today.
+//   'sealed' — fog: hidden information exists and any pre-completion release
+//              leaks it (even time-delayed truth is intel to a live player).
+//              Fog games reach TV only via the finished-game replay path.
+export type LiveObservePolicy = 'open' | 'masked' | 'sealed';
+
+export function liveObservePolicy(visibility: VisibilityRulesId): LiveObservePolicy {
+  switch (visibility) {
+    case 'open':
+      return 'open';
+    case 'hidden-identity':
+      return 'masked';
+    case 'dark':
+      return 'sealed';
+  }
+}
+
+// True only when a live (in-progress) board for this spec may be served to a
+// spectator surface. Unknown/unparseable spec ids refuse (fail-closed).
+export function canServeLiveBoard(gameSpecId: string): boolean {
+  const spec = maybeGameSpecForId(gameSpecId);
+  if (!spec) return false;
+  return liveObservePolicy(spec.visibility) === 'open';
 }
 
 // SPA fallback allowlist. The web client owns these routes (see apps/web/src/main.ts);

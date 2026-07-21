@@ -159,7 +159,7 @@ Edit task → find file → open only that file.
 | `game-spec-request-gate.ts` | Request gate from incoming room specs to supported runtime families |
 | `server-config.ts` | Runtime config parsing and room-region normalization |
 | `server-types.ts` | Shared server types: `Client`, `Room`, `SeatTokenState`, `SeatAssignment`, `LobbyTicket` |
-| `server-policy.ts` | Access control: `canObserveLiveRoom`, `eventReplayResponse`, `visibleEventsForLiveSnapshot`, `modeForProjection`, `isAdminDebugToken`, `isAllowedWebSocketOrigin`, `isClientRoute`, `PARKED_CLIENT_ROUTES` |
+| `server-policy.ts` | Access control: `canObserveLiveRoom`, `liveObservePolicy`/`canServeLiveBoard` (visibility-keyed live-TV gate, fail-closed on fog), `eventReplayResponse`, `visibleEventsForLiveSnapshot`, `modeForProjection`, `isAdminDebugToken`, `isAllowedWebSocketOrigin`, `isClientRoute`, `PARKED_CLIENT_ROUTES` |
 | `server-ws-messages.ts` | Client WebSocket message parser and known-message allowlist used by `server-ws-connection.ts` dispatch |
 | `server-seat-session.ts` | Seat assignment/session helpers: seat-token hashing and verification, account/token credential gate, new/existing seat assignment, and duplicate seat displacement. |
 | `server-live-engine-reservations.ts` | Live engine reservation helpers: PvE engine-seat detection, legacy engine ID normalization, engine-worker reservation create/release, and reservation logging. |
@@ -232,6 +232,7 @@ Edit task → find file → open only that file.
 | `room-lifecycle-audit.ts` | Lifecycle audit/event helpers |
 | `seat-auth.ts` | Seat-authority verification helpers shared by chess and non-chess room flows |
 | `watch-channels.ts` | Public watch-channel definitions and lookup |
+| `watch-live.ts` | Mistboard TV live election: scans live room maps for open-visibility playing games, elects a featured game per channel + cross-channel `top` (PvP over PvE, hysteresis), and serves each tenant's registered live payload builder. Fail-closed on fog/hidden-identity and on channels without a builder |
 | `dark-chess-tenant.ts` | Dark chess `VariantTenant` (flagship rules + Model A visibility on the Layer-3 contract). UNREGISTERED for live rooms (legacy UUID rooms stay on `room-manager`); visibility DELEGATES to `payloads.ts` so Model A keeps one redaction point. Equivalence pinned by `dark-chess-tenant.test.ts` + `dark-chess-golden-wire.test.ts` |
 | `dark-chess-golden-wire.test.ts` | Golden wire-parity suite pinning dark-chess tenant per-seat snapshot/event payloads vs the legacy live stack. Regenerate only for intentional wire changes (`MISTBOARD_GOLDEN_RECORD=1`) |
 | `dark-chess-registration.ts` | Dark chess registry entry; fixes the `dchx_` correspondence room-id scheme. Correspondence (days-per-move) rooms ONLY, PvP-only, no rematch/lobby, gated by `MISTBOARD_CORRESPONDENCE_ENABLED`. Side-effect import in `variant-tenant/register-tenants.ts` |
@@ -625,7 +626,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `showcase-sheet.ts` | Dev-only variant showcase sheet: renders one showcase board per channel (latest finished game) for quick cross-variant visual review |
 | `showcase-clock.ts` | Homepage showcase timing helpers: reconstructs per-ply clock series and autoplay delays from tenant postgame move timestamps plus Fischer time controls |
 | `showcase-compact-view.ts` | Shared compact-view picker for homepage showcase tenant renderers: chooses masked, truth, or stable per-room POV panes without being a redaction boundary |
-| `showcase-cycler.ts` | Homepage showcase cycler: rolls through finished games across renderer kinds, reuses handles when possible, remounts across kinds, reloads stale chunks once, and skips failed entries without hot-looping |
+| `showcase-cycler.ts` | Legacy showcase cycler (rolls finished games in a loop). The homepage now mounts `landing-tv.ts` instead; `ShowcaseEntry` still lives here |
+| `landing-tv.ts` | Homepage Mistboard TV controller: polls `/api/watch/live?channel=top`, follows the featured live game (paused board + jump-to-latest, payload override), airs a completed game once, then freezes on the last final position; never replays an aired game |
 | `showcase-dispatch.ts` | Showcase renderer dispatch shared with watch routing: maps persisted/spec ids to tenant renderer kinds or the chessground fallback and picks the next pool index |
 | `database.ts` | Unlisted admin game browser (`/database`): faceted completed-game query with win-rate/termination/length summary + review links; admin-gated by `/api/admin/games/query` (open in local dev), no nav entry. Loads `database.css` |
 | `database.css` | `/database` admin game-browser styles loaded by `database.ts` |

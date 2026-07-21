@@ -27,8 +27,11 @@ import type { WebSocket } from 'ws';
 // Client identity fields (`id`, `seat`, `userId`) and the projection status
 // are in the slice so presence surfaces (/api/players/online, /api/live-stats)
 // can enumerate connections and playing seats without knowing any tenant's
-// concrete client/state types. All are optional in the slice but present on
-// every TenantLiveClient / TenantRuntimeRoom at runtime.
+// concrete client/state types. The seats / moveNumber / clock / events /
+// seatTokens fields are in the slice for the live-TV candidate scan
+// (watch-live.ts), which enumerates in-progress OPEN-visibility rooms. All are
+// optional in the slice but present on every TenantLiveClient /
+// TenantRuntimeRoom at runtime.
 export type TenantManagedRoom = {
   id: string;
   clients: Iterable<{
@@ -37,7 +40,25 @@ export type TenantManagedRoom = {
     seat?: string;
     userId?: string | null;
   }>;
-  projection?: { state: { status: { type: string } } };
+  projection?: {
+    state: { status: { type: string }; moveNumber?: number };
+    seats?: Partial<Record<string, string>>;
+    rated?: boolean;
+    timeControl?: unknown;
+    clock?: unknown;
+  };
+  events?: readonly { type: string; at?: number }[];
+  seatTokens?: Partial<
+    Record<
+      string,
+      | {
+          userId?: string | null;
+          userHandle?: string | null;
+          userDisplayName?: string | null;
+        }
+      | undefined
+    >
+  >;
   pendingWrites: Promise<void>;
 };
 
@@ -80,6 +101,18 @@ export type VariantTenantRegistration = {
   // Mistboard TV channel for this tenant, or null/absent when it has no watch
   // surface. Derived into WatchChannel by watch-channels.ts.
   watch?: VariantTenantWatchChannel | null;
+  // Engine-seat predicate for composition labeling (PvP vs PvE) on live
+  // surfaces. Tenants keep their own engine id namespaces (e.g. xiangqi's
+  // 'fairy-stockfish-xiangqi-level-4'), which the shared isServerEngineClient
+  // heuristic does not recognize — bind tenant.engine?.isEngineClientId here.
+  // Absent/undefined falls back to the shared heuristic at the call site. The
+  // labeled-as-engine guardrail rides on this: an unrecognized engine seat
+  // would present as a human player on TV.
+  isEngineClientId?: (clientId: string | undefined) => boolean;
+  // Human-readable name for an engine seat's client id (e.g.
+  // 'fairy-stockfish-xiangqi-level-4' -> 'Fairy-Stockfish - Level 4'), bound
+  // from tenant.engine?.displayName. Null/absent falls back to the raw id.
+  engineDisplayName?: (clientId: string) => string | null;
   // Whether this registration is the spec's PRIMARY routing surface
   // (variantTenantForSpecId — today that means the lobby). True for tenants
   // that solely own their spec (DMX, Dark Xiangqi, Crossroads). False for

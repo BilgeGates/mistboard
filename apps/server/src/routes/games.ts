@@ -14,6 +14,13 @@ import type { RecentEveGameRecord } from './../persistence-games.js';
 import { eventReplayResponse, parsePositiveInteger } from './../server-policy.js';
 import { listWatchChannels, watchChannelForId } from './../watch-channels.js';
 import {
+  collectLiveTvCandidates,
+  electLiveTvFeatured,
+  isLiveTvChannelId,
+  LIVE_TV_TOP_CHANNEL_ID,
+  liveWatchPayloadForFeatured,
+} from './../watch-live.js';
+import {
   type HttpApiContext,
   isHttpAdminAuthorized,
   isHttpAdminSession,
@@ -121,6 +128,51 @@ export async function tryHandle(
 
     response.setHeader('allow', 'GET, PUT, DELETE');
     writeJson(response, 405, { error: 'method_not_allowed' });
+    return true;
+  }
+
+  // Mistboard TV live feed: the featured in-progress game for a channel (or the
+  // cross-channel 'top' default), carrying the tenant's postgame-shaped live
+  // payload so the existing watch renderers can draw it. Only open-visibility
+  // games with a registered live-payload builder are ever featured
+  // (watch-live.ts is fail-closed on fog / hidden-identity, and
+  // capability-gated on rendering). In-memory rooms only — no persistence
+  // required, so the surface works identically under dev:memory. A client
+  // already following the featured room passes `?room=<id>&ply=<n>` and the
+  // payload is omitted while the position is unchanged.
+  if (pathname === '/api/watch/live') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    const channelId = parsedUrl.searchParams.get('channel') ?? LIVE_TV_TOP_CHANNEL_ID;
+    if (!isLiveTvChannelId(channelId)) {
+      writeJson(response, 404, { error: 'unknown_watch_channel' });
+      return true;
+    }
+    const now = new Date();
+    const featured = electLiveTvFeatured(channelId, collectLiveTvCandidates(ctx, now.getTime()));
+    if (!featured) {
+      writeJson(response, 200, { channel: channelId, featured: null, now: now.toISOString() });
+      return true;
+    }
+    const knownRoom = parsedUrl.searchParams.get('room');
+    const knownPly = parseNonNegativeInt(parsedUrl.searchParams.get('ply'));
+    const unchanged =
+      knownRoom === featured.roomId && knownPly !== null && knownPly >= featured.ply;
+    let payload: Record<string, unknown> | null = null;
+    if (!unchanged) {
+      payload = await liveWatchPayloadForFeatured(featured);
+      if (!payload) {
+        // The room moved on between election and payload build (e.g. it just
+        // finished): withhold the moment this poll rather than serve a stale
+        // board; the finished game reaches the client via the replay pool.
+        writeJson(response, 200, { channel: channelId, featured: null, now: now.toISOString() });
+        return true;
+      }
+    }
+    writeJson(response, 200, {
+      channel: channelId,
+      featured: { ...featured, kind: 'live', ...(payload ? { payload } : {}) },
+      now: now.toISOString(),
+    });
     return true;
   }
 

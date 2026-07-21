@@ -124,6 +124,8 @@ registerVariantTenant({
     label: 'Xiangqi',
     legacyVariants: ['xiangqi'],
   },
+  isEngineClientId: xiangqiTenant.engine?.isEngineClientId,
+  engineDisplayName: (clientId) => xiangqiTenant.engine?.displayName(clientId) ?? null,
   ownsSpecRouting: true,
   errorPrefix: 'xiangqi',
   enabled: xiangqiTenant.enabled,

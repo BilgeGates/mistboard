@@ -71,6 +71,8 @@ registerVariantTenant({
     label: 'Jungle Chess',
     legacyVariants: ['jungle'],
   },
+  isEngineClientId: jungleTenant.engine?.isEngineClientId,
+  engineDisplayName: (clientId) => jungleTenant.engine?.displayName(clientId) ?? null,
   ownsSpecRouting: true,
   errorPrefix: 'jungle',
   enabled: jungleTenant.enabled,

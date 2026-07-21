@@ -99,6 +99,8 @@ registerVariantTenant({
     // 'dual-chess' is the pre-rename alias still seen in persisted records.
     legacyVariants: ['crossroads-chess', 'dual-chess'],
   },
+  isEngineClientId: crossroadsChessTenant.engine?.isEngineClientId,
+  engineDisplayName: (clientId) => crossroadsChessTenant.engine?.displayName(clientId) ?? null,
   ownsSpecRouting: true,
   errorPrefix: 'crossroads_chess',
   enabled: crossroadsChessTenant.enabled,

@@ -110,6 +110,8 @@ registerVariantTenant({
     label: 'Fortress Xiangqi',
     legacyVariants: ['fortress-xiangqi'],
   },
+  isEngineClientId: fortressXiangqiTenant.engine?.isEngineClientId,
+  engineDisplayName: (clientId) => fortressXiangqiTenant.engine?.displayName(clientId) ?? null,
   ownsSpecRouting: true,
   errorPrefix: 'fortress_xiangqi',
   enabled: fortressXiangqiTenant.enabled,

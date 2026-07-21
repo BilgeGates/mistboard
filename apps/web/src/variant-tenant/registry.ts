@@ -134,6 +134,14 @@ export type WebVariantTenant = {
         // Fires on every ply change (autoplay tick / manual jump / loop reset).
         // The /watch right rail uses it to sync its move list + scrubber.
         onPlyChange?: (ply: number, maxPly: number) => void;
+        // LIVE-follow mode (homepage TV): suppress end-of-game marks at the
+        // final known ply and keep the side to move active. Paired with
+        // loadPostgameOverride, which serves the /api/watch/live payload in
+        // place of the finished-game endpoint ({ ok: false } falls back to it).
+        live?: boolean;
+        loadPostgameOverride?: (
+          roomId: string,
+        ) => Promise<{ ok: true; postgame: unknown } | { ok: false }>;
       },
     ): Promise<ReplayHandle>;
   };
