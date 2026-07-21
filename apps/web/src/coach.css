@@ -13,6 +13,16 @@
   margin: 0 0 18px;
 }
 
+.coach-become a {
+  color: var(--site-accent);
+  text-decoration: none;
+}
+
+.coach-become a:hover,
+.coach-become a:focus-visible {
+  text-decoration: underline;
+}
+
 /* ── directory cards ── */
 
 .coach-grid {

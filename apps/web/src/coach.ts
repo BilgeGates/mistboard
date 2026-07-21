@@ -83,9 +83,11 @@ async function renderDirectory(shell: HTMLElement, locale: Locale): Promise<void
     shell.append(grid);
   }
 
-  // "Become a coach" affordance for signed-in titled users. Fail-soft: any
-  // fetch problem (including 401 for anonymous visitors) just hides it.
-  void hydrateBecomeCoach(intro, locale);
+  // Directory CTA. Titled players get the become-a-coach link; everyone else
+  // (untitled or anonymous) is funneled to title verification, since a verified
+  // title is the gate to being listed here. Fail-soft: an unreachable API hides
+  // the affordance entirely.
+  void hydrateCoachCta(intro, locale);
 }
 
 function buildCoachCard(coach: CoachListing, locale: Locale): HTMLElement {
@@ -129,26 +131,42 @@ function buildAcceptingPill(accepting: boolean, locale: Locale): HTMLElement {
   return pill;
 }
 
-async function hydrateBecomeCoach(intro: HTMLElement, locale: Locale): Promise<void> {
+async function hydrateCoachCta(intro: HTMLElement, locale: Locale): Promise<void> {
+  // 401 (anonymous) is an expected, actionable state here, not a failure: those
+  // visitors get the verify-title funnel. Only a network error or unexpected
+  // status hides the CTA.
+  let titled = false;
+  let hasProfile = false;
   try {
     const resp = await fetch('/api/coaches/me');
-    if (!resp.ok) return;
-    const me = (await resp.json()) as {
-      titled?: boolean;
-      profile?: { published?: boolean } | null;
-    };
-    if (me.titled !== true) return;
-    const become = document.createElement('p');
-    become.className = 'coach-become';
-    const link = document.createElement('a');
-    link.className = 'landing-setup-back';
-    link.href = '/coach/edit';
-    link.textContent = t(me.profile ? 'coach.editYourProfile' : 'coach.becomeCoach', {}, locale);
-    become.append(link);
-    intro.after(become);
+    if (resp.status === 401) {
+      titled = false;
+    } else if (resp.ok) {
+      const me = (await resp.json()) as {
+        titled?: boolean;
+        profile?: { published?: boolean } | null;
+      };
+      titled = me.titled === true;
+      hasProfile = me.profile != null;
+    } else {
+      return;
+    }
   } catch {
-    // Anonymous or offline: no affordance.
+    return;
   }
+
+  const cta = document.createElement('p');
+  cta.className = 'coach-become';
+  const link = document.createElement('a');
+  if (titled) {
+    link.href = '/coach/edit';
+    link.textContent = t(hasProfile ? 'coach.editYourProfile' : 'coach.becomeCoach', {}, locale);
+  } else {
+    link.href = '/verify-title';
+    link.textContent = t('coach.verifyToCoach', {}, locale);
+  }
+  cta.append(link);
+  intro.after(cta);
 }
 
 // ── detail ───────────────────────────────────────────────────────────────────

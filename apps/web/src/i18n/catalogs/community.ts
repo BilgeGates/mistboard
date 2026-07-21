@@ -160,7 +160,8 @@ export const EN_COMMUNITY = {
   'verifyTitle.coachCta': 'Create your coach profile',
   'coach.heading': 'Coaches',
   'coach.intro':
-    'Find a coach to study with. Every coach listed here holds a verified xiangqi or chess title.',
+    'Find a coach to study with. Every coach listed here holds a verified xiangqi title.',
+  'coach.verifyToCoach': 'Are you a titled player? Verify your title to coach',
   'coach.becomeCoach': 'Become a coach',
   'coach.editYourProfile': 'Edit your coach profile',
   'coach.accepting': 'Accepting students',
@@ -180,7 +181,7 @@ export const EN_COMMUNITY = {
   'coach.signInBody': 'A coach profile needs an account. Sign in, then come back to this page.',
   'coach.untitledTitle': 'Coaching is for verified titled players',
   'coach.untitledBody':
-    'The coach directory lists verified titled players only. Verify your xiangqi or chess title first, then come back to create your coach profile.',
+    'The coach directory lists verified titled players only. Verify your xiangqi title first, then come back to create your coach profile.',
   'coach.untitledCta': 'Verify your title',
   'coach.headlineLabel': 'Headline',
   'coach.headlinePlaceholder': 'e.g. XIM teaching English-language xiangqi for club players',

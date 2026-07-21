@@ -58,8 +58,10 @@ describe('coach directory page', () => {
     expect(cards[0]?.textContent).toContain('Accepting students');
     expect(cards[1]?.querySelector('.title-badge')?.textContent).toBe('GM');
     expect(cards[1]?.textContent).toContain('Not accepting students');
-    // Anonymous visitor: no become-a-coach affordance.
-    expect(root.querySelector('.coach-become')).toBeNull();
+    // Anonymous visitor: funneled to title verification.
+    const cta = root.querySelector<HTMLAnchorElement>('.coach-become a');
+    expect(cta?.getAttribute('href')).toBe('/verify-title');
+    expect(cta?.textContent).toBe('Are you a titled player? Verify your title to coach');
   });
 
   it('shows the empty state and no cards when nobody is listed', async () => {
@@ -99,7 +101,7 @@ describe('coach directory page', () => {
     expect(link?.textContent).toBe('Become a coach');
   });
 
-  it('offers Edit your coach profile when the titled user already has one, and nothing to untitled users', async () => {
+  it('offers Edit your coach profile when the titled user already has one, and the verify-title funnel to untitled users', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
@@ -131,7 +133,9 @@ describe('coach directory page', () => {
     const untitled = mountRoot();
     await mountCoach(untitled, null);
     await flushDom();
-    expect(untitled.querySelector('.coach-become')).toBeNull();
+    const untitledCta = untitled.querySelector<HTMLAnchorElement>('.coach-become a');
+    expect(untitledCta?.getAttribute('href')).toBe('/verify-title');
+    expect(untitledCta?.textContent).toBe('Are you a titled player? Verify your title to coach');
   });
 });
 
