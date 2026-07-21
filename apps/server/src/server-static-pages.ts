@@ -42,6 +42,11 @@ const SPA_ROUTE_META: Record<string, { title: string; description: string }> = {
     description:
       'Browse public xiangqi (Chinese chess) studies: annotated games, classical endgame compositions, and opening lines on an interactive board.',
   },
+  '/stats': {
+    title: 'Statistics | Mistboard',
+    description:
+      'Live statistics for Mistboard: total xiangqi and variant games played, activity over time, and a breakdown by variant and game type.',
+  },
 };
 
 const ARTICLES_INDEX_META: Record<
@@ -343,6 +348,7 @@ export const SITEMAP_STATIC_ROUTES: readonly string[] = [
   '/zh-hans/rules',
   '/zh-hant/rules',
   '/about',
+  '/stats',
   '/puzzles',
   '/learn/xiangqi',
   '/analysis',

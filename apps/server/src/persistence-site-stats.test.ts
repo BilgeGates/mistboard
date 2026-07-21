@@ -1,4 +1,4 @@
-import { getPublicSiteStats } from './persistence.js';
+import { createUser, getPublicSiteStats, getSiteStats } from './persistence.js';
 import {
   assert,
   definePersistenceTests,
@@ -48,6 +48,8 @@ definePersistenceTests('site stats', () => {
     assert.equal(stats.last30dCompletedGames, 1);
     assert.equal(stats.publicGames, 1);
     assert.deepEqual(stats.modeTotals, { pvp: 2, pve: 1, eve: 1 });
+    // Variant split covers the same completed pvp/pve scope as the totals.
+    assert.deepEqual(stats.variantTotals, [{ variant: 'dark-chess', count: 3 }]);
     assert.equal(stats.dailyCompletedGames.length, 54);
     assert.deepEqual(stats.dailyCompletedGames[0], {
       date: '2026-04-06',
@@ -64,5 +66,41 @@ definePersistenceTests('site stats', () => {
       completedGames: 1,
       cumulativeGames: 3,
     });
+  });
+
+  test('getSiteStats counts accounts and their recent growth', async () => {
+    const day = 24 * 60 * 60 * 1000;
+    const nowMs = Date.now();
+    // One account today (in both windows), one 10 days ago (30d only), one 40
+    // days ago (neither) — offsets clear of the 7d/30d boundaries.
+    await createUser({
+      id: 'stats-user-fresh',
+      email: 'fresh@example.com',
+      emailVerifiedAt: null,
+      handle: 'fresh',
+      displayName: 'Fresh',
+      now: new Date(nowMs),
+    });
+    await createUser({
+      id: 'stats-user-recent',
+      email: 'recent@example.com',
+      emailVerifiedAt: null,
+      handle: 'recent',
+      displayName: 'Recent',
+      now: new Date(nowMs - 10 * day),
+    });
+    await createUser({
+      id: 'stats-user-old',
+      email: 'old@example.com',
+      emailVerifiedAt: null,
+      handle: 'old',
+      displayName: 'Old',
+      now: new Date(nowMs - 40 * day),
+    });
+
+    const stats = await getSiteStats();
+    assert.equal(stats.accounts, 3);
+    assert.equal(stats.accountsLast7d, 1);
+    assert.equal(stats.accountsLast30d, 2);
   });
 });

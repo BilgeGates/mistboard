@@ -3,6 +3,8 @@ import type { GameMode } from './persistence-game-lifecycle.js';
 
 export interface SiteStats {
   accounts: number;
+  accountsLast7d: number;
+  accountsLast30d: number;
   games: number;
   publicGames: number;
   last7dGames: number;
@@ -24,6 +26,9 @@ export interface PublicSiteStats {
   last30dCompletedGames: number;
   publicGames: number;
   modeTotals: Record<PublicStatsMode, number>;
+  // Completed pvp/pve games by variant id, most-played first. Aggregate counts,
+  // safe for the public /stats surface.
+  variantTotals: Array<{ variant: string; count: number }>;
   dailyCompletedGames: PublicStatsDay[];
 }
 
@@ -38,12 +43,16 @@ export async function getSiteStats(): Promise<SiteStats> {
   const pool = getPool();
   const scalar = await pool.query<{
     accounts: number;
+    accounts_last7d: number;
+    accounts_last30d: number;
     games: number;
     public_games: number;
     last7d_games: number;
   }>(
     `SELECT
        (SELECT count(*) FROM users)::int AS accounts,
+       (SELECT count(*) FROM users WHERE created_at > now() - INTERVAL '7 days')::int AS accounts_last7d,
+       (SELECT count(*) FROM users WHERE created_at > now() - INTERVAL '30 days')::int AS accounts_last30d,
        (SELECT count(*) FROM games)::int AS games,
        (SELECT count(*) FROM games WHERE visibility = 'public')::int AS public_games,
        (SELECT count(*) FROM games WHERE ended_at > now() - INTERVAL '7 days')::int AS last7d_games`,
@@ -57,6 +66,8 @@ export async function getSiteStats(): Promise<SiteStats> {
   const row = scalar.rows[0];
   return {
     accounts: row?.accounts ?? 0,
+    accountsLast7d: row?.accounts_last7d ?? 0,
+    accountsLast30d: row?.accounts_last30d ?? 0,
     games: row?.games ?? 0,
     publicGames: row?.public_games ?? 0,
     last7dGames: row?.last7d_games ?? 0,
@@ -100,6 +111,15 @@ export async function getPublicSiteStats(
      WHERE status = 'completed'
        AND mode IN ('pvp', 'pve', 'eve')
      GROUP BY mode`,
+  );
+
+  const byVariant = await pool.query<{ variant: string; n: number }>(
+    `SELECT variant, count(*)::int AS n
+     FROM games
+     WHERE status = 'completed'
+       AND mode IN ('pvp', 'pve')
+     GROUP BY variant
+     ORDER BY n DESC, variant ASC`,
   );
 
   const daily = await pool.query<{ day: Date | string; n: number }>(
@@ -152,6 +172,7 @@ export async function getPublicSiteStats(
       eve: 0,
       ...Object.fromEntries(byMode.rows.map((r) => [r.mode, r.n])),
     },
+    variantTotals: byVariant.rows.map((r) => ({ variant: r.variant, count: r.n })),
     dailyCompletedGames,
   };
 }

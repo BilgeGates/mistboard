@@ -154,6 +154,8 @@ export function isClientRoute(pathname: string): boolean {
     normalized === '/forum/reports' ||
     normalized === '/forum/etiquette' ||
     normalized === '/database' ||
+    normalized === '/stats' ||
+    normalized === '/metrics' ||
     normalized === '/verify-title' ||
     normalized === '/titles' ||
     // Coach directory: /coach (list), /coach/edit (own editor), /coach/:handle

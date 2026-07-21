@@ -57,66 +57,8 @@
   line-height: 1.5;
 }
 
-.platform-activity-chart {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--site-border-soft);
-  border-radius: var(--site-radius);
-  background: linear-gradient(180deg, var(--site-panel) 0%, var(--site-panel-soft) 100%);
-}
-
-.platform-activity-chart h3 {
-  margin: 0;
-  color: var(--site-heading);
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1.25;
-}
-
-.platform-activity-chart svg {
-  display: block;
-  width: 100%;
-  aspect-ratio: 17 / 7.5;
-  min-height: 170px;
-}
-
-.platform-activity-y-axis line {
-  stroke: var(--site-border-soft);
-  stroke-width: 1;
-}
-
-.platform-activity-y-axis text,
-.platform-activity-x-axis text {
-  fill: var(--site-muted);
-  font-size: 10px;
-  line-height: 1;
-}
-
-.platform-activity-y-axis text {
-  text-anchor: end;
-}
-
-.platform-activity-x-axis line {
-  stroke: var(--site-border);
-  stroke-width: 1;
-}
-
-.platform-activity-x-axis text {
-  text-anchor: middle;
-}
-
-.platform-activity-area {
-  fill: color-mix(in srgb, var(--site-accent) 12%, transparent);
-}
-
-.platform-activity-line {
-  fill: none;
-  stroke: var(--site-accent);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.2;
-}
+/* The activity-chart drawing rules moved to stats-charts.css (shared with
+ * /stats + /metrics). The mode-split list below stays here — it is /about only. */
 
 .platform-activity-mode-list {
   display: grid;
@@ -189,16 +131,6 @@
 .source-block a {
   color: var(--site-accent);
   font-weight: 700;
-}
-
-@media (max-width: 720px) {
-  .platform-activity-chart {
-    padding: 12px;
-  }
-
-  .platform-activity-chart svg {
-    min-height: 150px;
-  }
 }
 
 /* ── Patron donate page (078), lichess-aligned with mistboard's own motif ──── */

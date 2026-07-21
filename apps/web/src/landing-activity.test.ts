@@ -28,10 +28,8 @@ describe('landing activity', () => {
     });
 
     const links = [...activity.querySelectorAll<HTMLAnchorElement>('.landing-activity-link')];
-    expect(links.map((link) => link.textContent)).toEqual([
-      '575games played (261 this month)',
-    ]);
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/watch']);
+    expect(links.map((link) => link.textContent)).toEqual(['575games played (261 this month)']);
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/stats']);
     // Players-online is dropped; only games-in-play remains on the live line.
     expect(activity.querySelector('.landing-activity-live')?.textContent).toBe('0 games in play');
   });

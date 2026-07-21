@@ -15,7 +15,7 @@ export function buildLandingActivity(options: { hydrate?: boolean } = {}): HTMLE
   const body = document.createElement('div');
   body.className = 'landing-activity-body';
   body.append(
-    activityPrimary([activityMetric('–', 'games played', '/watch')]),
+    activityPrimary([activityMetric('–', 'games played', '/stats')]),
     activityLiveLine([activityInlineStat('–', 'games in play')]),
   );
   box.append(body);
@@ -43,7 +43,7 @@ async function hydrateLandingActivity(box: HTMLElement, body: HTMLElement): Prom
         activityMetric(
           formatCount(totals.totalCompletedGames),
           gamesPlayedLabel(totals.last30dCompletedGames),
-          '/watch',
+          '/stats',
         ),
       ]),
     );

@@ -189,6 +189,11 @@ const wantsRatingStats = path === '/player/rating-stats';
 // Unlisted admin game browser. No nav entry; the page itself is admin-gated by
 // the /api/admin/games/query endpoint (open in local dev). Direct-URL only.
 const wantsDatabase = path === '/database';
+// Public site statistics (/stats) and the admin superset (/metrics), one module.
+// /metrics adds account count/growth + results from /api/stats (admin-gated,
+// open in local dev), so it stays unlisted and direct-URL only like /database.
+const wantsStats = path === '/stats';
+const wantsMetrics = path === '/metrics';
 // Title verification: player-facing request form. Linked from profile copy,
 // no nav entry.
 const wantsVerifyTitle = path === '/verify-title';
@@ -364,6 +369,16 @@ if (replaySample) {
   setTitle('Game database');
   void mountOrReport(() =>
     import('./database.js').then(({ mountDatabase }) => mountDatabase(appRoot)),
+  );
+} else if (wantsStats) {
+  setTitle('Statistics');
+  void mountOrReport(() =>
+    import('./metrics.js').then(({ mountMetrics }) => mountMetrics(appRoot, { admin: false })),
+  );
+} else if (wantsMetrics) {
+  setTitle('Metrics');
+  void mountOrReport(() =>
+    import('./metrics.js').then(({ mountMetrics }) => mountMetrics(appRoot, { admin: true })),
   );
 } else if (wantsVerifyTitle) {
   setTitleKey('verifyTitle.heading');
