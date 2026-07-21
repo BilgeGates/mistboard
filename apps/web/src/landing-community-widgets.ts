@@ -26,6 +26,12 @@ export function buildLandingCommunityWidgets(options: { hydrate?: boolean } = {}
   return strip;
 }
 
+// Standalone Top players box for the homepage widget row (the paired
+// studies+players strip above stays for any surface that wants both).
+export function buildTopPlayersWidget(options: { hydrate?: boolean } = {}): HTMLElement {
+  return buildLeaderboardWidget(options);
+}
+
 function buildStudyWidget(options: { hydrate?: boolean }): HTMLElement {
   const { box, body } = buildSiteBox({ title: 'Popular studies', href: '/study' });
   box.classList.add('landing-study-widget', 'landing-community-widget');

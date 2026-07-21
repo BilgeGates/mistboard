@@ -6,6 +6,11 @@ export const EN_PLAY = {
   'game.signInToSave': 'Sign in to save',
   'game.saveFailed': 'Could not save. Try again.',
   'play.startPlaying': 'Start playing',
+  'play.playGame': 'Play a game',
+  'play.opponentLabel': 'Opponent',
+  'play.opponentEngine': 'Computer',
+  'play.opponentFriend': 'A friend',
+  'play.opponentLobby': 'Anyone',
   'play.findOpponent': 'Find opponent',
   'play.challengeFriend': 'Challenge a friend',
   'play.playEngine': 'Play the engine',
@@ -120,6 +125,11 @@ export type PlayI18nKey = keyof typeof EN_PLAY;
 
 export const CRITICAL_PLAY_I18N_KEYS = [
   'play.startPlaying',
+  'play.playGame',
+  'play.opponentLabel',
+  'play.opponentEngine',
+  'play.opponentFriend',
+  'play.opponentLobby',
   'play.findOpponent',
   'play.challengeFriend',
   'play.playEngine',

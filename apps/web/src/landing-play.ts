@@ -54,6 +54,10 @@ type LandingPlayChoice = {
   initialGameSpecId?: LandingGameSpecId;
   locale?: Locale;
   mode: LandingPlayMode;
+  // Unified entry point: render the opponent switcher (Computer / A friend /
+  // Anyone) at the top of the dialog. Switching rebuilds the dialog in the
+  // picked mode, carrying the variant selection and engine roster over.
+  modeSwitcher?: boolean;
   ratedDisabled?: boolean;
   title: string;
 };
@@ -314,60 +318,26 @@ export function buildLandingPlayPanel(
 
   const availableEngines = engines.length > 0 ? engines : fallbackPlayableEngines();
   const defaultEngineId = availableEngines[0]?.id;
-  const lobbyTitle = t('play.findOpponent', {}, locale);
-  const challengeTitle = t('play.challengeFriend', {}, locale);
-  const engineTitle = t('play.playEngine', {}, locale);
-  const lobbyButton = landingPlayAction(lobbyTitle, 'lobby');
-  const challengeButton = landingPlayAction(challengeTitle, 'friend');
-  const engineButton = landingPlayAction(engineTitle, 'computer');
 
-  lobbyButton.addEventListener('click', () => {
-    openLandingSetupDialog({
-      engineId: defaultEngineId,
-      locale,
-      mode: 'lobby',
-      title: lobbyTitle,
-      ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
-    });
-  });
-  challengeButton.addEventListener('click', () => {
-    openLandingSetupDialog({
-      locale,
-      mode: 'pvp',
-      title: challengeTitle,
-      ratedDisabled: true,
-    });
-  });
-  engineButton.addEventListener('click', () => {
+  // One unified entry point: a single primary button opens the setup dialog
+  // with the opponent switcher inside (Computer / A friend / Anyone), replacing
+  // the old three stacked per-mode CTAs. Computer is the opening mode because
+  // it's the always-available action with no human-liquidity dependency.
+  // Correspondence stays the long end of the time-control axis inside the
+  // dialog, not a separate action.
+  const playButton = landingPlayAction(t('play.playGame', {}, locale), 'play');
+  playButton.classList.add('landing-play-action-primary');
+  playButton.addEventListener('click', () => {
     openLandingSetupDialog({
       engineId: defaultEngineId,
       engines: availableEngines,
       locale,
       mode: 'pve',
-      title: engineTitle,
+      modeSwitcher: true,
+      title: t('play.playEngine', {}, locale),
     });
   });
-
-  // Engine-led order: "Play the engine" leads because it's the always-available,
-  // differentiated action with no human-liquidity dependency. Crossroads lives
-  // in the friend-room variant picker instead of a separate homepage route.
-  panel.append(engineButton);
-  panel.append(challengeButton, lobbyButton);
-
-  // Correspondence is no longer a standalone action: it's the long end of the
-  // time-control axis inside Challenge a friend (see openLandingSetupDialog).
-
-  // The always-available engine permanently carries the primary (green) CTA. We
-  // deliberately do NOT swap emphasis on live presence: the old signal counted
-  // the viewer's own open game tabs and in-progress engine games as "presence",
-  // so a lone tab (usually yours) flipped the green to "Find opponent" and it
-  // flickered on the 5s poll. The live-stats text below still surfaces real
-  // presence, but it no longer steers which action is primary.
-  engineButton.classList.add('landing-play-action-primary');
-
-  // No card chrome, no "No account needed" line, no live-presence count: the
-  // homepage panel is just the three pairing buttons, vertically centered against
-  // the board (lichess-style). Presence still surfaces in the Activity box.
+  panel.append(playButton);
 
   if (options.showLobbyRequests) {
     panel.append(buildLobbyRequestsWindow(locale));
@@ -375,11 +345,12 @@ export function buildLandingPlayPanel(
   return panel;
 }
 
-type LandingPlayIcon = 'computer' | 'friend' | 'lobby';
+type LandingPlayIcon = 'computer' | 'friend' | 'lobby' | 'play';
 const LANDING_PLAY_ICON_ID: Record<LandingPlayIcon, UiIconName> = {
   computer: 'play-engine',
   friend: 'challenge-friend',
   lobby: 'find-opponent',
+  play: 'play-game',
 };
 
 function landingPlayAction(label: string, icon: LandingPlayIcon): HTMLButtonElement {
@@ -565,6 +536,7 @@ function engineSeedRow(seed: LandingEngineSeed, locale: Locale): HTMLElement {
   row.addEventListener('click', () => {
     openLandingSetupDialog({
       mode: 'pve',
+      modeSwitcher: true,
       initialGameSpecId: seed.gameSpecId,
       engineId: seed.engineId,
       locale,
@@ -588,11 +560,12 @@ export function buildLobbyPanel(
   board.className = 'landing-lobby-board';
   board.setAttribute('aria-label', t('play.openPairingRequests', {}, locale));
 
-  // Quick pairing leads (lila defaults to the pools view, which is always full)
-  // so the panel isn't an empty hooks table on arrival.
+  // Lobby leads: the standing engine seeds keep it populated at zero human
+  // liquidity, and live player seeks surface there the moment they exist. Quick
+  // pairing (the variant quick-play grid) and Correspondence follow.
   const tabDefs: { id: string; label: string }[] = [
-    { id: 'quick', label: t('lobby.tabQuick', {}, locale) },
     { id: 'lobby', label: t('lobby.tabLobby', {}, locale) },
+    { id: 'quick', label: t('lobby.tabQuick', {}, locale) },
     { id: 'correspondence', label: t('lobby.tabCorrespondence', {}, locale) },
   ];
   const tabBar = document.createElement('div');
@@ -732,6 +705,7 @@ export function buildLobbyPanel(
       openLandingSetupDialog({
         locale,
         mode: quickMode,
+        modeSwitcher: true,
         initialGameSpecId: gameSpecId,
         title:
           quickMode === 'pve'
@@ -804,7 +778,7 @@ export function buildLobbyPanel(
   bodyWrap.className = 'landing-lobby-body';
   bodyWrap.append(lobbyPanelEl, quickPanelEl, corrPanelEl);
   board.append(tabBar, bodyWrap);
-  selectTab('quick');
+  selectTab('lobby');
 
   if (options.hydrate !== false) {
     const refreshLobby = async (): Promise<void> => {
@@ -1059,24 +1033,29 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
     case 'lobby':
       openLandingSetupDialog({
         engineId: defaultEngineId,
+        engines: availableEngines,
         initialGameSpecId: deepLinkInitialVariant(
           params.get('gameSpecId') ?? params.get('variant'),
           'lobby',
         ),
         locale,
         mode: 'lobby',
+        modeSwitcher: true,
         title: t('play.findOpponent', {}, locale),
         ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
       });
       break;
     case 'friend':
       openLandingSetupDialog({
+        engineId: defaultEngineId,
+        engines: availableEngines,
         initialGameSpecId: deepLinkInitialVariant(
           params.get('gameSpecId') ?? params.get('variant'),
           'pvp',
         ),
         locale,
         mode: 'pvp',
+        modeSwitcher: true,
         title: t('play.challengeFriend', {}, locale),
         ratedDisabled: true,
       });
@@ -1092,6 +1071,7 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
         ),
         locale,
         mode: 'pve',
+        modeSwitcher: true,
         title: t('play.playEngine', {}, locale),
       });
       break;
@@ -1211,6 +1191,33 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const header = document.createElement('div');
   header.className = 'landing-setup-header';
   header.append(heading, closeButton);
+
+  // Unified-entry opponent switcher (Computer / A friend / Anyone). Each mode
+  // renders a different section set, so switching closes this dialog and
+  // reopens it in the picked mode, carrying the live variant selection and the
+  // engine roster over.
+  let modeSwitcher: HTMLElement | null = null;
+  if (choice.modeSwitcher) {
+    modeSwitcher = document.createElement('div');
+    modeSwitcher.className = 'landing-start-options three landing-setup-mode-switcher';
+    modeSwitcher.setAttribute('role', 'radiogroup');
+    modeSwitcher.setAttribute('aria-label', t('play.opponentLabel', {}, locale));
+    const modeOptions: { mode: LandingPlayMode; label: string }[] = [
+      { mode: 'pve', label: t('play.opponentEngine', {}, locale) },
+      { mode: 'pvp', label: t('play.opponentFriend', {}, locale) },
+      { mode: 'lobby', label: t('play.opponentLobby', {}, locale) },
+    ];
+    for (const option of modeOptions) {
+      const button = startOptionButton(option.label, option.mode === choice.mode);
+      button.dataset.playMode = option.mode;
+      if (option.mode !== choice.mode) {
+        button.addEventListener('click', () => {
+          reopenSetupDialogInMode(choice, option.mode, selectedGameSpecId);
+        });
+      }
+      modeSwitcher.append(button);
+    }
+  }
 
   const variantSection = document.createElement('div');
   variantSection.className = 'landing-setup-section';
@@ -1744,7 +1751,9 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   accordion.className = 'landing-setup-accordion';
   accordion.append(...setupSections.map((section) => section.wrapper));
   actions.append(startButton);
-  dialog.append(header, accordion);
+  dialog.append(header);
+  if (modeSwitcher) dialog.append(modeSwitcher);
+  dialog.append(accordion);
   dialog.append(status, actions);
   overlay.append(dialog);
   document.body.append(overlay);
@@ -1753,6 +1762,39 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     ? standardButton
     : startButton
   ).focus();
+}
+
+// Close the open setup dialog and reopen it in another mode, keeping the
+// current variant selection and the caller's engine roster. Title and
+// rated-availability are recomputed per mode (they were baked into the original
+// choice for the mode it opened in).
+function reopenSetupDialogInMode(
+  choice: LandingPlayChoice,
+  mode: LandingPlayMode,
+  gameSpecId: LandingGameSpecId,
+): void {
+  const locale = choice.locale ?? currentLocale();
+  closeActiveLandingDialog();
+  openLandingSetupDialog({
+    engineId: choice.engineId,
+    engines: choice.engines,
+    initialGameSpecId: gameSpecId,
+    locale,
+    mode,
+    modeSwitcher: true,
+    ratedDisabled:
+      mode === 'pvp'
+        ? true
+        : mode === 'lobby'
+          ? !isRatedModeEnabled() || !isLikelySignedIn()
+          : undefined,
+    title:
+      mode === 'pve'
+        ? t('play.playEngine', {}, locale)
+        : mode === 'pvp'
+          ? t('play.challengeFriend', {}, locale)
+          : t('play.findOpponent', {}, locale),
+  });
 }
 
 // The days-per-move options offered at the long end of the time-control picker

@@ -92,34 +92,54 @@ describe('playable engines loading', () => {
 });
 
 describe('landing shell', () => {
-  it('keeps the grid-line-sharing hooks the homepage band CSS keys on', () => {
-    // The desktop band aligns the side board boxes to the center feed with pure
-    // CSS (landing.css "Grid-line sharing", issue #120). That CSS keys on these
-    // class names; renaming them in the DOM without updating landing.css would
-    // silently break the alignment.
+  it('keeps the grid-area hooks the homepage band CSS keys on', () => {
+    // landing.css places the three bands via these class names (grid-areas
+    // left/panel/play, puzzle/forum/players, blogs/support); renaming them in
+    // the DOM without updating landing.css would silently break the layout.
     const wrap = document.createElement('div');
     wrap.innerHTML = renderLandingShellForPrerender();
 
     const demo = wrap.querySelector('.landing-demo');
     expect(demo).not.toBeNull();
-    expect(demo?.querySelector(':scope > .landing-viewer-column')).not.toBeNull();
+    expect(demo?.querySelector(':scope > .landing-left-column')).not.toBeNull();
+    expect(demo?.querySelector(':scope > .landing-lobby-panel')).not.toBeNull();
+    expect(demo?.querySelector(':scope > .landing-play-column')).not.toBeNull();
     expect(demo?.querySelector(':scope > .landing-puzzle-column')).not.toBeNull();
-    expect(demo?.querySelector(':scope > .landing-center-below')).not.toBeNull();
-    expect(demo?.querySelector('.landing-viewer-column .landing-board-column')).not.toBeNull();
+    expect(demo?.querySelector(':scope > .landing-forum-column')).not.toBeNull();
+    expect(demo?.querySelector(':scope > .landing-players-column')).not.toBeNull();
+    expect(demo?.querySelector(':scope > .landing-articles-row')).not.toBeNull();
+    expect(demo?.querySelector('.landing-left-column .landing-board-column')).not.toBeNull();
+    // The support/store pair left the homepage (patronage stays in the nav).
+    expect(demo?.querySelector('.landing-support-row')).toBeNull();
   });
 
-  it('leads the top-left rail with News and demotes chat to the lower strip', () => {
+  it('leads the left rail with the event-banner slot over the viewer, with News gone', () => {
     const wrap = document.createElement('div');
     wrap.innerHTML = renderLandingShellForPrerender();
 
-    const newsColumn = wrap.querySelector('.landing-news-column');
-    const lowerStrip = wrap.querySelector('.landing-lower-strip');
-    // The News feed leads the prime top-left rail; chat no longer sits there.
-    expect(newsColumn?.querySelector('.landing-announcements')).not.toBeNull();
-    expect(newsColumn?.querySelector('.landing-chat-mount')).toBeNull();
-    // Chat moved down into the lower strip alongside the forum.
-    expect(lowerStrip?.querySelector('.landing-chat-mount')).not.toBeNull();
-    expect(lowerStrip?.querySelector('.landing-announcements')).toBeNull();
+    const leftColumn = wrap.querySelector('.landing-left-column');
+    // The event-banner slot mounts first (it collapses via CSS when empty),
+    // the game viewer below it.
+    expect(leftColumn?.firstElementChild?.classList.contains('landing-event-banners')).toBe(true);
+    expect(leftColumn?.querySelector('.landing-viewer-column')).not.toBeNull();
+    // The News feed left the homepage (its history lives at /feed); chat moved
+    // to the right rail beneath the Play button + stats.
+    expect(wrap.querySelector('.landing-announcements')).toBeNull();
+    expect(wrap.querySelector('.landing-play-column .landing-chat-mount')).not.toBeNull();
+  });
+
+  it('mounts the band-2 widgets and the single unified Play button', () => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = renderLandingShellForPrerender();
+
+    expect(wrap.querySelector('.landing-forum-column .landing-forum')).not.toBeNull();
+    expect(
+      wrap.querySelector('.landing-players-column .landing-leaderboard-widget'),
+    ).not.toBeNull();
+    // One play action only, and it is the primary unified entry.
+    const actions = wrap.querySelectorAll('.landing-play-column .landing-play-action');
+    expect(actions.length).toBe(1);
+    expect(actions[0]?.classList.contains('landing-play-action-primary')).toBe(true);
   });
 
   it('links only the About Mistboard tagline tail', () => {

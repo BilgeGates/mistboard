@@ -68,11 +68,8 @@ describe('landing play panel', () => {
     // as the real product, never the old "Random Legal v1" built-in name.
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
-    const engineButton = [...panel.querySelectorAll('button')].find((candidate) =>
-      candidate.textContent?.includes('Play the engine'),
-    );
 
-    engineButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    openPlaySetup(panel, 'Play the engine');
     const overlay = document.querySelector('.landing-setup-overlay');
 
     expect(overlay?.textContent).toContain('Misty');
@@ -88,9 +85,14 @@ describe('landing play panel', () => {
     const panel = buildLandingPlayPanel([], { locale: 'zh-Hant' });
     document.body.append(panel);
 
-    expect(panel.textContent).toContain('尋找對手');
-    expect(panel.textContent).toContain('挑戰好友');
-    expect(panel.textContent).toContain('對戰引擎');
+    // The panel is the single unified Play button; the per-opponent choices
+    // localize inside the dialog's switcher.
+    expect(panel.textContent).toContain('開始對局');
+    openPlaySetup(panel, '對戰引擎');
+    const switcher = document.querySelector('.landing-setup-mode-switcher');
+    expect(switcher?.textContent).toContain('電腦');
+    expect(switcher?.textContent).toContain('好友');
+    expect(switcher?.textContent).toContain('任何人');
   });
 
   it('localizes the play setup dialog shell', () => {
@@ -235,11 +237,8 @@ describe('landing play panel', () => {
     vi.stubGlobal('fetch', fetchSpy);
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
-    const challengeButton = [...panel.querySelectorAll('button')].find(
-      (candidate) => candidate.textContent === 'Challenge a friend',
-    );
 
-    challengeButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    openPlaySetup(panel, 'Challenge a friend');
     const createButton = [...document.querySelectorAll('button')].find(
       (candidate) => candidate.textContent === 'Create room',
     );
@@ -1003,9 +1002,7 @@ describe('landing play panel', () => {
     );
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
-    [...panel.querySelectorAll('button')]
-      .find((b) => b.textContent === 'Challenge a friend')
-      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    openPlaySetup(panel, 'Challenge a friend');
 
     expect(variantPickerSpecs()).toContain('dark-xiangqi');
   });
@@ -1019,9 +1016,7 @@ describe('landing play panel', () => {
     );
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
-    [...panel.querySelectorAll('button')]
-      .find((b) => b.textContent === 'Challenge a friend')
-      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    openPlaySetup(panel, 'Challenge a friend');
 
     expect(variantPickerSpecs()).toContain('dark-xiangqi');
   });
@@ -1239,19 +1234,34 @@ describe('landing play panel', () => {
   });
 });
 
-// Resolve the lobby "Find opponent" → setup screen. The first matching button is
-// the landing action; clicking it opens the setup whose start button is
+// Resolve the "Find opponent" mode → setup screen (via the unified Play button
+// plus the dialog's opponent switcher); the start button is
 // `.landing-setup-start`.
 function openLobbySetup(panel: HTMLElement): void {
-  [...panel.querySelectorAll('button')]
-    .find((button) => button.textContent === 'Find opponent')
-    ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  openPlaySetup(panel, 'Find opponent');
 }
 
+// The panel is a single unified Play button since the homepage rework; the
+// old per-mode entry labels map onto the dialog's opponent switcher segments.
+const PLAY_SETUP_MODE_BY_LABEL: Record<string, 'pve' | 'pvp' | 'lobby'> = {
+  'Play the engine': 'pve',
+  對戰引擎: 'pve',
+  'Challenge a friend': 'pvp',
+  挑戰好友: 'pvp',
+  'Find opponent': 'lobby',
+  尋找對手: 'lobby',
+};
+
 function openPlaySetup(panel: HTMLElement, label: string): void {
-  [...panel.querySelectorAll('button')]
-    .find((button) => button.textContent === label)
+  panel
+    .querySelector<HTMLButtonElement>('.landing-play-action')
     ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  const mode = PLAY_SETUP_MODE_BY_LABEL[label];
+  if (mode && mode !== 'pve') {
+    document
+      .querySelector<HTMLButtonElement>(`.landing-setup-mode-switcher [data-play-mode="${mode}"]`)
+      ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  }
 }
 
 function clickModalButton(label: string): void {

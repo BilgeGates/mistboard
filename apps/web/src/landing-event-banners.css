@@ -1,0 +1,81 @@
+/* Homepage event banners: big tappable spotlight rows at the top of the left
+   rail (PlayStrategy-style). The slot collapses entirely when no event is on. */
+.landing-event-banners {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.landing-event-banners:empty {
+  display: none;
+}
+
+.landing-event-banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+
+.landing-event-banner:hover,
+.landing-event-banner:focus-visible {
+  border-color: var(--site-accent);
+  background: var(--site-panel-soft);
+  outline: none;
+}
+
+.landing-event-banner-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: var(--site-accent);
+}
+
+.landing-event-banner-icon .ui-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.landing-event-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.landing-event-banner-title {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--site-heading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.landing-event-banner:hover .landing-event-banner-title,
+.landing-event-banner:focus-visible .landing-event-banner-title {
+  color: var(--site-link);
+}
+
+.landing-event-banner-subtitle {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--site-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -85,23 +85,50 @@
   background: transparent;
 }
 
-/* Pairing CTAs stack: play tiles + activity box, aligned with the lobby panel. */
+/* Play stack: the single Play button with the activity stats directly beneath
+   it, flowing from the top of the rail (under the tagline). */
 .landing-play-stack {
-  display: grid;
-  flex: 1 1 auto;
-  grid-template-rows: minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   gap: clamp(12px, 1.6vw, 18px);
-  min-height: 100%;
   min-width: 0;
 }
 
-/* No outer card: just the three pairing buttons stacked. */
+/* No outer card: just the play entry button. */
 .landing-play-panel {
   display: flex;
-  align-self: center;
+  align-self: stretch;
   flex-direction: column;
   gap: 10px;
   min-width: 0;
+}
+
+/* The unified Play button is the page's primary action: solid accent fill,
+   taller than the flat secondary tiles it replaced. */
+.landing-play-action.landing-play-action-primary {
+  min-height: 76px;
+  border-color: var(--site-accent);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+  font-size: clamp(17px, 1.2vw, 20px);
+  font-weight: 640;
+}
+
+.landing-play-action-primary .landing-play-icon {
+  color: var(--site-on-accent);
+}
+
+.landing-play-action.landing-play-action-primary:hover:not(:disabled),
+.landing-play-action.landing-play-action-primary:focus-visible {
+  border-color: var(--site-accent-strong);
+  background: var(--site-accent-strong);
+}
+
+/* Opponent switcher (Computer / A friend / Anyone) at the top of the unified
+   setup dialog. */
+.landing-setup-mode-switcher > .landing-start-option {
+  padding-block: 9px;
+  font-weight: 600;
 }
 
 .landing-play-status {

@@ -486,13 +486,14 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `live-sound.ts` | SoundController + `maybePlaySnapshotSound` + per-move sound policy. Owns the audio context, volume tracking, win/lose/capture/castle tone generation. Wired by live-render's render flow + live.ts's snapshot handler |
 | `live-replay.ts` | Replay-of-live navigation. Owns `replayIndex` + `fogViewHistory` + 4 fog tracking vars. Exports state accessors (`getReplayIndex`, `getFogViewHistory`, `isLive`, `currentReplayIndex`, `fogLivePos`, `snapshotToPly`), DOM labels (`replayMetaLabel`, `replayControlDisabled`), and the navigation entry points (`handleReplayButtonClick`, `handleReplayKeyboard`, `handleMoveListClick`, `captureFogView`, `resetReplayState`). `initReplay({onStateChange})` injects the render-trigger callback so the dep is one-way (live-render → live-replay) |
 | `landing.ts` | Mounts for landing / game / contact. Owns homepage replay wiring, public game review shell, and contact route handoff. Shell, game-display, shared game metadata, homepage showcase data, announcement panel helpers, play/setup/lobby flows, and watch route ownership have moved out, so route modules no longer import from landing. Homepage band sizing is pure CSS now (the band-box ResizeObserver is gone). Loads `landing-play.css`, `landing.css`, and `game-route.css` in cascade order |
-| `landing.css` | Homepage route layout and replay embed styles loaded by `landing.ts`, including the grid-line-sharing block (#120: rail columns absolutely positioned into their named grid areas so they share the feed row's track lines, replacing the JS ResizeObserver) |
+| `landing.css` | Homepage route layout and replay embed styles loaded by `landing.ts`. Three-band grid (left/panel/play, puzzle/forum/players, blogs+support); the viewer board squares to the left rail width via the `.landing-board-column` inline-size container (the #120 grid-line-sharing block is gone with the feed row) |
 | `game-route.css` | Public game-review route styles loaded by `landing.ts`, including replay review layout, analysis panel sizing, and export links |
-| `landing-announcements.ts` | Landing announcement panel/card renderer: announcement ordering, article thumbnail lookup, kind/date labels, and CTA labels. Loads `landing-announcements.css` |
+| `landing-announcements.ts` | News feed panel/card renderer (announcement ordering, kind/date labels, CTA labels); off the homepage since the three-band rework, still backing `/feed` cards. Loads `landing-announcements.css` |
 | `landing-announcements.css` | Landing announcement panel/card styles loaded by `landing-announcements.ts` |
+| `landing-event-banners.ts` | Homepage event-banner spotlight (PlayStrategy-style rows for rare timely events: tournaments, broadcasts); the in-file `EVENT_BANNERS` list IS the publishing mechanism (empty in prod, dev samples in DEV), the slot collapses via CSS `:empty`. Loads `landing-event-banners.css` |
 | `landing-forum-preview.ts` | Homepage forum preview widget: hydrates recent active forum topics into a shared `site-box` panel and links to `/forum`, topic routes, and latest posts. Loads `landing-forum-preview.css` |
-| `landing-community-widgets.ts` | Homepage Popular studies + Top players pair: hydrates most-liked public studies and each public rating category's leader into compact shared `site-box` panels. Loads `landing-community-widgets.css` |
-| `landing-play.ts` | Homepage play panel, setup dialog, open-lobby request card, room creation, lobby queue polling, empty-lobby engine offer, and play deep-link handling |
+| `landing-community-widgets.ts` | Popular studies + Top players site-box widgets; the homepage mounts `buildTopPlayersWidget` alone (band 2 right), the paired strip remains for surfaces that want both. Loads `landing-community-widgets.css` |
+| `landing-play.ts` | Homepage unified Play button, setup dialog (with the Computer / A friend / Anyone opponent switcher), lobby board tabs, open-lobby request card, room creation, lobby queue polling, empty-lobby engine offer, and play deep-link handling |
 | `landing-play.css` | Homepage play/setup/lobby base styles loaded before `landing.css`, so homepage responsive layout overrides stay in the route stylesheet |
 | `puzzles.ts` | `/puzzles` route, the variant-agnostic puzzle session/page core: session state machine (attempt/hint/reveal round-trips, replay scrubbing, solved/failed/revealed flags), page layout, navigation/rotation, and keyboard handling. Everything per-variant lives in a `PuzzleBoardAdapter` resolved through `puzzles/registry.ts`; adding a puzzle variant never edits this file |
 | `puzzles/adapter.ts` | Shared puzzle-session model + the per-variant `PuzzleBoardAdapter` contract (board painting, click/drag interaction, move animation, replay application, labels/icons, optional analysis); deliberately structural ('red'/'black', string squares, {from,to}/{drop,to} moves) so the core imports no variant state types |
@@ -944,3 +945,11 @@ Numbered raw SQL files starting at `001_init.sql`; the count moves fast (105+ as
 - **`.env` files are off-limits** to Claude — touching them leaks via auto-include. Use Node `--env-file` or provider dashboards.
 - **Lesson trailers** on commits that teach a transferable rule (see `~/projects/CLAUDE.md`).
 
+## Unindexed (auto-added by `index:fix`, needs a description)
+
+| File | Owns |
+|------|------|
+| `apps/web/src/analysis-catalog.ts` | _needs a one-line description_ |
+| `apps/web/src/analysis-page.ts` | _needs a one-line description_ |
+| `apps/web/src/review/xiangqi-phases.ts` | _needs a one-line description_ |
+| `apps/web/src/variant-analysis.ts` | _needs a one-line description_ |

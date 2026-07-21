@@ -13,9 +13,11 @@ import {
   Megaphone,
   MessagesSquare,
   Newspaper,
+  RadioTower,
   SquarePen,
   Store,
   Swords,
+  Trophy,
   Users,
 } from 'lucide';
 import './ui-icon.css';
@@ -26,10 +28,13 @@ export type UiIconName =
   | 'announcement-article'
   | 'challenge-friend'
   | 'create-topic'
+  | 'event-broadcast'
+  | 'event-tournament'
   | 'find-opponent'
   | 'forum-topic'
   | 'notification'
   | 'play-engine'
+  | 'play-game'
   | 'store'
   | 'support';
 
@@ -40,10 +45,13 @@ const UI_ICON_NODES: Record<UiIconName, IconNode> = {
   'announcement-article': Newspaper,
   'challenge-friend': Swords,
   'create-topic': SquarePen,
+  'event-broadcast': RadioTower,
+  'event-tournament': Trophy,
   'find-opponent': Users,
   'forum-topic': MessagesSquare,
   notification: Bell,
   'play-engine': Bot,
+  'play-game': Swords,
   store: Store,
   support: Heart,
 };

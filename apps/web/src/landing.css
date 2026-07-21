@@ -14,21 +14,25 @@
 }
 
 .landing-demo {
+  /* Shared height for the band-2 widget boxes (forum, top players; the forum
+     CSS reads --landing-lower-widget-height, kept under its historical name). */
+  --landing-lower-widget-height: 20em;
+
   display: grid;
-  /* lichess-shaped portal. Row 1: news (left), the tall Open-challenges lobby panel
-     (center, the focal element), the pairing CTAs + activity (right, centered against
-     the panel). Row 2: the game viewer (left) and the daily puzzle (right), both
-     top-aligned with the article/forum feed (center). */
+  /* lichess-shaped portal in three bands. Band 1 (~the first two-thirds of the
+     initial screen): event banners + the game viewer (left), the tall tabbed
+     lobby panel (center, the focal element), the single Play button + activity
+     stats (right). Band 2: daily puzzle (left), forum topics (center), top
+     players (right). Band 3: the full-width blog row, then support/store. */
   /* lila proportions: the lobby is the dominant element (lila's app is 66% of a
-     34%/1fr grid). Center takes the free space (1fr) while the news + CTA rails
-     hold a tight 280-320px, so the panel reads as the focal block, not a co-equal
+     34%/1fr grid). Center takes the free space (1fr) while the side rails hold
+     a tight 280-340px, so the panel reads as the focal block, not a co-equal
      third column. */
   grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(280px, 340px);
   grid-template-areas:
-    "news   panel play"
-    "viewer feed  puzzle"
-    "lower  lower  lower"
-    "community community community";
+    "left   panel play"
+    "puzzle forum players"
+    ".      blogs .";
   column-gap: clamp(10px, 0.9vw, 15px);
   row-gap: clamp(14px, 1.8vw, 24px);
   align-items: start;
@@ -39,17 +43,6 @@
      central lobby). */
   max-width: 1360px;
   margin: 0 auto;
-}
-
-.landing-rail {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(12px, 1.6vw, 18px);
-  min-width: 0;
-}
-
-.landing-rail-left {
-  grid-area: left;
 }
 
 /* The homepage's single h1, styled as a quiet one-line about link rather than a
@@ -205,174 +198,62 @@
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
-/* Row 2 of the center track: article cards and support/store row, stacked full
-   width beneath the board. Split from the board so the grid can align this row's
-   top with the lower-right rail. */
-.landing-center-below {
-  grid-area: feed;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: clamp(8px, 1vw, 12px);
-  min-width: 0;
-}
-
-/* Support (donate) + Store (coming soon) — lichess's two-up call-to-action,
-   directly beneath the article cards. Cards + this row are the feed block the
-   side boards align to, top and bottom. */
-.landing-support-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(10px, 1.4vw, 16px);
-}
-
-.landing-support-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 16px;
-  min-height: 60px;
-  padding: 7px 24px;
-  border: 1px solid var(--site-border-soft);
-  border-radius: var(--site-radius);
-  background: var(--site-panel);
-  color: inherit;
-  text-decoration: none;
-  transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    color 120ms ease;
-}
-
-.landing-support-card:hover,
-.landing-support-card:focus-visible {
-  border-color: var(--site-accent);
-  background: var(--site-panel-soft);
-  outline: none;
-}
-
-.landing-support-card.is-disabled {
-  cursor: default;
-}
-
-.landing-support-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  color: var(--site-accent);
-}
-
-.landing-support-card.is-disabled .landing-support-icon {
-  color: var(--site-accent);
-}
-
-.landing-support-icon svg {
-  width: 28px;
-  height: 28px;
-}
-
-.landing-support-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.landing-support-title {
-  font-size: 21px;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--site-heading);
-}
-
-.landing-support-card.is-disabled .landing-support-title {
-  color: var(--site-heading);
-}
-
-.landing-support-subtitle {
-  overflow: hidden;
-  font-size: 15px;
-  line-height: 1.3;
-  color: var(--site-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.landing-support-card:hover .landing-support-title,
-.landing-support-card:focus-visible .landing-support-title {
-  color: var(--site-link);
-}
-
-:root[data-effective-theme="dark"] .landing-support-card {
-  border-color: var(--site-border-soft);
-}
-
-/* Lower strip: lila-style News + Forum pair, full width beneath the
-   three-column band. */
-.landing-lower-strip {
-  --landing-lower-widget-height: 20em;
-
-  grid-area: lower;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: stretch;
-  gap: clamp(10px, 1.4vw, 16px);
-  width: 100%;
-  min-width: 0;
-}
-
-/* Stack the support/store cards on narrow screens: two-up gets too tight and
-   the subtitle truncates below ~520px. */
-@media (max-width: 560px) {
-  .landing-support-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-.landing-rail-right {
-  grid-area: rail;
-}
-
-/* News column (row 1, top-left): the announcements feed + h1 tagline. */
-.landing-news-column {
-  grid-area: news;
+/* Left column (band 1): event banners (collapse when empty) over the showcase
+   board viewer. */
+.landing-left-column {
+  grid-area: left;
   display: flex;
   flex-direction: column;
   gap: clamp(12px, 1.6vw, 18px);
   min-width: 0;
 }
 
-.landing-news-column .landing-chat-mount:not(:empty) {
-  width: 100%;
-}
-
-/* Left viewer column (row 2): the showcase board, top-aligned with the article row. */
 .landing-viewer-column {
-  grid-area: viewer;
   display: flex;
   flex-direction: column;
   gap: clamp(12px, 1.6vw, 18px);
   min-width: 0;
 }
 
-/* Play column (row 1, right): the pairing CTAs + activity, vertically centered
-   against the tall lobby panel. align-self: stretch overrides the grid's
-   align-items:start so the column fills row 1 and can center its content. */
+/* Play column (band 1, right): tagline, the single Play button, activity stats,
+   then chat pinned to the rail's bottom edge (level with the lobby panel's). */
 .landing-play-column {
   grid-area: play;
   display: flex;
   flex-direction: column;
-  justify-content: stretch;
   align-self: stretch;
   gap: clamp(12px, 1.6vw, 18px);
   min-width: 0;
 }
 
-/* Puzzle column (row 2, right): the daily puzzle, top-aligned with the article row. */
+.landing-play-column > .landing-chat-mount {
+  margin-top: auto;
+}
+
+/* Puzzle column (band 2, left): the daily puzzle. The three band-2 boxes share
+   their TOP edge (the grid's align-items: start): the puzzle's title caption is
+   absolutely positioned above its box, so the box top is the column top and the
+   forum/players boxes line up with it. */
 .landing-puzzle-column {
   grid-area: puzzle;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Band-2 center/right widget columns: forum topics and top players share the
+   forum widget's box height so the row reads as one strip. */
+.landing-forum-column {
+  grid-area: forum;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.landing-players-column {
+  grid-area: players;
+  --landing-community-widget-height: var(--landing-lower-widget-height);
+
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -390,9 +271,10 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  /* Shorter than before: the previous clamp(560px, 74vh, 800px) ran tall enough
-     that the default pools view read as an empty void below the fold. */
-  min-height: clamp(440px, 56vh, 620px);
+  /* Band 1 fills roughly the first two-thirds of the initial screen: the panel
+     is the tallest element in the band, so its height sets that boundary (nav +
+     stage padding make up the rest). */
+  min-height: clamp(460px, 60vh, 680px);
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
   background: var(--site-panel);
@@ -755,6 +637,23 @@
   display: flex;
   flex-direction: column;
   gap: clamp(8px, 1vw, 12px);
+}
+
+/* Blog row (band 3): the same carousel, confined to the center column for now
+   (the side columns stay empty), three compact cards per view. */
+.landing-articles-row {
+  grid-area: blogs;
+}
+
+.landing-articles-row .landing-article-card {
+  flex-basis: calc((100% - 2 * var(--landing-carousel-gap)) / 3);
+}
+
+.landing-articles-row .landing-article-card-title {
+  margin: 7px 0 9px;
+  padding: 0 9px;
+  font-size: 12.5px;
+  line-height: 1.35;
 }
 
 .landing-carousel {
@@ -1584,98 +1483,20 @@
 }
 
 @media (min-width: 1241px) {
-  /* ── Row-1 rail alignment against the tall lobby panel ───────────────────────
-     Desktop only (the band is a 3-column grid here; below 1241px it stacks and
-     these would fight the stacked layout). The center lobby panel drives row 1's
-     height; the left news rail and right play rail stretch to it and position
-     their contents relative to it: chat + CTAs centered on the panel's vertical
-     midline, the about tagline flush with the play rail's top, and the activity
-     box pinned to the play rail's bottom out of the centering flow. */
-  .landing-news-column {
-    align-self: stretch;
-    justify-content: center;
-  }
-
-  /* Pin the h1 tagline to the top-left of the right rail, out of the CTA centering
-     flow (mirror of the activity box pinned to the bottom). */
-  .landing-play-column {
-    position: relative;
-  }
-
-  .landing-play-column .landing-about {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    /* Paint above the relative-positioned play-stack (later in DOM) so the
-       tagline stays selectable and the About link stays clickable. */
-    z-index: 1;
-  }
-
-  .landing-play-stack {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .landing-play-stack .landing-play-panel {
-    align-self: stretch;
-  }
-
-  .landing-play-stack .landing-activity {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-  }
-
   /* ── Homepage viewer: flush box model (Stage 2) ──────────────────────────────
    Gated to the desktop band (min-width 1241px, where .landing-demo is a 3-column
    grid). Below that the band stacks and the viewer reverts to its in-flow,
    framed, seats-inside layout.
-   Align the BOARD (not the whole widget) top-and-bottom with the center column,
-   mirroring the daily-puzzle box on the right rail. The board is a square that
-   tracks the feed-row size (grid-line sharing below, shared with the puzzle) and
-   hugs the inner (right) edge; the two name/clock seats sit OUTSIDE the box
-   (absolute, above and below) like the puzzle captions, so the board itself is
-   what lands flush. Scoped to .landing-board-column so the dev variant sheet
-   (bare .showcase-widget) keeps its in-flow seats-inside layout. Covers both
-   renderers: the chessground single pane and the tenant .replay-layout-solo. */
-
-  /* ── Grid-line sharing (issue #120) ─────────────────────────────────────────
-   The side board boxes read the feed row's size from CSS instead of the old
-   landing.ts ResizeObserver. Both rail columns are absolutely positioned INTO
-   their named grid areas: an absolutely positioned grid child is placed in its
-   grid area but no longer contributes to track sizing, so the feed row's height
-   is defined by the center feed (.landing-center-below) alone and the rails
-   share its row lines by construction. Each rail column is a size query
-   container, so min(100cqw, 100cqh) = min(rail width, feed height): the same
-   shared square the observer used to compute. The two rail tracks share one
-   minmax() and resolve to equal widths, so the squares stay symmetric.
-   NOTE: the cq units resolve at the CONSUMING element, so every consumer of
-   --showcase-widget-size must not sit inside a nested query container (today
-   none does; .landing-board-column is inline-size, so 100cqh skips it and
-   resolves against the viewer column). */
-  .landing-demo {
-    /* Establishes the containing block so the absolutely positioned rail
-       columns resolve against their grid areas rather than the viewport. */
-    position: relative;
-  }
-
-  .landing-viewer-column,
-  .landing-puzzle-column {
-    position: absolute;
-    inset: 0;
-    container-type: size;
-  }
-
+   The board is a square sized to the left rail's width (the rail is an
+   inline-size query container, so 100cqw = rail width); the two name/clock
+   seats sit OUTSIDE the box (absolute, above and below) like the puzzle
+   captions, with margin-block reserving their lines so they never overlap the
+   event banners above or the band-2 row below. Scoped to .landing-board-column
+   so the dev variant sheet (bare .showcase-widget) keeps its in-flow
+   seats-inside layout. Covers both renderers: the chessground single pane and
+   the tenant .replay-layout-solo. */
   .landing-board-column #landing-replay {
-    --showcase-widget-size: min(100cqw, 100cqh);
-  }
-
-  .home-puzzle-box {
-    width: min(100cqw, 100cqh);
+    --showcase-widget-size: 100cqw;
   }
 
   /* Frameless viewer: drop the .showcase-widget panel chrome on the homepage so the
@@ -1685,6 +1506,8 @@
     background: none;
     box-shadow: none;
     border-radius: 0;
+    /* Reserve the out-of-flow seat rows (name/clock, ~26px each). */
+    margin-block: 28px;
   }
 
   /* Zero the panel padding on desktop (this selector matches the high-specificity
@@ -1860,38 +1683,29 @@
 }
 
 @media (max-width: 1240px) {
-  /* Collapse to one column: pairing CTAs + activity, the open-challenges panel, the
-     viewer, the article/forum feed, the puzzle, then news. */
+  /* Collapse to one column: Play button + activity + chat, the lobby panel,
+     banners + viewer, then the band-2 widgets (puzzle, forum, players) and the
+     blog row. */
   .landing-demo {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "play"
       "panel"
-      "viewer"
-      "feed"
+      "left"
       "puzzle"
-      "lower"
-      "community"
-      "news";
+      "forum"
+      "players"
+      "blogs";
     max-width: 640px;
-  }
-
-  /* The centering that stacks the CTAs against the tall panel is a desktop-only
-     concern; on mobile the column is content-height, so drop it. */
-  .landing-play-column {
-    justify-content: flex-start;
-  }
-
-  .landing-center-below {
-    align-items: stretch;
-  }
-
-  .landing-lower-strip {
-    grid-template-columns: 1fr;
   }
 
   .landing-board-column {
     margin-inline: auto;
+  }
+
+  /* Chat pinning to the rail bottom is a three-column concern. */
+  .landing-play-column > .landing-chat-mount {
+    margin-top: 0;
   }
 
   .landing-play-stack {
@@ -1924,7 +1738,7 @@
 
   .landing-viewer-column,
   .landing-lobby-panel,
-  .landing-news-column {
+  .landing-left-column {
     width: 100%;
     margin-inline: auto;
   }
@@ -1967,6 +1781,10 @@
 
   .landing-custom-time {
     grid-template-columns: 1fr;
+  }
+
+  .landing-articles-row .landing-article-card {
+    flex-basis: calc((100% - var(--landing-carousel-gap)) / 2);
   }
 }
 

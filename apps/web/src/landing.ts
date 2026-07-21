@@ -17,11 +17,11 @@ import {
   renderHomePuzzleWidget,
 } from './home-puzzle-widget.js';
 import { t } from './i18n/catalog.js';
-import { currentLocale, type Locale, localizedHref } from './i18n/locale.js';
+import { currentLocale, localizedHref } from './i18n/locale.js';
 import { buildLandingActivity } from './landing-activity.js';
-import { buildLandingAnnouncements } from './landing-announcements.js';
 import { buildLandingChat } from './landing-chat.js';
-import { buildLandingCommunityWidgets } from './landing-community-widgets.js';
+import { buildTopPlayersWidget } from './landing-community-widgets.js';
+import { buildLandingEventBanners } from './landing-event-banners.js';
 import { buildLandingForumPreview } from './landing-forum-preview.js';
 import {
   buildLandingPlayPanel,
@@ -40,7 +40,6 @@ import { roomIdFromPath } from './room-url.js';
 import { mountShowcaseCycler, type ShowcaseEntry } from './showcase-cycler.js';
 import { specIdForShowcaseVariant } from './showcase-dispatch.js';
 import { buildHomeFooter, buildNav, buildNotice } from './site-shell.js';
-import { buildUiIcon } from './ui-icon.js';
 import { type WebVariantTenant, webVariantTenantForRoomId } from './variant-tenant/registry.js';
 
 // Adaptive hero-pool refresh. Poll faster while games are being played (they
@@ -549,62 +548,6 @@ function syncGamePlyUrl(ply: number): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
-// A single lichess-style support/store card: icon on the left, a title + subtitle
-// stacked to its right. Support links to /patron; store is a disabled placeholder
-// ("coming soon") rendered as a non-interactive span.
-function buildHomeSupportCard(opts: {
-  variant: 'support' | 'store';
-  title: string;
-  subtitle: string;
-  href?: string;
-}): HTMLElement {
-  const el = document.createElement(opts.href ? 'a' : 'span');
-  el.className = `landing-support-card landing-support-card-${opts.variant}`;
-  if (opts.href) {
-    (el as HTMLAnchorElement).href = opts.href;
-  } else {
-    el.classList.add('is-disabled');
-    el.setAttribute('aria-disabled', 'true');
-  }
-  const icon = document.createElement('span');
-  icon.className = 'landing-support-icon landing-support-icon-dobutsu';
-  icon.setAttribute('aria-hidden', 'true');
-  icon.append(buildUiIcon(opts.variant));
-  const text = document.createElement('span');
-  text.className = 'landing-support-text';
-  const title = document.createElement('span');
-  title.className = 'landing-support-title';
-  title.textContent = opts.title;
-  const subtitle = document.createElement('span');
-  subtitle.className = 'landing-support-subtitle';
-  subtitle.textContent = opts.subtitle;
-  text.append(title, subtitle);
-  el.append(icon, text);
-  return el;
-}
-
-// The two-up support/store row that sits directly beneath the article cards
-// (lichess's Donate + Swag Store pairing). Support routes to the patron page;
-// store is a coming-soon placeholder until the shop exists.
-function buildHomeSupportRow(locale: Locale): HTMLElement {
-  const row = document.createElement('div');
-  row.className = 'landing-support-row';
-  row.append(
-    buildHomeSupportCard({
-      variant: 'support',
-      title: t('home.supportTitle', {}, locale),
-      subtitle: t('home.supportSubtitle', {}, locale),
-      href: '/patron',
-    }),
-    buildHomeSupportCard({
-      variant: 'store',
-      title: t('home.storeTitle', {}, locale),
-      subtitle: t('home.storeSubtitle', {}, locale),
-    }),
-  );
-  return row;
-}
-
 function buildLandingStage(
   engines: PlayableEngine[],
   opts: { skipLiveWidgets?: boolean } = {},
@@ -621,18 +564,13 @@ function buildLandingStage(
   const section = document.createElement('section');
   section.className = 'landing-demo';
 
-  // ── News column (grid-area: news, top-left): the News feed leads the left rail
-  // above the fold (fresh releases/announcements — a live-looking surface, the
-  // lishogi pattern). Chat moved down to the lower strip (it reads "Quiet right
-  // now" most of the time and doesn't earn prime real estate). ──
-  const newsColumn = document.createElement('div');
-  newsColumn.className = 'landing-news-column';
-  newsColumn.append(buildLandingAnnouncements(locale));
-
-  // ── Left viewer column (grid-area: viewer, row 2): the cycling showcase board,
-  // top-aligned with the article row across the gutter (beneath the news column). The
-  // board stays in `.landing-board-column` (container-query sized) so it shrinks to
-  // the side track. ──
+  // ── Left column (grid-area: left, band 1): the event-banner spotlight (rare,
+  // timely announcements — tournaments, broadcasts; the slot collapses when no
+  // event is on, which is almost always) with the cycling showcase board beneath
+  // it. The News feed left the homepage; its history lives on at /feed. ──
+  const leftColumn = document.createElement('div');
+  leftColumn.className = 'landing-left-column';
+  leftColumn.append(buildLandingEventBanners());
   const viewerColumn = document.createElement('div');
   viewerColumn.className = 'landing-viewer-column';
   const boardColumn = document.createElement('div');
@@ -649,66 +587,58 @@ function buildLandingStage(
   const caption = document.createElement('div');
   caption.className = 'showcase-caption';
   viewerColumn.append(boardColumn);
+  leftColumn.append(viewerColumn);
 
-  // ── Center panel (grid-area: panel): the new Open challenges lobby table — browse
-  // and join open seeks (lichess's central lobby). The "start a game" CTAs stay on
-  // the right; this is the complementary "join a game" surface. ──
+  // ── Center panel (grid-area: panel, band 1): the tabbed lobby board — Lobby
+  // (engine seeds + live player seeks) / Quick pairing / Correspondence
+  // (lichess's central lobby). The start-a-game entry stays on the right; this
+  // is the complementary "join a game" surface. ──
   const lobbyPanel = document.createElement('section');
   lobbyPanel.className = 'landing-lobby-panel';
   lobbyPanel.append(buildLobbyPanel(locale, { hydrate: !opts.skipLiveWidgets }));
 
-  // ── Center feed (grid-area: feed): article cards + the support/store row,
-  // stacked beneath the lobby panel and aligned with the viewer's top. Together
-  // these two blocks define the height the side boards align to (top and bottom);
-  // the forum + chat moved down to the full-width lower strip so the feed stays a
-  // tight, board-height block. ──
-  const centerBelow = document.createElement('div');
-  centerBelow.className = 'landing-center-below';
-  // Two cards visible at a time (each a half-column-wide 8:5 card ~ lichess's
-  // blog-card width), with the rest overflowing so the carousel auto-rotates
-  // through them. Newest first (an announcement can take a slot).
-  const articleCards = buildHomeArticleCards(8, locale);
-  if (articleCards) centerBelow.append(articleCards);
-  // Support (donate) + Store (coming soon), lichess-style, directly under the
-  // cards — the second half of the feed block the boards bottom-align to.
-  centerBelow.append(buildHomeSupportRow(locale));
-
-  // ── Lower strip (grid-area: lower): lila-style paired columns, global Chat on
-  // the left (moved down from the top-left rail — community chatter, not prime
-  // real estate) and active Forum topics on the right. ──
-  const lowerStrip = document.createElement('div');
-  lowerStrip.className = 'landing-lower-strip';
-  lowerStrip.append(
-    buildLandingChat({
-      hydrate: !opts.skipLiveWidgets,
-      mode: import.meta.env.DEV ? 'mock' : 'live',
-    }),
-  );
-  lowerStrip.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
-
-  const communityStrip = buildLandingCommunityWidgets({ hydrate: !opts.skipLiveWidgets });
-
-  // ── Play column (grid-area: play, row 1 right): the small h1 tagline flush to the
-  // top-left, then the pairing CTAs + activity box vertically centered against the
-  // tall open-challenges panel. ──
+  // ── Play column (grid-area: play, band 1 right): the small h1 tagline, then
+  // the single unified Play button (the setup dialog owns the opponent choice),
+  // the activity stats, and the lobby chat filling the rail beneath them. ──
   let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });
   const playStack = document.createElement('div');
   playStack.className = 'landing-play-stack';
-  // Buttons then the activity box render their frame synchronously (placeholder /
+  // Button then the activity box render their frame synchronously (placeholder /
   // skeleton rows) so the column reserves its footprint from first paint; the
   // prerendered shell carries the same frames, hydration skipped.
   playStack.append(playPanel, buildLandingActivity({ hydrate: !opts.skipLiveWidgets }));
-  // The page's single (small) h1: the about tagline, pinned to the top of the right
-  // rail (absolute on desktop so it clears the CTA centering; in flow when stacked).
+  // The page's single (small) h1: the about tagline at the top of the right rail.
   const about = document.createElement('h1');
   about.className = 'landing-about';
   appendLinkedTagline(about, t('home.tagline', {}, locale), localizedHref('/about', locale));
   const playColumn = document.createElement('div');
   playColumn.className = 'landing-play-column';
   playColumn.append(about, playStack);
+  // Lobby chat under the stats: server-driven (the empty mount paints nothing
+  // until the chat flag is confirmed), it fills the rail's otherwise-dead space
+  // beside the tall lobby panel.
+  playColumn.append(
+    buildLandingChat({
+      hydrate: !opts.skipLiveWidgets,
+      mode: import.meta.env.DEV ? 'mock' : 'live',
+    }),
+  );
 
-  // ── Puzzle column (grid-area: puzzle, row 2 right): the daily puzzle, top-aligned
-  // with the article row across the gutter. ──
+  // ── Band 2: forum topics (center) and top players (right) beside the daily
+  // puzzle. Chat and the studies widget left the homepage in this cut. ──
+  const forumColumn = document.createElement('div');
+  forumColumn.className = 'landing-forum-column';
+  forumColumn.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
+  const playersColumn = document.createElement('div');
+  playersColumn.className = 'landing-players-column';
+  playersColumn.append(buildTopPlayersWidget({ hydrate: !opts.skipLiveWidgets }));
+
+  // ── Band 3 (grid-area: blogs): the full-width blog row — compact article
+  // cards (six per view), an announcement can take a slot, newest first. ──
+  const articleCards = buildHomeArticleCards(8, locale);
+  articleCards?.classList.add('landing-articles-row');
+
+  // ── Puzzle column (grid-area: puzzle, band 2 left): the daily puzzle. ──
   const puzzleColumn = document.createElement('div');
   puzzleColumn.className = 'landing-puzzle-column';
   if (!opts.skipLiveWidgets) {
@@ -739,28 +669,11 @@ function buildLandingStage(
     playPanel = replacement;
   };
 
-  // Grid placement (see landing.css): row 1 = [news · lobby panel · play+activity],
-  // row 2 = [viewer · article feed · puzzle]. The tall lobby panel drives row 1, the
-  // CTAs center against it, and the viewer + puzzle top-align with the article feed.
-  // Append order is irrelevant (grid-area governs).
-  section.append(
-    newsColumn,
-    viewerColumn,
-    lobbyPanel,
-    centerBelow,
-    playColumn,
-    puzzleColumn,
-    lowerStrip,
-    communityStrip,
-  );
-
-  // Both side board boxes (viewer left, daily puzzle right) track the center
-  // block (articles + support/store) so they stay flush top AND bottom. This is
-  // pure CSS grid-line sharing since issue #120: the rail columns are absolutely
-  // positioned into their grid areas (so the feed alone defines the shared row
-  // height) and each is a size query container the boxes read via
-  // min(100cqw, 100cqh). See the "Grid-line sharing" block in landing.css; the
-  // ResizeObserver that used to compute --home-puzzle-box-size is gone.
+  // Grid placement (see landing.css): band 1 = [banners+viewer · lobby panel ·
+  // play button+activity+chat], band 2 = [puzzle · forum · top players], band 3
+  // = the full-width blog row. Append order is irrelevant (grid-area governs).
+  section.append(leftColumn, lobbyPanel, playColumn, puzzleColumn, forumColumn, playersColumn);
+  if (articleCards) section.append(articleCards);
 
   // Center tenant (SVG) showcase boards within the square box so a non-square
   // (portrait xiangqi) board pillarboxes symmetrically rather than jamming against
