@@ -118,6 +118,45 @@ function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
+export function elephantChessPilotManifestSha256(
+  manifest: Omit<ElephantChessPilotManifest, 'manifestSha256'>,
+): string {
+  return sha256(JSON.stringify(manifest));
+}
+
+export function verifyElephantChessPilotManifest(value: unknown): ElephantChessPilotManifest {
+  if (!value || typeof value !== 'object') throw new Error('pilot manifest must be an object');
+  const manifest = value as ElephantChessPilotManifest;
+  if (manifest.format !== ELEPHANTCHESS_PILOT_FORMAT) {
+    throw new Error(`unsupported pilot manifest format: ${String(manifest.format)}`);
+  }
+  if (manifest.eligibilityVersion !== ELEPHANTCHESS_PILOT_ELIGIBILITY_VERSION) {
+    throw new Error(
+      `unsupported pilot eligibility version: ${String(manifest.eligibilityVersion)}`,
+    );
+  }
+  if (manifest.sourceSlug !== 'elephantchess-pvp') {
+    throw new Error(`unsupported pilot source: ${String(manifest.sourceSlug)}`);
+  }
+  if (!Array.isArray(manifest.games)) throw new Error('pilot manifest games must be an array');
+  if (manifest.games.length !== manifest.counts?.selected) {
+    throw new Error('pilot manifest selected count does not match its ordered games');
+  }
+  for (const [index, game] of manifest.games.entries()) {
+    if (game.selectionIndex !== index) {
+      throw new Error(`pilot manifest selection index ${game.selectionIndex} is out of order`);
+    }
+  }
+  const { manifestSha256, ...withoutHash } = manifest;
+  const actual = elephantChessPilotManifestSha256(withoutHash);
+  if (manifestSha256 !== actual) {
+    throw new Error(
+      `pilot manifest content hash mismatch: expected ${manifestSha256}, got ${actual}`,
+    );
+  }
+  return manifest;
+}
+
 function normalizedBucket(value: string | null): string {
   const normalized = value?.trim().toUpperCase();
   return normalized || 'UNKNOWN';
@@ -484,7 +523,7 @@ export function buildElephantChessPilotManifest(
       }),
     ),
   };
-  const manifestSha256 = sha256(JSON.stringify(manifestWithoutHash));
+  const manifestSha256 = elephantChessPilotManifestSha256(manifestWithoutHash);
   return { ...manifestWithoutHash, manifestSha256 };
 }
 

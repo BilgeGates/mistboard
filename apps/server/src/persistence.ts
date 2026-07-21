@@ -455,6 +455,14 @@ export {
   setXiangqiBroadcastTourSchedule,
 } from './persistence-xiangqi-broadcasts.js';
 export type {
+  XiangqiPuzzleEditorialReason,
+  XiangqiPuzzleEditorialReview,
+  XiangqiPuzzleEditorialVerdict,
+  XiangqiPuzzleMiningCandidate,
+  XiangqiPuzzleMiningCandidateStatus,
+  XiangqiPuzzleMiningJudgment,
+  XiangqiPuzzleMiningJudgmentStage,
+  XiangqiPuzzleMiningJudgmentVerdict,
   XiangqiPuzzleMiningRun,
   XiangqiPuzzleMiningRunStatus,
   XiangqiPuzzleMiningShard,
@@ -465,8 +473,13 @@ export {
   claimNextXiangqiPuzzleMiningShard,
   completeXiangqiPuzzleMiningShard,
   failXiangqiPuzzleMiningShard,
+  getXiangqiPuzzleMiningCandidate,
   getXiangqiPuzzleMiningRun,
   heartbeatXiangqiPuzzleMiningShard,
   initializeXiangqiPuzzleMiningRun,
+  recordXiangqiPuzzleEditorialReview,
+  recordXiangqiPuzzleMiningCandidate,
+  recordXiangqiPuzzleMiningJudgment,
+  xiangqiPuzzleMiningCandidateId,
   xiangqiPuzzleMiningRunId,
 } from './persistence-xiangqi-puzzle-mining.js';

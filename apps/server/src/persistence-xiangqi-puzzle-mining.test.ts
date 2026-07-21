@@ -7,8 +7,12 @@ import {
   claimNextXiangqiPuzzleMiningShard,
   completeXiangqiPuzzleMiningShard,
   failXiangqiPuzzleMiningShard,
+  getXiangqiPuzzleMiningCandidate,
   heartbeatXiangqiPuzzleMiningShard,
   initializeXiangqiPuzzleMiningRun,
+  recordXiangqiPuzzleEditorialReview,
+  recordXiangqiPuzzleMiningCandidate,
+  recordXiangqiPuzzleMiningJudgment,
 } from './persistence-xiangqi-puzzle-mining.js';
 
 const SOURCE_ID = 'source-elephant-pilot-test';
@@ -239,6 +243,177 @@ definePersistenceTests('xiangqi puzzle mining', () => {
         claimToken: 'claim-c',
       }),
       /is not claimed/,
+    );
+  });
+
+  test('candidate evidence is idempotent and judgments enforce the review sequence', async () => {
+    const games = [
+      ...Array.from({ length: 12 }, (_, index) => pilotGame(index)),
+      ...Array.from({ length: 4 }, (_, index) => pilotGame(12 + index, true)),
+    ];
+    await seedEligibleGames(games);
+    const manifest = buildElephantChessPilotManifest(games, {
+      importBatchId: BATCH_ID,
+      seed: 'candidate-pilot-v1',
+      targets: { representativeLiveBase: 4, coverageLive: 2, correspondenceMax: 2 },
+    });
+    const run = await initializeXiangqiPuzzleMiningRun({ manifest, shardSize: 3 });
+    const historicalGameId = manifest.games[0]?.historicalGameId as string;
+    const candidateInput = {
+      runId: run.id,
+      historicalGameId,
+      postBlunderPly: 17,
+      positionKey: 'xiangqi-position-key-1',
+      trigger: 'eval-swing',
+      puzzleData: { initialFen: 'test-fen', solution: ['a0a1'] },
+      scanEvidence: { beforeCp: 420, afterCp: 80, scanNodes: 60_000 },
+      artifactSha256: 'c'.repeat(64),
+    };
+    const candidate = await recordXiangqiPuzzleMiningCandidate(candidateInput);
+    assert.deepEqual(await recordXiangqiPuzzleMiningCandidate(candidateInput), candidate);
+    assert.equal(candidate.status, 'scanned');
+    await assert.rejects(
+      recordXiangqiPuzzleMiningCandidate({
+        ...candidateInput,
+        scanEvidence: { beforeCp: 421, afterCp: 80, scanNodes: 60_000 },
+      }),
+      /different scan evidence/,
+    );
+
+    const engineProfile = { engine: 'pikafish-test', binarySha256: 'd'.repeat(64) };
+    await assert.rejects(
+      recordXiangqiPuzzleMiningJudgment({
+        candidateId: candidate.id,
+        stage: 'audit',
+        profileVersion: 'audit-v1',
+        verdict: 'pass',
+        engineProfile,
+        evidence: { depth: 22 },
+      }),
+      /cannot transition/,
+    );
+    const verification = await recordXiangqiPuzzleMiningJudgment({
+      candidateId: candidate.id,
+      stage: 'verify',
+      profileVersion: 'verify-v1',
+      verdict: 'pass',
+      engineProfile,
+      evidence: { depth: 20, bestCp: 510, secondCp: 120 },
+    });
+    assert.equal(verification.stage, 'verify');
+    assert.equal(
+      (await getXiangqiPuzzleMiningCandidate(getPool(), candidate.id)).status,
+      'verified',
+    );
+    assert.deepEqual(
+      await recordXiangqiPuzzleMiningJudgment({
+        candidateId: candidate.id,
+        stage: 'verify',
+        profileVersion: 'verify-v1',
+        verdict: 'pass',
+        engineProfile,
+        evidence: { depth: 20, bestCp: 510, secondCp: 120 },
+      }),
+      verification,
+    );
+    await assert.rejects(
+      recordXiangqiPuzzleMiningJudgment({
+        candidateId: candidate.id,
+        stage: 'verify',
+        profileVersion: 'verify-v1',
+        verdict: 'pass',
+        engineProfile,
+        evidence: { depth: 20, bestCp: 511, secondCp: 120 },
+      }),
+      /different evidence/,
+    );
+    await recordXiangqiPuzzleMiningJudgment({
+      candidateId: candidate.id,
+      stage: 'audit',
+      profileVersion: 'audit-v1',
+      verdict: 'pass',
+      engineProfile,
+      evidence: { depth: 22, stable: true },
+    });
+    assert.equal((await getXiangqiPuzzleMiningCandidate(getPool(), candidate.id)).status, 'review');
+
+    const needsWork = await recordXiangqiPuzzleEditorialReview({
+      candidateId: candidate.id,
+      verdict: 'needs-work',
+      reason: 'unclear',
+      notes: 'Improve the prompt.',
+    });
+    assert.equal(needsWork.verdict, 'needs-work');
+    assert.equal((await getXiangqiPuzzleMiningCandidate(getPool(), candidate.id)).status, 'review');
+    await recordXiangqiPuzzleEditorialReview({
+      candidateId: candidate.id,
+      verdict: 'approve',
+      reason: 'publishable',
+    });
+    assert.equal(
+      (await getXiangqiPuzzleMiningCandidate(getPool(), candidate.id)).status,
+      'approved',
+    );
+    assert.deepEqual(
+      await recordXiangqiPuzzleMiningJudgment({
+        candidateId: candidate.id,
+        stage: 'verify',
+        profileVersion: 'verify-v1',
+        verdict: 'pass',
+        engineProfile,
+        evidence: { depth: 20, bestCp: 510, secondCp: 120 },
+      }),
+      verification,
+    );
+
+    const rejectedCandidate = await recordXiangqiPuzzleMiningCandidate({
+      ...candidateInput,
+      historicalGameId: manifest.games[1]?.historicalGameId as string,
+      postBlunderPly: 9,
+      positionKey: 'xiangqi-position-key-2',
+      puzzleData: null,
+      artifactSha256: null,
+    });
+    await recordXiangqiPuzzleMiningJudgment({
+      candidateId: rejectedCandidate.id,
+      stage: 'verify',
+      profileVersion: 'verify-v1',
+      verdict: 'reject',
+      reason: 'non-unique',
+      engineProfile,
+      evidence: { depth: 20, gapCp: 90 },
+    });
+    const rejected = await getXiangqiPuzzleMiningCandidate(getPool(), rejectedCandidate.id);
+    assert.equal(rejected.status, 'rejected');
+    assert.equal(rejected.rejectionReason, 'non-unique');
+
+    const auditFailedCandidate = await recordXiangqiPuzzleMiningCandidate({
+      ...candidateInput,
+      historicalGameId: manifest.games[2]?.historicalGameId as string,
+      postBlunderPly: 11,
+      positionKey: 'xiangqi-position-key-3',
+      artifactSha256: null,
+    });
+    await recordXiangqiPuzzleMiningJudgment({
+      candidateId: auditFailedCandidate.id,
+      stage: 'verify',
+      profileVersion: 'verify-v1',
+      verdict: 'pass',
+      engineProfile,
+      evidence: { depth: 20 },
+    });
+    await recordXiangqiPuzzleMiningJudgment({
+      candidateId: auditFailedCandidate.id,
+      stage: 'audit',
+      profileVersion: 'audit-v1',
+      verdict: 'reject',
+      reason: 'near-tie',
+      engineProfile,
+      evidence: { depth: 22, gapCp: 180 },
+    });
+    assert.equal(
+      (await getXiangqiPuzzleMiningCandidate(getPool(), auditFailedCandidate.id)).status,
+      'audit-failed',
     );
   });
 });

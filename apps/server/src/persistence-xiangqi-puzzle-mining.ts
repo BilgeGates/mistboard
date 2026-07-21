@@ -41,6 +41,72 @@ export type XiangqiPuzzleMiningShard = {
   completedAt: Date | null;
 };
 
+export type XiangqiPuzzleMiningCandidateStatus =
+  | 'scanned'
+  | 'rejected'
+  | 'verified'
+  | 'audit-failed'
+  | 'review'
+  | 'approved'
+  | 'published';
+
+export type XiangqiPuzzleMiningCandidate = {
+  id: string;
+  runId: string;
+  historicalGameId: string;
+  postBlunderPly: number;
+  positionKey: string;
+  trigger: string;
+  status: XiangqiPuzzleMiningCandidateStatus;
+  rejectionReason: string | null;
+  puzzleData: unknown | null;
+  scanEvidence: Record<string, unknown>;
+  artifactSha256: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type XiangqiPuzzleMiningJudgmentStage = 'verify' | 'audit';
+export type XiangqiPuzzleMiningJudgmentVerdict = 'pass' | 'reject' | 'error';
+
+export type XiangqiPuzzleMiningJudgment = {
+  id: string;
+  candidateId: string;
+  stage: XiangqiPuzzleMiningJudgmentStage;
+  profileVersion: string;
+  verdict: XiangqiPuzzleMiningJudgmentVerdict;
+  reason: string | null;
+  engineProfile: Record<string, unknown>;
+  evidence: Record<string, unknown>;
+  artifactSha256: string | null;
+  createdAt: Date;
+};
+
+export type XiangqiPuzzleEditorialVerdict = 'approve' | 'reject' | 'needs-work';
+export type XiangqiPuzzleEditorialReason =
+  | 'publishable'
+  | 'ordinary-tactic'
+  | 'forced-recapture'
+  | 'already-decided'
+  | 'non-unique'
+  | 'unstable'
+  | 'duplicate'
+  | 'unclear'
+  | 'too-long'
+  | 'source-provenance-problem'
+  | 'correctness-defect'
+  | 'other';
+
+export type XiangqiPuzzleEditorialReview = {
+  id: string;
+  candidateId: string;
+  reviewerUserId: string | null;
+  verdict: XiangqiPuzzleEditorialVerdict;
+  reason: XiangqiPuzzleEditorialReason;
+  notes: string | null;
+  reviewedAt: Date;
+};
+
 type RunRow = {
   id: string;
   import_batch_id: string;
@@ -65,6 +131,45 @@ type ShardRow = {
   last_heartbeat_at: Date | null;
   started_at: Date | null;
   completed_at: Date | null;
+};
+
+type CandidateRow = {
+  id: string;
+  run_id: string;
+  historical_game_id: string;
+  post_blunder_ply: number;
+  position_key: string;
+  trigger: string;
+  status: XiangqiPuzzleMiningCandidateStatus;
+  rejection_reason: string | null;
+  puzzle_data: unknown | null;
+  scan_evidence: Record<string, unknown>;
+  artifact_sha256: string | null;
+  created_at: Date;
+  updated_at: Date;
+};
+
+type JudgmentRow = {
+  id: string;
+  candidate_id: string;
+  stage: XiangqiPuzzleMiningJudgmentStage;
+  profile_version: string;
+  verdict: XiangqiPuzzleMiningJudgmentVerdict;
+  reason: string | null;
+  engine_profile: Record<string, unknown>;
+  evidence: Record<string, unknown>;
+  artifact_sha256: string | null;
+  created_at: Date;
+};
+
+type EditorialReviewRow = {
+  id: string;
+  candidate_id: string;
+  reviewer_user_id: string | null;
+  verdict: XiangqiPuzzleEditorialVerdict;
+  reason: XiangqiPuzzleEditorialReason;
+  notes: string | null;
+  reviewed_at: Date;
 };
 
 type Queryable = Pick<pg.Pool | pg.PoolClient, 'query'>;
@@ -99,8 +204,62 @@ function mapShard(row: ShardRow): XiangqiPuzzleMiningShard {
   };
 }
 
+function mapCandidate(row: CandidateRow): XiangqiPuzzleMiningCandidate {
+  return {
+    id: row.id,
+    runId: row.run_id,
+    historicalGameId: row.historical_game_id,
+    postBlunderPly: row.post_blunder_ply,
+    positionKey: row.position_key,
+    trigger: row.trigger,
+    status: row.status,
+    rejectionReason: row.rejection_reason,
+    puzzleData: row.puzzle_data,
+    scanEvidence: row.scan_evidence,
+    artifactSha256: row.artifact_sha256,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapJudgment(row: JudgmentRow): XiangqiPuzzleMiningJudgment {
+  return {
+    id: row.id,
+    candidateId: row.candidate_id,
+    stage: row.stage,
+    profileVersion: row.profile_version,
+    verdict: row.verdict,
+    reason: row.reason,
+    engineProfile: row.engine_profile,
+    evidence: row.evidence,
+    artifactSha256: row.artifact_sha256,
+    createdAt: row.created_at,
+  };
+}
+
+function mapEditorialReview(row: EditorialReviewRow): XiangqiPuzzleEditorialReview {
+  return {
+    id: row.id,
+    candidateId: row.candidate_id,
+    reviewerUserId: row.reviewer_user_id,
+    verdict: row.verdict,
+    reason: row.reason,
+    notes: row.notes,
+    reviewedAt: row.reviewed_at,
+  };
+}
+
 export function xiangqiPuzzleMiningRunId(manifestSha256: string): string {
   return `xqpmr_${createHash('sha256').update(manifestSha256).digest('hex').slice(0, 24)}`;
+}
+
+export function xiangqiPuzzleMiningCandidateId(input: {
+  runId: string;
+  historicalGameId: string;
+  postBlunderPly: number;
+}): string {
+  const identity = `${input.runId}\0${input.historicalGameId}\0${input.postBlunderPly}`;
+  return `xqpmc_${createHash('sha256').update(identity).digest('hex').slice(0, 24)}`;
 }
 
 export async function initializeXiangqiPuzzleMiningRun(input: {
@@ -390,6 +549,227 @@ export async function failXiangqiPuzzleMiningShard(input: {
     [JSON.stringify(input.failure)],
     `AND lease_expires_at > now()`,
   );
+}
+
+export async function recordXiangqiPuzzleMiningCandidate(input: {
+  runId: string;
+  historicalGameId: string;
+  postBlunderPly: number;
+  positionKey: string;
+  trigger: string;
+  puzzleData?: unknown | null;
+  scanEvidence: Record<string, unknown>;
+  artifactSha256?: string | null;
+}): Promise<XiangqiPuzzleMiningCandidate> {
+  if (!Number.isSafeInteger(input.postBlunderPly) || input.postBlunderPly < 0) {
+    throw new Error('postBlunderPly must be a non-negative integer');
+  }
+  if (!input.positionKey.trim()) throw new Error('positionKey is required');
+  if (!input.trigger.trim()) throw new Error('trigger is required');
+  const candidateId = xiangqiPuzzleMiningCandidateId(input);
+  const puzzleData = input.puzzleData ?? null;
+  const artifactSha256 = input.artifactSha256 ?? null;
+
+  return withTransaction(async (client) => {
+    await client.query(
+      `INSERT INTO xiangqi_puzzle_mining_candidates
+         (id, run_id, historical_game_id, post_blunder_ply, position_key,
+          trigger, puzzle_data, scan_evidence, artifact_sha256)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::json, $8::jsonb, $9)
+       ON CONFLICT (run_id, historical_game_id, post_blunder_ply) DO NOTHING`,
+      [
+        candidateId,
+        input.runId,
+        input.historicalGameId,
+        input.postBlunderPly,
+        input.positionKey,
+        input.trigger,
+        JSON.stringify(puzzleData),
+        JSON.stringify(input.scanEvidence),
+        artifactSha256,
+      ],
+    );
+    const { rows } = await client.query<CandidateRow>(
+      `SELECT *
+       FROM xiangqi_puzzle_mining_candidates
+       WHERE id = $1 AND run_id = $2 AND historical_game_id = $3
+         AND post_blunder_ply = $4 AND position_key = $5 AND trigger = $6
+         AND puzzle_data::jsonb IS NOT DISTINCT FROM $7::jsonb
+         AND scan_evidence = $8::jsonb
+         AND artifact_sha256 IS NOT DISTINCT FROM $9`,
+      [
+        candidateId,
+        input.runId,
+        input.historicalGameId,
+        input.postBlunderPly,
+        input.positionKey,
+        input.trigger,
+        JSON.stringify(puzzleData),
+        JSON.stringify(input.scanEvidence),
+        artifactSha256,
+      ],
+    );
+    if (!rows[0]) {
+      throw new Error(
+        `mining candidate ${candidateId} already exists with different scan evidence`,
+      );
+    }
+    return mapCandidate(rows[0]);
+  });
+}
+
+export async function getXiangqiPuzzleMiningCandidate(
+  db: Queryable,
+  candidateId: string,
+): Promise<XiangqiPuzzleMiningCandidate> {
+  const { rows } = await db.query<CandidateRow>(
+    `SELECT * FROM xiangqi_puzzle_mining_candidates WHERE id = $1`,
+    [candidateId],
+  );
+  if (!rows[0]) throw new Error(`mining candidate ${candidateId} not found`);
+  return mapCandidate(rows[0]);
+}
+
+export async function recordXiangqiPuzzleMiningJudgment(input: {
+  candidateId: string;
+  stage: XiangqiPuzzleMiningJudgmentStage;
+  profileVersion: string;
+  verdict: XiangqiPuzzleMiningJudgmentVerdict;
+  reason?: string | null;
+  engineProfile: Record<string, unknown>;
+  evidence: Record<string, unknown>;
+  artifactSha256?: string | null;
+}): Promise<XiangqiPuzzleMiningJudgment> {
+  if (!input.profileVersion.trim()) throw new Error('profileVersion is required');
+  const reason = input.reason?.trim() || null;
+  if (input.verdict === 'reject' && !reason) {
+    throw new Error('reject judgments require a reason');
+  }
+  const artifactSha256 = input.artifactSha256 ?? null;
+
+  return withTransaction(async (client) => {
+    const inserted = await client.query<{ id: string }>(
+      `INSERT INTO xiangqi_puzzle_mining_judgments
+         (candidate_id, stage, profile_version, verdict, reason,
+          engine_profile, evidence, artifact_sha256)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)
+       ON CONFLICT (candidate_id, stage, profile_version) DO NOTHING
+       RETURNING id`,
+      [
+        input.candidateId,
+        input.stage,
+        input.profileVersion,
+        input.verdict,
+        reason,
+        JSON.stringify(input.engineProfile),
+        JSON.stringify(input.evidence),
+        artifactSha256,
+      ],
+    );
+    const judgment = await client.query<JudgmentRow>(
+      `SELECT *
+       FROM xiangqi_puzzle_mining_judgments
+       WHERE candidate_id = $1 AND stage = $2 AND profile_version = $3
+         AND verdict = $4 AND reason IS NOT DISTINCT FROM $5
+         AND engine_profile = $6::jsonb AND evidence = $7::jsonb
+         AND artifact_sha256 IS NOT DISTINCT FROM $8`,
+      [
+        input.candidateId,
+        input.stage,
+        input.profileVersion,
+        input.verdict,
+        reason,
+        JSON.stringify(input.engineProfile),
+        JSON.stringify(input.evidence),
+        artifactSha256,
+      ],
+    );
+    if (!judgment.rows[0]) {
+      throw new Error(
+        `${input.stage} judgment ${input.candidateId}/${input.profileVersion} already exists with different evidence`,
+      );
+    }
+
+    const transition = judgmentTransition(input.stage, input.verdict, reason);
+    if (transition && inserted.rows[0]) {
+      const updated = await client.query<{ id: string }>(
+        `UPDATE xiangqi_puzzle_mining_candidates
+         SET status = $2, rejection_reason = $3, updated_at = now()
+         WHERE id = $1 AND status = ANY($4::text[])
+         RETURNING id`,
+        [input.candidateId, transition.status, transition.rejectionReason, transition.from],
+      );
+      if (!updated.rows[0]) {
+        throw new Error(
+          `mining candidate ${input.candidateId} cannot transition through ${input.stage}:${input.verdict}`,
+        );
+      }
+    }
+    return mapJudgment(judgment.rows[0]);
+  });
+}
+
+export async function recordXiangqiPuzzleEditorialReview(input: {
+  candidateId: string;
+  reviewerUserId?: string | null;
+  verdict: XiangqiPuzzleEditorialVerdict;
+  reason: XiangqiPuzzleEditorialReason;
+  notes?: string | null;
+}): Promise<XiangqiPuzzleEditorialReview> {
+  if (input.verdict === 'approve' && input.reason !== 'publishable') {
+    throw new Error('approve reviews require the publishable reason');
+  }
+  if (input.verdict !== 'approve' && input.reason === 'publishable') {
+    throw new Error('publishable is only valid for approve reviews');
+  }
+  const reviewerUserId = input.reviewerUserId ?? null;
+  const notes = input.notes?.trim() || null;
+
+  return withTransaction(async (client) => {
+    const targetStatus = input.verdict === 'approve' ? 'approved' : 'review';
+    const rejectionReason = input.verdict === 'reject' ? `editorial:${input.reason}` : null;
+    const status = input.verdict === 'reject' ? 'rejected' : targetStatus;
+    const updated = await client.query<{ id: string }>(
+      `UPDATE xiangqi_puzzle_mining_candidates
+       SET status = $2, rejection_reason = $3, updated_at = now()
+       WHERE id = $1 AND status = ANY($4::text[])
+       RETURNING id`,
+      [input.candidateId, status, rejectionReason, ['review', 'approved']],
+    );
+    if (!updated.rows[0]) {
+      throw new Error(`mining candidate ${input.candidateId} is not ready for editorial review`);
+    }
+    const review = await client.query<EditorialReviewRow>(
+      `INSERT INTO xiangqi_puzzle_editorial_reviews
+         (candidate_id, reviewer_user_id, verdict, reason, notes)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [input.candidateId, reviewerUserId, input.verdict, input.reason, notes],
+    );
+    return mapEditorialReview(review.rows[0] as EditorialReviewRow);
+  });
+}
+
+function judgmentTransition(
+  stage: XiangqiPuzzleMiningJudgmentStage,
+  verdict: XiangqiPuzzleMiningJudgmentVerdict,
+  reason: string | null,
+): {
+  status: XiangqiPuzzleMiningCandidateStatus;
+  rejectionReason: string | null;
+  from: XiangqiPuzzleMiningCandidateStatus[];
+} | null {
+  if (verdict === 'error') return null;
+  if (stage === 'verify' && verdict === 'pass') {
+    return { status: 'verified', rejectionReason: null, from: ['scanned', 'verified'] };
+  }
+  if (stage === 'verify') {
+    return { status: 'rejected', rejectionReason: reason, from: ['scanned', 'rejected'] };
+  }
+  if (verdict === 'pass') {
+    return { status: 'review', rejectionReason: null, from: ['verified', 'review'] };
+  }
+  return { status: 'audit-failed', rejectionReason: null, from: ['verified', 'audit-failed'] };
 }
 
 async function updateClaimedShard(

@@ -4,6 +4,7 @@ import {
   buildElephantChessPilotManifest,
   type ElephantChessPilotGame,
   renderElephantChessPilotManifest,
+  verifyElephantChessPilotManifest,
 } from './elephantchess-pilot-manifest.js';
 
 const BATCH = 'batch-elephant-2026-06';
@@ -133,5 +134,27 @@ test('rejects insufficient, duplicate, and cross-batch inputs', () => {
     () =>
       buildElephantChessPilotManifest(wrongBatch, { importBatchId: BATCH, seed: 'pilot-seed-v1' }),
     /unexpected import batch/,
+  );
+});
+
+test('verifies the internal content hash and ordered membership', () => {
+  const manifest = buildElephantChessPilotManifest(corpus(1_100, 120), {
+    importBatchId: BATCH,
+    seed: 'verified-manifest',
+  });
+  assert.deepEqual(verifyElephantChessPilotManifest(manifest), manifest);
+  assert.throws(
+    () => verifyElephantChessPilotManifest({ ...manifest, seed: 'tampered' }),
+    /content hash mismatch/,
+  );
+  assert.throws(
+    () =>
+      verifyElephantChessPilotManifest({
+        ...manifest,
+        games: manifest.games.map((item, index) =>
+          index === 0 ? { ...item, selectionIndex: 1 } : item,
+        ),
+      }),
+    /selection index .* out of order/,
   );
 });
