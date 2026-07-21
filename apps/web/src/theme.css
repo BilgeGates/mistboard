@@ -372,7 +372,8 @@
   margin: -12px;
 }
 
-.appearance-submenu:is([data-key="sound"], [data-key="theme"]) .appearance-submenu-body {
+.appearance-submenu:is([data-key="sound"], [data-key="theme"], [data-key="notation"])
+  .appearance-submenu-body {
   padding: 0;
 }
 
@@ -490,6 +491,17 @@
 
 .appearance-choice-option:last-child {
   border-radius: 0 0 var(--menu-bottom-right-radius) var(--menu-bottom-left-radius);
+}
+
+/* Notation options carry a sample move after the label (check | label | sample). */
+.appearance-notation-option {
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  column-gap: 8px;
+}
+
+.appearance-notation-preview {
+  font-size: 13px;
+  opacity: 0.7;
 }
 
 .appearance-choice-option:only-child {

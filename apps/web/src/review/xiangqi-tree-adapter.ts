@@ -10,6 +10,7 @@
 import {
   applyStandardXiangqiMove,
   createInitialXiangqiState,
+  formatXiangqiMove,
   fsfUciToXiangqiSquares,
   getStandardXiangqiPlayerView,
   isStandardXiangqiLegalMove,
@@ -18,6 +19,7 @@ import {
   type XiangqiMove,
   xiangqiMoveToFsfUci,
 } from '@mistboard/game';
+import { currentXiangqiNotationStyle } from '../xiangqi-notation.js';
 import type { ProjectedView, VariantTreeAdapter } from './game-tree.js';
 
 export const xiangqiTreeAdapter: VariantTreeAdapter<
@@ -46,7 +48,12 @@ export const xiangqiTreeAdapter: VariantTreeAdapter<
       ),
     },
   ],
-  moveLabel: (move) => `${move.from}-${move.to}`,
+  // Rendered in the user's notation display mode (settings gear). Labels are
+  // cached at node creation; tree-review relabels on the notation-changed
+  // event. The formatter falls back to `from-to` for anything it cannot name
+  // (and 'coordinate', the default, IS from-to).
+  moveLabel: (move, parentTruth) =>
+    formatXiangqiMove(parentTruth, move, currentXiangqiNotationStyle()),
   // FSF xiangqi UCI is 1-indexed = our square notation, so the engine key and the
   // sibling-dedup NodeId are the same canonical string.
   moveKey: (move) => xiangqiMoveToFsfUci(move),

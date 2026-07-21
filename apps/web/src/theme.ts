@@ -15,13 +15,17 @@ import { readStoredSoundSet, type SoundSetId, storeSoundSet } from './sound-sets
 import {
   readStoredXiangqiBoardLayout,
   readStoredXiangqiBoardTheme,
+  readStoredXiangqiNotation,
   readStoredXiangqiPieceSet,
   writeStoredXiangqiBoardLayout,
   writeStoredXiangqiBoardTheme,
+  writeStoredXiangqiNotation,
   writeStoredXiangqiPieceSet,
   type XiangqiBoardLayout,
   type XiangqiBoardTheme,
+  type XiangqiNotationPreference,
 } from './xiangqi-appearance-storage.js';
+import { xiangqiNotationChangedEvent } from './xiangqi-notation.js';
 import type { XiangqiPieceSet } from './xiangqi-piece-sets.js';
 
 export { readStoredShogiPieceSet } from './shogi-appearance-storage.js';
@@ -266,6 +270,14 @@ export function setShogiPieceSetPreference(pieceSet: ShogiPieceSet): void {
   writeStoredShogiPieceSet(pieceSet);
   syncThemeControls();
   dispatchShogiAppearanceChanged();
+}
+
+export function setXiangqiNotationPreference(value: XiangqiNotationPreference): void {
+  writeStoredXiangqiNotation(value);
+  syncThemeControls();
+  // Display-only preference: review surfaces relabel their move trees on this
+  // event; no board appearance is involved.
+  window.dispatchEvent(new Event(xiangqiNotationChangedEvent));
 }
 
 export function setSoundVolumePreference(volume: number): void {
@@ -520,6 +532,14 @@ function syncThemeControls(): void {
     button.setAttribute('aria-checked', String(isActive));
     button.classList.toggle('selected', isActive);
   });
+  const notation = readStoredXiangqiNotation();
+  document
+    .querySelectorAll<HTMLButtonElement>('button[data-xq-notation-option]')
+    .forEach((button) => {
+      const isActive = button.dataset.xqNotationOption === notation;
+      button.setAttribute('aria-checked', String(isActive));
+      button.classList.toggle('selected', isActive);
+    });
   document
     .querySelectorAll<HTMLOutputElement>('output[data-sound-volume-value]')
     .forEach((output) => {

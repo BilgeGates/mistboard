@@ -419,6 +419,23 @@
   max-width: 100%;
 }
 
+/* Imbalance-mode rows (xiangqi review): footprint reserved at mount so the
+   first capture never reflows the rail; empty just means balanced. */
+.review-material-row--reserved,
+.review-material-row--reserved:empty {
+  display: flex;
+  align-items: center;
+  min-height: var(--capture-piece-size, 26px);
+}
+
+.review-material-row .review-material-points {
+  align-self: center;
+  padding-left: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--site-muted);
+}
+
 /* Pane capture strips adopted into the rail (review-layout.ts): drop their
    board-era container-query sizing and fixed height for the rail's compact
    fixed tile size; empty strips collapse. */

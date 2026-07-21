@@ -183,6 +183,10 @@ export interface GameTree<Move, Truth, View> {
    *  if the path does not resolve. This is the study authoring primitive — set a
    *  comment / shapes / glyphs / gamebook on any node, mainline or variation. */
   annotateAt(path: TreePath, patch: NodeAnnotations): boolean;
+  /** Recompute every node's label through adapter.moveLabel. Labels are cached
+   *  at node creation, so call this when the label rendering changes out from
+   *  under the tree (a notation display-mode switch), then rebuild the list. */
+  relabel(): void;
 
   // ---- rendering ----
   /** Projected board views for a node, memoised on the node. */
@@ -282,6 +286,17 @@ export function createGameTree<Move, Truth, View>(
     return true;
   }
 
+  function relabel(): void {
+    const stack = [...root.children];
+    for (let node = stack.pop(); node; node = stack.pop()) {
+      if (node.move && node.parent) {
+        // `label` is readonly to consumers; the tree owns the cache.
+        (node as { label: string }).label = adapter.moveLabel(node.move, node.parent.truth);
+      }
+      stack.push(...node.children);
+    }
+  }
+
   function project(node: GameTreeNode<Move, Truth>): ProjectedView<View>[] {
     let cached = viewCache.get(node);
     if (!cached) {
@@ -320,6 +335,7 @@ export function createGameTree<Move, Truth, View>(
     deleteAt,
     promoteToMainline,
     annotateAt,
+    relabel,
     project,
   };
 }

@@ -159,6 +159,19 @@ export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
    *  summary's per-phase accuracy. Omit for variants without a phase heuristic —
    *  the chart and summary then skip the phase chrome. */
   gamePhases?(mainlineTruths: readonly Truth[]): GamePhases;
+  /** Optional right-rail material rows (lichess mat-top / mat-bot). The factory
+   *  receives the two host rows and returns a per-render updater called with the
+   *  displayed node's truth, the tree root's truth (the diff baseline — a
+   *  FEN-seeded root must not read as "captures"), and the flip state. Omit for
+   *  variants without a material display. */
+  material?(hosts: {
+    top: HTMLElement;
+    bottom: HTMLElement;
+  }): (truth: Truth, rootTruth: Truth, flipped: boolean) => void;
+  /** Window event whose fire means adapter.moveLabel now renders differently
+   *  (a notation display-mode change): the tree relabels and the move list
+   *  rebuilds. Omit for variants with a single fixed notation. */
+  labelsEvent?: string;
 }
 
 export type AnalysisSource = {
@@ -655,6 +668,17 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   const truncated = !config.initialTree && mainlineLen < config.moves.length;
   const details = config.details ?? (truncated ? truncationNotice(mainlineLen) : undefined);
 
+  // Material rows (variant opt-in): create the hosts before the scaffold so
+  // they land in the rail's mat-top/mat-bot slots; render() drives the updater.
+  let materialUpdate: ((truth: Truth, rootTruth: Truth, flipped: boolean) => void) | null = null;
+  let materialTop: HTMLElement | undefined;
+  let materialBottom: HTMLElement | undefined;
+  if (presentation.material) {
+    materialTop = document.createElement('div');
+    materialBottom = document.createElement('div');
+    materialUpdate = presentation.material({ top: materialTop, bottom: materialBottom });
+  }
+
   const scaffold = createReviewScaffold(root, {
     ariaLabel: config.ariaLabel,
     pageClassName: config.pageClassName,
@@ -684,6 +708,9 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     navigation: controls.el,
     analysisSummary: analysisSummaryEl,
     gauge: evalBar?.el,
+    materialTop,
+    materialBottom,
+    showBoardMaterial: Boolean(presentation.material),
     onPromote: () => render(),
   });
 
@@ -824,6 +851,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       slot.handle.render(projected?.view ?? null, orientation());
     }
     evalBar?.setFlipped(flipped);
+    materialUpdate?.(node.truth, tree.root.truth, flipped);
 
     // Order matters: setPosition fires onLines(null) synchronously when the
     // engine is on (stale-arrow clear); the explicit paintOverlays below then
@@ -1138,6 +1166,21 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       () => {
         render();
         scaffold.setBoardAspect(resolveBoardAspect(presentation.boardAspect));
+      },
+      { signal: keyboardAbort.signal },
+    );
+  }
+  if (presentation.labelsEvent) {
+    window.addEventListener(
+      presentation.labelsEvent,
+      () => {
+        // Node labels are cached at creation; recompute them all, then rebuild
+        // the move list (rebuild drops the highlight, so re-mark the path) and
+        // re-render so the import box's display-notation mirror follows.
+        tree.relabel();
+        moveTree.rebuild();
+        moveTree.setCurrent(currentPath);
+        render();
       },
       { signal: keyboardAbort.signal },
     );

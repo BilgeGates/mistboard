@@ -50,6 +50,7 @@ import {
   setSoundSetPreference,
   setSoundVolumePreference,
   setXiangqiBoardChoicePreference,
+  setXiangqiNotationPreference,
   setXiangqiPieceSetPreference,
   shogiAppearanceEnabled,
   showAppearanceView,
@@ -58,7 +59,12 @@ import {
   type XiangqiBoardChoice,
   xiangqiAppearanceEnabled,
 } from './theme.js';
-import { readStoredXiangqiPieceSet, type XiangqiBoardTheme } from './xiangqi-appearance-storage.js';
+import {
+  readStoredXiangqiNotation,
+  readStoredXiangqiPieceSet,
+  type XiangqiBoardTheme,
+  xiangqiNotationOptions,
+} from './xiangqi-appearance-storage.js';
 import {
   XIANGQI_PIECE_SETS,
   type XiangqiPieceSet,
@@ -223,6 +229,11 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
     );
   }
   addCategory('pieces', t('prefs.pieces', {}, locale), pieceBody);
+
+  // Move-notation display mode for xiangqi review/analysis move lists.
+  if (xiangqiAppearanceEnabled()) {
+    addCategory('notation', t('prefs.notation', {}, locale), [createXiangqiNotationList()]);
+  }
 
   // Fog is our one row beyond the lichess set; keep it last so the shared five
   // stay in lichess order above it.
@@ -467,6 +478,33 @@ function createTileField<T extends string>(
   }
   field.append(row);
   return field;
+}
+
+function createXiangqiNotationList(): HTMLDivElement {
+  const list = document.createElement('div');
+  list.className = 'appearance-choice-list appearance-notation-list';
+  list.setAttribute('role', 'radiogroup');
+  list.setAttribute('aria-label', t('prefs.notation'));
+  const current = readStoredXiangqiNotation();
+  for (const option of xiangqiNotationOptions) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'appearance-choice-option appearance-notation-option';
+    button.dataset.xqNotationOption = option.id;
+    button.setAttribute('role', 'radio');
+    const selected = option.id === current;
+    button.setAttribute('aria-checked', String(selected));
+    if (selected) button.classList.add('selected');
+    const label = document.createElement('span');
+    label.textContent = option.label;
+    const preview = document.createElement('span');
+    preview.className = 'appearance-notation-preview';
+    preview.textContent = option.preview;
+    button.append(label, preview);
+    button.addEventListener('click', () => setXiangqiNotationPreference(option.id));
+    list.append(button);
+  }
+  return list;
 }
 
 function createSoundPanel(): HTMLDivElement {

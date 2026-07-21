@@ -65,6 +65,7 @@ export const ZH_HANT_SHELL = {
   'prefs.appearance': '外觀',
   'prefs.board': '棋盤',
   'prefs.pieces': '棋子',
+  'prefs.notation': '棋譜記法',
   'prefs.fog': '迷霧',
   'prefs.boardColors': '棋盤配色',
   'prefs.boardColorScheme': '棋盤配色方案',

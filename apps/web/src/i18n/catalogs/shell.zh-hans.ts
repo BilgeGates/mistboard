@@ -65,6 +65,7 @@ export const ZH_HANS_SHELL = {
   'prefs.appearance': '外观',
   'prefs.board': '棋盘',
   'prefs.pieces': '棋子',
+  'prefs.notation': '棋谱记法',
   'prefs.fog': '迷雾',
   'prefs.boardColors': '棋盘配色',
   'prefs.boardColorScheme': '棋盘配色方案',

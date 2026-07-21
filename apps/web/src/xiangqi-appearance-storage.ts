@@ -137,3 +137,56 @@ export function normalizeXiangqiPieceSet(value: string | null): XiangqiPieceSet 
     ? (value as XiangqiPieceSet)
     : defaultXiangqiPieceSet;
 }
+
+// ── Move-notation display preference ────────────────────────────────────────
+// How xiangqi review/analysis move lists render moves. Display-only: nothing
+// stored or transmitted changes with it. 'chinese' resolves its script from
+// the locale at format time (zh-hant → traditional glyphs, else simplified).
+
+export type XiangqiNotationPreference = 'coordinate' | 'chinese' | 'wxf' | 'iccs';
+
+const xiangqiNotationStorageKey = 'mistboard.xiangqiNotation';
+const xiangqiNotationStorageVersionKey = 'mistboard.xiangqiNotationVersion';
+const xiangqiNotationStorageVersion = '1';
+const defaultXiangqiNotation: XiangqiNotationPreference = 'coordinate';
+
+export const xiangqiNotationOptions: ReadonlyArray<{
+  id: XiangqiNotationPreference;
+  label: string;
+  preview: string;
+}> = [
+  { id: 'coordinate', label: 'Coordinates', preview: 'h3-e3' },
+  { id: 'chinese', label: 'Chinese', preview: '炮二平五' },
+  { id: 'wxf', label: 'WXF', preview: 'C2.5' },
+  { id: 'iccs', label: 'ICCS', preview: 'h2e2' },
+];
+
+export function readStoredXiangqiNotation(): XiangqiNotationPreference {
+  try {
+    const stored = window.localStorage.getItem(xiangqiNotationStorageKey);
+    const version = window.localStorage.getItem(xiangqiNotationStorageVersionKey);
+    const normalized = normalizeXiangqiNotation(stored);
+    if (version !== xiangqiNotationStorageVersion || normalized !== stored) {
+      window.localStorage.setItem(xiangqiNotationStorageVersionKey, xiangqiNotationStorageVersion);
+      window.localStorage.setItem(xiangqiNotationStorageKey, normalized);
+    }
+    return normalized;
+  } catch {
+    return defaultXiangqiNotation;
+  }
+}
+
+export function writeStoredXiangqiNotation(notation: XiangqiNotationPreference): void {
+  try {
+    window.localStorage.setItem(xiangqiNotationStorageKey, notation);
+    window.localStorage.setItem(xiangqiNotationStorageVersionKey, xiangqiNotationStorageVersion);
+  } catch {
+    // The current page still re-renders with the new mode.
+  }
+}
+
+export function normalizeXiangqiNotation(value: string | null): XiangqiNotationPreference {
+  return xiangqiNotationOptions.some((option) => option.id === value)
+    ? (value as XiangqiNotationPreference)
+    : defaultXiangqiNotation;
+}
