@@ -36,5 +36,7 @@ export * from './variants-xiangqi.js';
 export * from './variants-xiangqi-standard.js';
 export * from './xiangqi-broadcast.js';
 export * from './xiangqi-import.js';
+export * from './xiangqi-notation-format.js';
 export * from './xiangqi-position.js';
+export * from './xiangqi-relative-notation.js';
 export * from './xiangqi-uci.js';
