@@ -615,9 +615,13 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
           notifyChange();
         },
         onComment: (text) => {
-          // Per-keystroke write; deliberately no render() — the move list carries no
-          // comment marker in S1 and a re-render would drop the textarea caret.
+          // Per-keystroke write; deliberately no render() — a full render resets
+          // the editor textarea and drops the caret. The move-tree refresh alone
+          // is safe (it never touches the editor) and keeps the inline comment
+          // row live while typing.
           tree.annotateAt(currentPath, { comments: text.trim() ? [{ text }] : [] });
+          refreshMoveTreeAnnotations();
+          moveTree.setCurrent(currentPath); // the rebuild dropped the highlight
           notifyChange();
         },
         onClearShapes: () => {
@@ -905,18 +909,27 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
         }
       }
     }
-    applyUserGlyphs(tree.root, byPathKey);
+    applyUserAnnotations(tree.root, byPathKey);
     moveTree.annotate(byPathKey);
   }
 
-  function applyUserGlyphs(node: Node, map: Map<string, MoveTreeAnnotation>): void {
+  function applyUserAnnotations(node: Node, map: Map<string, MoveTreeAnnotation>): void {
     const code = node.annotations?.glyphs?.[0];
     if (code !== undefined && node.parent) {
       const key = pathKey(tree.pathTo(node));
       const prev = map.get(key);
       map.set(key, { ...prev, suffix: GLYPH_LABEL[code] ?? prev?.suffix, suffixClass: undefined });
     }
-    for (const child of node.children) applyUserGlyphs(child, map);
+    // Authored comments render inline in the move list for EVERY viewer (the
+    // owner also sees them in the editor box). On a node that carries both, the
+    // author's text wins over the derived engine advice; the root's comment is
+    // the study intro row above move 1.
+    const text = node.annotations?.comments?.[0]?.text;
+    if (text) {
+      const key = pathKey(tree.pathTo(node));
+      map.set(key, { ...map.get(key), comment: text, commentClass: 'user' });
+    }
+    for (const child of node.children) applyUserAnnotations(child, map);
   }
 
   function renderAnalysisRequest(source: AnalysisSource): void {

@@ -26,6 +26,10 @@
 .move-tree__comment--blunder {
   color: #c0392b;
 }
+/* Author-written study comments: body text, not advice colouring. */
+.move-tree__comment--user {
+  color: var(--site-text);
+}
 
 /* Terminal result block at the end of the list (lichess): score + termination. */
 .move-tree__result {

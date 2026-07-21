@@ -156,6 +156,19 @@ describe('createMoveTree', () => {
     expect(rows[commentIndex - 1]?.textContent).toContain(`${m1.from}-${m1.to}`);
   });
 
+  it('renders a root comment as an intro row above move 1', () => {
+    const { tree, m1 } = seededTree();
+    const moveTree = createMoveTree(tree, { onJump: () => {} });
+    moveTree.annotate(
+      new Map([['', { comment: 'The famous composition, red to move.', commentClass: 'user' }]]),
+    );
+    const rows = [...(moveTree.el.querySelector('.review-move-list__rows')?.children ?? [])];
+    expect(rows[0]?.classList.contains('move-tree__comment')).toBe(true);
+    expect(rows[0]?.classList.contains('move-tree__comment--user')).toBe(true);
+    expect(rows[0]?.textContent).toBe('The famous composition, red to move.');
+    expect(rows[1]?.textContent).toContain(`${m1.from}-${m1.to}`);
+  });
+
   it('appends a terminal result block when a result is supplied', () => {
     const { tree } = seededTree();
     const moveTree = createMoveTree(tree, {

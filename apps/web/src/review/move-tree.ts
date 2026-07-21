@@ -196,6 +196,9 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
   // Passing the ROOT (not the first move) folds the alternative first moves in at
   // move 1 instead of dumping them after the whole mainline.
   function renderMainline(root: GameTreeNode<M, T>): void {
+    // A root comment (a study's intro text) renders as a full-width row above
+    // move 1 — the root has no move row of its own to attach to.
+    if (annotations.get(pathKey(pathOf(root)))?.comment) rows.append(commentRow(root));
     let node: GameTreeNode<M, T> | null = root.children[0] ?? null;
     let row: HTMLElement | null = null;
     while (node) {
