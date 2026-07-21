@@ -50,16 +50,21 @@ export function definePersistenceTests(area: string, registerTests: () => void):
         `UPDATE puzzles SET mining_candidate_id = NULL WHERE mining_candidate_id IS NOT NULL`,
       );
       await client.query(`DELETE FROM xiangqi_puzzle_mining_runs`);
+      // Keep the historical-library tables out of the CASCADE truncate below.
+      // Mining runs reference that library, and Postgres follows TRUNCATE's FK
+      // graph by schema rather than by whether rows currently exist. Leaving
+      // these tables in the truncate would therefore reach candidates and the
+      // seed-backed puzzles table through mining_candidate_id.
+      await client.query(`DELETE FROM historical_xiangqi_games`);
+      await client.query(`DELETE FROM historical_xiangqi_import_batches`);
+      await client.query(`DELETE FROM historical_xiangqi_players`);
+      await client.query(`DELETE FROM historical_xiangqi_sources`);
       await client.query(
         `TRUNCATE
            auth_rate_limit_buckets,
            stripe_events,
            engine_move_jobs,
            live_engine_games,
-           historical_xiangqi_games,
-           historical_xiangqi_import_batches,
-           historical_xiangqi_players,
-           historical_xiangqi_sources,
            puzzle_attempts,
            user_puzzle_ratings,
            puzzle_ratings,
