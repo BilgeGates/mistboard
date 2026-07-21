@@ -12,6 +12,7 @@ import {
   loadJunglePostgame,
 } from './live-jungle-postgame.js';
 import type { ReplayHandle } from './replay.js';
+import { seatColorWord } from './variant-seat-label.js';
 import { mountTenantWatchReplay, type TenantWatchReplayOptions } from './watch-tenant-replay.js';
 
 export type JungleWatchReplayOptions = TenantWatchReplayOptions;
@@ -34,6 +35,15 @@ export function mountJungleWatchReplay(
       viewEntries: () => [{ key: 'truth', label: 'Truth' }],
       viewAtPly: (postgame, _key, ply) => junglePostgameViewAtPly(postgame, ply),
       paneKind: () => 'truth',
+      // Open Jungle is seat == ink, so the winning-side word comes straight from
+      // the result — branded "Blue" for the dark side (see variant-seat-label.ts)
+      // so the TV result line matches the postgame + rail.
+      resultLabel: (result) =>
+        result === 'draw'
+          ? 'Draw'
+          : result.endsWith('-wins')
+            ? `${seatColorWord('jungle', result.slice(0, -'-wins'.length))} wins`
+            : result,
       renderBoard: (view, orientation) =>
         renderJungleBoardSvg(view.board as JungleBoard, {
           perspective: orientation,

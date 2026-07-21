@@ -513,9 +513,11 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         firstGlyph: '象',
         firstLabel: 'Red',
         glyphClass: 'xiangqi',
+        // Internal id stays 'black'; the Jungle family brands its navy side
+        // "Blue" (see variant-seat-label.ts), so the picker/seat label reads Blue.
         secondColor: 'black',
         secondGlyph: '象',
-        secondLabel: 'Black',
+        secondLabel: 'Blue',
         supportsRated: false,
         supportsStartFormat: false,
         supportsTimeControl: true,

@@ -695,8 +695,8 @@ const ZH_HANS: Record<string, string> = {
   'Games draw on threefold repetition, or when 100 half-moves (50 by each player) pass with no capture.':
     '若同一局面出现三次，或连续 100 个半回合（每方 50 步）无吃子，则判和。',
   'A full game': '完整对局',
-  'Step through a real game between two strengths of our bot. Watch the lion leap the river, the rat swim up the far lane and take the elephant in the open, and Red march the rest of the way into Black’s den.':
-    '逐步回放我们机器人两个强度之间的真实对局。看狮子跳过河、老鼠沿远侧通道游上去并在空地上吃掉大象，最后红方一路走进黑方的兽穴。',
+  'Step through a real game between two strengths of our bot. Watch the lion leap the river, the rat swim up the far lane and take the elephant in the open, and Red march the rest of the way into Blue’s den.':
+    '逐步回放我们机器人两个强度之间的真实对局。看狮子跳过河、老鼠沿远侧通道游上去并在空地上吃掉大象，最后红方一路走进蓝方的兽穴。',
   'All sixteen pieces, one of each animal in two colors, are shuffled and placed face-down on the sixteen squares. Nobody knows which animal or which color sits under a tile until it is flipped. The first tile you flip sets your color for the rest of the game.':
     '全部十六枚棋子（两种颜色各八种动物）洗匀后背面朝上放在十六个格子里。在翻开之前，谁也不知道某个格子下面是哪种动物、哪种颜色。你翻开的第一枚棋子决定你在本局其余时间的颜色。',
   'A turn': '一个回合',
@@ -713,12 +713,12 @@ const ZH_HANS: Record<string, string> = {
     '逐步回放我们机器人左右互搏的一盘棋。两只狮子相遇、双双离场；一头大象连吃三子，直到撞上另一头大象、两象也同归于尽；最后还有棋子站着的一方获胜。棋子第一次被翻开时，会显示其发到的动物。',
   'Engine vs engine': '引擎对引擎',
   'Red wins by reaching the den · 69 moves': '红方进入兽穴获胜 · 69 步',
-  'Red’s rat has already taken Black’s elephant in the open, and with the strongest piece off the board Red walks a piece straight into Black’s undefended den. Reaching the enemy den ends the game at once, no matter what material is left.':
-    '红方的老鼠已经在空地上吃掉了黑方的大象，最强的棋子离场后，红方径直把一枚棋子走进黑方无人防守的兽穴。进入对方兽穴会立刻结束对局，无论场上还剩多少子力。',
+  'Red’s rat has already taken Blue’s elephant in the open, and with the strongest piece off the board Red walks a piece straight into Blue’s undefended den. Reaching the enemy den ends the game at once, no matter what material is left.':
+    '红方的老鼠已经在空地上吃掉了蓝方的大象，最强的棋子离场后，红方径直把一枚棋子走进蓝方无人防守的兽穴。进入对方兽穴会立刻结束对局，无论场上还剩多少子力。',
   'Engine self-play': '引擎自我对弈',
-  'Black wins by elimination · 36 moves': '黑方吃光对手获胜 · 36 步',
-  'Both lions and both elephants have already traded off the board (同归于尽), and the pieces that survived all belong to Black. Red has nothing left that can move, so the game ends: with no piece to move and no tile to flip, Red loses.':
-    '两只狮子和两头大象都已同归于尽离场，存活下来的棋子全部属于黑方。红方再无可走之子，于是对局结束：既没有棋子可走，也没有棋子可翻，红方告负。',
+  'Blue wins by elimination · 36 moves': '蓝方吃光对手获胜 · 36 步',
+  'Both lions and both elephants have already traded off the board (同归于尽), and the pieces that survived all belong to Blue. Red has nothing left that can move, so the game ends: with no piece to move and no tile to flip, Red loses.':
+    '两只狮子和两头大象都已同归于尽离场，存活下来的棋子全部属于蓝方。红方再无可走之子，于是对局结束：既没有棋子可走，也没有棋子可翻，红方告负。',
 
   // -- Branded rules names --
   'Fog Chess Rules': '迷雾国际象棋规则',
@@ -1486,8 +1486,8 @@ const ZH_HANT: Record<string, string> = {
   'Games draw on threefold repetition, or when 100 half-moves (50 by each player) pass with no capture.':
     '若同一局面出現三次，或連續 100 個半回合（每方 50 步）無吃子，則判和。',
   'A full game': '完整對局',
-  'Step through a real game between two strengths of our bot. Watch the lion leap the river, the rat swim up the far lane and take the elephant in the open, and Red march the rest of the way into Black’s den.':
-    '逐步回放我們機器人兩個強度之間的真實對局。看獅子跳過河、老鼠沿遠側通道游上去並在空地上吃掉大象，最後紅方一路走進黑方的獸穴。',
+  'Step through a real game between two strengths of our bot. Watch the lion leap the river, the rat swim up the far lane and take the elephant in the open, and Red march the rest of the way into Blue’s den.':
+    '逐步回放我們機器人兩個強度之間的真實對局。看獅子跳過河、老鼠沿遠側通道游上去並在空地上吃掉大象，最後紅方一路走進藍方的獸穴。',
   'All sixteen pieces, one of each animal in two colors, are shuffled and placed face-down on the sixteen squares. Nobody knows which animal or which color sits under a tile until it is flipped. The first tile you flip sets your color for the rest of the game.':
     '全部十六枚棋子（兩種顏色各八種動物）洗勻後背面朝上放在十六個格子裡。在翻開之前，誰也不知道某個格子下面是哪種動物、哪種顏色。你翻開的第一枚棋子決定你在本局其餘時間的顏色。',
   'A turn': '一個回合',
@@ -1504,12 +1504,12 @@ const ZH_HANT: Record<string, string> = {
     '逐步回放我們機器人左右互搏的一盤棋。兩隻獅子相遇、雙雙離場；一頭大象連吃三子，直到撞上另一頭大象、兩象也同歸於盡；最後還有棋子站著的一方獲勝。棋子第一次被翻開時，會顯示其發到的動物。',
   'Engine vs engine': '引擎對引擎',
   'Red wins by reaching the den · 69 moves': '紅方進入獸穴獲勝 · 69 步',
-  'Red’s rat has already taken Black’s elephant in the open, and with the strongest piece off the board Red walks a piece straight into Black’s undefended den. Reaching the enemy den ends the game at once, no matter what material is left.':
-    '紅方的老鼠已經在空地上吃掉了黑方的大象，最強的棋子離場後，紅方逕直把一枚棋子走進黑方無人防守的獸穴。進入對方獸穴會立刻結束對局，無論場上還剩多少子力。',
+  'Red’s rat has already taken Blue’s elephant in the open, and with the strongest piece off the board Red walks a piece straight into Blue’s undefended den. Reaching the enemy den ends the game at once, no matter what material is left.':
+    '紅方的老鼠已經在空地上吃掉了藍方的大象，最強的棋子離場後，紅方逕直把一枚棋子走進藍方無人防守的獸穴。進入對方獸穴會立刻結束對局，無論場上還剩多少子力。',
   'Engine self-play': '引擎自我對弈',
-  'Black wins by elimination · 36 moves': '黑方吃光對手獲勝 · 36 步',
-  'Both lions and both elephants have already traded off the board (同归于尽), and the pieces that survived all belong to Black. Red has nothing left that can move, so the game ends: with no piece to move and no tile to flip, Red loses.':
-    '兩隻獅子和兩頭大象都已同歸於盡離場，存活下來的棋子全部屬於黑方。紅方再無可走之子，於是對局結束：既沒有棋子可走，也沒有棋子可翻，紅方告負。',
+  'Blue wins by elimination · 36 moves': '藍方吃光對手獲勝 · 36 步',
+  'Both lions and both elephants have already traded off the board (同归于尽), and the pieces that survived all belong to Blue. Red has nothing left that can move, so the game ends: with no piece to move and no tile to flip, Red loses.':
+    '兩隻獅子和兩頭大象都已同歸於盡離場，存活下來的棋子全部屬於藍方。紅方再無可走之子，於是對局結束：既沒有棋子可走，也沒有棋子可翻，紅方告負。',
 
   // -- Branded rules names --
   'Fog Chess Rules': '迷霧國際象棋規則',

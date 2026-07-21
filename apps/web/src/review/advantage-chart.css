@@ -61,6 +61,26 @@
 :root[data-effective-theme="dark"] .advantage-chart__zone--black {
   fill: color-mix(in srgb, #d8d2c6 8%, transparent);
 }
+/* Jungle family (Jungle Chess + Flip Jungle): the "black" side is Blue, so its
+   advantage area/zone wear the piece navy (lifted to read clearly as blue),
+   matching the eval bar. The dark-theme rule above would otherwise recolor it
+   neutral, so re-assert a lighter blue at higher specificity for dark mode. */
+.jungle-review .advantage-chart__area--black,
+.jungle-flip-review .advantage-chart__area--black {
+  fill: color-mix(in srgb, #34557a 85%, transparent);
+}
+.jungle-review .advantage-chart__zone--black,
+.jungle-flip-review .advantage-chart__zone--black {
+  fill: color-mix(in srgb, #34557a 10%, transparent);
+}
+:root[data-effective-theme="dark"] .jungle-review .advantage-chart__area--black,
+:root[data-effective-theme="dark"] .jungle-flip-review .advantage-chart__area--black {
+  fill: color-mix(in srgb, #6b96c8 78%, transparent);
+}
+:root[data-effective-theme="dark"] .jungle-review .advantage-chart__zone--black,
+:root[data-effective-theme="dark"] .jungle-flip-review .advantage-chart__zone--black {
+  fill: color-mix(in srgb, #6b96c8 10%, transparent);
+}
 .advantage-chart__line {
   fill: none;
   stroke: color-mix(in srgb, var(--site-text) 45%, transparent);

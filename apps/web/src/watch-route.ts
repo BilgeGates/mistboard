@@ -25,6 +25,7 @@ import { createMoveList, type MoveList } from './review/move-list.js';
 import { createReviewShell } from './review/review-shell.js';
 import { showcaseRendererKindForSpec, specIdForShowcaseVariant } from './showcase-dispatch.js';
 import { buildLoadingState, buildNav } from './site-shell.js';
+import { seatColorWord } from './variant-seat-label.js';
 import { formatClock } from './web-utils.js';
 
 // replay.js statically pulls in chessground (~64KB). Importing it dynamically
@@ -1038,13 +1039,14 @@ export function watchPovToggleApplies(variant: string): boolean {
 
 // The color words for the two side-perspective buttons, from the variant's
 // family: the chess family reads White/Black; every other family (xiangqi,
-// jungle, shogi, crossroads, …) reads Red/Black. paneKind 'white' is the
-// first/red/white seat, 'black' the second.
+// jungle, shogi, crossroads, …) reads Red vs its second-seat word — "Blue" for
+// the Jungle family, "Black" elsewhere (see variant-seat-label.ts). paneKind
+// 'white' is the first/red/white seat, 'black' the second.
 function watchPovSideLabels(variant: string): { first: string; second: string } {
   const family = maybeGameSpecForId(variant)?.family;
   return family === 'chess'
     ? { first: 'White', second: 'Black' }
-    : { first: 'Red', second: 'Black' };
+    : { first: 'Red', second: seatColorWord(variant, 'black') };
 }
 
 // Render the fog-perspective segmented control under the board for a dark game,
@@ -1581,9 +1583,14 @@ export function resultLabel(result: string): string {
 }
 
 // Banqi seats are decoupled from ink, so its seat-keyed result needs the game's
-// firstColor to read by ink ("Black wins"). Every other variant has seat == ink
-// and uses the plain label.
+// firstColor to read by ink ("Black wins"). Every other variant has seat == ink;
+// route the winning-side word through seatColorWord so the Jungle family reads
+// "Blue wins" (its canonical second-seat color) instead of "Black wins".
 export function watchQueueResultLabel(game: FeaturedGame): string {
   if (game.variant === 'banqi') return banqiResultLabel(game.result, game.firstColor ?? null);
-  return resultLabel(game.result);
+  const result = game.result;
+  if (result === 'red-wins') return `${seatColorWord(game.variant, 'red')} wins`;
+  if (result === 'black-wins') return `${seatColorWord(game.variant, 'black')} wins`;
+  if (result === 'white-wins') return `${seatColorWord(game.variant, 'white')} wins`;
+  return resultLabel(result);
 }

@@ -82,7 +82,7 @@ const jungleWebTenant: WebVariantTenant<JungleColor> = {
   rejectedBody: 'This Jungle room is not active. Create a new invite to start a game.',
   spectatorBody: 'Watching the game.',
   selectInstruction: 'Select one of your animals, then tap where it should move.',
-  seatLabel: (seat) => (seat === 'red' ? 'Red' : 'Black'),
+  seatLabel: (seat) => (seat === 'red' ? 'Red' : 'Blue'),
   showPregameTurn: true,
 };
 

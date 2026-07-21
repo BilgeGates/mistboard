@@ -22,7 +22,7 @@ export const JUNGLE_SAMPLE_GAME: {
   event: 'Engine vs engine',
   outcome: 'Red wins by reaching the den · 69 moves',
   result:
-    'Red’s rat has already taken Black’s elephant in the open, and with the strongest piece off the board Red walks a piece straight into Black’s undefended den. Reaching the enemy den ends the game at once, no matter what material is left.',
+    'Red’s rat has already taken Blue’s elephant in the open, and with the strongest piece off the board Red walks a piece straight into Blue’s undefended den. Reaching the enemy den ends the game at once, no matter what material is left.',
   // Space-separated from+to tokens (files a-g, ranks 1-9). Replayed via
   // applyJungleMove from the initial position.
   moves:

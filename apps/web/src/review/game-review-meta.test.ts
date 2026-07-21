@@ -33,6 +33,14 @@ describe('reviewResultLabel', () => {
     expect(reviewResultLabel('draw')).toBe('Draw');
   });
 
+  it('brands the Jungle family dark side "Blue" when the variant is passed', () => {
+    expect(reviewResultLabel('black-wins', 'jungle')).toBe('Blue wins');
+    expect(reviewResultLabel('black-wins', 'jungle-flip')).toBe('Blue wins');
+    expect(reviewResultLabel('red-wins', 'jungle')).toBe('Red wins');
+    // Non-jungle variants keep the literal color word.
+    expect(reviewResultLabel('black-wins', 'xiangqi')).toBe('Black wins');
+  });
+
   it('labelizes an unknown token instead of guessing a color', () => {
     expect(reviewResultLabel('abandoned')).toBe('Abandoned');
   });

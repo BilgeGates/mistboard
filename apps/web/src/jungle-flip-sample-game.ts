@@ -23,9 +23,9 @@ export const JUNGLE_FLIP_SAMPLE_GAME: {
   red: 'MistyJungleFlip',
   black: 'MistyJungleFlip',
   event: 'Engine self-play',
-  outcome: 'Black wins by elimination · 36 moves',
+  outcome: 'Blue wins by elimination · 36 moves',
   result:
-    'Both lions and both elephants have already traded off the board (同归于尽), and the pieces that survived all belong to Black. Red has nothing left that can move, so the game ends: with no piece to move and no tile to flip, Red loses.',
+    'Both lions and both elephants have already traded off the board (同归于尽), and the pieces that survived all belong to Blue. Red has nothing left that can move, so the game ends: with no piece to move and no tile to flip, Red loses.',
   // The 16-tile deal in board-index order (a1, b1, c1, d1, a2, …, d4):
   // createInitialJungleFlipState places deal[i] face-down on square i, and a flip
   // reveals it. The first tile a player flips binds their color for the game.

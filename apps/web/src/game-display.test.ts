@@ -55,6 +55,10 @@ describe('matchupLabel', () => {
     expect(matchupLabel(game(XIANGQI_SPEC_ID))).toBe('Red vs Black');
   });
 
+  it('brands the Jungle family second seat "Blue" in the fallback matchup', () => {
+    expect(matchupLabel(game(JUNGLE_SPEC_ID))).toBe('Red vs Blue');
+  });
+
   it('reads legacy white/black name columns for chess rows without participants', () => {
     expect(matchupLabel({ ...game('fog'), whiteName: 'alice', blackName: 'bob' })).toBe(
       'alice vs bob',

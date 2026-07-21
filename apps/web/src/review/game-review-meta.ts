@@ -21,6 +21,7 @@
 // room) is plain envelope data and lives here so it can't drift between variants.
 
 import type { VariantMiniId } from '../variant-mini-boards.js';
+import { seatColorWord } from '../variant-seat-label.js';
 import { createGameMetaCard, type GameMetaPlayer, timeAgoLabel } from './game-meta-card.js';
 import { type ReviewSeatColors, reviewColorForSeat } from './review-seat-colors.js';
 import { buildSpectatorChat } from './spectator-chat.js';
@@ -123,12 +124,14 @@ export function reviewTimeControlLabel(game: {
 }
 
 /** Generic outcome word for the fixed-color variants (red/black/white + draw).
- *  Variants with seat-relative results (Flip Jungle, Flip Xiangqi) compute their
- *  own label from `firstColor` instead. */
-export function reviewResultLabel(result: string): string {
-  if (result === 'red-wins') return 'Red wins';
-  if (result === 'black-wins') return 'Black wins';
-  if (result === 'white-wins') return 'White wins';
+ *  Pass `variant` so the winning-side word honours the variant's canonical seat
+ *  colors (the Jungle family shows "Blue", not "Black"). Variants with
+ *  seat-relative results (Flip Jungle, Flip Xiangqi) compute their own label
+ *  from `firstColor` instead. */
+export function reviewResultLabel(result: string, variant?: string): string {
+  if (result === 'red-wins') return `${seatColorWord(variant, 'red')} wins`;
+  if (result === 'black-wins') return `${seatColorWord(variant, 'black')} wins`;
+  if (result === 'white-wins') return `${seatColorWord(variant, 'white')} wins`;
   if (result === 'draw') return 'Draw';
   return labelize(result);
 }

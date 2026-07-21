@@ -127,7 +127,7 @@ function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): vo
     black: gamePlayers.find((p) => p.color === 'black')?.name,
   };
 
-  const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const status = `${reviewResultLabel(postgame.game.result, 'jungle')} by ${labelize(postgame.game.termination)}`;
   const { metaCard, details } = buildReviewMeta({
     markerId: 'jungle',
     variantName: 'Jungle Chess',

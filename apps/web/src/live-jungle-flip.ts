@@ -96,7 +96,8 @@ function jungleFlipSeatInk(
 // once the flip assigns it, else by move order ("First"/"Second").
 function jungleFlipSeatLabel(seat: JungleFlipSeat): string {
   const ink = jungleFlipSeatInk(seat, core?.state.view ?? null);
-  if (ink) return ink === 'red' ? 'Red' : 'Black';
+  // The Jungle family brands its navy ink "Blue" (internal ink id stays 'black').
+  if (ink) return ink === 'red' ? 'Red' : 'Blue';
   return seat === 'red' ? 'First' : 'Second';
 }
 

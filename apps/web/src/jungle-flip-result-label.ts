@@ -21,7 +21,8 @@ export function jungleFlipSeatInkLabel(
 ): string {
   if (firstColor === null) return seat === 'red' ? 'First' : 'Second';
   const ink = jungleFlipSeatInk(seat, firstColor);
-  return ink === 'red' ? 'Red' : 'Black';
+  // The Jungle family brands its navy ink "Blue" (internal id stays 'black').
+  return ink === 'red' ? 'Red' : 'Blue';
 }
 
 export function jungleFlipResultLabel(result: string, firstColor: JungleFlipColor | null): string {

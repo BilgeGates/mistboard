@@ -20,8 +20,8 @@ describe('Flip Jungle watch replay', () => {
     expect(fetchSpy).toHaveBeenCalledWith('/api/jungle-flip/games/jgf_watch');
     expect(handle.activeSampleId()).toBe('jgf_watch');
     expect(root.textContent).toContain('Human vs human');
-    // Seat 'red' (first mover) bound black ink, so 'red-wins' reads "Black wins".
-    expect(root.textContent).toContain('Black wins');
+    // Seat 'red' (first mover) bound the navy ink, so 'red-wins' reads "Blue wins".
+    expect(root.textContent).toContain('Blue wins');
     expect(root.querySelectorAll('svg.jungle-flip-live-svg')).toHaveLength(1);
     // Hidden identities → a Reveal control is present.
     const reveal = [...root.querySelectorAll<HTMLButtonElement>('button')].find(

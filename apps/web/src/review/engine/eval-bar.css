@@ -128,3 +128,17 @@
 .fortress-xiangqi-review .review-eval-bar__fill {
   background: color-mix(in srgb, #c0563f 72%, var(--site-panel, #fff));
 }
+
+/* Jungle family (Jungle Chess + Flip Jungle): Red vs Blue, matching the pieces
+   (red ink #b5322b, navy ink #28323c) rather than the default light/near-black
+   gauge. The blue is lifted off the near-black piece ink so the track reads
+   clearly as blue, and it matches the advantage chart's blue area (composited
+   at the same ratios over the panel). */
+.jungle-review .review-eval-bar,
+.jungle-flip-review .review-eval-bar {
+  background: color-mix(in srgb, #34557a 85%, var(--site-panel, #fff));
+}
+.jungle-review .review-eval-bar__fill,
+.jungle-flip-review .review-eval-bar__fill {
+  background: color-mix(in srgb, #b5322b 72%, var(--site-panel, #fff));
+}

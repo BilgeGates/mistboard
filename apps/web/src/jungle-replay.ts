@@ -35,7 +35,7 @@ type JungleReplayCopy = {
 const JUNGLE_REPLAY_COPY: Record<ArticleLang | 'en', JungleReplayCopy> = {
   en: {
     redLabel: ' (Red)',
-    blackLabel: ' (Black)',
+    blackLabel: ' (Blue)',
     firstMove: 'First move',
     previousMove: 'Previous move',
     nextMove: 'Next move',
@@ -45,11 +45,11 @@ const JUNGLE_REPLAY_COPY: Record<ArticleLang | 'en', JungleReplayCopy> = {
     intro: 'Step through the game. Red moves first.',
     movePrefix: (moveNumber) => `Move ${moveNumber}`,
     red: 'Red',
-    black: 'Black',
+    black: 'Blue',
   },
   'zh-Hans': {
     redLabel: '（红方）',
-    blackLabel: '（黑方）',
+    blackLabel: '（蓝方）',
     firstMove: '第一步',
     previousMove: '上一步',
     nextMove: '下一步',
@@ -59,11 +59,11 @@ const JUNGLE_REPLAY_COPY: Record<ArticleLang | 'en', JungleReplayCopy> = {
     intro: '逐步回放这盘棋。红方先走。',
     movePrefix: (moveNumber) => `第 ${moveNumber} 回合`,
     red: '红方',
-    black: '黑方',
+    black: '蓝方',
   },
   'zh-Hant': {
     redLabel: '（紅方）',
-    blackLabel: '（黑方）',
+    blackLabel: '（藍方）',
     firstMove: '第一步',
     previousMove: '上一步',
     nextMove: '下一步',
@@ -73,7 +73,7 @@ const JUNGLE_REPLAY_COPY: Record<ArticleLang | 'en', JungleReplayCopy> = {
     intro: '逐步回放這盤棋。紅方先走。',
     movePrefix: (moveNumber) => `第 ${moveNumber} 回合`,
     red: '紅方',
-    black: '黑方',
+    black: '藍方',
   },
 };
 

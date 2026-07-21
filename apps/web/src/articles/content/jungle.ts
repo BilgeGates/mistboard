@@ -139,7 +139,7 @@ export const jungleArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Step through a real game between two strengths of our bot. Watch the lion leap the river, the rat swim up the far lane and take the elephant in the open, and Red march the rest of the way into Black’s den.',
+          text: 'Step through a real game between two strengths of our bot. Watch the lion leap the river, the rat swim up the far lane and take the elephant in the open, and Red march the rest of the way into Blue’s den.',
         },
         {
           kind: 'jungle-replay',

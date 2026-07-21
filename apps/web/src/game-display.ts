@@ -1,4 +1,5 @@
 import { maybeGameSpecForId } from '@mistboard/game';
+import { seatColorWord } from './variant-seat-label.js';
 
 export const MISTBOARD_ENGINE_SNAPSHOT_ID = 'engine-v2-2026-05-24';
 export const MISTBOARD_ENGINE_SNAPSHOT_NAME = 'Mistboard Engine v2.0';
@@ -64,10 +65,10 @@ export function displayParticipantName(
   if (participant)
     return displayParticipant(
       participant.displayName,
-      fallbackSeatName(color),
+      fallbackSeatName(game.variant, color),
       participant.subjectId,
     );
-  const fallback = fallbackSeatName(color);
+  const fallback = fallbackSeatName(game.variant, color);
   const legacyName =
     color === 'white'
       ? (game.whiteEngineId ?? game.whiteName)
@@ -121,10 +122,13 @@ export function isCrossroadsChessVariant(variant: string): boolean {
   return variant === 'crossroads-chess' || variant === 'dual-chess';
 }
 
-function fallbackSeatName(color: GameParticipant['color']): string {
-  if (color === 'red') return 'Red';
-  if (color === 'white') return 'White';
-  return 'Black';
+function fallbackSeatName(
+  variant: string | null | undefined,
+  color: GameParticipant['color'],
+): string {
+  // Jungle's second seat reads "Blue" (see variant-seat-label.ts); every other
+  // variant keeps the literal color word.
+  return seatColorWord(variant, color);
 }
 
 function displayParticipant(
