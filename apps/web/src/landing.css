@@ -339,9 +339,10 @@
   display: none;
 }
 
-/* Standing engine-seed list at the top of the Lobby tab: always-available bot
-   opponents so the seeks surface is never empty. Separated from the human-seek
-   table below by a hairline so a bot offer never reads as a human seek. */
+/* Rotating bot-seek table at the top of the Lobby tab: always-available bot
+   opponents at lichess-hook density so the seeks surface is never empty. A
+   centered "Bots" divider strip plus a hairline below keep a bot offer from
+   ever reading as a human seek. */
 .landing-lobby-seeds {
   display: flex;
   flex-direction: column;
@@ -354,13 +355,34 @@
   display: none;
 }
 
+/* Lichess's "— VARIANT —" divider shape: a small centered label between two
+   rule lines. The lines are borders, never literal dashes in copy. */
+.landing-lobby-seeds-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px 4px;
+  color: var(--site-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.landing-lobby-seeds-divider::before,
+.landing-lobby-seeds-divider::after {
+  flex: 1;
+  border-top: 1px solid var(--site-border-soft);
+  content: "";
+}
+
 .landing-lobby-seed {
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr) auto auto;
+  grid-template-columns: 22px minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 8px 4px;
+  padding: 7px 4px;
   border: 0;
   border-radius: var(--site-radius-sm, 6px);
   background: transparent;
@@ -382,8 +404,8 @@
 
 .landing-lobby-seed-thumb {
   display: block;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
 .landing-lobby-seed-thumb svg,
@@ -393,25 +415,56 @@
   height: 100%;
 }
 
-.landing-lobby-seed-variant {
+/* Bot name + variant share one tight line; the variant ellipsizes first. */
+.landing-lobby-seed-player {
+  display: inline-flex;
   min-width: 0;
-  font-size: 13px;
-  font-weight: 700;
-  overflow-wrap: anywhere;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .landing-lobby-seed-opponent {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 6px;
+  color: var(--site-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.landing-lobby-seed-variant {
+  min-width: 0;
+  overflow: hidden;
   color: var(--site-muted);
   font-size: 12px;
-  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.landing-lobby-seed-variant::before {
+  content: "· ";
 }
 
 .landing-lobby-seed-boticon {
   width: 15px;
   height: 15px;
+}
+
+.landing-lobby-seed-rating {
+  min-width: 42px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.landing-lobby-seed-time {
+  min-width: 34px;
+  color: var(--site-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .landing-lobby-seed-cta {
@@ -423,6 +476,22 @@
 .landing-lobby-seed:hover .landing-lobby-seed-cta,
 .landing-lobby-seed:focus-visible .landing-lobby-seed-cta {
   color: var(--site-accent-strong);
+}
+
+/* One-click start states (bindBotPlayControl toggles these classes): the cta
+   cell carries the "Starting" / "Could not start" text swap. */
+.landing-lobby-seed.bot-play-pending {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.landing-lobby-seed.bot-play-pending .landing-lobby-seed-cta,
+.landing-lobby-seed.bot-play-error .landing-lobby-seed-cta {
+  font-size: 12px;
+}
+
+.landing-lobby-seed.bot-play-error .landing-lobby-seed-cta {
+  color: var(--site-danger, #c0392b);
 }
 
 .landing-lobby-thead,

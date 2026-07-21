@@ -40,6 +40,9 @@ export const EN_PLAY = {
   'lobby.anonymous': 'Anonymous',
   'lobby.yours': 'Yours',
   'lobby.daysPerMove': '{days}d/move',
+  'lobby.botsDivider': 'Bots',
+  'lobby.botStarting': 'Starting',
+  'lobby.botStartFailed': 'Could not start',
   'setup.close': 'Close setup',
   'setup.gameGroup': 'Game group',
   'setup.chess': 'Chess',
@@ -234,4 +237,7 @@ export const CRITICAL_PLAY_I18N_KEYS = [
   'lobby.anonymous',
   'lobby.yours',
   'lobby.daysPerMove',
+  'lobby.botsDivider',
+  'lobby.botStarting',
+  'lobby.botStartFailed',
 ] as const satisfies readonly PlayI18nKey[];

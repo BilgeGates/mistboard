@@ -30,6 +30,7 @@ import {
   gameSpecAnalyticsPropsForId,
   track,
 } from './analytics.js';
+import { bindBotPlayControl } from './bot-play.js';
 import { correspondenceEnabled, crossroadsChessEnabled } from './feature-flags.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, type Locale } from './i18n/locale.js';
@@ -450,100 +451,191 @@ export function buildLobbyRequestsWindow(
   return shell;
 }
 
-// Engine "seeds": the always-available computer opponents, rendered as a standing
-// list at the top of the Lobby tab so the seeks surface is never an empty hooks
-// table even at zero human liquidity. These are NOT server seeks — every listed
-// engine is playable by anyone at any time, so the list is deterministic and
-// derived client-side. Clicking one opens the vetted PvE setup dialog pre-set to
-// that variant + engine (which enforces the per-tenant time-control allowlist and
-// engine selection); slice 1 deliberately does not direct-create.
+// Engine "seeds": rotating always-available bot seeks rendered as a compact
+// lichess-lobby-style hook table at the top of the Lobby tab, so the seeks
+// surface is never an empty table at zero human liquidity. These are NOT server
+// seeks: the pool is derived client-side and rotates deterministically per UTC
+// calendar day, so the prerendered shell and every visitor agree on the day's
+// list. One click creates and joins the PvE room directly (no setup dialog);
+// the server resolves the concrete engine from the bot identity.
 type LandingEngineSeed = {
+  botId: string;
+  botName: string;
   gameSpecId: LandingGameSpecId;
   variantLabel: string;
-  // Only set when the default engine is confidently resolvable (a tenant engine
-  // option, or dark chess's fallback Misty). Left undefined for server-default
-  // engines (fog xiangqi, dark mini) so the dialog/server picks — never a guess.
-  engineId: string | undefined;
-  engineName: string;
+  timeControlId: TimeControlId;
 };
 
-function landingEngineSeeds(locale: Locale): LandingEngineSeed[] {
-  const seeds: LandingEngineSeed[] = [];
-  for (const { gameSpecId, label } of enabledLandingVariantGameSpecs('pve', locale)) {
-    if (!landingVariantSupportsPve(gameSpecId)) continue;
-    const tenantOptions = webVariantTenantForSpecId(gameSpecId)?.landing?.engineOptions;
-    if (tenantOptions && tenantOptions.length > 0) {
-      const engineId = defaultEngineIdForGameSpec(gameSpecId, tenantOptions);
-      const engineName =
-        tenantOptions.find((option) => option.id === engineId)?.name ??
-        tenantOptions[0]?.name ??
-        t('play.playEngine', {}, locale);
-      seeds.push({ gameSpecId, variantLabel: label, engineId, engineName });
-      continue;
-    }
-    if (gameSpecId === DARK_CHESS_SPEC_ID) {
-      const fallback = fallbackPlayableEngines();
-      seeds.push({
-        gameSpecId,
-        variantLabel: label,
-        engineId: fallback[0]?.id,
-        engineName: fallback[0]?.name ?? 'Misty',
-      });
-      continue;
-    }
-    // Server-default engine (fog xiangqi, dark mini): list it without guessing an
-    // engine id or name; the setup dialog resolves the real one.
-    seeds.push({ gameSpecId, variantLabel: label, engineId: undefined, engineName: 'Computer' });
+type LandingEngineSeedCandidate = Omit<LandingEngineSeed, 'variantLabel'>;
+
+const LANDING_ENGINE_SEED_COUNT = 6;
+
+function utcDayOfYear(date: Date): number {
+  return Math.floor((date.getTime() - Date.UTC(date.getUTCFullYear(), 0, 0)) / 86_400_000);
+}
+
+// A seed only lists when its variant is currently offered: dark chess is always
+// on; tenant variants follow the same offerInMenu gate as every play menu.
+function landingSeedVariantOffered(gameSpecId: LandingGameSpecId): boolean {
+  if (gameSpecId === DARK_CHESS_SPEC_ID) return true;
+  return webVariantTenantForSpecId(gameSpecId)?.landing?.offerInMenu() === true;
+}
+
+function landingEngineSeeds(locale: Locale, now: Date = new Date()): LandingEngineSeed[] {
+  const day = utcDayOfYear(now);
+  // Three anchors, always present when their variant is offered. The
+  // Fairy-Stockfish ladder rung rotates daily through levels 2..7.
+  const anchorLevel = 2 + (day % 6);
+  const anchors: LandingEngineSeedCandidate[] = [
+    { botId: 'misty', botName: 'Misty', gameSpecId: DARK_CHESS_SPEC_ID, timeControlId: '3m2' },
+    { botId: 'pikafish', botName: 'Pikafish', gameSpecId: XIANGQI_SPEC_ID, timeControlId: '3m2' },
+    {
+      botId: `fairy-stockfish-level-${anchorLevel}`,
+      botName: `Fairy-Stockfish Level ${anchorLevel}`,
+      gameSpecId: XIANGQI_SPEC_ID,
+      timeControlId: '5m5',
+    },
+  ];
+  // Three rotating slots: a day-offset rotation over whatever survives the
+  // offered-variant filter. The rotated tail also backfills any anchor slots
+  // lost to filtering, keeping the table at six rows whenever enough variants
+  // are live.
+  const fortressLevel = (day % 8) + 1;
+  const rotatingPool: LandingEngineSeedCandidate[] = [
+    { botId: 'misty', botName: 'Misty', gameSpecId: DARK_XIANGQI_SPEC_ID, timeControlId: '3m2' },
+    { botId: 'misty', botName: 'Misty', gameSpecId: BANQI_SPEC_ID, timeControlId: '3m2' },
+    { botId: 'misty', botName: 'Misty', gameSpecId: JUNGLE_SPEC_ID, timeControlId: '3m2' },
+    { botId: 'misty', botName: 'Misty', gameSpecId: JUNGLE_FLIP_SPEC_ID, timeControlId: '3m2' },
+    { botId: 'pikafish', botName: 'Pikafish', gameSpecId: JIEQI_SPEC_ID, timeControlId: '5m5' },
+    {
+      botId: `fairy-stockfish-level-${fortressLevel}`,
+      botName: `Fairy-Stockfish Level ${fortressLevel}`,
+      gameSpecId: FORTRESS_XIANGQI_SPEC_ID,
+      timeControlId: '5m5',
+    },
+  ];
+  const picked = anchors.filter((seed) => landingSeedVariantOffered(seed.gameSpecId));
+  const offered = rotatingPool.filter((seed) => landingSeedVariantOffered(seed.gameSpecId));
+  const start = offered.length > 0 ? day % offered.length : 0;
+  const rotated = [...offered.slice(start), ...offered.slice(0, start)];
+  for (const candidate of rotated) {
+    if (picked.length >= LANDING_ENGINE_SEED_COUNT) break;
+    picked.push(candidate);
   }
-  return seeds;
+  return picked.map((seed) => ({
+    ...seed,
+    variantLabel: variantLabelForGameSpec(seed.gameSpecId, locale),
+  }));
 }
 
 function engineSeedRow(seed: LandingEngineSeed, locale: Locale): HTMLElement {
   const row = document.createElement('button');
   row.type = 'button';
   row.className = 'landing-lobby-seed';
+  // The rating hydrate pass (and tests) address rows by bot + variant + pace.
+  row.dataset.botId = seed.botId;
+  row.dataset.gameSpec = seed.gameSpecId;
+  const timeControl = TIME_CONTROLS.find((spec) => spec.id === seed.timeControlId);
+  if (timeControl) row.dataset.timeClass = timeControl.timeClass;
   row.setAttribute('aria-label', `${t('play.playEngine', {}, locale)}: ${seed.variantLabel}`);
 
+  const thumb = document.createElement('span');
+  thumb.className = 'landing-lobby-seed-thumb';
+  thumb.setAttribute('aria-hidden', 'true');
   const miniId = variantMiniIdForGameSpec(seed.gameSpecId);
   if (miniId) {
-    const thumb = document.createElement('span');
-    thumb.className = 'landing-lobby-seed-thumb';
-    thumb.setAttribute('aria-hidden', 'true');
     thumb.innerHTML = renderVariantMarker(miniId, {
       size: 100,
       label: `${seed.variantLabel} marker`,
     });
-    row.append(thumb);
   }
 
-  const name = document.createElement('span');
-  name.className = 'landing-lobby-seed-variant';
-  name.textContent = seed.variantLabel;
-
+  // Player cell: bot icon (the honesty signal) + bot name, then the variant in
+  // muted text on the same line for lichess-hook density.
+  const player = document.createElement('span');
+  player.className = 'landing-lobby-seed-player';
   const opponent = document.createElement('span');
   opponent.className = 'landing-lobby-seed-opponent';
   opponent.append(
     buildUiIcon('play-engine', 'landing-lobby-seed-boticon'),
-    document.createTextNode(seed.engineName),
+    document.createTextNode(seed.botName),
   );
+  const variant = document.createElement('span');
+  variant.className = 'landing-lobby-seed-variant';
+  variant.textContent = seed.variantLabel;
+  player.append(opponent, variant);
+
+  const rating = document.createElement('span');
+  rating.className = 'landing-lobby-seed-rating';
+  rating.textContent = '—';
+
+  const time = document.createElement('span');
+  time.className = 'landing-lobby-seed-time';
+  time.textContent = timeControl ? timeControl.label.replace(/\s+/g, '') : '';
 
   const cta = document.createElement('span');
   cta.className = 'landing-lobby-seed-cta';
   cta.setAttribute('aria-hidden', 'true');
   cta.textContent = '▸';
 
-  row.append(name, opponent, cta);
-  row.addEventListener('click', () => {
-    openLandingSetupDialog({
-      mode: 'pve',
-      modeSwitcher: true,
-      initialGameSpecId: seed.gameSpecId,
-      engineId: seed.engineId,
-      locale,
-      title: t('play.playEngine', {}, locale),
-    });
-  });
+  row.append(thumb, player, rating, time, cta);
+  bindBotPlayControl(
+    row,
+    () => ({
+      botId: seed.botId,
+      gameSpecId: seed.gameSpecId,
+      ...(timeControl
+        ? {
+            timeControl: { initialMs: timeControl.initialMs, incrementMs: timeControl.incrementMs },
+          }
+        : {}),
+      preferredColor: 'random',
+    }),
+    {
+      onStateChange: (state) => {
+        if (state === 'pending') cta.textContent = t('lobby.botStarting', {}, locale);
+        else if (state === 'error') cta.textContent = t('lobby.botStartFailed', {}, locale);
+        else cta.textContent = '▸';
+      },
+    },
+  );
   return row;
+}
+
+// Minimal slice of GET /api/bots used to decorate seed rows with ratings.
+type LandingBotRosterRating = {
+  gameSpecId: string;
+  timeClass: string;
+  rating: number;
+  provisional?: boolean;
+};
+type LandingBotRosterEntry = { id: string; ratings?: LandingBotRosterRating[] };
+
+// Best rating for a seed: the seed's own variant + time class, else the
+// variant's blitz rating, else any rating recorded for the variant.
+function seedRosterRating(
+  ratings: LandingBotRosterRating[],
+  gameSpecId: string,
+  timeClass: string | undefined,
+): LandingBotRosterRating | undefined {
+  const forSpec = ratings.filter((entry) => entry.gameSpecId === gameSpecId);
+  return (
+    forSpec.find((entry) => entry.timeClass === timeClass) ??
+    forSpec.find((entry) => entry.timeClass === 'blitz') ??
+    forSpec[0]
+  );
+}
+
+function fillSeedRatings(seedsBlock: HTMLElement, bots: LandingBotRosterEntry[]): void {
+  for (const row of seedsBlock.querySelectorAll<HTMLElement>('.landing-lobby-seed')) {
+    const cell = row.querySelector('.landing-lobby-seed-rating');
+    if (!cell) continue;
+    const bot = bots.find((entry) => entry.id === row.dataset.botId);
+    if (!bot?.ratings) continue;
+    const rating = seedRosterRating(bot.ratings, row.dataset.gameSpec ?? '', row.dataset.timeClass);
+    if (!rating) continue;
+    cell.textContent = `${Math.round(rating.rating)}${rating.provisional ? '?' : ''}`;
+  }
 }
 
 // The homepage lobby board (lichess / PlayStrategy-shaped): three tabs over a
@@ -618,13 +710,21 @@ export function buildLobbyPanel(
   lobbyPlaceholder.textContent = ' ';
   lobbyRows.append(lobbyPlaceholder);
 
-  // Standing engine-seed list: always-available computer opponents so the seeks
-  // tab is never empty. Sits above the (usually empty) human-seek table; the two
-  // are visually separated so a bot offer is never mistaken for a human seek.
+  // Rotating bot-seek table: always-available computer opponents so the seeks
+  // tab is never empty. Sits above the (usually empty) human-seek table under a
+  // "Bots" divider strip so a bot offer is never mistaken for a human seek.
   const seeds = landingEngineSeeds(locale);
   const seedsBlock = document.createElement('div');
   seedsBlock.className = 'landing-lobby-seeds';
-  for (const seed of seeds) seedsBlock.append(engineSeedRow(seed, locale));
+  if (seeds.length > 0) {
+    const divider = document.createElement('div');
+    divider.className = 'landing-lobby-seeds-divider';
+    const dividerLabel = document.createElement('span');
+    dividerLabel.textContent = t('lobby.botsDivider', {}, locale);
+    divider.append(dividerLabel);
+    seedsBlock.append(divider);
+    for (const seed of seeds) seedsBlock.append(engineSeedRow(seed, locale));
+  }
 
   lobbyPanelEl.append(seedsBlock, lobbyHead, lobbyRows);
   const renderLobby = (requests: OpenLobbyRequest[]): void => {
@@ -789,6 +889,18 @@ export function buildLobbyPanel(
       }
     };
     void refreshLobby();
+    // One-shot, purely decorative: fill the seed rows' rating cells from the
+    // public bot roster. Failures leave the placeholder in place.
+    void fetch('/api/bots', { headers: { accept: 'application/json' } })
+      .then((response) =>
+        response.ok ? (response.json() as Promise<{ bots?: LandingBotRosterEntry[] }>) : null,
+      )
+      .then((data) => {
+        if (data?.bots) fillSeedRatings(seedsBlock, data.bots);
+      })
+      .catch(() => {
+        /* keep the placeholder */
+      });
     const timer = window.setInterval(() => {
       if (!document.body.contains(board)) {
         window.clearInterval(timer);
