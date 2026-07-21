@@ -4,8 +4,10 @@ import { getPool } from './persistence-db.js';
 import { assert, definePersistenceTests, sha256, test } from './persistence-test-support.js';
 import {
   checkpointXiangqiPuzzleMiningShard,
+  claimNextXiangqiPuzzleMiningAuditCandidate,
   claimNextXiangqiPuzzleMiningShard,
   completeXiangqiPuzzleMiningShard,
+  failXiangqiPuzzleMiningAuditCandidate,
   failXiangqiPuzzleMiningShard,
   getXiangqiPuzzleMiningCandidate,
   getXiangqiPuzzleMiningRun,
@@ -14,7 +16,9 @@ import {
   recordXiangqiPuzzleEditorialReview,
   recordXiangqiPuzzleMiningCandidate,
   recordXiangqiPuzzleMiningJudgment,
+  type XiangqiPuzzleMiningCandidate,
 } from './persistence-xiangqi-puzzle-mining.js';
+import { processNextXiangqiPuzzleAuditCandidate } from './xiangqi-puzzle-audit-worker.js';
 import { processNextXiangqiPuzzleMiningShard } from './xiangqi-puzzle-mining-worker.js';
 
 const SOURCE_ID = 'source-elephant-pilot-test';
@@ -290,6 +294,7 @@ definePersistenceTests('xiangqi puzzle mining', () => {
         verdict: 'pass',
         engineProfile,
         evidence: { depth: 22 },
+        claimToken: 'not-a-real-claim',
       }),
       /cannot transition/,
     );
@@ -335,6 +340,16 @@ definePersistenceTests('xiangqi puzzle mining', () => {
       }),
       /different evidence/,
     );
+    await getPool().query(
+      `UPDATE xiangqi_puzzle_mining_runs SET status = 'verifying' WHERE id = $1`,
+      [run.id],
+    );
+    const auditClaim = await claimNextXiangqiPuzzleMiningAuditCandidate({
+      runId: run.id,
+      workerId: 'audit-worker-pass',
+      claimToken: 'audit-claim-pass',
+    });
+    assert.equal(auditClaim?.candidate.id, candidate.id);
     await recordXiangqiPuzzleMiningJudgment({
       candidateId: candidate.id,
       stage: 'audit',
@@ -342,6 +357,7 @@ definePersistenceTests('xiangqi puzzle mining', () => {
       verdict: 'pass',
       engineProfile,
       evidence: { depth: 22, stable: true },
+      claimToken: 'audit-claim-pass',
     });
     assert.equal((await getXiangqiPuzzleMiningCandidate(getPool(), candidate.id)).status, 'review');
 
@@ -410,6 +426,12 @@ definePersistenceTests('xiangqi puzzle mining', () => {
       engineProfile,
       evidence: { depth: 20 },
     });
+    const auditFailedClaim = await claimNextXiangqiPuzzleMiningAuditCandidate({
+      runId: run.id,
+      workerId: 'audit-worker-reject',
+      claimToken: 'audit-claim-reject',
+    });
+    assert.equal(auditFailedClaim?.candidate.id, auditFailedCandidate.id);
     await recordXiangqiPuzzleMiningJudgment({
       candidateId: auditFailedCandidate.id,
       stage: 'audit',
@@ -418,6 +440,7 @@ definePersistenceTests('xiangqi puzzle mining', () => {
       reason: 'near-tie',
       engineProfile,
       evidence: { depth: 22, gapCp: 180 },
+      claimToken: 'audit-claim-reject',
     });
     assert.equal(
       (await getXiangqiPuzzleMiningCandidate(getPool(), auditFailedCandidate.id)).status,
@@ -483,5 +506,135 @@ definePersistenceTests('xiangqi puzzle mining', () => {
       }),
       null,
     );
+  });
+
+  test('audit worker retries interruptions and advances resolved candidates to review', async () => {
+    const games = [
+      ...Array.from({ length: 12 }, (_, index) => pilotGame(index)),
+      ...Array.from({ length: 4 }, (_, index) => pilotGame(12 + index, true)),
+    ];
+    await seedEligibleGames(games);
+    const manifest = buildElephantChessPilotManifest(games, {
+      importBatchId: BATCH_ID,
+      seed: 'audit-worker-pilot-v1',
+      targets: { representativeLiveBase: 4, coverageLive: 2, correspondenceMax: 2 },
+    });
+    const run = await initializeXiangqiPuzzleMiningRun({ manifest, shardSize: 3 });
+    const engineProfile = { engine: 'pikafish-audit-test' };
+    const candidates: XiangqiPuzzleMiningCandidate[] = [];
+    for (let index = 0; index < 2; index += 1) {
+      const candidate = await recordXiangqiPuzzleMiningCandidate({
+        runId: run.id,
+        historicalGameId: manifest.games[index]?.historicalGameId as string,
+        postBlunderPly: 20 + index,
+        positionKey: `audit-position-${index}`,
+        trigger: 'eval-swing',
+        scanEvidence: { index },
+      });
+      await recordXiangqiPuzzleMiningJudgment({
+        candidateId: candidate.id,
+        stage: 'verify',
+        profileVersion: 'verify-v1',
+        verdict: 'pass',
+        engineProfile,
+        evidence: { depth: 20 },
+        puzzleData: { id: `puzzle-${index}` },
+      });
+      candidates.push(candidate);
+    }
+    await getPool().query(
+      `UPDATE xiangqi_puzzle_mining_runs SET status = 'verifying' WHERE id = $1`,
+      [run.id],
+    );
+
+    await assert.rejects(
+      processNextXiangqiPuzzleAuditCandidate({
+        runId: run.id,
+        workerId: 'audit-interrupted',
+        profileVersion: 'audit-v1',
+        engineProfile,
+        leaseMs: 5_000,
+        auditCandidate: async () => {
+          throw new Error('synthetic audit interruption');
+        },
+      }),
+      /synthetic audit interruption/,
+    );
+    assert.equal(
+      (await getXiangqiPuzzleMiningCandidate(getPool(), candidates[0]!.id)).status,
+      'verified',
+    );
+
+    const staleClaim = await claimNextXiangqiPuzzleMiningAuditCandidate({
+      runId: run.id,
+      workerId: 'audit-stale',
+      claimToken: 'audit-stale-token',
+      leaseMs: 5_000,
+    });
+    assert.equal(staleClaim?.candidate.id, candidates[0]!.id);
+    await getPool().query(
+      `UPDATE xiangqi_puzzle_mining_candidates
+       SET audit_lease_expires_at = now() - interval '1 second'
+       WHERE id = $1`,
+      [candidates[0]!.id],
+    );
+    const reclaimed = await claimNextXiangqiPuzzleMiningAuditCandidate({
+      runId: run.id,
+      workerId: 'audit-fenced',
+      claimToken: 'audit-fenced-token',
+      leaseMs: 5_000,
+    });
+    assert.equal(reclaimed?.attemptCount, 3);
+    await assert.rejects(
+      recordXiangqiPuzzleMiningJudgment({
+        candidateId: candidates[0]!.id,
+        stage: 'audit',
+        profileVersion: 'audit-v1',
+        verdict: 'pass',
+        engineProfile,
+        evidence: { depth: 22 },
+        claimToken: 'audit-stale-token',
+      }),
+      /cannot transition/,
+    );
+    await failXiangqiPuzzleMiningAuditCandidate({
+      candidateId: candidates[0]!.id,
+      claimToken: 'audit-fenced-token',
+      failure: { code: 'release-test-claim' },
+    });
+
+    const passed = await processNextXiangqiPuzzleAuditCandidate({
+      runId: run.id,
+      workerId: 'audit-resumed',
+      profileVersion: 'audit-v1',
+      engineProfile,
+      leaseMs: 5_000,
+      auditCandidate: async () => ({ verdict: 'pass', evidence: { depth: 22 } }),
+    });
+    assert.equal(passed?.candidateId, candidates[0]!.id);
+    assert.equal(
+      (await getXiangqiPuzzleMiningCandidate(getPool(), candidates[0]!.id)).status,
+      'review',
+    );
+
+    const rejected = await processNextXiangqiPuzzleAuditCandidate({
+      runId: run.id,
+      workerId: 'audit-reject',
+      profileVersion: 'audit-v1',
+      engineProfile,
+      leaseMs: 5_000,
+      auditCandidate: async () => ({
+        verdict: 'reject',
+        reason: 'engine-disagrees',
+        evidence: { depth: 22 },
+      }),
+    });
+    assert.equal(rejected?.candidateId, candidates[1]!.id);
+    assert.equal(rejected?.runAdvancedToReview, true);
+    assert.equal(
+      (await getXiangqiPuzzleMiningCandidate(getPool(), candidates[1]!.id)).status,
+      'audit-failed',
+    );
+    assert.equal((await getXiangqiPuzzleMiningRun(getPool(), run.id)).status, 'review');
   });
 });

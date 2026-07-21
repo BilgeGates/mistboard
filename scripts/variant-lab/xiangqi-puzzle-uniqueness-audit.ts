@@ -45,7 +45,7 @@ import {
   XIANGQI_SOLVER_GATE_DEFAULTS,
 } from './xiangqi-pikafish-uci.ts';
 
-type CliOptions = {
+export type XiangqiPuzzleAuditOptions = {
   depth: number;
   nodes: number | null;
   winHi: number;
@@ -57,7 +57,7 @@ type CliOptions = {
   out: string | null;
 };
 
-function parseOptions(): CliOptions {
+function parseOptions(): XiangqiPuzzleAuditOptions {
   const { values } = parseArgs({
     options: {
       depth: { type: 'string', default: '22' },
@@ -108,7 +108,7 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
-type SolverPlyReport = {
+export type XiangqiPuzzleAuditPlyReport = {
   solutionPly: number;
   shippedMove: string;
   engineBestMove: string;
@@ -123,11 +123,11 @@ type SolverPlyReport = {
   uniquenessReason: string;
 };
 
-type PuzzleReport = {
+export type XiangqiPuzzleAuditReport = {
   id: string;
   goal: string;
   solverPlies: number;
-  plies: SolverPlyReport[];
+  plies: XiangqiPuzzleAuditPlyReport[];
   allMatch: boolean;
   firstNonUniquePly: number | null; // solution index of the first non-unique solver ply
   verdict: 'clean' | 'non-unique-followups' | 'engine-disagrees';
@@ -137,11 +137,11 @@ function moveLabel(move: XiangqiMove): string {
   return `${move.from}-${move.to}`;
 }
 
-async function auditPuzzle(
+export async function auditXiangqiPuzzle(
   engine: PikafishEngine,
   puzzle: XiangqiPuzzle,
-  opts: CliOptions,
-): Promise<PuzzleReport> {
+  opts: XiangqiPuzzleAuditOptions,
+): Promise<XiangqiPuzzleAuditReport> {
   const gate = {
     winHi: opts.winHi,
     winLo: opts.winLo,
@@ -149,7 +149,7 @@ async function auditPuzzle(
     materialGapCp: opts.materialGapCp,
   };
   const limits = { depth: opts.depth, ...(opts.nodes ? { nodes: opts.nodes } : {}) };
-  const plies: SolverPlyReport[] = [];
+  const plies: XiangqiPuzzleAuditPlyReport[] = [];
   let state: XiangqiGameState = puzzle.initial;
   for (let ply = 0; ply < puzzle.solution.length; ply += 1) {
     const move = puzzle.solution[ply] as XiangqiMove;
@@ -190,7 +190,7 @@ async function auditPuzzle(
 
   const allMatch = plies.every((p) => p.matchesShipped);
   const firstBad = plies.find((p) => !p.matchesShipped || !p.unique) ?? null;
-  const verdict: PuzzleReport['verdict'] = !allMatch
+  const verdict: XiangqiPuzzleAuditReport['verdict'] = !allMatch
     ? 'engine-disagrees'
     : plies.every((p) => p.unique)
       ? 'clean'
@@ -206,8 +206,7 @@ async function auditPuzzle(
   };
 }
 
-async function main(): Promise<void> {
-  const opts = parseOptions();
+async function main(opts: XiangqiPuzzleAuditOptions): Promise<void> {
   const bin = pikafishXiangqiPath();
   const net = pikafishXiangqiNetPath(bin);
   const engine = new PikafishEngine(bin, net);
@@ -217,11 +216,11 @@ async function main(): Promise<void> {
   if (opts.ids) corpus = corpus.filter((p) => opts.ids?.has(p.id));
   if (opts.limit > 0) corpus = corpus.slice(0, opts.limit);
 
-  const reports: PuzzleReport[] = [];
+  const reports: XiangqiPuzzleAuditReport[] = [];
   const summary = { clean: 0, nonUnique: 0, engineDisagrees: 0, singleMove: 0, multiMove: 0 };
   for (let i = 0; i < corpus.length; i += 1) {
     const puzzle = corpus[i] as XiangqiPuzzle;
-    const report = await auditPuzzle(engine, puzzle, opts);
+    const report = await auditXiangqiPuzzle(engine, puzzle, opts);
     reports.push(report);
     if (report.solverPlies <= 1) summary.singleMove += 1;
     else summary.multiMove += 1;
@@ -254,7 +253,9 @@ async function main(): Promise<void> {
   );
 }
 
-main().catch((err) => {
-  process.stderr.write(`${err instanceof Error ? err.stack : String(err)}\n`);
-  process.exit(1);
-});
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main(parseOptions()).catch((err) => {
+    process.stderr.write(`${err instanceof Error ? err.stack : String(err)}\n`);
+    process.exit(1);
+  });
+}

@@ -458,6 +458,7 @@ export type {
   XiangqiPuzzleEditorialReason,
   XiangqiPuzzleEditorialReview,
   XiangqiPuzzleEditorialVerdict,
+  XiangqiPuzzleMiningAuditClaim,
   XiangqiPuzzleMiningCandidate,
   XiangqiPuzzleMiningCandidateStatus,
   XiangqiPuzzleMiningJudgment,
@@ -470,12 +471,16 @@ export type {
   XiangqiPuzzleMiningShardStatus,
 } from './persistence-xiangqi-puzzle-mining.js';
 export {
+  advanceXiangqiPuzzleMiningRunAfterAudit,
   checkpointXiangqiPuzzleMiningShard,
+  claimNextXiangqiPuzzleMiningAuditCandidate,
   claimNextXiangqiPuzzleMiningShard,
   completeXiangqiPuzzleMiningShard,
+  failXiangqiPuzzleMiningAuditCandidate,
   failXiangqiPuzzleMiningShard,
   getXiangqiPuzzleMiningCandidate,
   getXiangqiPuzzleMiningRun,
+  heartbeatXiangqiPuzzleMiningAuditCandidate,
   heartbeatXiangqiPuzzleMiningShard,
   initializeXiangqiPuzzleMiningRun,
   listClaimedXiangqiPuzzleMiningShardGames,
@@ -485,5 +490,10 @@ export {
   xiangqiPuzzleMiningCandidateId,
   xiangqiPuzzleMiningRunId,
 } from './persistence-xiangqi-puzzle-mining.js';
+export type {
+  XiangqiPuzzleAuditWorkResult,
+  XiangqiPuzzleAuditWorkVerdict,
+} from './xiangqi-puzzle-audit-worker.js';
+export { processNextXiangqiPuzzleAuditCandidate } from './xiangqi-puzzle-audit-worker.js';
 export type { XiangqiPuzzleMiningShardWorkResult } from './xiangqi-puzzle-mining-worker.js';
 export { processNextXiangqiPuzzleMiningShard } from './xiangqi-puzzle-mining-worker.js';

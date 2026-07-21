@@ -90,6 +90,15 @@ export type XiangqiPuzzleMiningJudgment = {
   createdAt: Date;
 };
 
+export type XiangqiPuzzleMiningAuditClaim = {
+  candidate: XiangqiPuzzleMiningCandidate;
+  workerId: string;
+  claimToken: string;
+  leaseExpiresAt: Date;
+  lastHeartbeatAt: Date;
+  attemptCount: number;
+};
+
 export type XiangqiPuzzleEditorialVerdict = 'approve' | 'reject' | 'needs-work';
 export type XiangqiPuzzleEditorialReason =
   | 'publishable'
@@ -158,6 +167,14 @@ type CandidateRow = {
   artifact_sha256: string | null;
   created_at: Date;
   updated_at: Date;
+};
+
+type AuditClaimRow = CandidateRow & {
+  audit_worker_id: string;
+  audit_claim_token: string;
+  audit_lease_expires_at: Date;
+  audit_last_heartbeat_at: Date;
+  audit_attempt_count: number;
 };
 
 type JudgmentRow = {
@@ -248,6 +265,17 @@ function mapJudgment(row: JudgmentRow): XiangqiPuzzleMiningJudgment {
     evidence: row.evidence,
     artifactSha256: row.artifact_sha256,
     createdAt: row.created_at,
+  };
+}
+
+function mapAuditClaim(row: AuditClaimRow): XiangqiPuzzleMiningAuditClaim {
+  return {
+    candidate: mapCandidate(row),
+    workerId: row.audit_worker_id,
+    claimToken: row.audit_claim_token,
+    leaseExpiresAt: row.audit_lease_expires_at,
+    lastHeartbeatAt: row.audit_last_heartbeat_at,
+    attemptCount: row.audit_attempt_count,
   };
 }
 
@@ -678,6 +706,105 @@ export async function getXiangqiPuzzleMiningCandidate(
   return mapCandidate(rows[0]);
 }
 
+export async function claimNextXiangqiPuzzleMiningAuditCandidate(input: {
+  runId: string;
+  workerId: string;
+  claimToken?: string;
+  leaseMs?: number;
+}): Promise<XiangqiPuzzleMiningAuditClaim | null> {
+  const claimToken = input.claimToken ?? randomUUID();
+  const leaseMs = input.leaseMs ?? 30 * 60_000;
+  if (!input.workerId.trim()) throw new Error('workerId is required');
+  if (!claimToken.trim()) throw new Error('claimToken is required');
+  if (!Number.isFinite(leaseMs) || leaseMs <= 0) throw new Error('leaseMs must be positive');
+  const { rows } = await getPool().query<AuditClaimRow>(
+    `WITH activated_run AS (
+       UPDATE xiangqi_puzzle_mining_runs
+       SET status = 'auditing', updated_at = now()
+       WHERE id = $1 AND status = 'verifying'
+       RETURNING id
+     ), next_candidate AS (
+       SELECT candidate.id
+       FROM xiangqi_puzzle_mining_candidates candidate
+       WHERE candidate.run_id = $1 AND candidate.status = 'verified'
+         AND EXISTS (
+           SELECT 1 FROM xiangqi_puzzle_mining_runs run
+           WHERE run.id = candidate.run_id AND run.status IN ('verifying', 'auditing')
+         )
+         AND (
+           candidate.audit_claim_token IS NULL
+           OR candidate.audit_lease_expires_at <= now()
+         )
+       ORDER BY candidate.created_at, candidate.id
+       FOR UPDATE SKIP LOCKED
+       LIMIT 1
+     )
+     UPDATE xiangqi_puzzle_mining_candidates candidate
+     SET audit_worker_id = $2, audit_claim_token = $3,
+         audit_lease_expires_at = now() + ($4::double precision * interval '1 millisecond'),
+         audit_last_heartbeat_at = now(),
+         audit_attempt_count = candidate.audit_attempt_count + 1,
+         audit_failure = NULL, updated_at = now()
+     FROM next_candidate
+     WHERE candidate.id = next_candidate.id
+     RETURNING candidate.*`,
+    [input.runId, input.workerId, claimToken, leaseMs],
+  );
+  return rows[0] ? mapAuditClaim(rows[0]) : null;
+}
+
+export async function heartbeatXiangqiPuzzleMiningAuditCandidate(input: {
+  candidateId: string;
+  claimToken: string;
+  leaseMs?: number;
+}): Promise<XiangqiPuzzleMiningAuditClaim> {
+  const leaseMs = input.leaseMs ?? 30 * 60_000;
+  const { rows } = await getPool().query<AuditClaimRow>(
+    `UPDATE xiangqi_puzzle_mining_candidates
+     SET audit_lease_expires_at = now() + ($3::double precision * interval '1 millisecond'),
+         audit_last_heartbeat_at = now(), updated_at = now()
+     WHERE id = $1 AND status = 'verified' AND audit_claim_token = $2
+       AND audit_lease_expires_at > now()
+     RETURNING *`,
+    [input.candidateId, input.claimToken, leaseMs],
+  );
+  if (!rows[0]) throw new Error(`audit candidate ${input.candidateId} is not claimed`);
+  return mapAuditClaim(rows[0]);
+}
+
+export async function failXiangqiPuzzleMiningAuditCandidate(input: {
+  candidateId: string;
+  claimToken: string;
+  failure: Record<string, unknown>;
+}): Promise<void> {
+  const { rows } = await getPool().query<{ id: string }>(
+    `UPDATE xiangqi_puzzle_mining_candidates
+     SET audit_worker_id = NULL, audit_claim_token = NULL,
+         audit_lease_expires_at = NULL, audit_last_heartbeat_at = now(),
+         audit_failure = $3::jsonb, updated_at = now()
+     WHERE id = $1 AND status = 'verified' AND audit_claim_token = $2
+       AND audit_lease_expires_at > now()
+     RETURNING id`,
+    [input.candidateId, input.claimToken, JSON.stringify(input.failure)],
+  );
+  if (!rows[0]) throw new Error(`audit candidate ${input.candidateId} is not claimed`);
+}
+
+export async function advanceXiangqiPuzzleMiningRunAfterAudit(runId: string): Promise<boolean> {
+  const { rows } = await getPool().query<{ id: string }>(
+    `UPDATE xiangqi_puzzle_mining_runs run
+     SET status = 'review', updated_at = now()
+     WHERE run.id = $1 AND run.status IN ('verifying', 'auditing')
+       AND NOT EXISTS (
+         SELECT 1 FROM xiangqi_puzzle_mining_candidates candidate
+         WHERE candidate.run_id = run.id AND candidate.status = 'verified'
+       )
+     RETURNING id`,
+    [runId],
+  );
+  return Boolean(rows[0]);
+}
+
 export async function recordXiangqiPuzzleMiningJudgment(input: {
   candidateId: string;
   stage: XiangqiPuzzleMiningJudgmentStage;
@@ -687,6 +814,7 @@ export async function recordXiangqiPuzzleMiningJudgment(input: {
   engineProfile: Record<string, unknown>;
   evidence: Record<string, unknown>;
   puzzleData?: unknown | null;
+  claimToken?: string;
   artifactSha256?: string | null;
 }): Promise<XiangqiPuzzleMiningJudgment> {
   if (!input.profileVersion.trim()) throw new Error('profileVersion is required');
@@ -696,6 +824,12 @@ export async function recordXiangqiPuzzleMiningJudgment(input: {
   }
   if (input.puzzleData != null && (input.stage !== 'verify' || input.verdict !== 'pass')) {
     throw new Error('puzzleData is only valid for passing verify judgments');
+  }
+  if (input.stage === 'audit' && !input.claimToken?.trim()) {
+    throw new Error('audit judgments require a claimToken');
+  }
+  if (input.stage !== 'audit' && input.claimToken) {
+    throw new Error('claimToken is only valid for audit judgments');
   }
   const artifactSha256 = input.artifactSha256 ?? null;
   const evidence =
@@ -753,12 +887,22 @@ export async function recordXiangqiPuzzleMiningJudgment(input: {
 
     const transition = judgmentTransition(input.stage, input.verdict, reason);
     if (transition && inserted.rows[0]) {
+      const auditSet =
+        input.stage === 'audit'
+          ? `, audit_worker_id = NULL, audit_claim_token = NULL,
+             audit_lease_expires_at = NULL, audit_last_heartbeat_at = now()`
+          : '';
+      const auditWhere =
+        input.stage === 'audit'
+          ? `AND audit_claim_token = $6 AND audit_lease_expires_at > now()`
+          : '';
       const updated = await client.query<{ id: string }>(
         `UPDATE xiangqi_puzzle_mining_candidates
          SET status = $2, rejection_reason = $3,
              puzzle_data = CASE WHEN $5::jsonb IS NULL THEN puzzle_data ELSE $5::json END,
-             updated_at = now()
+             updated_at = now() ${auditSet}
          WHERE id = $1 AND status = ANY($4::text[])
+           ${auditWhere}
          RETURNING id`,
         [
           input.candidateId,
@@ -766,6 +910,7 @@ export async function recordXiangqiPuzzleMiningJudgment(input: {
           transition.rejectionReason,
           transition.from,
           input.puzzleData == null ? null : JSON.stringify(input.puzzleData),
+          ...(input.stage === 'audit' ? [input.claimToken] : []),
         ],
       );
       if (!updated.rows[0]) {
