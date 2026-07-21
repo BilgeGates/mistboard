@@ -15,18 +15,18 @@ export function buildLandingActivity(options: { hydrate?: boolean } = {}): HTMLE
   const body = document.createElement('div');
   body.className = 'landing-activity-body';
   body.append(
-    activityPrimary([
-      activityMetric('–', 'games played', '/watch'),
-      activityMetric('–', 'games this month', '/about#platform-activity'),
-    ]),
-    activityLiveLine([
-      activityInlineStat('–', 'games in play'),
-      activityInlineStat('–', 'players online'),
-    ]),
+    activityPrimary([activityMetric('–', 'games played', '/watch')]),
+    activityLiveLine([activityInlineStat('–', 'games in play')]),
   );
   box.append(body);
   if (options.hydrate !== false) void hydrateLandingActivity(box, body);
   return box;
+}
+
+// The durable total is the headline; the month count rides along in a
+// parenthetical rather than as its own stat line.
+function gamesPlayedLabel(monthCount: number): string {
+  return `games played (${formatCount(monthCount)} this month)`;
 }
 
 async function hydrateLandingActivity(box: HTMLElement, body: HTMLElement): Promise<void> {
@@ -40,11 +40,10 @@ async function hydrateLandingActivity(box: HTMLElement, body: HTMLElement): Prom
   if (totals) {
     parts.push(
       activityPrimary([
-        activityMetric(formatCount(totals.totalCompletedGames), 'games played', '/watch'),
         activityMetric(
-          formatCount(totals.last30dCompletedGames),
-          'games this month',
-          '/about#platform-activity',
+          formatCount(totals.totalCompletedGames),
+          gamesPlayedLabel(totals.last30dCompletedGames),
+          '/watch',
         ),
       ]),
     );
@@ -55,11 +54,6 @@ async function hydrateLandingActivity(box: HTMLElement, body: HTMLElement): Prom
         activityInlineStat(
           formatCount(live.playing),
           live.playing === 1 ? 'game in play' : 'games in play',
-        ),
-        activityInlineStat(
-          formatCount(live.online),
-          live.online === 1 ? 'player online' : 'players online',
-          '/leaderboard',
         ),
       ]),
     );

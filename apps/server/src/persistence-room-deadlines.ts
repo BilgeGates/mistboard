@@ -100,6 +100,16 @@ export async function listCorrespondenceGamesForUser(
   }));
 }
 
+// Room ids of every active correspondence game. room_deadlines holds exactly one
+// row per in-flight days-per-move room (upserted while active, deleted on
+// terminal), so this is the durable "correspondence games in play" set —
+// including games with nobody currently connected. Returned as ids, not a bare
+// count, so the caller can dedupe against rooms already counted live.
+export async function listActiveCorrespondenceRoomIds(): Promise<string[]> {
+  const { rows } = await getPool().query<{ room_id: string }>('SELECT room_id FROM room_deadlines');
+  return rows.map((row) => row.room_id);
+}
+
 export async function listDueRoomDeadlines(now: Date, limit = 50): Promise<DueRoomDeadline[]> {
   const { rows } = await getPool().query(
     `SELECT room_id, game_spec_id, seat, due_at

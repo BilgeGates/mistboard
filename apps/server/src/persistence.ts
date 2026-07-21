@@ -357,6 +357,7 @@ export type {
 } from './persistence-room-deadlines.js';
 export {
   deleteRoomDeadline,
+  listActiveCorrespondenceRoomIds,
   listCorrespondenceGamesForUser,
   listDeadlineWarningCandidates,
   listDueRoomDeadlines,

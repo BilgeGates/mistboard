@@ -80,7 +80,21 @@ export async function tryHandle(
   if (pathname === '/api/live-stats') {
     if (!requireMethod(request, response, 'GET')) return true;
     const stats = collectLiveRoomStats(ctx);
-    writeJson(response, 200, { playing: stats.playing, online: stats.onlineIdentities.size });
+    // Fold in active correspondence games (durable, may have nobody connected)
+    // on top of the live in-memory count, skipping any whose room is already
+    // counted live so a viewed correspondence game isn't double-counted.
+    let playing = stats.playing;
+    if (persistence.isInitialized()) {
+      try {
+        const correspondenceRoomIds = await persistence.listActiveCorrespondenceRoomIds();
+        for (const roomId of correspondenceRoomIds) {
+          if (!stats.playingRoomIds.has(roomId)) playing += 1;
+        }
+      } catch {
+        // Durable count is best-effort; fall back to the live-only count.
+      }
+    }
+    writeJson(response, 200, { playing, online: stats.onlineIdentities.size });
     return true;
   }
 

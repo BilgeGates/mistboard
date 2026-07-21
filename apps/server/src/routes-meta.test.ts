@@ -130,17 +130,17 @@ test('live-stats dedupes anonymous connections by per-room client id', async () 
   assert.equal(stats.online, 2);
 });
 
-test('live-stats excludes EvE games from the playing count but keeps PvP/PvE', async () => {
-  // Engine-vs-engine has no human player, so it must not inflate "N playing".
-  // A spectator watching the EvE game is still a real human, so they count as
-  // online — only the "playing" tally drops EvE.
+test('live-stats counts EvE games in the playing tally alongside PvP/PvE', async () => {
+  // "games in play" is a raw activity count, so engine-vs-engine games count as
+  // live games too. A spectator watching the EvE game is a real human and counts
+  // as online.
   const rooms = new Map<string, Room>([
     ['pvp', room('playing', [client('a', 'u1'), client('b', 'u2')], 'pvp')],
     ['pve', room('playing', [client('c', 'u3')], 'pve')],
     ['eve', room('playing', [client('spectator', 'u4')], 'eve')],
   ]);
   const stats = await liveStats(rooms);
-  assert.equal(stats.playing, 2); // pvp + pve, not eve
+  assert.equal(stats.playing, 3); // pvp + pve + eve
   assert.equal(stats.online, 4); // every connected human, spectator included
 });
 

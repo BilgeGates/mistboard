@@ -1,6 +1,7 @@
 import {
   createUser,
   deleteRoomDeadline,
+  listActiveCorrespondenceRoomIds,
   listCorrespondenceGamesForUser,
   listDeadlineWarningCandidates,
   listDueRoomDeadlines,
@@ -256,6 +257,33 @@ definePersistenceTests('room deadlines', () => {
       now,
     });
     assert.deepEqual(await listCorrespondenceGamesForUser(carol.id), []);
+  });
+
+  test('active correspondence room ids: every deadline row, gone after delete', async () => {
+    const now = new Date('2026-06-11T12:00:00Z');
+    await upsertRoomDeadline({
+      roomId: 'dxq_corr_a',
+      gameSpecId: 'xiangqi',
+      seat: 'red',
+      seatUserId: null,
+      dueAt: new Date(now.getTime() + 86_400_000),
+    });
+    await upsertRoomDeadline({
+      roomId: 'dxq_corr_b',
+      gameSpecId: 'xiangqi',
+      seat: 'black',
+      seatUserId: 'user-1',
+      // Past due but still active (not yet swept): it is a game in play.
+      dueAt: new Date(now.getTime() - 86_400_000),
+    });
+
+    assert.deepEqual((await listActiveCorrespondenceRoomIds()).sort(), [
+      'dxq_corr_a',
+      'dxq_corr_b',
+    ]);
+
+    await deleteRoomDeadline('dxq_corr_a');
+    assert.deepEqual(await listActiveCorrespondenceRoomIds(), ['dxq_corr_b']);
   });
 
   test('delete removes the row', async () => {

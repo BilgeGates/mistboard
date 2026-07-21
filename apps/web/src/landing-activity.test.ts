@@ -7,7 +7,7 @@ describe('landing activity', () => {
     vi.unstubAllGlobals();
   });
 
-  it('promotes durable game totals to linked primary rows', async () => {
+  it('condenses durable totals into one line with the month count in parentheses', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
@@ -29,16 +29,11 @@ describe('landing activity', () => {
 
     const links = [...activity.querySelectorAll<HTMLAnchorElement>('.landing-activity-link')];
     expect(links.map((link) => link.textContent)).toEqual([
-      '575games played',
-      '261games this month',
+      '575games played (261 this month)',
     ]);
-    expect(links.map((link) => link.getAttribute('href'))).toEqual([
-      '/watch',
-      '/about#platform-activity',
-    ]);
-    expect(activity.querySelector('.landing-activity-live')?.textContent).toBe(
-      '0 games in play0 players online',
-    );
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(['/watch']);
+    // Players-online is dropped; only games-in-play remains on the live line.
+    expect(activity.querySelector('.landing-activity-live')?.textContent).toBe('0 games in play');
   });
 
   it('keeps live-only zeros in the secondary line when durable totals are unavailable', async () => {
@@ -56,9 +51,7 @@ describe('landing activity', () => {
     document.body.append(activity);
 
     await vi.waitFor(() => {
-      expect(activity.querySelector('.landing-activity-live')?.textContent).toBe(
-        '0 games in play0 players online',
-      );
+      expect(activity.querySelector('.landing-activity-live')?.textContent).toBe('0 games in play');
     });
 
     expect(activity.querySelector('.landing-activity-primary')).toBeNull();

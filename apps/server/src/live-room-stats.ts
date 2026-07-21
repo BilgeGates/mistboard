@@ -13,6 +13,10 @@ import { registeredVariantTenants } from './variant-tenant/registry.js';
 
 export interface LiveRoomStats {
   playing: number;
+  // Room ids of every in-progress live game, so a caller can fold in durable
+  // sources (e.g. active correspondence games) without double-counting a game
+  // that also happens to have a live socket open.
+  playingRoomIds: Set<string>;
   onlineIdentities: Set<string>;
   playingUserIds: Set<string>;
   anonymousOnline: number;
@@ -23,12 +27,13 @@ export interface LiveRoomStats {
 export function collectLiveRoomStats(ctx: HttpApiContext): LiveRoomStats {
   const onlineIdentities = new Set<string>();
   const playingUserIds = new Set<string>();
-  let playing = 0;
-  for (const room of ctx.rooms.values()) {
+  const playingRoomIds = new Set<string>();
+  for (const [roomId, room] of ctx.rooms.entries()) {
     const roomPlaying = room.projection.state.status.type === 'playing';
-    // EvE (engine-vs-engine) games have no human player, so they don't count as
-    // "people playing now". PvP and PvE both involve a human, so they do count.
-    if (roomPlaying && room.mode !== 'eve') playing += 1;
+    // Every in-progress game is one live game, EvE (engine-vs-engine) included:
+    // "games in play" is a raw activity count, not a "humans playing now" count.
+    // playingUserIds below still tracks only seated humans, for presence.
+    if (roomPlaying) playingRoomIds.add(roomId);
     for (const client of room.clients) {
       onlineIdentities.add(client.userId ? `u:${client.userId}` : `c:${client.id}`);
       if (roomPlaying && client.userId && client.seat !== 'spectator') {
@@ -37,11 +42,9 @@ export function collectLiveRoomStats(ctx: HttpApiContext): LiveRoomStats {
     }
   }
   for (const tenant of registeredVariantTenants()) {
-    // Tenants have no EvE mode, so every playing tenant game involves a human
-    // and activeGameCount (playing-status rooms) matches the legacy semantics.
-    playing += tenant.activeGameCount();
-    for (const room of tenant.rooms.values()) {
+    for (const [roomId, room] of tenant.rooms.entries()) {
       const roomPlaying = room.projection?.state.status.type === 'playing';
+      if (roomPlaying) playingRoomIds.add(roomId);
       for (const client of room.clients) {
         if (client.userId) {
           onlineIdentities.add(`u:${client.userId}`);
@@ -58,5 +61,11 @@ export function collectLiveRoomStats(ctx: HttpApiContext): LiveRoomStats {
   for (const identity of onlineIdentities) {
     if (identity.startsWith('c:')) anonymousOnline += 1;
   }
-  return { playing, onlineIdentities, playingUserIds, anonymousOnline };
+  return {
+    playing: playingRoomIds.size,
+    playingRoomIds,
+    onlineIdentities,
+    playingUserIds,
+    anonymousOnline,
+  };
 }
