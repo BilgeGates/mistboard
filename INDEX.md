@@ -114,6 +114,7 @@ Edit task → find file → open only that file.
 | `elephantchess-pilot-run-provenance.ts` + `initialize-elephantchess-pilot-run.ts` | Fail-closed mining-run initializer: pins serialized/internal manifest hashes, Pikafish binary/network hashes, UCI engine identity, search/audit profiles, and shard layout before any database write; supports provenance-only verification |
 | `migrations/107_xiangqi_puzzle_mining.sql` | Durable pilot state: immutable run/manifest membership, leased resumable shards, source-linked candidates, versioned verify/audit judgments, structured editorial reviews, and promoted-puzzle lineage |
 | `persistence-xiangqi-puzzle-mining.ts` | Durable pilot workflow: idempotent manifest-to-run initialization, fenced/resumable shard claims, deterministic scan candidates, immutable versioned verification/audit judgments, and gated editorial decisions |
+| `xiangqi-puzzle-mining-worker.ts` + `scripts/variant-lab/elephantchess-pilot-worker.ts` | Manifest-bound worker orchestration plus Pikafish adapter: leased heartbeat, whole-game checkpoints, crash/reclaim resume, exact engine/profile verification, and durable scan/verify evidence writes |
 | `routes/lib.ts` | Shared HTTP utilities: `HttpApiContext` interface, `writeJson`, `requireMethod`, `requirePersistence`, `readJsonBody`, the parse helpers, `hashIp`, `isHttpAdminAuthorized`. Imported by every route module |
 | `routes/auth.ts` | `/api/auth/{me,logout,email/start,email/confirm}` |
 | `routes/account.ts` | `/api/account/profile` (PATCH) |

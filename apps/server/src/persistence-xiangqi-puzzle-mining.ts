@@ -18,6 +18,9 @@ export type XiangqiPuzzleMiningRun = {
   importBatchId: string;
   manifestSha256: string;
   status: XiangqiPuzzleMiningRunStatus;
+  engineProfile: Record<string, unknown>;
+  scanProfile: Record<string, unknown>;
+  auditProfile: Record<string, unknown>;
   selectedGames: number;
   shards: number;
   createdAt: Date;
@@ -39,6 +42,11 @@ export type XiangqiPuzzleMiningShard = {
   lastHeartbeatAt: Date | null;
   startedAt: Date | null;
   completedAt: Date | null;
+};
+
+export type XiangqiPuzzleMiningShardGame = {
+  selectionIndex: number;
+  historicalGameId: string;
 };
 
 export type XiangqiPuzzleMiningCandidateStatus =
@@ -112,6 +120,9 @@ type RunRow = {
   import_batch_id: string;
   manifest_sha256: string;
   status: XiangqiPuzzleMiningRunStatus;
+  engine_profile: Record<string, unknown>;
+  scan_profile: Record<string, unknown>;
+  audit_profile: Record<string, unknown>;
   selected_games: number;
   shards: number;
   created_at: Date;
@@ -180,6 +191,9 @@ function mapRun(row: RunRow): XiangqiPuzzleMiningRun {
     importBatchId: row.import_batch_id,
     manifestSha256: row.manifest_sha256,
     status: row.status,
+    engineProfile: row.engine_profile,
+    scanProfile: row.scan_profile,
+    auditProfile: row.audit_profile,
     selectedGames: row.selected_games,
     shards: row.shards,
     createdAt: row.created_at,
@@ -431,7 +445,8 @@ export async function getXiangqiPuzzleMiningRun(
   runId: string,
 ): Promise<XiangqiPuzzleMiningRun> {
   const { rows } = await db.query<RunRow>(
-    `SELECT run.id, run.import_batch_id, run.manifest_sha256, run.status, run.created_at,
+    `SELECT run.id, run.import_batch_id, run.manifest_sha256, run.status,
+            run.engine_profile, run.scan_profile, run.audit_profile, run.created_at,
             count(DISTINCT game.historical_game_id)::int AS selected_games,
             count(DISTINCT shard.shard_index)::int AS shards
      FROM xiangqi_puzzle_mining_runs run
@@ -443,6 +458,33 @@ export async function getXiangqiPuzzleMiningRun(
   );
   if (!rows[0]) throw new Error(`mining run ${runId} not found`);
   return mapRun(rows[0]);
+}
+
+export async function listClaimedXiangqiPuzzleMiningShardGames(input: {
+  runId: string;
+  shardIndex: number;
+  claimToken: string;
+}): Promise<XiangqiPuzzleMiningShardGame[]> {
+  const { rows } = await getPool().query<{
+    selection_index: number;
+    historical_game_id: string;
+  }>(
+    `SELECT game.selection_index, game.historical_game_id
+     FROM xiangqi_puzzle_mining_shards shard
+     JOIN xiangqi_puzzle_mining_games game
+       ON game.run_id = shard.run_id
+      AND game.selection_index >= shard.next_selection_index
+      AND game.selection_index < shard.selection_end
+     WHERE shard.run_id = $1 AND shard.shard_index = $2
+       AND shard.status = 'running' AND shard.claim_token = $3
+       AND shard.lease_expires_at > now()
+     ORDER BY game.selection_index`,
+    [input.runId, input.shardIndex, input.claimToken],
+  );
+  return rows.map((row) => ({
+    selectionIndex: row.selection_index,
+    historicalGameId: row.historical_game_id,
+  }));
 }
 
 export async function claimNextXiangqiPuzzleMiningShard(input: {
@@ -525,7 +567,7 @@ export async function completeXiangqiPuzzleMiningShard(input: {
   shardIndex: number;
   claimToken: string;
 }): Promise<XiangqiPuzzleMiningShard> {
-  return updateClaimedShard(
+  const shard = await updateClaimedShard(
     input,
     `status = 'completed',
      worker_id = NULL, claim_token = NULL, lease_expires_at = NULL,
@@ -533,6 +575,17 @@ export async function completeXiangqiPuzzleMiningShard(input: {
     [],
     `AND lease_expires_at > now() AND next_selection_index = selection_end`,
   );
+  await getPool().query(
+    `UPDATE xiangqi_puzzle_mining_runs run
+     SET status = 'verifying', updated_at = now()
+     WHERE run.id = $1 AND run.status = 'scanning'
+       AND NOT EXISTS (
+         SELECT 1 FROM xiangqi_puzzle_mining_shards shard
+         WHERE shard.run_id = run.id AND shard.status <> 'completed'
+       )`,
+    [input.runId],
+  );
+  return shard;
 }
 
 export async function failXiangqiPuzzleMiningShard(input: {
@@ -557,7 +610,6 @@ export async function recordXiangqiPuzzleMiningCandidate(input: {
   postBlunderPly: number;
   positionKey: string;
   trigger: string;
-  puzzleData?: unknown | null;
   scanEvidence: Record<string, unknown>;
   artifactSha256?: string | null;
 }): Promise<XiangqiPuzzleMiningCandidate> {
@@ -567,15 +619,14 @@ export async function recordXiangqiPuzzleMiningCandidate(input: {
   if (!input.positionKey.trim()) throw new Error('positionKey is required');
   if (!input.trigger.trim()) throw new Error('trigger is required');
   const candidateId = xiangqiPuzzleMiningCandidateId(input);
-  const puzzleData = input.puzzleData ?? null;
   const artifactSha256 = input.artifactSha256 ?? null;
 
   return withTransaction(async (client) => {
     await client.query(
       `INSERT INTO xiangqi_puzzle_mining_candidates
          (id, run_id, historical_game_id, post_blunder_ply, position_key,
-          trigger, puzzle_data, scan_evidence, artifact_sha256)
-       VALUES ($1, $2, $3, $4, $5, $6, $7::json, $8::jsonb, $9)
+          trigger, scan_evidence, artifact_sha256)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
        ON CONFLICT (run_id, historical_game_id, post_blunder_ply) DO NOTHING`,
       [
         candidateId,
@@ -584,7 +635,6 @@ export async function recordXiangqiPuzzleMiningCandidate(input: {
         input.postBlunderPly,
         input.positionKey,
         input.trigger,
-        JSON.stringify(puzzleData),
         JSON.stringify(input.scanEvidence),
         artifactSha256,
       ],
@@ -594,9 +644,8 @@ export async function recordXiangqiPuzzleMiningCandidate(input: {
        FROM xiangqi_puzzle_mining_candidates
        WHERE id = $1 AND run_id = $2 AND historical_game_id = $3
          AND post_blunder_ply = $4 AND position_key = $5 AND trigger = $6
-         AND puzzle_data::jsonb IS NOT DISTINCT FROM $7::jsonb
-         AND scan_evidence = $8::jsonb
-         AND artifact_sha256 IS NOT DISTINCT FROM $9`,
+         AND scan_evidence = $7::jsonb
+         AND artifact_sha256 IS NOT DISTINCT FROM $8`,
       [
         candidateId,
         input.runId,
@@ -604,7 +653,6 @@ export async function recordXiangqiPuzzleMiningCandidate(input: {
         input.postBlunderPly,
         input.positionKey,
         input.trigger,
-        JSON.stringify(puzzleData),
         JSON.stringify(input.scanEvidence),
         artifactSha256,
       ],
@@ -638,6 +686,7 @@ export async function recordXiangqiPuzzleMiningJudgment(input: {
   reason?: string | null;
   engineProfile: Record<string, unknown>;
   evidence: Record<string, unknown>;
+  puzzleData?: unknown | null;
   artifactSha256?: string | null;
 }): Promise<XiangqiPuzzleMiningJudgment> {
   if (!input.profileVersion.trim()) throw new Error('profileVersion is required');
@@ -645,7 +694,19 @@ export async function recordXiangqiPuzzleMiningJudgment(input: {
   if (input.verdict === 'reject' && !reason) {
     throw new Error('reject judgments require a reason');
   }
+  if (input.puzzleData != null && (input.stage !== 'verify' || input.verdict !== 'pass')) {
+    throw new Error('puzzleData is only valid for passing verify judgments');
+  }
   const artifactSha256 = input.artifactSha256 ?? null;
+  const evidence =
+    input.puzzleData == null
+      ? input.evidence
+      : {
+          ...input.evidence,
+          puzzleDataSha256: createHash('sha256')
+            .update(JSON.stringify(input.puzzleData))
+            .digest('hex'),
+        };
 
   return withTransaction(async (client) => {
     const inserted = await client.query<{ id: string }>(
@@ -662,7 +723,7 @@ export async function recordXiangqiPuzzleMiningJudgment(input: {
         input.verdict,
         reason,
         JSON.stringify(input.engineProfile),
-        JSON.stringify(input.evidence),
+        JSON.stringify(evidence),
         artifactSha256,
       ],
     );
@@ -680,7 +741,7 @@ export async function recordXiangqiPuzzleMiningJudgment(input: {
         input.verdict,
         reason,
         JSON.stringify(input.engineProfile),
-        JSON.stringify(input.evidence),
+        JSON.stringify(evidence),
         artifactSha256,
       ],
     );
@@ -694,10 +755,18 @@ export async function recordXiangqiPuzzleMiningJudgment(input: {
     if (transition && inserted.rows[0]) {
       const updated = await client.query<{ id: string }>(
         `UPDATE xiangqi_puzzle_mining_candidates
-         SET status = $2, rejection_reason = $3, updated_at = now()
+         SET status = $2, rejection_reason = $3,
+             puzzle_data = CASE WHEN $5::jsonb IS NULL THEN puzzle_data ELSE $5::json END,
+             updated_at = now()
          WHERE id = $1 AND status = ANY($4::text[])
          RETURNING id`,
-        [input.candidateId, transition.status, transition.rejectionReason, transition.from],
+        [
+          input.candidateId,
+          transition.status,
+          transition.rejectionReason,
+          transition.from,
+          input.puzzleData == null ? null : JSON.stringify(input.puzzleData),
+        ],
       );
       if (!updated.rows[0]) {
         throw new Error(

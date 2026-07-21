@@ -8,12 +8,14 @@ import {
   completeXiangqiPuzzleMiningShard,
   failXiangqiPuzzleMiningShard,
   getXiangqiPuzzleMiningCandidate,
+  getXiangqiPuzzleMiningRun,
   heartbeatXiangqiPuzzleMiningShard,
   initializeXiangqiPuzzleMiningRun,
   recordXiangqiPuzzleEditorialReview,
   recordXiangqiPuzzleMiningCandidate,
   recordXiangqiPuzzleMiningJudgment,
 } from './persistence-xiangqi-puzzle-mining.js';
+import { processNextXiangqiPuzzleMiningShard } from './xiangqi-puzzle-mining-worker.js';
 
 const SOURCE_ID = 'source-elephant-pilot-test';
 const BATCH_ID = 'batch-elephant-pilot-test';
@@ -265,7 +267,6 @@ definePersistenceTests('xiangqi puzzle mining', () => {
       postBlunderPly: 17,
       positionKey: 'xiangqi-position-key-1',
       trigger: 'eval-swing',
-      puzzleData: { initialFen: 'test-fen', solution: ['a0a1'] },
       scanEvidence: { beforeCp: 420, afterCp: 80, scanNodes: 60_000 },
       artifactSha256: 'c'.repeat(64),
     };
@@ -299,12 +300,17 @@ definePersistenceTests('xiangqi puzzle mining', () => {
       verdict: 'pass',
       engineProfile,
       evidence: { depth: 20, bestCp: 510, secondCp: 120 },
+      puzzleData: { initialFen: 'test-fen', solution: ['a0a1'] },
     });
     assert.equal(verification.stage, 'verify');
     assert.equal(
       (await getXiangqiPuzzleMiningCandidate(getPool(), candidate.id)).status,
       'verified',
     );
+    assert.deepEqual((await getXiangqiPuzzleMiningCandidate(getPool(), candidate.id)).puzzleData, {
+      initialFen: 'test-fen',
+      solution: ['a0a1'],
+    });
     assert.deepEqual(
       await recordXiangqiPuzzleMiningJudgment({
         candidateId: candidate.id,
@@ -313,6 +319,7 @@ definePersistenceTests('xiangqi puzzle mining', () => {
         verdict: 'pass',
         engineProfile,
         evidence: { depth: 20, bestCp: 510, secondCp: 120 },
+        puzzleData: { initialFen: 'test-fen', solution: ['a0a1'] },
       }),
       verification,
     );
@@ -324,6 +331,7 @@ definePersistenceTests('xiangqi puzzle mining', () => {
         verdict: 'pass',
         engineProfile,
         evidence: { depth: 20, bestCp: 511, secondCp: 120 },
+        puzzleData: { initialFen: 'test-fen', solution: ['a0a1'] },
       }),
       /different evidence/,
     );
@@ -362,6 +370,7 @@ definePersistenceTests('xiangqi puzzle mining', () => {
         verdict: 'pass',
         engineProfile,
         evidence: { depth: 20, bestCp: 510, secondCp: 120 },
+        puzzleData: { initialFen: 'test-fen', solution: ['a0a1'] },
       }),
       verification,
     );
@@ -371,7 +380,6 @@ definePersistenceTests('xiangqi puzzle mining', () => {
       historicalGameId: manifest.games[1]?.historicalGameId as string,
       postBlunderPly: 9,
       positionKey: 'xiangqi-position-key-2',
-      puzzleData: null,
       artifactSha256: null,
     });
     await recordXiangqiPuzzleMiningJudgment({
@@ -414,6 +422,66 @@ definePersistenceTests('xiangqi puzzle mining', () => {
     assert.equal(
       (await getXiangqiPuzzleMiningCandidate(getPool(), auditFailedCandidate.id)).status,
       'audit-failed',
+    );
+  });
+
+  test('worker checkpoints whole games and resumes a failed shard without replaying progress', async () => {
+    const games = [
+      ...Array.from({ length: 12 }, (_, index) => pilotGame(index)),
+      ...Array.from({ length: 4 }, (_, index) => pilotGame(12 + index, true)),
+    ];
+    await seedEligibleGames(games);
+    const manifest = buildElephantChessPilotManifest(games, {
+      importBatchId: BATCH_ID,
+      seed: 'worker-pilot-v1',
+      targets: { representativeLiveBase: 4, coverageLive: 2, correspondenceMax: 2 },
+    });
+    const run = await initializeXiangqiPuzzleMiningRun({ manifest, shardSize: 3 });
+    const firstAttempt: number[] = [];
+    await assert.rejects(
+      processNextXiangqiPuzzleMiningShard({
+        runId: run.id,
+        workerId: 'worker-first',
+        leaseMs: 5_000,
+        processGame: async (game) => {
+          firstAttempt.push(game.selectionIndex);
+          if (game.selectionIndex === 1) throw new Error('synthetic interruption');
+        },
+      }),
+      /synthetic interruption/,
+    );
+    assert.deepEqual(firstAttempt, [0, 1]);
+
+    const resumed: number[] = [];
+    const firstShard = await processNextXiangqiPuzzleMiningShard({
+      runId: run.id,
+      workerId: 'worker-resume',
+      leaseMs: 5_000,
+      processGame: async (game) => {
+        resumed.push(game.selectionIndex);
+      },
+    });
+    assert.deepEqual(resumed, [1, 2]);
+    assert.equal(firstShard?.shard.status, 'completed');
+    assert.equal(firstShard?.processedGames, 2);
+
+    for (let index = 0; index < 2; index += 1) {
+      await processNextXiangqiPuzzleMiningShard({
+        runId: run.id,
+        workerId: `worker-tail-${index}`,
+        leaseMs: 5_000,
+        processGame: async () => undefined,
+      });
+    }
+    assert.equal((await getXiangqiPuzzleMiningRun(getPool(), run.id)).status, 'verifying');
+    assert.equal(
+      await processNextXiangqiPuzzleMiningShard({
+        runId: run.id,
+        workerId: 'worker-empty',
+        leaseMs: 5_000,
+        processGame: async () => undefined,
+      }),
+      null,
     );
   });
 });

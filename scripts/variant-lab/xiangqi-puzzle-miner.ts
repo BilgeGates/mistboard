@@ -81,6 +81,7 @@ import {
   standardXiangqiEngineFen,
   standardXiangqiPuzzleMoveLabel,
   trimXiangqiWinningAdvantageTail,
+  type XiangqiBlunderCandidate,
   type XiangqiGameState,
   type XiangqiMove,
   type XiangqiPuzzle,
@@ -94,7 +95,7 @@ import {
   XIANGQI_SOLVER_GATE_DEFAULTS,
 } from './xiangqi-pikafish-uci.ts';
 
-type CliOptions = {
+export type XiangqiPuzzleMinerOptions = {
   source: 'db' | 'dir';
   dir: string | null;
   dbUrl: string;
@@ -125,7 +126,7 @@ type CliOptions = {
   net: string | null;
 };
 
-type MinerGame = {
+export type XiangqiPuzzleMinerGame = {
   id: string;
   moves: XiangqiMove[];
   // Denormalized attribution (db mode only) — copied onto each puzzle's
@@ -139,7 +140,7 @@ type MinerGame = {
   };
 };
 
-type MinedPuzzleRecord = {
+export type MinedPuzzleRecord = {
   puzzle: XiangqiPuzzle;
   gameId: string;
   blunderPly: number;
@@ -148,7 +149,7 @@ type MinedPuzzleRecord = {
   verifySecondCp: number | null;
 };
 
-type Metrics = {
+export type XiangqiPuzzleMinerMetrics = {
   gamesRequested: number;
   gamesLoaded: number;
   gamesScanned: number;
@@ -162,112 +163,134 @@ type Metrics = {
   themes: Record<string, number>;
 };
 
+export type XiangqiPuzzleMinerCandidate = {
+  gameId: string;
+  postBlunderPly: number;
+  positionKey: string;
+  scan: XiangqiBlunderCandidate;
+};
+
+export type XiangqiPuzzleMinerJudgment = XiangqiPuzzleMinerCandidate & {
+  verdict: 'pass' | 'reject';
+  reason: string | null;
+  evidence: Record<string, unknown>;
+  puzzle: XiangqiPuzzle | null;
+};
+
+export type XiangqiPuzzleMinerHooks = {
+  candidateScanned?: (candidate: XiangqiPuzzleMinerCandidate) => Promise<void>;
+  candidateJudged?: (judgment: XiangqiPuzzleMinerJudgment) => Promise<void>;
+};
+
 const DEFAULT_DB_URL = 'postgres://mistboard:mistboard@localhost:5435/mistboard';
 const DEFAULT_SEED_TARGET = 'packages/game/seed/puzzles/xiangqi.json';
 
-const { values } = parseArgs({
-  allowPositionals: false,
-  options: {
-    source: { type: 'string', default: 'db' },
-    dir: { type: 'string' },
-    'db-url': { type: 'string' },
-    'ply-min': { type: 'string', default: '20' },
-    limit: { type: 'string', default: '50' },
-    offset: { type: 'string', default: '0' },
-    seed: { type: 'string', default: '0' },
-    concurrency: { type: 'string', default: '4' },
-    'scan-nodes': { type: 'string', default: '60000' },
-    'verify-nodes': { type: 'string', default: '600000' },
-    'swing-cp': { type: 'string', default: '250' },
-    'win-cp': { type: 'string', default: '250' },
-    'decided-cp': { type: 'string', default: '800' },
-    'unique-gap-cp': { type: 'string', default: '150' },
-    'verify-depth': { type: 'string', default: '20' },
-    // Winning-floor gate knobs: defaults come from the module shared with the
-    // audit tool, so the two CLIs cannot drift apart on what "unique" means.
-    'win-hi': { type: 'string', default: String(XIANGQI_SOLVER_GATE_DEFAULTS.winHi) },
-    'win-lo': { type: 'string', default: String(XIANGQI_SOLVER_GATE_DEFAULTS.winLo) },
-    'min-gap-cp': {
-      type: 'string',
-      default: String(XIANGQI_SOLVER_GATE_DEFAULTS.minGapCp),
+function parseCliOptions(): XiangqiPuzzleMinerOptions {
+  const { values } = parseArgs({
+    allowPositionals: false,
+    options: {
+      source: { type: 'string', default: 'db' },
+      dir: { type: 'string' },
+      'db-url': { type: 'string' },
+      'ply-min': { type: 'string', default: '20' },
+      limit: { type: 'string', default: '50' },
+      offset: { type: 'string', default: '0' },
+      seed: { type: 'string', default: '0' },
+      concurrency: { type: 'string', default: '4' },
+      'scan-nodes': { type: 'string', default: '60000' },
+      'verify-nodes': { type: 'string', default: '600000' },
+      'swing-cp': { type: 'string', default: '250' },
+      'win-cp': { type: 'string', default: '250' },
+      'decided-cp': { type: 'string', default: '800' },
+      'unique-gap-cp': { type: 'string', default: '150' },
+      'verify-depth': { type: 'string', default: '20' },
+      // Winning-floor gate knobs: defaults come from the module shared with the
+      // audit tool, so the two CLIs cannot drift apart on what "unique" means.
+      'win-hi': { type: 'string', default: String(XIANGQI_SOLVER_GATE_DEFAULTS.winHi) },
+      'win-lo': { type: 'string', default: String(XIANGQI_SOLVER_GATE_DEFAULTS.winLo) },
+      'min-gap-cp': {
+        type: 'string',
+        default: String(XIANGQI_SOLVER_GATE_DEFAULTS.minGapCp),
+      },
+      'material-gap-cp': {
+        type: 'string',
+        default: String(XIANGQI_SOLVER_GATE_DEFAULTS.materialGapCp),
+      },
+      'min-ply': { type: 'string', default: '8' },
+      'max-solution-plies': { type: 'string', default: '7' },
+      'min-solution-plies': { type: 'string', default: '3' },
+      'per-game': { type: 'string', default: '3' },
+      'emit-seed': { type: 'boolean', default: false },
+      'seed-path': { type: 'string' },
+      'insert-db': { type: 'boolean', default: false },
+      // Retired by #183 (puzzle content lives in the seed + DB, not a TS
+      // module); parsed only to fail loudly with guidance instead of silently
+      // resurrecting the deleted module.
+      'emit-module': { type: 'string' },
+      jsonl: { type: 'string' },
+      binary: { type: 'string' },
+      net: { type: 'string' },
+      help: { type: 'boolean', default: false, short: 'h' },
     },
-    'material-gap-cp': {
-      type: 'string',
-      default: String(XIANGQI_SOLVER_GATE_DEFAULTS.materialGapCp),
-    },
-    'min-ply': { type: 'string', default: '8' },
-    'max-solution-plies': { type: 'string', default: '7' },
-    'min-solution-plies': { type: 'string', default: '3' },
-    'per-game': { type: 'string', default: '3' },
-    'emit-seed': { type: 'boolean', default: false },
-    'seed-path': { type: 'string' },
-    'insert-db': { type: 'boolean', default: false },
-    // Retired by #183 (puzzle content lives in the seed + DB, not a TS
-    // module); parsed only to fail loudly with guidance instead of silently
-    // resurrecting the deleted module.
-    'emit-module': { type: 'string' },
-    jsonl: { type: 'string' },
-    binary: { type: 'string' },
-    net: { type: 'string' },
-    help: { type: 'boolean', default: false, short: 'h' },
-  },
-});
+  });
 
-if (values.help) {
-  printUsage();
-  process.exit(0);
-}
+  if (values.help) {
+    printUsage();
+    process.exit(0);
+  }
 
-const options: CliOptions = {
-  source: values.source === 'dir' ? 'dir' : 'db',
-  dir: values.dir ?? null,
-  dbUrl: values['db-url'] ?? process.env.DATABASE_URL ?? DEFAULT_DB_URL,
-  plyMin: parseNonNegativeInt(values['ply-min'], 20),
-  limit: parseNonNegativeInt(values.limit, 50),
-  offset: parseNonNegativeInt(values.offset, 0),
-  seed: parseNonNegativeInt(values.seed, 0),
-  concurrency: parsePositiveInt(values.concurrency, 4),
-  scanNodes: parsePositiveInt(values['scan-nodes'], 60_000),
-  verifyNodes: parsePositiveInt(values['verify-nodes'], 600_000),
-  swingCp: parsePositiveInt(values['swing-cp'], 250),
-  winCp: parsePositiveInt(values['win-cp'], 250),
-  decidedCp: parsePositiveInt(values['decided-cp'], 800),
-  uniqueGapCp: parsePositiveInt(values['unique-gap-cp'], 150),
-  verifyDepth: parsePositiveInt(values['verify-depth'], 20),
-  winHi: Number.parseFloat(values['win-hi'] ?? String(XIANGQI_SOLVER_GATE_DEFAULTS.winHi)),
-  winLo: Number.parseFloat(values['win-lo'] ?? String(XIANGQI_SOLVER_GATE_DEFAULTS.winLo)),
-  minGapCp: parsePositiveInt(values['min-gap-cp'], XIANGQI_SOLVER_GATE_DEFAULTS.minGapCp),
-  materialGapCp: parsePositiveInt(
-    values['material-gap-cp'],
-    XIANGQI_SOLVER_GATE_DEFAULTS.materialGapCp,
-  ),
-  minPly: parseNonNegativeInt(values['min-ply'], 8),
-  maxSolutionPlies: parsePositiveInt(values['max-solution-plies'], 7),
-  minSolutionPlies: parsePositiveInt(values['min-solution-plies'], 3),
-  perGame: parsePositiveInt(values['per-game'], 3),
-  emitSeed: values['emit-seed'] === true ? (values['seed-path'] ?? DEFAULT_SEED_TARGET) : null,
-  insertDb: values['insert-db'] === true,
-  jsonl: values.jsonl ?? resolve('scripts/variant-lab/out/xiangqi-puzzle-mine.jsonl'),
-  binary: values.binary ?? null,
-  net: values.net ?? null,
-};
+  const options: XiangqiPuzzleMinerOptions = {
+    source: values.source === 'dir' ? 'dir' : 'db',
+    dir: values.dir ?? null,
+    dbUrl: values['db-url'] ?? process.env.DATABASE_URL ?? DEFAULT_DB_URL,
+    plyMin: parseNonNegativeInt(values['ply-min'], 20),
+    limit: parseNonNegativeInt(values.limit, 50),
+    offset: parseNonNegativeInt(values.offset, 0),
+    seed: parseNonNegativeInt(values.seed, 0),
+    concurrency: parsePositiveInt(values.concurrency, 4),
+    scanNodes: parsePositiveInt(values['scan-nodes'], 60_000),
+    verifyNodes: parsePositiveInt(values['verify-nodes'], 600_000),
+    swingCp: parsePositiveInt(values['swing-cp'], 250),
+    winCp: parsePositiveInt(values['win-cp'], 250),
+    decidedCp: parsePositiveInt(values['decided-cp'], 800),
+    uniqueGapCp: parsePositiveInt(values['unique-gap-cp'], 150),
+    verifyDepth: parsePositiveInt(values['verify-depth'], 20),
+    winHi: Number.parseFloat(values['win-hi'] ?? String(XIANGQI_SOLVER_GATE_DEFAULTS.winHi)),
+    winLo: Number.parseFloat(values['win-lo'] ?? String(XIANGQI_SOLVER_GATE_DEFAULTS.winLo)),
+    minGapCp: parsePositiveInt(values['min-gap-cp'], XIANGQI_SOLVER_GATE_DEFAULTS.minGapCp),
+    materialGapCp: parsePositiveInt(
+      values['material-gap-cp'],
+      XIANGQI_SOLVER_GATE_DEFAULTS.materialGapCp,
+    ),
+    minPly: parseNonNegativeInt(values['min-ply'], 8),
+    maxSolutionPlies: parsePositiveInt(values['max-solution-plies'], 7),
+    minSolutionPlies: parsePositiveInt(values['min-solution-plies'], 3),
+    perGame: parsePositiveInt(values['per-game'], 3),
+    emitSeed: values['emit-seed'] === true ? (values['seed-path'] ?? DEFAULT_SEED_TARGET) : null,
+    insertDb: values['insert-db'] === true,
+    jsonl: values.jsonl ?? resolve('scripts/variant-lab/out/xiangqi-puzzle-mine.jsonl'),
+    binary: values.binary ?? null,
+    net: values.net ?? null,
+  };
 
-if (options.source === 'dir' && !options.dir) {
-  console.error('--source dir requires --dir <path>');
-  process.exit(1);
-}
+  if (options.source === 'dir' && !options.dir) {
+    console.error('--source dir requires --dir <path>');
+    process.exit(1);
+  }
 
-if (values['emit-module'] !== undefined) {
-  console.error(
-    '--emit-module is retired (#183: the mined TS module was deleted; content lives in the seed + DB).\n' +
-      'Use --emit-seed to refresh packages/game/seed/puzzles/xiangqi.json, and/or --insert-db.',
-  );
-  process.exit(1);
+  if (values['emit-module'] !== undefined) {
+    console.error(
+      '--emit-module is retired (#183: the mined TS module was deleted; content lives in the seed + DB).\n' +
+        'Use --emit-seed to refresh packages/game/seed/puzzles/xiangqi.json, and/or --insert-db.',
+    );
+    process.exit(1);
+  }
+  return options;
 }
 
 // ── Corpus loading ───────────────────────────────────────────────────────────
 
-async function loadDbGames(opts: CliOptions): Promise<MinerGame[]> {
+async function loadDbGames(opts: XiangqiPuzzleMinerOptions): Promise<XiangqiPuzzleMinerGame[]> {
   const { init, close } = await import('../../apps/server/src/persistence-db.ts');
   const { getHistoricalXiangqiGame, queryHistoricalXiangqiGames } = await import(
     '../../apps/server/src/persistence-historical-xiangqi.ts'
@@ -292,7 +315,7 @@ async function loadDbGames(opts: CliOptions): Promise<MinerGame[]> {
       opts.offset,
       opts.limit > 0 ? opts.offset + opts.limit : undefined,
     );
-    const games: MinerGame[] = [];
+    const games: XiangqiPuzzleMinerGame[] = [];
     for (const id of window) {
       const row = await getHistoricalXiangqiGame(id);
       if (row && row.moves.length >= opts.plyMin) {
@@ -315,7 +338,7 @@ async function loadDbGames(opts: CliOptions): Promise<MinerGame[]> {
   }
 }
 
-function loadDirGames(opts: CliOptions): MinerGame[] {
+function loadDirGames(opts: XiangqiPuzzleMinerOptions): XiangqiPuzzleMinerGame[] {
   const dir = resolve(opts.dir as string);
   const entries = readdirSync(dir)
     .filter((name) => {
@@ -326,7 +349,7 @@ function loadDirGames(opts: CliOptions): MinerGame[] {
       }
     })
     .sort();
-  const games: MinerGame[] = [];
+  const games: XiangqiPuzzleMinerGame[] = [];
   for (const name of entries) {
     const raw = readFileSync(resolve(dir, name), 'utf8');
     const imported = importXiangqiGame(extractGameText(raw));
@@ -378,12 +401,13 @@ function createRng(seed: number): () => number {
 
 // ── Mining ───────────────────────────────────────────────────────────────────
 
-async function mineGame(
+export async function mineXiangqiPuzzleGame(
   engine: PikafishEngine,
-  game: MinerGame,
-  opts: CliOptions,
-  metrics: Metrics,
+  game: XiangqiPuzzleMinerGame,
+  opts: XiangqiPuzzleMinerOptions,
+  metrics: XiangqiPuzzleMinerMetrics,
   seenPositions: Set<string>,
+  hooks: XiangqiPuzzleMinerHooks = {},
 ): Promise<MinedPuzzleRecord[]> {
   await engine.newGame();
 
@@ -427,10 +451,24 @@ async function mineGame(
   for (const candidate of candidates) {
     if (records.length >= opts.perGame) break;
     const postBlunderState = states[candidate.ply + 1] as XiangqiGameState;
+    const candidateIdentity: XiangqiPuzzleMinerCandidate = {
+      gameId: game.id,
+      postBlunderPly: candidate.ply + 1,
+      positionKey: positionRepetitionKey(postBlunderState),
+      scan: candidate,
+    };
+    await hooks.candidateScanned?.(candidateIdentity);
     const built = await buildGatedLine(engine, postBlunderState, opts);
     metrics.verifyEvals += built.evals;
     if (!built.ok) {
       bumpReject(metrics, built.reason);
+      await hooks.candidateJudged?.({
+        ...candidateIdentity,
+        verdict: 'reject',
+        reason: built.reason,
+        evidence: { phase: 'gated-line', evals: built.evals },
+        puzzle: null,
+      });
       continue;
     }
     const result = assembleMinedXiangqiPuzzle(
@@ -447,8 +485,33 @@ async function mineGame(
     );
     if (!result.ok) {
       bumpReject(metrics, result.reason);
+      await hooks.candidateJudged?.({
+        ...candidateIdentity,
+        verdict: 'reject',
+        reason: result.reason,
+        evidence: {
+          phase: 'assembly',
+          evals: built.evals,
+          verifyBestCp: built.verifyScore.scoreCp,
+          verifySecondCp: built.secondScoreCp,
+        },
+        puzzle: null,
+      });
       continue;
     }
+    await hooks.candidateJudged?.({
+      ...candidateIdentity,
+      verdict: 'pass',
+      reason: null,
+      evidence: {
+        phase: 'verify',
+        evals: built.evals,
+        verifyBestCp: built.verifyScore.scoreCp,
+        verifySecondCp: built.secondScoreCp,
+        solutionPlies: result.puzzle.solution.length,
+      },
+      puzzle: result.puzzle,
+    });
     const positionKey = positionRepetitionKey(result.puzzle.initial);
     if (seenPositions.has(positionKey)) {
       bumpReject(metrics, 'duplicate-position');
@@ -492,7 +555,7 @@ type GatedLineResult =
 async function buildGatedLine(
   engine: PikafishEngine,
   postBlunderState: XiangqiGameState,
-  opts: CliOptions,
+  opts: XiangqiPuzzleMinerOptions,
 ): Promise<GatedLineResult> {
   const gate = {
     winHi: opts.winHi,
@@ -556,7 +619,7 @@ async function buildGatedLine(
   return { ok: true, pv, verifyScore: firstScore, secondScoreCp: firstSecondCp, evals };
 }
 
-function bumpReject(metrics: Metrics, reason: string): void {
+function bumpReject(metrics: XiangqiPuzzleMinerMetrics, reason: string): void {
   metrics.rejects[reason] = (metrics.rejects[reason] ?? 0) + 1;
 }
 
@@ -653,13 +716,13 @@ function jsonlLine(record: MinedPuzzleRecord): string {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
-async function main(): Promise<void> {
+async function main(options: XiangqiPuzzleMinerOptions): Promise<void> {
   const startedAt = Date.now();
   const binary = options.binary ? resolve(options.binary) : pikafishXiangqiPath();
   const net = options.net ? resolve(options.net) : pikafishXiangqiNetPath(binary);
 
   const games = options.source === 'db' ? await loadDbGames(options) : loadDirGames(options);
-  const metrics: Metrics = {
+  const metrics: XiangqiPuzzleMinerMetrics = {
     gamesRequested: options.limit,
     gamesLoaded: games.length,
     gamesScanned: 0,
@@ -685,9 +748,9 @@ async function main(): Promise<void> {
         const index = cursor;
         cursor += 1;
         if (index >= games.length) break;
-        const game = games[index] as MinerGame;
+        const game = games[index] as XiangqiPuzzleMinerGame;
         try {
-          const mined = await mineGame(engine, game, options, metrics, seenPositions);
+          const mined = await mineXiangqiPuzzleGame(engine, game, options, metrics, seenPositions);
           records.push(...mined);
           metrics.gamesScanned += 1;
         } catch (err) {
@@ -848,5 +911,5 @@ The last stdout line is always a metrics JSON object (kind=xiangqi-puzzle-mine-m
 // Only run when invoked directly (tsx scripts/.../xiangqi-puzzle-miner.ts), not
 // when imported for its exports (e.g. renderXiangqiSeedFile in a backfill script).
 if (import.meta.url === `file://${process.argv[1]}`) {
-  await main();
+  await main(parseCliOptions());
 }

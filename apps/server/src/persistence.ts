@@ -466,6 +466,7 @@ export type {
   XiangqiPuzzleMiningRun,
   XiangqiPuzzleMiningRunStatus,
   XiangqiPuzzleMiningShard,
+  XiangqiPuzzleMiningShardGame,
   XiangqiPuzzleMiningShardStatus,
 } from './persistence-xiangqi-puzzle-mining.js';
 export {
@@ -477,9 +478,12 @@ export {
   getXiangqiPuzzleMiningRun,
   heartbeatXiangqiPuzzleMiningShard,
   initializeXiangqiPuzzleMiningRun,
+  listClaimedXiangqiPuzzleMiningShardGames,
   recordXiangqiPuzzleEditorialReview,
   recordXiangqiPuzzleMiningCandidate,
   recordXiangqiPuzzleMiningJudgment,
   xiangqiPuzzleMiningCandidateId,
   xiangqiPuzzleMiningRunId,
 } from './persistence-xiangqi-puzzle-mining.js';
+export type { XiangqiPuzzleMiningShardWorkResult } from './xiangqi-puzzle-mining-worker.js';
+export { processNextXiangqiPuzzleMiningShard } from './xiangqi-puzzle-mining-worker.js';
