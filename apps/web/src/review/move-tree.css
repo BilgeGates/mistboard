@@ -30,6 +30,15 @@
 .move-tree__comment--user {
   color: var(--site-text);
 }
+/* Comment flowing inside a variation line. */
+.move-tree__inline-comment {
+  margin: 0 4px;
+  font-size: 12px;
+  color: var(--site-muted);
+}
+.move-tree__inline-comment--user {
+  color: var(--site-text);
+}
 
 /* Terminal result block at the end of the list (lichess): score + termination. */
 .move-tree__result {

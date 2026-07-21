@@ -271,6 +271,16 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
       }
       container.append(moveCell(node));
       start = false;
+      // A comment on a variation node flows inline after its move (lichess
+      // grammar); the next move restates its number so the line stays readable.
+      const ann = annotations.get(pathKey(pathOf(node)));
+      if (ann?.comment) {
+        const note = document.createElement('span');
+        note.className = `move-tree__inline-comment${ann.commentClass ? ` move-tree__inline-comment--${ann.commentClass}` : ''}`;
+        note.textContent = ann.comment;
+        container.append(note);
+        start = true;
+      }
       for (let i = 1; i < node.children.length; i++) {
         const sub = document.createElement('span');
         sub.className = 'move-tree__subvar';

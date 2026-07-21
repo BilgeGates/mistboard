@@ -16,6 +16,11 @@ const ANNOTATED_TREE: SerializedTree = {
         annotations: { comments: [{ text: 'The cannon centralises.' }] },
         children: [{ uci: 'h8e8', children: [] }],
       },
+      {
+        uci: 'b3e3',
+        annotations: { comments: [{ text: 'The other cannon is passive.' }] },
+        children: [],
+      },
     ],
   },
 };
@@ -37,6 +42,9 @@ describe('viewer-visible study comments', () => {
       'The intro: a hand-set composition.',
       'The cannon centralises.',
     ]);
+    // A comment on a VARIATION node flows inline inside its line.
+    const inline = root.querySelector('.move-tree__variation .move-tree__inline-comment--user');
+    expect(inline?.textContent).toBe('The other cannon is passive.');
     // The intro is the first row in the list, above move 1.
     const first = root.querySelector('.review-move-list__rows')?.children[0];
     expect(first?.textContent).toBe('The intro: a hand-set composition.');
