@@ -120,6 +120,11 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   // Which renderer the live handle is: chess (chessground) vs xiangqi (native
   // SVG). A channel switch across families must re-mount, not loadGame.
   let replayHandleKind: WatchRendererKind | null = null;
+  // Whether the mounted handle autoplays (baked at mount): feed-driven boards
+  // are FROZEN at the final position (the TV model — finished games are never
+  // auto-broadcast), while an explicit queue click plays that game once. A
+  // mismatch between the two modes forces a re-mount.
+  let replayHandleAutoplay = false;
   let pollTimer: number | null = null;
   let refreshInFlight = false;
   // Right-rail interactive move list + shared game-table controls. The move list
@@ -337,16 +342,20 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     startClockTicker();
   };
 
-  // Mount the right-kind replay handle, re-mounting when the family changes
-  // (chess chessground vs xiangqi SVG can't loadGame across each other); else
-  // reuse the handle and just load the next game.
+  // Mount the right-kind replay handle, re-mounting when the family OR the
+  // autoplay mode changes (autoplay is baked at mount); else reuse the handle
+  // and just load the next game. Feed-driven boards (`autoplay: false`) land
+  // FROZEN at the final position — the TV model never auto-broadcasts a
+  // finished game; the scrubber/move list still replay it on demand. An
+  // explicit queue click passes `autoplay: true` and plays that game once.
   const ensureReplay = async (
     feed: WatchFeed,
     roomId: string,
-    seed?: WatchInitialReplay,
+    seed: WatchInitialReplay | undefined,
+    autoplay: boolean,
   ): Promise<void> => {
     const kind = watchRendererKindForGame(feed, roomId);
-    if (!replayHandle || replayHandleKind !== kind) {
+    if (!replayHandle || replayHandleKind !== kind || replayHandleAutoplay !== autoplay) {
       // Family change (e.g. switching the channel to Crossroads): the live
       // renderer can't load the new game, so it's torn down and a different
       // chunk + postgame are fetched — two round trips. Paint a skeleton in the
@@ -365,14 +374,18 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
         seed,
         kind,
         syncMoveList,
+        autoplay,
       );
       replayHandleKind = kind;
+      replayHandleAutoplay = autoplay;
+      if (!autoplay) replayHandle.jumpToPly?.(replayHandle.plyCount?.() ?? 0);
       rebuildMoveList(replayHandle);
       rebuildPovToggle(feed, roomId);
       return;
     }
     if (replayHandle.activeSampleId() !== roomId) {
       await replayHandle.loadGame(roomId);
+      if (!autoplay) replayHandle.jumpToPly?.(replayHandle.plyCount?.() ?? 0);
       rebuildMoveList(replayHandle);
       rebuildPovToggle(feed, roomId);
     }
@@ -416,7 +429,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     renderQueue(nextFeed, activeRoomId, previousRoomIds);
 
     try {
-      await ensureReplay(nextFeed, nextRoomId, nextFeed.initialReplay);
+      await ensureReplay(nextFeed, nextRoomId, nextFeed.initialReplay, false);
     } catch (err) {
       console.warn(err);
       activeRoomId = priorRoomId;
@@ -511,7 +524,8 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     // — that animation belongs to feed polls.
     renderQueue(currentFeed, activeRoomId, null);
     try {
-      await ensureReplay(currentFeed, roomId, currentFeed.initialReplay);
+      // User-initiated: play the clicked game once (VOD semantics, not broadcast).
+      await ensureReplay(currentFeed, roomId, currentFeed.initialReplay, true);
       syncWatchUrl(urlMode, currentFeed.activeChannel, activeRoomId);
     } catch (err) {
       console.warn(err);
@@ -584,7 +598,12 @@ async function mountWatchReplay(
   seed?: WatchInitialReplay,
   kind: WatchRendererKind = 'chess',
   onPlyChange?: (ply: number, maxPly: number) => void,
+  autoplay = false,
 ): Promise<ReplayHandle> {
+  // Playback ends exactly once: onGameEnd holds the final position instead of
+  // the renderers' default loop (the TV model — a game never replays once
+  // aired; the scrubber remains for manual review).
+  const holdAtEnd = (): void => {};
   // Tenant renderers load through the registry's dynamic-import closures, so
   // they stay out of the chess path's bundle. `kind` is the channel's spec id
   // (chess uses the chessground fallback below), so the tenant resolves
@@ -594,10 +613,11 @@ async function mountWatchReplay(
   const tenant = kind === 'chess' ? null : webVariantTenantForSpecId(kind);
   if (tenant?.watch) {
     return await tenant.watch.mountReplay(root, roomId, {
-      autoplay: true,
+      autoplay,
       compact: true,
       metadataByRoomId,
       namesByRoomId,
+      onGameEnd: holdAtEnd,
       onPlyChange,
     });
   }
@@ -606,10 +626,10 @@ async function mountWatchReplay(
   // "Truth" pane is the fully public final-and-throughout board — no hidden-info
   // leak. Render the triptych compact but let watch-route.css isolate the truth
   // pane into the board slot (the panes resolver can only pick a fogged white/
-  // black POV, so truth-only is a CSS concern). No controls: the TV autoplays.
+  // black POV, so truth-only is a CSS concern).
   const { mountReplay } = await loadReplayModule();
   return await mountReplay(root, roomId, {
-    autoplay: true,
+    autoplay,
     showControls: false,
     keyboardNav: false,
     revealOnFinish: false,
@@ -619,6 +639,7 @@ async function mountWatchReplay(
     hideGameIdPill: true,
     loaderForId: makeWatchEventLoader(seed),
     metadataByRoomId,
+    onGameEnd: holdAtEnd,
     onPlyChange,
   });
 }

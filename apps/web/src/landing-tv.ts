@@ -1,13 +1,15 @@
 // Homepage Mistboard TV controller: one board that honors TRUE LIVE.
 //
-// Replaces the old showcase cycler's endless replay loop with the TV model
-// (decided 2026-07-20): follow the top-rated live game when one exists (moves
-// arrive via a short poll of /api/watch/live), otherwise air the freshest
-// not-yet-shown completed game ONCE at recorded pace, otherwise FREEZE on the
-// last game's final position. A game never replays once it has aired this
-// session. Fog games can never appear live — the server's visibility policy is
-// fail-closed — so they only ever reach this board as post-completion reveals
-// from the completed pool.
+// The TV model (decided 2026-07-20, tightened 2026-07-21): follow the
+// top-rated live game when one exists (moves arrive via a short poll of
+// /api/watch/live); otherwise FREEZE on the last game's final position.
+// Auto-playback of already-finished games is never broadcast: everything that
+// was finished before the visitor arrived is baseline history and only ever
+// shows as a frozen final position. The single exception is a game that
+// COMPLETES while the visitor is watching — it airs exactly once at recorded
+// pace (the delayed-release broadcast; this is also how a fog game's
+// post-completion reveal reaches the board) and then freezes. Fog games can
+// never appear live — the server's visibility policy is fail-closed.
 
 import type { GameEvent } from '@mistboard/game';
 import { reloadForChunkLoadError } from './chunk-load-recovery.js';
@@ -42,9 +44,12 @@ export type LandingTvOptions = {
 
 export type LandingTvController = {
   // Freshest-first completed games (the existing showcase pool). The head entry
-  // is "the last game": aired once if unseen, else the frozen final position.
-  // `jumpNow` cuts a playing replay short (used when real games replace the
-  // dev-only bundled demo); a live game is never cut.
+  // is "the last game" the board freezes on. Entries never seen in any prior
+  // pool are treated as games that finished DURING this session and air once;
+  // everything else is history and only ever shows frozen. `jumpNow` marks a
+  // BASELINE refresh (the first real pool replacing the static fallback):
+  // nothing airs, the board re-freezes on the new head. A live game is never
+  // cut by pool updates.
   updateCompletedPool(entries: ShowcaseEntry[], opts?: { jumpNow?: boolean }): void;
   destroy(): void;
 };
@@ -68,6 +73,13 @@ export async function mountLandingTv(
   // Rooms fully shown this session (live-followed, aired, or frozen-displayed):
   // never re-aired. Failed rooms land here too so a broken payload can't loop.
   const airedRoomIds = new Set<string>();
+  // Every room id that has EVER appeared in a pool this session. The boot pool
+  // is pre-session history by definition, so it seeds the set; a later entry
+  // outside it is a game that finished while the visitor was here — the only
+  // kind that earns a one-time airing.
+  const seenRoomIds = new Set<string>(initialPool.map((entry) => entry.roomId));
+  // The one game queued to air (a mid-session completion), or null.
+  let pendingAir: ShowcaseEntry | null = null;
   // Latest live payload per featured room; the loadPostgameOverride below reads
   // it, and clearing it makes the override fall back to the real finished-game
   // endpoint (the live→finished handoff).
@@ -217,33 +229,43 @@ export async function mountLandingTv(
     notify(roomId, specId, 'frozen');
   };
 
-  const syncCompleted = async (): Promise<void> => {
+  // Freeze the board on the pool head's final position (the "last game").
+  const freezeOnHead = async (): Promise<void> => {
     const target = completedPool[0];
     if (!target) return;
     if (currentRoomId === target.roomId && mode !== 'live') return;
-    if (airedRoomIds.has(target.roomId)) {
-      // An already-shown pool head never replaces what's on the board: the
-      // board stays frozen on the most recent thing it showed (e.g. the live
-      // game that just ended), which the stale pool may not contain yet. Only
-      // an empty board (first paint) freezes onto an aired head.
-      if (currentRoomId !== null && mode !== 'live') return;
-      await mountGame(target, { autoplay: false, live: false });
-      jumpToEnd();
-      notify(target.roomId, target.specId, 'frozen');
+    airedRoomIds.add(target.roomId);
+    await mountGame(target, { autoplay: false, live: false });
+    jumpToEnd();
+    notify(target.roomId, target.specId, 'frozen');
+  };
+
+  const syncCompleted = async (): Promise<void> => {
+    // A game that finished during this session airs exactly once, then the
+    // end-of-game hold freezes it in place.
+    if (pendingAir && !airedRoomIds.has(pendingAir.roomId)) {
+      const target = pendingAir;
+      pendingAir = null;
+      airedRoomIds.add(target.roomId);
+      await mountGame(target, {
+        autoplay: true,
+        live: false,
+        onGameEnd: () => {
+          if (destroyed) return;
+          notify(target.roomId, target.specId, 'frozen');
+          // Another game may have finished while this one aired.
+          enqueue(syncCompleted);
+        },
+      });
+      notify(target.roomId, target.specId, 'replay');
       return;
     }
-    airedRoomIds.add(target.roomId);
-    await mountGame(target, {
-      autoplay: true,
-      live: false,
-      onGameEnd: () => {
-        if (destroyed) return;
-        notify(target.roomId, target.specId, 'frozen');
-        // A newer unaired game may have arrived while this one aired.
-        enqueue(syncCompleted);
-      },
-    });
-    notify(target.roomId, target.specId, 'replay');
+    pendingAir = null;
+    // A board already showing something keeps it: pre-session history never
+    // replaces fresher state (e.g. the live game that just ended). Only an
+    // empty board (first paint) freezes onto the head.
+    if (currentRoomId !== null && mode !== 'live') return;
+    await freezeOnHead();
   };
 
   const stopPolling = (): void => {
@@ -300,11 +322,11 @@ export async function mountLandingTv(
   };
   document.addEventListener('visibilitychange', onVisibilityChange);
 
-  // Boot: show the completed pool immediately (airs the head game once if this
-  // session hasn't seen it), then start watching for live games.
+  // Boot: freeze on the last game's final position (nothing pre-session ever
+  // auto-plays), then start watching for live games.
   enqueue(async () => {
     try {
-      await syncCompleted();
+      await freezeOnHead();
     } catch (err) {
       renderWatchReplayFailure(root);
       throw err;
@@ -316,8 +338,19 @@ export async function mountLandingTv(
     updateCompletedPool: (entries, opts) => {
       if (destroyed) return;
       completedPool = entries.slice();
-      if (mode === 'live') return;
-      if (mode !== 'replay' || opts?.jumpNow) enqueue(syncCompleted);
+      const fresh = entries.filter((entry) => !seenRoomIds.has(entry.roomId));
+      for (const entry of entries) seenRoomIds.add(entry.roomId);
+      if (opts?.jumpNow) {
+        // Baseline refresh: the first real pool replacing the static fallback
+        // is pre-session history — never air it, re-freeze on its head.
+        pendingAir = null;
+        if (mode !== 'live') enqueue(freezeOnHead);
+        return;
+      }
+      const candidate = fresh.find((entry) => !airedRoomIds.has(entry.roomId));
+      if (candidate) pendingAir = candidate;
+      if (mode === 'live') return; // the airing waits out the live broadcast
+      if (mode !== 'replay') enqueue(syncCompleted);
     },
     destroy: () => {
       destroyed = true;

@@ -100,24 +100,59 @@ afterEach(() => {
 const entryA = { pov: 'white' as const, roomId: 'gameA', specId: 'xiangqi' };
 const entryB = { pov: 'white' as const, roomId: 'gameB', specId: 'xiangqi' };
 
-test('boot airs the pool head once with autoplay, then freezes and never re-airs it', async () => {
+test('boot FREEZES on the pool head (paused, jumped to end) and never auto-plays history', async () => {
   const tv = await mountController([entryA]);
   await flush();
   expect(mounts).toHaveLength(1);
   expect(mounts[0]!.roomId).toBe('gameA');
-  expect(mounts[0]!.options.autoplay).toBe(true);
+  expect(mounts[0]!.options.autoplay).toBe(false);
   expect(mounts[0]!.options.live).toBeUndefined();
+  expect(mounts[0]!.handle.jumpToPly).toHaveBeenCalled();
 
-  // The replay ends: the board freezes in place, no new mount.
-  mounts[0]!.options.onGameEnd?.();
-  await flush();
-  expect(mounts).toHaveLength(1);
-
-  // The same (now aired) head never replays on later pool refreshes.
+  // The same head on later pool refreshes changes nothing.
   tv.updateCompletedPool([entryA]);
   await flush();
   await tick();
   expect(mounts).toHaveLength(1);
+  tv.destroy();
+});
+
+test('a game that finishes DURING the session airs once, then freezes; history never airs', async () => {
+  const tv = await mountController([entryA]);
+  await flush();
+  expect(mounts).toHaveLength(1); // frozen on gameA
+
+  // gameB completes mid-session (new entry in a later pool): it airs once.
+  tv.updateCompletedPool([entryB, entryA]);
+  await flush();
+  expect(mounts).toHaveLength(2);
+  expect(mounts[1]!.roomId).toBe('gameB');
+  expect(mounts[1]!.options.autoplay).toBe(true);
+
+  // Airing ends: frozen in place; the same pool again airs nothing.
+  mounts[1]!.options.onGameEnd?.();
+  await flush();
+  tv.updateCompletedPool([entryB, entryA]);
+  await flush();
+  await tick();
+  expect(mounts).toHaveLength(2);
+  tv.destroy();
+});
+
+test('a jumpNow baseline refresh freezes on the new head instead of airing it', async () => {
+  const tv = await mountController([entryA]);
+  await flush();
+  expect(mounts).toHaveLength(1);
+
+  // First REAL pool replacing the static fallback: pre-session history, so it
+  // re-freezes (paused) rather than airing, even though gameB is unseen. The
+  // frozen handle is reused (same renderer kind + flags), so gameB loads into
+  // the existing mount and re-jumps to its end.
+  tv.updateCompletedPool([entryB], { jumpNow: true });
+  await flush();
+  expect(mounts).toHaveLength(1);
+  expect(mounts[0]!.handle.loadGame).toHaveBeenCalledWith('gameB');
+  expect(mounts[0]!.handle.jumpToPly).toHaveBeenCalled();
   tv.destroy();
 });
 
@@ -156,11 +191,10 @@ test('a live featured game mounts paused+live, follows new plies, and hands off 
   tv.destroy();
 });
 
-test('an aired pool head never clobbers the board after a live handoff; an unaired one airs', async () => {
-  // Air gameA at boot, then go live, then finish.
+test('stale history never clobbers the board after a live handoff; a mid-session finish airs', async () => {
+  // Freeze on gameA at boot, then go live, then finish.
   const tv = await mountController([entryA]);
   await flush();
-  mounts[0]!.options.onGameEnd?.();
   featuredResponse = { featured: liveFeatured('liveGame', 2) };
   await tick();
   featuredResponse = { featured: null };
@@ -168,12 +202,12 @@ test('an aired pool head never clobbers the board after a live handoff; an unair
   const beforeCount = mounts.length;
   expect(mounts[beforeCount - 1]!.roomId).toBe('liveGame');
 
-  // Stale pool still headed by the already-aired gameA: board stays put.
+  // Stale pool still headed by pre-session gameA: board stays put.
   tv.updateCompletedPool([entryA]);
   await tick();
   expect(mounts).toHaveLength(beforeCount);
 
-  // A NEW unaired game arrives at the head: it airs once.
+  // A game that finished during the session arrives: it airs once.
   tv.updateCompletedPool([entryB, entryA]);
   await flush();
   expect(mounts).toHaveLength(beforeCount + 1);
@@ -182,7 +216,7 @@ test('an aired pool head never clobbers the board after a live handoff; an unair
   tv.destroy();
 });
 
-test('the live game is never cut by pool updates, and jumpNow cuts a playing replay', async () => {
+test('the live game is never cut by pool updates', async () => {
   featuredResponse = { featured: liveFeatured('liveGame', 2) };
   const tv = await mountController([]);
   await flush();
@@ -193,16 +227,4 @@ test('the live game is never cut by pool updates, and jumpNow cuts a playing rep
   await flush();
   expect(mounts).toHaveLength(1);
   tv.destroy();
-
-  // Separately: a playing replay IS cut by jumpNow (the demo-swap path).
-  mounts.length = 0;
-  featuredResponse = { featured: null };
-  const tv2 = await mountController([entryA]);
-  await flush();
-  expect(mounts).toHaveLength(1); // gameA airing
-  tv2.updateCompletedPool([entryB], { jumpNow: true });
-  await flush();
-  expect(mounts).toHaveLength(2);
-  expect(mounts[1]!.roomId).toBe('gameB');
-  tv2.destroy();
 });
