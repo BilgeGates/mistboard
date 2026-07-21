@@ -312,6 +312,45 @@ definePersistenceTests('chat', () => {
     );
     assert.equal(payload.canPost, false);
   });
+
+  test('study chat route reads from a per-study room isolated from game rooms', async () => {
+    delete process.env.MISTBOARD_LOBBY_CHAT_ENABLED;
+    const now = new Date('2026-07-02T11:00:00Z');
+    await makeUser('chat_user_study', 'chatstudy', now);
+    await addChatLine({
+      id: 'chln_study_room_1',
+      room: 'study:st_review_study',
+      authorId: 'chat_user_study',
+      bodyText: 'study room line',
+      now,
+    });
+    // Same id under the game prefix must not bleed into the study room.
+    await addChatLine({
+      id: 'chln_study_room_2',
+      room: 'game:st_review_study',
+      authorId: 'chat_user_study',
+      bodyText: 'game room line',
+      now,
+    });
+
+    const read = captureResponse();
+    const handled = await tryHandleChatRoute(
+      {},
+      { method: 'GET', headers: {} } as unknown as IncomingMessage,
+      read,
+      '/api/chat/study/st_review_study',
+      new URL('http://test.local/api/chat/study/st_review_study'),
+    );
+
+    assert.equal(handled, true);
+    assert.equal(read.status, 200);
+    const payload = JSON.parse(read.body);
+    assert.deepEqual(
+      payload.lines.map((line: { text: string }) => line.text),
+      ['study room line'],
+    );
+    assert.equal(payload.canPost, false);
+  });
 });
 
 async function makeUser(id: string, handle: string, now: Date): Promise<void> {

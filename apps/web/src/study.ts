@@ -1,9 +1,10 @@
 // Study viewer/editor (/study/:id). Fetches a persisted study, rebuilds each
 // chapter's tree from its serialized blob, and mounts the shared xiangqi review
-// surface. Chapters show as tabs; switching re-mounts the review for that chapter.
-// For the owner, tree edits autosave (debounced) through the version-guarded chapter
-// PATCH, and the owner can add/delete chapters. Non-owners get a read/explore view.
-// S3 of the study track (multi-chapter); single chapter was S2.
+// surface. Chapters list in a compact scrolling left-rail panel (lichess study
+// anatomy) with a per-study chat room beneath; switching re-mounts the review
+// for that chapter. For the owner, tree edits autosave (debounced) through the
+// version-guarded chapter PATCH, and the owner can add/delete chapters.
+// Non-owners get a read/explore view.
 
 import './game-shell.css';
 import './live-xiangqi.css';
@@ -11,6 +12,7 @@ import './xiangqi-postgame.css';
 import './study.css';
 import './study-index.css';
 import { parseStandardXiangqiFen, standardXiangqiFen } from '@mistboard/game';
+import { buildStudyChat } from './review/spectator-chat.js';
 import type { SerializedTree } from './review/tree-serialize.js';
 import { mountXiangqiGamebook } from './review/xiangqi-gamebook.js';
 import { mountXiangqiReview, type XiangqiReviewHandle } from './review/xiangqi-review.js';
@@ -193,12 +195,18 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     // A gamebook chapter is played (guess-the-move) by viewers and by the owner in
     // preview; the owner authors it in the review board otherwise.
     if (chapter.gamebook && (!study.isOwner || previewMode)) {
+      const aside = document.createElement('div');
+      aside.className = 'study-aside';
+      aside.append(
+        buildActions(study, chapters, activeId, statusSpan(), chapterActions, owner),
+        buildStudyChat(study.id),
+      );
       mountXiangqiGamebook(root, {
         tree: chapter.root,
         orientation: chapter.orientation === 'black' ? 'black' : 'red',
         title: study.name,
         summary: chapter.name,
-        aside: buildActions(study, chapters, activeId, statusSpan(), chapterActions, owner),
+        aside,
       });
       return;
     }
@@ -244,12 +252,14 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     handle = mountXiangqiReview(root, {
       pageClassName: 'xiangqi-review',
       ariaLabel: 'Study',
-      eyebrow: study.isOwner ? 'Your study' : 'Study',
+      // Empty eyebrow: the info card leads with the study name itself.
+      eyebrow: '',
       title: study.name,
       summary:
         study.description || (study.isOwner ? 'Draw, comment, and branch — edits autosave.' : ''),
       boardAriaLabel: 'Xiangqi board',
       actions: buildActions(study, chapters, activeId, status, chapterActions, owner),
+      details: buildStudyChat(study.id),
       gamebookEditing: chapter.gamebook && study.isOwner,
       annotationEditing: study.isOwner,
       initialTree: chapter.root,
@@ -305,7 +315,7 @@ function buildActions(
   const wrap = document.createElement('div');
   wrap.className = 'study-actions';
 
-  wrap.append(chapterTabs(study, chapters, activeId, chapterActions));
+  wrap.append(chapterPanel(study, chapters, activeId, chapterActions));
 
   if (owner) {
     wrap.append(studyNameControl(study, owner.onRenameStudy));
@@ -317,7 +327,6 @@ function buildActions(
     wrap.append(visibilityControl(study));
     wrap.append(status);
   }
-  wrap.append(copyLinkButton());
   if (study.visibility === 'public') wrap.append(likeButton(study));
   return wrap;
 }
@@ -400,45 +409,74 @@ function lessonControls(owner: OwnerControls): HTMLElement {
   return row;
 }
 
-function chapterTabs(
+// Compact scrolling chapter panel (lichess study anatomy): a numbered list in
+// small text with the active chapter highlighted, capped in height so long
+// studies scroll instead of swallowing the rail.
+function chapterPanel(
   study: StudyDto,
   chapters: ChapterDto[],
   activeId: string,
   actions: ChapterActions,
 ): HTMLElement {
-  const row = document.createElement('div');
-  row.className = 'study-actions__chapters';
-  for (const chapter of chapters) {
-    const tab = document.createElement('div');
-    tab.className = 'study-actions__chapter';
-    if (chapter.id === activeId) tab.classList.add('study-actions__chapter--active');
-    const label = document.createElement('button');
-    label.type = 'button';
-    label.className = 'study-actions__chapter-label';
-    label.textContent = chapter.name;
-    label.addEventListener('click', () => actions.onSwitch(chapter.id));
-    tab.append(label);
+  const panel = document.createElement('section');
+  panel.className = 'study-chapters';
+  panel.setAttribute('aria-label', 'Chapters');
+
+  const head = document.createElement('div');
+  head.className = 'study-chapters__head';
+  head.textContent = `${chapters.length} ${chapters.length === 1 ? 'Chapter' : 'Chapters'}`;
+  panel.append(head);
+
+  const list = document.createElement('ol');
+  list.className = 'study-chapters__list';
+  chapters.forEach((chapter, index) => {
+    const row = document.createElement('li');
+    row.className = 'study-chapters__row';
+    if (chapter.id === activeId) row.classList.add('is-active');
+    const link = document.createElement('button');
+    link.type = 'button';
+    link.className = 'study-chapters__link';
+    const num = document.createElement('span');
+    num.className = 'study-chapters__num';
+    num.textContent = String(index + 1);
+    const name = document.createElement('span');
+    name.className = 'study-chapters__name';
+    name.textContent = chapter.name;
+    name.title = chapter.name;
+    link.append(num, name);
+    link.addEventListener('click', () => actions.onSwitch(chapter.id));
+    row.append(link);
     // Owners can delete any chapter but the last (server enforces; hide when one).
     if (study.isOwner && chapters.length > 1) {
       const del = document.createElement('button');
       del.type = 'button';
-      del.className = 'study-actions__chapter-del';
+      del.className = 'study-chapters__del';
       del.textContent = '×';
       del.title = 'Delete chapter';
       del.addEventListener('click', () => actions.onRemove(chapter.id));
-      tab.append(del);
+      row.append(del);
     }
-    row.append(tab);
-  }
+    list.append(row);
+  });
+  panel.append(list);
+
   if (study.isOwner) {
     const add = document.createElement('button');
     add.type = 'button';
-    add.className = 'study-actions__chapter-add';
-    add.textContent = '+ Chapter';
+    add.className = 'study-chapters__add';
+    add.textContent = '+ New chapter';
     add.addEventListener('click', () => actions.onAdd());
-    row.append(add);
+    panel.append(add);
   }
-  return row;
+
+  // Keep the active chapter in view once the panel is laid out. Scroll the list
+  // itself (not scrollIntoView, which would also jolt the page's own scroll).
+  requestAnimationFrame(() => {
+    const active = list.querySelector<HTMLElement>('.is-active');
+    if (active) list.scrollTop = Math.max(0, active.offsetTop - list.clientHeight / 2);
+  });
+
+  return panel;
 }
 
 function chapterNameControl(
@@ -499,25 +537,6 @@ function visibilityControl(study: StudyDto): HTMLElement {
   }
   paint();
   return labelled('Visibility', visibility);
-}
-
-function copyLinkButton(): HTMLElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'study-actions__copy';
-  button.textContent = 'Copy link';
-  button.addEventListener('click', () => {
-    void navigator.clipboard?.writeText(window.location.href).then(
-      () => {
-        button.textContent = 'Copied';
-        window.setTimeout(() => {
-          button.textContent = 'Copy link';
-        }, 1500);
-      },
-      () => {},
-    );
-  });
-  return button;
 }
 
 function labelled(label: string, control: HTMLElement): HTMLElement {

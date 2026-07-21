@@ -173,17 +173,11 @@ a.study-index__rail-tab.is-active:hover {
   background: var(--site-accent-soft);
 }
 
-/* Header: flair icon beside the title + meta line */
+/* Header: title + meta line */
 .study-index__card-head {
   display: flex;
   align-items: flex-start;
   gap: 0.65rem;
-}
-
-.study-index__flair {
-  flex: none;
-  font-size: 2rem;
-  line-height: 1;
 }
 
 .study-index__heading {

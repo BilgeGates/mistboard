@@ -20,6 +20,8 @@ type GameChatOptions = {
   live: boolean;
   pollMs: number;
   title: string;
+  /** Chat API base for this room. Defaults to the per-game endpoint. */
+  apiUrl?: string;
 };
 
 export function buildSpectatorChat(roomId: string): HTMLElement {
@@ -37,6 +39,17 @@ export function buildLiveRoomChat(roomId: string): HTMLElement {
     live: true,
     pollMs: LIVE_POLL_MS,
     title: 'Chat room',
+  });
+}
+
+/** Per-study chat room (lichess study anatomy) — same component, study-scoped API. */
+export function buildStudyChat(studyId: string): HTMLElement {
+  return buildGameChat(studyId, {
+    ariaLabel: 'Study chat',
+    live: false,
+    pollMs: POLL_MS,
+    title: 'Chat room',
+    apiUrl: studyChatApiUrl(studyId),
   });
 }
 
@@ -62,9 +75,10 @@ function buildGameChat(roomId: string, options: GameChatOptions): HTMLElement {
 
   panel.append(header, feed, footer);
 
+  const apiUrl = options.apiUrl ?? gameChatApiUrl(roomId);
   const known = new Set<string>();
-  void hydrateGameChat(roomId, feed, footer, known, options);
-  if (import.meta.env.MODE !== 'test') startPolling(roomId, panel, feed, known, options.pollMs);
+  void hydrateGameChat(apiUrl, feed, footer, known, options);
+  if (import.meta.env.MODE !== 'test') startPolling(apiUrl, panel, feed, known, options.pollMs);
 
   return panel;
 }
@@ -73,26 +87,30 @@ export function gameChatApiUrl(roomId: string): string {
   return `/api/chat/game/${encodeURIComponent(roomId)}`;
 }
 
+export function studyChatApiUrl(studyId: string): string {
+  return `/api/chat/study/${encodeURIComponent(studyId)}`;
+}
+
 async function hydrateGameChat(
-  roomId: string,
+  apiUrl: string,
   feed: HTMLElement,
   footer: HTMLElement,
   known: Set<string>,
   options: GameChatOptions,
 ): Promise<void> {
-  const state = await fetchGameChat(roomId);
+  const state = await fetchGameChat(apiUrl);
   if (!state || !Array.isArray(state.lines)) {
-    renderStatus(footer, 'Game chat is unavailable.');
+    renderStatus(footer, 'Chat is unavailable.');
     return;
   }
   feed.replaceChildren();
   known.clear();
-  appendLines(feed, state.lines.slice(-VISIBLE_LINES), known, state, roomId);
-  renderFooter(footer, state, roomId, feed, known, options);
+  appendLines(feed, state.lines.slice(-VISIBLE_LINES), known, state, apiUrl);
+  renderFooter(footer, state, apiUrl, feed, known, options);
 }
 
 function startPolling(
-  roomId: string,
+  apiUrl: string,
   panel: HTMLElement,
   feed: HTMLElement,
   known: Set<string>,
@@ -104,24 +122,24 @@ function startPolling(
       return;
     }
     if (document.visibilityState !== 'visible') return;
-    const state = await fetchGameChat(roomId);
+    const state = await fetchGameChat(apiUrl);
     if (!state) return;
     const incoming = state.lines.filter((line) => !known.has(line.id)).slice(-VISIBLE_LINES);
-    appendLines(feed, incoming, known, state, roomId);
+    appendLines(feed, incoming, known, state, apiUrl);
   }, pollMs);
 }
 
 function renderFooter(
   footer: HTMLElement,
   state: ChatState,
-  roomId: string,
+  apiUrl: string,
   feed: HTMLElement,
   known: Set<string>,
   options: GameChatOptions,
 ): void {
   footer.replaceChildren();
   if (state.canPost) {
-    footer.append(buildComposer(roomId, feed, known, state, options.live));
+    footer.append(buildComposer(apiUrl, feed, known, state, options.live));
     return;
   }
   if (state.timeoutUntil) {
@@ -136,7 +154,7 @@ function renderFooter(
 }
 
 function buildComposer(
-  roomId: string,
+  apiUrl: string,
   feed: HTMLElement,
   known: Set<string>,
   state: ChatState,
@@ -160,9 +178,9 @@ function buildComposer(
     setComposerDisabled(form, true);
     status.hidden = true;
     try {
-      const line = await postGameChatLine(roomId, text);
+      const line = await postGameChatLine(apiUrl, text);
       input.value = '';
-      appendLines(feed, [line], known, state, roomId);
+      appendLines(feed, [line], known, state, apiUrl);
       return true;
     } catch (error) {
       status.textContent = postErrorCopy(error instanceof ChatPostError ? error.code : undefined);
@@ -214,7 +232,7 @@ function appendLines(
   lines: ChatLine[],
   known: Set<string>,
   state: Pick<ChatState, 'canReport' | 'viewerHandle'>,
-  roomId: string,
+  apiUrl: string,
 ): void {
   if (lines.length === 0) return;
   const wasAtBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 24;
@@ -231,7 +249,7 @@ function appendLines(
     text.className = 'review-spectator-chat__text';
     appendChatText(text, line.text);
     row.append(who, text);
-    if (canReportLine(state, line)) row.append(buildReportControl(roomId, line));
+    if (canReportLine(state, line)) row.append(buildReportControl(apiUrl, line));
     feed.append(row);
   }
   if (wasAtBottom) feed.scrollTop = feed.scrollHeight;
@@ -244,7 +262,7 @@ function canReportLine(
   return !!state.canReport && !!line.handle && line.handle !== state.viewerHandle;
 }
 
-function buildReportControl(roomId: string, line: ChatLine): HTMLElement {
+function buildReportControl(apiUrl: string, line: ChatLine): HTMLElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'review-spectator-chat__report';
@@ -252,7 +270,7 @@ function buildReportControl(roomId: string, line: ChatLine): HTMLElement {
   button.textContent = '!';
   button.addEventListener('click', async () => {
     button.disabled = true;
-    const resp = await fetch(`${gameChatApiUrl(roomId)}/report`, {
+    const resp = await fetch(`${apiUrl}/report`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ lineId: line.id, reason: 'Chat message report' }),
@@ -291,9 +309,9 @@ function appendChatText(container: HTMLElement, text: string): void {
   if (cursor < text.length) container.append(document.createTextNode(text.slice(cursor)));
 }
 
-async function fetchGameChat(roomId: string): Promise<ChatState | null> {
+async function fetchGameChat(apiUrl: string): Promise<ChatState | null> {
   try {
-    const response = await fetch(gameChatApiUrl(roomId));
+    const response = await fetch(apiUrl);
     if (!response.ok) return null;
     return (await response.json()) as ChatState;
   } catch {
@@ -307,8 +325,8 @@ class ChatPostError extends Error {
   }
 }
 
-async function postGameChatLine(roomId: string, text: string): Promise<ChatLine> {
-  const response = await fetch(gameChatApiUrl(roomId), {
+async function postGameChatLine(apiUrl: string, text: string): Promise<ChatLine> {
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ text }),

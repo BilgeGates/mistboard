@@ -364,19 +364,10 @@ async function createStudy(
   window.location.href = `/study/${body.study.id}`;
 }
 
-// Cards carry a flair emoji like lichess. Users can't pick one yet, so we derive
-// a stable flair from the study id — varied across cards, unchanging per study.
-const FLAIRS = ['📖', '♟️', '🎯', '🏯', '🐉', '🔥', '⭐', '🧩', '📚', '🗺️', '🎴', '🏆'];
-
-function flairFor(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return FLAIRS[hash % FLAIRS.length];
-}
-
-// Cards mirror the lichess /study anatomy: a header (flair + title + meta) over a
-// preview list of the first few chapters, with a "+N more" tail when the study has
-// more chapters than the preview slice.
+// Cards mirror the lichess /study anatomy: a header (title + meta) over a
+// preview list of the first few chapters, with a "+N more" tail when the study
+// has more chapters than the preview slice. Flair emoji were dropped 2026-07-21
+// (derived glyphs read as noise); restore only as a user-picked field.
 const CHAPTER_PREVIEW_MAX = 4;
 
 function studyCard(study: StudySummary): HTMLElement {
@@ -394,11 +385,6 @@ function cardHead(study: StudySummary): HTMLElement {
   const head = document.createElement('div');
   head.className = 'study-index__card-head';
 
-  const flair = document.createElement('span');
-  flair.className = 'study-index__flair';
-  flair.textContent = flairFor(study.id);
-  flair.setAttribute('aria-hidden', 'true');
-
   const heading = document.createElement('div');
   heading.className = 'study-index__heading';
 
@@ -411,7 +397,7 @@ function cardHead(study: StudySummary): HTMLElement {
   meta.textContent = metaLine(study);
 
   heading.append(name, meta);
-  head.append(flair, heading);
+  head.append(heading);
   return head;
 }
 

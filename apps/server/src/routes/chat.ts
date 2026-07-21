@@ -4,6 +4,8 @@
 //   POST /api/chat/lobby          post a line { text } (signed-in)
 //   GET  /api/chat/game/:roomId   per-game spectator chat
 //   POST /api/chat/game/:roomId   post a line to that game's spectator chat
+//   GET  /api/chat/study/:studyId per-study chat room
+//   POST /api/chat/study/:studyId post a line to that study's chat room
 //   GET  /api/chat/lobby/reports  admin: open chat report queue
 //   POST /api/chat/lobby/reports/:id admin: resolve/dismiss a report
 //   POST /api/chat/{room}/report  signed-in: report a line { lineId, reason? }
@@ -12,8 +14,8 @@
 //   POST /api/chat/{room}/hide    admin: { lineId, reason? } hide one line
 //
 // Lobby chat remains behind MISTBOARD_LOBBY_CHAT_ENABLED. Per-game spectator
-// rooms are game-scoped in the same bounded chat_lines table and use the same
-// posting, moderation, report, timeout, and retention rules.
+// rooms and per-study rooms are scoped in the same bounded chat_lines table and
+// use the same posting, moderation, report, timeout, and retention rules.
 //
 // Post guards, in order: room gate (lobby only), signed in, active timeout,
 // flood budget (10 lines/min, DB-counted), link denial for accounts under
@@ -39,7 +41,7 @@ const LINK_PATTERN = /https?:\/\/|www\./i;
 type ChatRoomAction = 'room' | 'report' | 'timeout' | 'hide';
 
 type ChatRoomTarget = {
-  kind: 'lobby' | 'game';
+  kind: 'lobby' | 'game' | 'study';
   room: string;
   action: ChatRoomAction;
 };
@@ -297,14 +299,17 @@ function chatRoomTarget(pathname: string): ChatRoomTarget | null {
     };
   }
 
-  const gameMatch = pathname.match(/^\/api\/chat\/game\/([^/]+)(?:\/(report|timeout|hide))?$/);
-  if (!gameMatch) return null;
-  const roomId = decodeChatRoomSegment(gameMatch[1] ?? '');
+  const scopedMatch = pathname.match(
+    /^\/api\/chat\/(game|study)\/([^/]+)(?:\/(report|timeout|hide))?$/,
+  );
+  if (!scopedMatch) return null;
+  const kind = scopedMatch[1] as 'game' | 'study';
+  const roomId = decodeChatRoomSegment(scopedMatch[2] ?? '');
   if (!roomId) return null;
   return {
-    kind: 'game',
-    room: `game:${roomId}`,
-    action: (gameMatch[2] as ChatRoomAction | undefined) ?? 'room',
+    kind,
+    room: `${kind}:${roomId}`,
+    action: (scopedMatch[3] as ChatRoomAction | undefined) ?? 'room',
   };
 }
 

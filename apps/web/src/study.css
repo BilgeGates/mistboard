@@ -1,5 +1,6 @@
-/* Owner controls for a study: visibility toggle, save status, copy link. Lives in
- * the review left-rail `actions` slot. */
+/* Study left rail: compact scrolling chapter panel (lichess study anatomy) +
+ * owner controls (visibility toggle, save status, copy link) in the review
+ * left-rail `actions` slot. The per-study chat rides the `details` slot. */
 
 .study-actions {
   display: flex;
@@ -13,65 +14,126 @@
   gap: 0.5rem;
 }
 
-.study-actions__chapters {
+/* Section of the surrounding panel, not a nested box: a plain divider above
+ * instead of an own border/background. Inside the review info card the negative
+ * margins cancel the card's 14px side padding so rows run edge to edge; in the
+ * unpadded gamebook aside the rows keep their own 14px inset. */
+.study-chapters {
+  border-top: 1px solid var(--site-border-soft, rgba(128, 128, 128, 0.25));
+}
+.review-info-card .study-chapters {
+  margin: 0.25rem -14px 0;
+}
+
+.study-chapters__head {
+  padding: 0.4rem 14px 0.25rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--site-muted, inherit);
+}
+
+.study-chapters__list {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* ~8 rows before scrolling: compressed like lichess so the chat below keeps
+     most of the rail. */
+  max-height: 12rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.study-chapters__row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
   align-items: center;
 }
-
-.study-actions__chapter {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--c-border, rgba(128, 128, 128, 0.35));
-  border-radius: 5px;
-  overflow: hidden;
-}
-.study-actions__chapter--active {
-  border-color: var(--site-accent);
+.study-chapters__row.is-active {
   background: color-mix(in srgb, var(--site-accent) 14%, transparent);
+  box-shadow: inset 2px 0 0 var(--site-accent);
 }
 
-.study-actions__chapter-label {
-  padding: 0.22rem 0.55rem;
-  font-size: 0.82rem;
+.study-chapters__link {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  padding: 0.26rem 14px;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  text-align: left;
   border: none;
   background: transparent;
   color: inherit;
   cursor: pointer;
-  max-width: 12rem;
+}
+.study-chapters__row:hover:not(.is-active) {
+  background: color-mix(in srgb, var(--site-accent) 6%, transparent);
+}
+.study-chapters__row.is-active .study-chapters__link {
+  font-weight: 600;
+}
+
+.study-chapters__num {
+  flex: 0 0 auto;
+  min-width: 1.1rem;
+  color: var(--site-muted, inherit);
+  opacity: 0.8;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.study-chapters__name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.study-actions__chapter--active .study-actions__chapter-label {
-  font-weight: 600;
-}
 
-.study-actions__chapter-del {
-  padding: 0 0.4rem;
-  font-size: 0.9rem;
+.study-chapters__del {
+  flex: 0 0 auto;
+  padding: 0 0.45rem;
+  font-size: 0.85rem;
   line-height: 1;
   border: none;
-  border-left: 1px solid var(--c-border, rgba(128, 128, 128, 0.35));
   background: transparent;
   color: inherit;
-  opacity: 0.55;
+  opacity: 0;
   cursor: pointer;
 }
-.study-actions__chapter-del:hover {
+.study-chapters__row:hover .study-chapters__del,
+.study-chapters__row:focus-within .study-chapters__del {
+  opacity: 0.55;
+}
+.study-chapters__del:hover {
   opacity: 1;
   color: #b91c1c;
 }
 
-.study-actions__chapter-add {
-  padding: 0.22rem 0.55rem;
-  font-size: 0.82rem;
-  border: 1px dashed var(--c-border, rgba(128, 128, 128, 0.5));
-  border-radius: 5px;
+.study-chapters__add {
+  display: block;
+  width: 100%;
+  padding: 0.3rem 14px;
+  font-size: 0.78rem;
+  text-align: left;
+  border: none;
+  border-top: 1px dashed var(--site-border-soft, rgba(128, 128, 128, 0.4));
   background: transparent;
-  color: inherit;
+  color: var(--site-muted, inherit);
   cursor: pointer;
+}
+.study-chapters__add:hover {
+  color: inherit;
+  background: color-mix(in srgb, var(--site-accent) 6%, transparent);
+}
+
+/* Gamebook aside: stack the study controls above the chat panel. */
+.study-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .study-actions__label {

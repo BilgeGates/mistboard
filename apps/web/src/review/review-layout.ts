@@ -608,16 +608,21 @@ function infoRail(config: {
   }
   const card = document.createElement('section');
   card.className = 'review-info-card';
-  const eyebrow = document.createElement('p');
-  eyebrow.className = 'review-info-card__eyebrow';
-  eyebrow.textContent = config.eyebrow ?? 'Game review';
+  // An explicitly empty eyebrow ('') suppresses the row (the study page leads
+  // with its title); undefined keeps the default label.
+  if (config.eyebrow !== '') {
+    const eyebrow = document.createElement('p');
+    eyebrow.className = 'review-info-card__eyebrow';
+    eyebrow.textContent = config.eyebrow ?? 'Game review';
+    card.append(eyebrow);
+  }
   const title = document.createElement('h1');
   title.className = 'review-info-card__title';
   title.textContent = config.title;
   const summary = document.createElement('p');
   summary.className = 'review-info-card__summary';
   summary.textContent = config.summary;
-  card.append(eyebrow, title, summary);
+  card.append(title, summary);
   if (config.actions) card.append(config.actions);
   return railGroup(config.details ? [card, config.details] : [card]);
 }
