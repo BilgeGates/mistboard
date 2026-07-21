@@ -68,8 +68,13 @@ describe('metrics page', () => {
     );
     expect(sectionTitles).toEqual(['Games over time', 'Games by variant', 'Games by mode']);
 
-    // Variant labels are prettified; the /api/stats admin call is never made.
-    expect(root.textContent).toContain('Dark Xiangqi');
+    // Variant labels use the public-facing names (dark-xiangqi -> Fog Xiangqi).
+    expect(root.textContent).toContain('Fog Xiangqi');
+    expect(root.textContent).not.toContain('dark-xiangqi');
+    // Bot-vs-bot (EvE) is hidden from the public page, even though the API
+    // returns a non-zero eve count.
+    expect(root.textContent).toContain('Human vs human');
+    expect(root.textContent).not.toContain('Bot vs bot');
     expect(root.querySelector('svg.platform-activity-svg')).not.toBeNull();
     expect(vi.mocked(fetch)).not.toHaveBeenCalledWith('/api/stats', expect.anything());
   });
@@ -95,6 +100,8 @@ describe('metrics page', () => {
     );
     expect(sectionTitles).toContain('Games by result');
     expect(root.textContent).toContain('Red win');
+    // Admin keeps the bot-vs-bot mode row.
+    expect(root.textContent).toContain('Bot vs bot');
   });
 
   it('falls back to a notice when statistics are unavailable', async () => {

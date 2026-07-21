@@ -6,7 +6,8 @@
 // the page is otherwise unlinked, so it is direct-URL only like /database.
 
 import './metrics.css';
-import { currentLocale } from './i18n/locale.js';
+import { type I18nKey, t } from './i18n/catalog.js';
+import { currentLocale, type Locale } from './i18n/locale.js';
 import { buildNav, buildNotice } from './site-shell.js';
 import {
   buildActivityChart,
@@ -89,13 +90,19 @@ export async function mountMetrics(root: HTMLElement, options: { admin: boolean 
     parts.push(
       buildBreakdownSection(
         'Games by variant',
-        variantEntries.map((entry) => ({ label: prettyVariant(entry.label), count: entry.count })),
+        variantEntries.map((entry) => ({
+          label: variantPublicName(entry.label, locale),
+          count: entry.count,
+        })),
       ),
     );
   }
 
   if (publicStats) {
-    parts.push(buildBreakdownSection('Games by mode', modeEntries(publicStats.modeTotals)));
+    // Bot-vs-bot (EvE) is an admin-only figure: hide it from the public page.
+    parts.push(
+      buildBreakdownSection('Games by mode', modeEntries(publicStats.modeTotals, admin != null)),
+    );
   }
 
   if (admin) {
@@ -217,13 +224,17 @@ function sectionHeading(text: string): HTMLElement {
 }
 
 // ── data ─────────────────────────────────────────────────────────────────────
-function modeEntries(modeTotals: Record<PublicStatsMode, number>): BreakdownEntry[] {
+function modeEntries(
+  modeTotals: Record<PublicStatsMode, number>,
+  includeBotVsBot: boolean,
+): BreakdownEntry[] {
   const labels: Record<PublicStatsMode, string> = {
     pvp: 'Human vs human',
     pve: 'Human vs bot',
     eve: 'Bot vs bot',
   };
-  return (['pvp', 'pve', 'eve'] as const)
+  const modes: PublicStatsMode[] = includeBotVsBot ? ['pvp', 'pve', 'eve'] : ['pvp', 'pve'];
+  return modes
     .map((mode) => ({ label: labels[mode], count: modeTotals[mode] ?? 0 }))
     .filter((entry) => entry.count > 0);
 }
@@ -234,7 +245,28 @@ function sortedEntries(record: Record<string, number>): BreakdownEntry[] {
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
-function prettyVariant(variant: string): string {
+// Public-facing variant names, keyed by the persisted games.variant id (which
+// equals the game-spec id). The canonical source is the lobby's exhaustive
+// switch in landing-play.ts (variantNameKeyForGameSpec); this display-only map
+// mirrors it with a safe prettify fallback, so an unmapped/new id degrades
+// gracefully instead of throwing.
+const VARIANT_NAME_KEYS: Record<string, I18nKey> = {
+  xiangqi: 'variant.xiangqi.name',
+  'dark-xiangqi': 'variant.darkXiangqi.name',
+  'dark-chess': 'variant.darkChess.name',
+  'fortress-xiangqi': 'variant.fortressXiangqi.name',
+  jieqi: 'variant.jieqi.name',
+  banqi: 'variant.banqi.name',
+  jungle: 'variant.jungle.name',
+  'jungle-flip': 'variant.jungleFlip.name',
+  'mini-xiangqi': 'variant.miniXiangqi.name',
+  'dark-mini-xiangqi': 'variant.darkMiniXiangqi.name',
+  'drop-mini-xiangqi': 'variant.dropMiniXiangqi.name',
+};
+
+function variantPublicName(variant: string, locale: Locale): string {
+  const key = VARIANT_NAME_KEYS[variant];
+  if (key) return t(key, {}, locale);
   return variant
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -256,7 +288,11 @@ function prettyResult(result: string): string {
     abandoned: 'Abandoned',
     aborted: 'Aborted',
   };
-  return known[result] ?? prettyVariant(result);
+  if (known[result]) return known[result];
+  return result
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 async function fetchPublicStats(): Promise<PublicSiteStats | null> {
