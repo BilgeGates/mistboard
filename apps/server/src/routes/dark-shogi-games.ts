@@ -170,7 +170,7 @@ function recentGameRecordFromSummary(
     timeControl: null,
     initialMs: summary.initialMs ?? null,
     incrementMs: summary.incrementMs ?? null,
-    visibility: summary.visibility ?? 'private',
+    visibility: summary.visibility ?? 'public',
     participants: summary.participants ?? [],
   };
 }

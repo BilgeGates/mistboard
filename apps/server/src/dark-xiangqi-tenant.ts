@@ -229,7 +229,9 @@ export function buildDarkXiangqiGameSummary(room: DarkXiangqiTenantRoom): persis
   const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
   const engineSeat = darkXiangqiEngineSeat(room);
   const mode = engineSeat ? 'pve' : 'pvp';
-  const visibility: persistence.GameVisibility = engineSeat ? 'public' : 'private';
+  // Finished Fog Xiangqi games are public like every other variant; the fog
+  // live-spectate gate is separate and unaffected.
+  const visibility: persistence.GameVisibility = 'public';
   return {
     variant: DARK_XIANGQI_SPEC_ID,
     mode,

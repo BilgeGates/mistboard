@@ -123,7 +123,9 @@ export async function createTenantLiveRoom<
             whiteName: null,
             blackName: null,
             corpusId: null,
-            visibility: engine ? 'public' : 'private',
+            // Public from the start (lichess model): human games are no longer
+            // private. Fog live-spectate stays gated separately.
+            visibility: 'public',
           });
         }
       } catch (err) {

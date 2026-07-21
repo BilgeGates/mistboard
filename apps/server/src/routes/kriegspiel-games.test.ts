@@ -123,7 +123,7 @@ test('Kriegspiel postgame can render from a finished live room without persisten
   assert.ok(payload);
   assert.equal(payload.game.roomId, ROOM_ID);
   assert.equal(payload.game.variant, KRIEGSPIEL_SPEC_ID);
-  assert.equal(payload.game.visibility, 'private');
+  assert.equal(payload.game.visibility, 'public');
   assert.equal(
     payload.timeline.filter((entry) => entry.type === 'move-played').length,
     MOVES.length,

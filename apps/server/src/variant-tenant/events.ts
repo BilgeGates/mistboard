@@ -200,7 +200,11 @@ export function buildTenantGameSummary<
   const lastAt = room.events[room.events.length - 1]?.at ?? Date.now();
   const engineSeat = tenantEngineSeat(tenant, room);
   const mode = engineSeat ? 'pve' : 'pvp';
-  const visibility: persistence.GameVisibility = mode === 'pve' ? 'public' : 'private';
+  // Finished games are public (lichess model): human-vs-human games are no
+  // longer kept private. Fog variants stay hidden WHILE LIVE via the separate
+  // spectate gate; this only affects the concluded row's browsability. Guest
+  // seats still render as "Guest" and non-account handles are never invented.
+  const visibility: persistence.GameVisibility = 'public';
   const participants = tenant.colors.map((color) =>
     tenantParticipant(tenant, color, room, visibility),
   );

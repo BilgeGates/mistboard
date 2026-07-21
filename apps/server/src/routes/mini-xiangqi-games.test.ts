@@ -99,7 +99,7 @@ test('Mini Xiangqi postgame can render a finished live room without persistence'
   assert.ok(payload);
   assert.equal(payload.game.roomId, ROOM_ID);
   assert.equal(payload.game.variant, MINI_XIANGQI_SPEC_ID);
-  assert.equal(payload.game.visibility, 'private');
+  assert.equal(payload.game.visibility, 'public');
   assert.equal(payload.game.termination, 'resignation');
 });
 
