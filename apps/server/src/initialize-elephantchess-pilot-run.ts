@@ -155,6 +155,7 @@ try {
       selectedGames: run.selectedGames,
       shards: run.shards,
       manifestSha256: run.manifestSha256,
+      executionSha256: run.executionSha256,
       engine: identity.name,
       profileVersion,
     })}\n`,

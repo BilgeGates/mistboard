@@ -102,6 +102,7 @@ definePersistenceTests('xiangqi puzzle mining', () => {
     assert.deepEqual(second, first);
     assert.equal(first.selectedGames, 8);
     assert.equal(first.shards, 3);
+    assert.match(first.executionSha256 ?? '', /^[0-9a-f]{64}$/);
 
     const counts = await getPool().query<{ games: number; shards: number }>(
       `SELECT
@@ -110,24 +111,37 @@ definePersistenceTests('xiangqi puzzle mining', () => {
       [first.id],
     );
     assert.deepEqual(counts.rows, [{ games: 8, shards: 3 }]);
-    await assert.rejects(
-      initializeXiangqiPuzzleMiningRun({
-        manifest,
-        serializedSha256: 'b'.repeat(64),
-        shardSize: 4,
-        engineProfile: { engine: 'pikafish-test' },
-      }),
-      /different shard layout/,
-    );
-    await assert.rejects(
-      initializeXiangqiPuzzleMiningRun({
-        manifest,
-        serializedSha256: 'b'.repeat(64),
-        shardSize: 3,
-        engineProfile: { engine: 'different-engine' },
-      }),
-      /different immutable settings/,
-    );
+    const differentlySharded = await initializeXiangqiPuzzleMiningRun({
+      manifest,
+      serializedSha256: 'b'.repeat(64),
+      shardSize: 4,
+      engineProfile: { engine: 'pikafish-test' },
+    });
+    const differentEngine = await initializeXiangqiPuzzleMiningRun({
+      manifest,
+      serializedSha256: 'b'.repeat(64),
+      shardSize: 3,
+      engineProfile: { engine: 'different-engine' },
+    });
+    assert.notEqual(differentlySharded.id, first.id);
+    assert.notEqual(differentEngine.id, first.id);
+    assert.notEqual(differentEngine.executionSha256, first.executionSha256);
+    assert.equal(differentlySharded.manifestSha256, first.manifestSha256);
+    assert.equal(differentEngine.manifestSha256, first.manifestSha256);
+
+    const reorderedProfile = await initializeXiangqiPuzzleMiningRun({
+      manifest,
+      serializedSha256: 'b'.repeat(64),
+      shardSize: 3,
+      engineProfile: { nested: { second: 2, first: 1 }, engine: 'stable-order' },
+    });
+    const sameReorderedProfile = await initializeXiangqiPuzzleMiningRun({
+      manifest,
+      serializedSha256: 'b'.repeat(64),
+      shardSize: 3,
+      engineProfile: { engine: 'stable-order', nested: { first: 1, second: 2 } },
+    });
+    assert.equal(sameReorderedProfile.id, reorderedProfile.id);
 
     const claimed = await claimNextXiangqiPuzzleMiningShard({
       runId: first.id,

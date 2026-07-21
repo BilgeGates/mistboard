@@ -17,6 +17,7 @@ export type XiangqiPuzzleMiningRun = {
   id: string;
   importBatchId: string;
   manifestSha256: string;
+  executionSha256: string | null;
   status: XiangqiPuzzleMiningRunStatus;
   engineProfile: Record<string, unknown>;
   scanProfile: Record<string, unknown>;
@@ -128,6 +129,7 @@ type RunRow = {
   id: string;
   import_batch_id: string;
   manifest_sha256: string;
+  execution_sha256: string | null;
   status: XiangqiPuzzleMiningRunStatus;
   engine_profile: Record<string, unknown>;
   scan_profile: Record<string, unknown>;
@@ -207,6 +209,7 @@ function mapRun(row: RunRow): XiangqiPuzzleMiningRun {
     id: row.id,
     importBatchId: row.import_batch_id,
     manifestSha256: row.manifest_sha256,
+    executionSha256: row.execution_sha256,
     status: row.status,
     engineProfile: row.engine_profile,
     scanProfile: row.scan_profile,
@@ -291,8 +294,51 @@ function mapEditorialReview(row: EditorialReviewRow): XiangqiPuzzleEditorialRevi
   };
 }
 
-export function xiangqiPuzzleMiningRunId(manifestSha256: string): string {
-  return `xqpmr_${createHash('sha256').update(manifestSha256).digest('hex').slice(0, 24)}`;
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') {
+    return JSON.stringify(value);
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error('execution profiles must contain finite numbers');
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const entries = Object.keys(record)
+      .filter((key) => record[key] !== undefined)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`);
+    return `{${entries.join(',')}}`;
+  }
+  throw new Error('execution profiles must be JSON-compatible');
+}
+
+export function xiangqiPuzzleMiningExecutionSha256(input: {
+  shardSize: number;
+  engineProfile: Record<string, unknown>;
+  scanProfile: Record<string, unknown>;
+  auditProfile: Record<string, unknown>;
+}): string {
+  return createHash('sha256')
+    .update(
+      canonicalJson({
+        identityVersion: 1,
+        shardSize: input.shardSize,
+        engineProfile: input.engineProfile,
+        scanProfile: input.scanProfile,
+        auditProfile: input.auditProfile,
+      }),
+    )
+    .digest('hex');
+}
+
+export function xiangqiPuzzleMiningRunId(input: {
+  manifestSha256: string;
+  executionSha256: string;
+}): string {
+  const identity = `${input.manifestSha256}\0${input.executionSha256}`;
+  return `xqpmr_${createHash('sha256').update(identity).digest('hex').slice(0, 24)}`;
 }
 
 export function xiangqiPuzzleMiningCandidateId(input: {
@@ -320,7 +366,19 @@ export async function initializeXiangqiPuzzleMiningRun(input: {
   if (manifest.games.length !== manifest.counts.selected) {
     throw new Error('manifest selected count does not match its ordered games');
   }
-  const runId = xiangqiPuzzleMiningRunId(manifest.manifestSha256);
+  const engineProfile = input.engineProfile ?? {};
+  const scanProfile = input.scanProfile ?? {};
+  const auditProfile = input.auditProfile ?? {};
+  const executionSha256 = xiangqiPuzzleMiningExecutionSha256({
+    shardSize,
+    engineProfile,
+    scanProfile,
+    auditProfile,
+  });
+  const runId = xiangqiPuzzleMiningRunId({
+    manifestSha256: manifest.manifestSha256,
+    executionSha256,
+  });
   const shardCount = Math.ceil(manifest.games.length / shardSize);
 
   return withTransaction(async (client) => {
@@ -341,10 +399,10 @@ export async function initializeXiangqiPuzzleMiningRun(input: {
     await client.query(
       `INSERT INTO xiangqi_puzzle_mining_runs
          (id, source_id, import_batch_id, manifest_format, eligibility_version,
-          selection_seed, manifest_sha256, serialized_sha256, manifest,
+          selection_seed, manifest_sha256, execution_sha256, serialized_sha256, manifest,
           engine_profile, scan_profile, audit_profile)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::json, $10::jsonb, $11::jsonb, $12::jsonb)
-       ON CONFLICT (import_batch_id, manifest_sha256) DO NOTHING`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::json, $11::jsonb, $12::jsonb, $13::jsonb)
+       ON CONFLICT DO NOTHING`,
       [
         runId,
         source.rows[0].source_id,
@@ -353,11 +411,12 @@ export async function initializeXiangqiPuzzleMiningRun(input: {
         manifest.eligibilityVersion,
         manifest.seed,
         manifest.manifestSha256,
+        executionSha256,
         input.serializedSha256 ?? null,
         JSON.stringify(manifest),
-        JSON.stringify(input.engineProfile ?? {}),
-        JSON.stringify(input.scanProfile ?? {}),
-        JSON.stringify(input.auditProfile ?? {}),
+        JSON.stringify(engineProfile),
+        JSON.stringify(scanProfile),
+        JSON.stringify(auditProfile),
       ],
     );
 
@@ -367,10 +426,11 @@ export async function initializeXiangqiPuzzleMiningRun(input: {
        WHERE id = $1 AND import_batch_id = $2
          AND manifest_format = $3 AND eligibility_version = $4
          AND selection_seed = $5 AND manifest_sha256 = $6
-         AND serialized_sha256 IS NOT DISTINCT FROM $7
-         AND engine_profile = $8::jsonb
-         AND scan_profile = $9::jsonb
-         AND audit_profile = $10::jsonb`,
+         AND execution_sha256 = $7
+         AND serialized_sha256 IS NOT DISTINCT FROM $8
+         AND engine_profile = $9::jsonb
+         AND scan_profile = $10::jsonb
+         AND audit_profile = $11::jsonb`,
       [
         runId,
         manifest.importBatchId,
@@ -378,10 +438,11 @@ export async function initializeXiangqiPuzzleMiningRun(input: {
         manifest.eligibilityVersion,
         manifest.seed,
         manifest.manifestSha256,
+        executionSha256,
         input.serializedSha256 ?? null,
-        JSON.stringify(input.engineProfile ?? {}),
-        JSON.stringify(input.scanProfile ?? {}),
-        JSON.stringify(input.auditProfile ?? {}),
+        JSON.stringify(engineProfile),
+        JSON.stringify(scanProfile),
+        JSON.stringify(auditProfile),
       ],
     );
     if (!identity.rows[0]) {
@@ -473,7 +534,7 @@ export async function getXiangqiPuzzleMiningRun(
   runId: string,
 ): Promise<XiangqiPuzzleMiningRun> {
   const { rows } = await db.query<RunRow>(
-    `SELECT run.id, run.import_batch_id, run.manifest_sha256, run.status,
+    `SELECT run.id, run.import_batch_id, run.manifest_sha256, run.execution_sha256, run.status,
             run.engine_profile, run.scan_profile, run.audit_profile, run.created_at,
             count(DISTINCT game.historical_game_id)::int AS selected_games,
             count(DISTINCT shard.shard_index)::int AS shards
