@@ -168,6 +168,16 @@ export type TenantWatchReplayOptions = {
   loadPostgameOverride?: (
     roomId: string,
   ) => Promise<{ ok: true; postgame: unknown } | { ok: false }>;
+  /**
+   * Called when a game's postgame cannot be loaded (the endpoint 404s or the
+   * fetch fails). Return `true` to signal the caller has handled the failure and
+   * the renderer should LEAVE the current board untouched instead of wiping it to
+   * the "could not be loaded" notice. Used by the homepage TV live→frozen
+   * handoff, where a followed live game that merely went idle (or whose finished
+   * record has not persisted yet) must keep its last frame rather than flash an
+   * error. Absent / returning `false` keeps the default notice behavior.
+   */
+  onLoadError?: () => boolean;
 };
 
 type ControlRefs = {
@@ -873,6 +883,7 @@ export async function mountTenantWatchReplay<
       }
       if (destroyed) return;
       if (!result.ok) {
+        if (options.onLoadError?.()) return;
         const notice = document.createElement('p');
         notice.className = 'watch-empty';
         notice.textContent = t('watch.gameLoadFailed', {}, locale);
@@ -896,6 +907,7 @@ export async function mountTenantWatchReplay<
     }
     if (destroyed) return;
     if (!result.ok) {
+      if (options.onLoadError?.()) return;
       const notice = document.createElement('p');
       notice.className = 'watch-empty';
       notice.textContent = t('watch.gameLoadFailed', {}, locale);

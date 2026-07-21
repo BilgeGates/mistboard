@@ -13,6 +13,7 @@ type MountRecord = {
     loadPostgameOverride?: (
       roomId: string,
     ) => Promise<{ ok: true; postgame: unknown } | { ok: false }>;
+    onLoadError?: () => boolean;
   };
   handle: {
     destroy: ReturnType<typeof vi.fn>;
@@ -168,6 +169,9 @@ test('a live featured game mounts paused+live, follows new plies, and hands off 
   expect(live.options.live).toBe(true);
   expect(live.options.autoplay).toBe(false);
   expect(live.handle.jumpToPly).toHaveBeenCalled();
+  // The live handle keeps its last frame on a failed load rather than wiping to
+  // the error notice (the live→frozen handoff relies on this).
+  expect(live.options.onLoadError?.()).toBe(true);
 
   // The override serves the poll payload for the live room.
   const served = await live.options.loadPostgameOverride?.('liveGame');
@@ -179,15 +183,15 @@ test('a live featured game mounts paused+live, follows new plies, and hands off 
   expect(mounts).toHaveLength(1);
   expect(live.handle.loadGame).toHaveBeenCalledWith('liveGame');
 
-  // The game ends: featured null triggers the finished re-mount (live off).
+  // The game leaves the feed: the handoff reuses the SAME live handle to load
+  // the finished replay (no fresh mount), so a failed finished-game load can
+  // keep the last frame instead of leaving an empty error box.
+  live.handle.loadGame.mockClear();
   featuredResponse = { featured: null };
   await tick();
-  expect(mounts).toHaveLength(2);
-  const finished = mounts[1]!;
-  expect(finished.roomId).toBe('liveGame');
-  expect(finished.options.live).toBeUndefined();
-  expect(finished.options.autoplay).toBe(false);
-  expect(finished.handle.jumpToPly).toHaveBeenCalled();
+  expect(mounts).toHaveLength(1);
+  expect(live.handle.loadGame).toHaveBeenCalledWith('liveGame');
+  expect(live.handle.jumpToPly).toHaveBeenCalled();
   tv.destroy();
 });
 

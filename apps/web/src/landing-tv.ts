@@ -153,7 +153,11 @@ export async function mountLandingTv(
         pov: entry.pov,
         autoplay: mountOptions.autoplay,
         ...(mountOptions.onGameEnd ? { onGameEnd: mountOptions.onGameEnd } : {}),
-        ...(mountOptions.live ? { live: true, loadPostgameOverride } : {}),
+        // The live handle keeps its last frame on any load failure rather than
+        // wiping to an error: normal following never sees one (the override
+        // always answers), and the live→frozen handoff drives its finished-game
+        // load through THIS handle, so an idle/unpersisted game freezes in place.
+        ...(mountOptions.live ? { live: true, loadPostgameOverride, onLoadError: () => true } : {}),
       });
       if (destroyed) {
         next.destroy();
@@ -217,15 +221,30 @@ export async function mountLandingTv(
     }
   };
 
-  // The live game ended (or vanished): re-mount its real finished replay so
-  // the board lands on the true final position + result marks, then freeze.
+  // The live game left the feed (finished, went idle past the fresh window, or
+  // the server restarted). Try to upgrade the live board to the real finished
+  // replay by reloading through the SAME live handle: clearing livePayload makes
+  // its override answer {ok:false}, so the load falls through to the finished-game
+  // endpoint. That endpoint 404s whenever the game isn't retrievable as finished
+  // yet (idle-but-still-playing, unpersisted, or gone after a restart); the live
+  // handle's onLoadError then keeps the last frame instead of wiping the board to
+  // "This game could not be loaded." Either way the board freezes on its last
+  // known position. Re-mounting a fresh finished handle (the old approach) could
+  // not do this: destroy() clears root before the failing load runs, so a 404
+  // left an empty error box.
   const finishLiveHandoff = async (): Promise<void> => {
     const roomId = currentRoomId;
     const specId = currentSpecId;
     if (!roomId || !specId) return;
     livePayload = null;
-    await mountGame({ pov: 'white', roomId, specId }, { autoplay: false, live: false });
-    jumpToEnd();
+    if (handle) {
+      await handle.loadGame(roomId);
+      jumpToEnd();
+    } else {
+      // No live handle to reuse (shouldn't happen while mode === 'live'): fall
+      // back to freezing on the pool head rather than leaving a blank board.
+      await freezeOnHead();
+    }
     notify(roomId, specId, 'frozen');
   };
 

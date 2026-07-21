@@ -44,6 +44,12 @@ export type ShowcaseBoardOptions = {
   loadPostgameOverride?: (
     roomId: string,
   ) => Promise<{ ok: true; postgame: unknown } | { ok: false }>;
+  // Tenant path only: return true from here to keep the current board when a
+  // postgame load fails, instead of wiping it to the "could not be loaded"
+  // notice. The homepage TV uses it so a followed live game that goes idle (or
+  // whose finished record has not persisted yet) keeps its last frame on the
+  // live→frozen handoff (see landing-tv.ts). The chess path ignores it.
+  onLoadError?: () => boolean;
 };
 
 export async function mountShowcaseBoard(
@@ -66,6 +72,7 @@ export async function mountShowcaseBoard(
       ...(options.loadPostgameOverride
         ? { loadPostgameOverride: options.loadPostgameOverride }
         : {}),
+      ...(options.onLoadError ? { onLoadError: options.onLoadError } : {}),
     });
   }
 
