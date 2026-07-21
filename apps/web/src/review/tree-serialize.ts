@@ -30,10 +30,15 @@ export interface SerializedNode {
   children: SerializedNode[];
 }
 
-/** A serialized tree with a format version so the reader can migrate older blobs. */
+/** A serialized tree with a format version so the reader can migrate older blobs.
+ *  `rootFen` is present only for trees rooted at a hand-set position (a
+ *  composition); absent = the variant's standard start. Positions still rebuild
+ *  by replay — the FEN only relocates the root, and the loader resolves it to a
+ *  truth state before deserializing (the adapter has no FEN hook). */
 export interface SerializedTree {
   version: 1;
   root: SerializedNode;
+  rootFen?: string;
 }
 
 /** True when at least one annotation field carries real content. Empty arrays and
@@ -71,9 +76,11 @@ function serializeNode<M, T, V>(
 export function serializeTree<M, T, V>(
   tree: GameTree<M, T, V>,
   adapter: VariantTreeAdapter<M, T, V>,
-  opts?: { skip?: (node: GameTreeNode<M, T>) => boolean },
+  opts?: { skip?: (node: GameTreeNode<M, T>) => boolean; rootFen?: string },
 ): SerializedTree {
-  return { version: 1, root: serializeNode(tree.root, adapter, opts?.skip) };
+  const out: SerializedTree = { version: 1, root: serializeNode(tree.root, adapter, opts?.skip) };
+  if (opts?.rootFen) out.rootFen = opts.rootFen;
+  return out;
 }
 
 /** Rebuild a live GameTree from a serialized blob, replaying each UCI through the
@@ -82,8 +89,9 @@ export function serializeTree<M, T, V>(
 export function deserializeTree<M, T, V>(
   adapter: VariantTreeAdapter<M, T, V>,
   serialized: SerializedTree,
+  rootTruth?: T,
 ): GameTree<M, T, V> {
-  const tree = createGameTree<M, T, V>(adapter);
+  const tree = createGameTree<M, T, V>(adapter, [], rootTruth);
   if (serialized.root.annotations) tree.annotateAt(ROOT_PATH, serialized.root.annotations);
 
   const graft = (children: SerializedNode[], parentPath: TreePath): void => {

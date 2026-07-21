@@ -9,6 +9,7 @@ import {
   applyStandardXiangqiMove,
   createInitialXiangqiState,
   getStandardXiangqiLegalMoves,
+  parseStandardXiangqiFen,
   type XiangqiMove,
 } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
@@ -107,5 +108,53 @@ describe('tree-serialize', () => {
     const tree = deserializeTree(xiangqiTreeAdapter, corrupt);
     expect(tree.root.children).toHaveLength(1);
     expect(tree.root.children[0]?.id).toBe(legalUci);
+  });
+});
+
+describe('rootFen (hand-set start positions)', () => {
+  // Red cannon + soldier vs bare general — unreachable from the standard start,
+  // so a wrongly-rooted rebuild would reject the seeded move as illegal.
+  const COMPOSITION_FEN = '3k5/4P4/9/9/9/9/9/4C4/9/4K4 r - - 0 1';
+
+  function compositionState() {
+    const parsed = parseStandardXiangqiFen(COMPOSITION_FEN);
+    if (!parsed.ok) throw new Error(parsed.error);
+    return parsed.state;
+  }
+
+  it('createGameTree roots at the provided truth and accepts its legal moves', () => {
+    const state = compositionState();
+    const tree = createGameTree(xiangqiTreeAdapter, [], state);
+    expect(tree.root.truth.board.e9).toEqual({ color: 'red', role: 'soldier' });
+    // e9-e10 is legal ONLY from the composition (from the standard start e9 is empty).
+    const path = tree.addMove(ROOT_PATH, { from: 'e9', to: 'e10' });
+    expect(path).not.toBeNull();
+  });
+
+  it('serialize carries rootFen and deserialize replays from the resolved root', () => {
+    const state = compositionState();
+    const tree = createGameTree(xiangqiTreeAdapter, [], state);
+    tree.addMove(ROOT_PATH, { from: 'e9', to: 'e10' });
+    const blob = serializeTree(tree, xiangqiTreeAdapter, { rootFen: COMPOSITION_FEN });
+    expect(blob.rootFen).toBe(COMPOSITION_FEN);
+
+    // Loader resolves rootFen → truth (the adapter has no FEN hook), then rebuilds.
+    const parsed = parseStandardXiangqiFen(blob.rootFen!);
+    if (!parsed.ok) throw new Error(parsed.error);
+    const rebuilt = deserializeTree(xiangqiTreeAdapter, blob, parsed.state);
+    expect(rebuilt.root.children).toHaveLength(1);
+    expect(rebuilt.root.children[0]!.id).toBe('e9e10');
+
+    // Without the resolved root the move is illegal from the standard start and
+    // the blob degrades to its prefix — the regression this field prevents.
+    const wrongRoot = deserializeTree(xiangqiTreeAdapter, blob);
+    expect(wrongRoot.root.children).toHaveLength(0);
+  });
+
+  it('a blob without rootFen keeps the standard start', () => {
+    const { mainline } = realMoves();
+    const tree = createGameTree(xiangqiTreeAdapter, mainline);
+    const blob = serializeTree(tree, xiangqiTreeAdapter);
+    expect(blob.rootFen).toBeUndefined();
   });
 });

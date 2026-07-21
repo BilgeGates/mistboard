@@ -5,7 +5,12 @@
 // standalone surface (no move list / engine / variations) — the study page mounts it
 // for a gamebook chapter, and /learn will mount the same player later.
 
-import type { StandardXiangqiPlayerView, XiangqiColor, XiangqiGameState } from '@mistboard/game';
+import {
+  parseStandardXiangqiFen,
+  type StandardXiangqiPlayerView,
+  type XiangqiColor,
+  type XiangqiGameState,
+} from '@mistboard/game';
 import { createXiangqiInteractiveBoard } from '../xiangqi-board.js';
 import { createGamebookSession } from './gamebook-play.js';
 import { deserializeTree, type SerializedTree } from './tree-serialize.js';
@@ -24,7 +29,14 @@ export interface XiangqiGamebookOptions {
 }
 
 export function mountXiangqiGamebook(root: HTMLElement, opts: XiangqiGamebookOptions): void {
-  const tree = deserializeTree(xiangqiTreeAdapter, opts.tree);
+  // A composition chapter roots the lesson at its hand-set position (an invalid
+  // rootFen degrades to the standard start, same posture as a corrupt blob).
+  const rootParsed = opts.tree.rootFen ? parseStandardXiangqiFen(opts.tree.rootFen) : null;
+  const tree = deserializeTree(
+    xiangqiTreeAdapter,
+    opts.tree,
+    rootParsed?.ok ? rootParsed.state : undefined,
+  );
   const session = createGamebookSession(tree, {
     moveKey: xiangqiTreeAdapter.moveKey,
     isLegal: xiangqiTreeAdapter.isLegal,

@@ -242,6 +242,7 @@ const CN_PIECE_TO_ROLE: Record<string, XiangqiPieceRole> = {
   將: 'general',
   炮: 'cannon',
   砲: 'cannon',
+  包: 'cannon', // classical woodblock spelling for the Black cannon
   兵: 'soldier',
   卒: 'soldier',
 };
@@ -268,10 +269,19 @@ const CN_NUMERAL: Record<string, number> = {
   '9': 9,
 };
 
-// Drop move-number ordinals (digits + period) and all whitespace/commas, leaving
-// a run of 4-character moves.
+// Drop move-number ordinals (digits + period), CJK punctuation, and inline
+// capture glosses (士去 etc.), leaving a run of 4-character moves. Classical
+// woodblock records interleave all three with the moves; 去 never occurs inside
+// a move token (the operators are 进/退/平), so a <piece>去 pair is always a
+// gloss, not notation.
+const CN_CAPTURE_GLOSS = /[车車马馬相象仕士帅将帥將炮砲包兵卒]去/g;
+const CJK_PUNCTUATION = /[。．、，；：！？（）「」『』]/g;
 function chineseCleaned(input: string): string {
-  return input.replace(/\d+\./g, '').replace(/[\s,]+/g, '');
+  return input
+    .replace(/\d+\./g, '')
+    .replace(CN_CAPTURE_GLOSS, '')
+    .replace(CJK_PUNCTUATION, '')
+    .replace(/[\s,]+/g, '');
 }
 
 function chineseChunks(input: string): string[] {

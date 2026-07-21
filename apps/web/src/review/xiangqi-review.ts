@@ -40,7 +40,7 @@ import { xiangqiTreeAdapter } from './xiangqi-tree-adapter.js';
 export type { AnalysisSource as XiangqiAnalysisSource } from './tree-review.js';
 
 /** Config for a standard-xiangqi review mount. */
-export type XiangqiReviewConfig = TreeReviewConfig<XiangqiMove>;
+export type XiangqiReviewConfig = TreeReviewConfig<XiangqiMove, XiangqiGameState>;
 
 /** Handle returned by mountXiangqiReview: snapshot the current tree to persist it. */
 export type XiangqiReviewHandle = TreeReviewHandle;

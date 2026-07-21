@@ -191,16 +191,18 @@ export interface GameTree<Move, Truth, View> {
 
 /** Build a tree rooted at the adapter's initial truth. Seed a mainline by folding
  *  addMove over a move list (imported game / played history); an empty seed is the
- *  analysis board's empty start position. */
+ *  analysis board's empty start position. `rootTruth` overrides the adapter's
+ *  start position — a FEN-seeded composition roots the tree at a hand-set state. */
 export function createGameTree<Move, Truth, View>(
   adapter: VariantTreeAdapter<Move, Truth, View>,
   seed: readonly Move[] = [],
+  rootTruth?: Truth,
 ): GameTree<Move, Truth, View> {
   const root: GameTreeNode<Move, Truth> = {
     id: '',
     move: null,
     ply: 0,
-    truth: adapter.initialTruth(),
+    truth: rootTruth ?? adapter.initialTruth(),
     parent: null,
     children: [],
     label: '',

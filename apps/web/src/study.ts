@@ -9,6 +9,8 @@ import './game-shell.css';
 import './live-xiangqi.css';
 import './xiangqi-postgame.css';
 import './study.css';
+import './study-index.css';
+import { parseStandardXiangqiFen, standardXiangqiFen } from '@mistboard/game';
 import type { SerializedTree } from './review/tree-serialize.js';
 import { mountXiangqiGamebook } from './review/xiangqi-gamebook.js';
 import { mountXiangqiReview, type XiangqiReviewHandle } from './review/xiangqi-review.js';
@@ -77,14 +79,17 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     renderActive();
   };
 
-  const addChapter = async (): Promise<void> => {
+  const createChapter = async (name: string, rootFen?: string): Promise<void> => {
+    // rootFen rides inside the tree blob (SerializedTree.rootFen) — a
+    // composition chapter needs no dedicated column or route change.
+    const root: SerializedTree = rootFen ? { ...EMPTY_TREE, rootFen } : EMPTY_TREE;
     const response = await fetch(`/api/studies/${study.id}/chapters`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        name: `Chapter ${chapters.length + 1}`,
+        name: name || `Chapter ${chapters.length + 1}`,
         variant: 'xiangqi',
-        root: EMPTY_TREE,
+        root,
       }),
     });
     if (!response.ok) return;
@@ -92,6 +97,11 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     chapters.push(chapter);
     switchTo(chapter.id);
   };
+
+  const addChapter = (): void =>
+    openAddChapterDialog(`Chapter ${chapters.length + 1}`, (name, rootFen) => {
+      void createChapter(name, rootFen);
+    });
 
   const removeChapter = async (id: string): Promise<void> => {
     const response = await fetch(`/api/studies/${study.id}/chapters/${id}`, { method: 'DELETE' });
@@ -197,6 +207,13 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     let handle: XiangqiReviewHandle | null = null;
     const status = statusSpan();
 
+    // A composition chapter (SerializedTree.rootFen) roots the board at its
+    // hand-set position; an invalid FEN degrades to the standard start, same
+    // posture as a corrupt blob.
+    const rootFen = chapter.root.rootFen;
+    const rootParsed = rootFen ? parseStandardXiangqiFen(rootFen) : null;
+    const rootConfig = rootParsed?.ok ? { truth: rootParsed.state, fen: rootFen! } : undefined;
+
     const save = debounce(() => {
       if (!handle) return;
       status.textContent = 'Saving…';
@@ -236,6 +253,7 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
       gamebookEditing: chapter.gamebook && study.isOwner,
       annotationEditing: study.isOwner,
       initialTree: chapter.root,
+      root: rootConfig,
       onChange: study.isOwner
         ? () => {
             // Keep the in-memory chapter tree fresh so switching tabs never drops an
@@ -532,6 +550,96 @@ function notice(text: string): HTMLElement {
   heading.textContent = text;
   shell.append(heading);
   return shell;
+}
+
+// Add-chapter dialog: name + optional hand-set start position (a composition /
+// endgame chapter). Mirrors the create-study dialog on /study (same classes,
+// study-index.css).
+function openAddChapterDialog(
+  defaultName: string,
+  onCreate: (name: string, rootFen?: string) => void,
+): void {
+  document.querySelector<HTMLDialogElement>('dialog[data-add-chapter]')?.remove();
+
+  const dialog = document.createElement('dialog');
+  dialog.dataset.addChapter = '';
+  dialog.className = 'study-create-dialog';
+
+  const heading = document.createElement('h2');
+  heading.className = 'study-create-dialog__title';
+  heading.textContent = 'New chapter';
+
+  const form = document.createElement('form');
+  form.className = 'study-create-dialog__form';
+
+  const nameField = document.createElement('label');
+  nameField.className = 'study-create-dialog__field';
+  const nameLabel = document.createElement('span');
+  nameLabel.className = 'study-create-dialog__label';
+  nameLabel.textContent = 'Name';
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'study-create-dialog__control';
+  nameInput.maxLength = 80;
+  nameInput.value = defaultName;
+  nameInput.setAttribute('aria-label', 'Chapter name');
+  nameField.append(nameLabel, nameInput);
+
+  const fenField = document.createElement('label');
+  fenField.className = 'study-create-dialog__field';
+  const fenLabel = document.createElement('span');
+  fenLabel.className = 'study-create-dialog__label';
+  fenLabel.textContent = 'Start position (FEN, optional)';
+  const fenInput = document.createElement('input');
+  fenInput.type = 'text';
+  fenInput.className = 'study-create-dialog__control';
+  fenInput.placeholder = 'Standard start';
+  fenInput.setAttribute('aria-label', 'Start position FEN');
+  fenField.append(fenLabel, fenInput);
+  const fenError = document.createElement('p');
+  fenError.className = 'study-create-dialog__error';
+
+  const actions = document.createElement('div');
+  actions.className = 'study-create-dialog__actions';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'study-create-dialog__cancel';
+  cancel.textContent = 'Cancel';
+  cancel.addEventListener('click', () => dialog.close('cancel'));
+  const start = document.createElement('button');
+  start.type = 'submit';
+  start.className = 'study-create-dialog__start';
+  start.textContent = 'Add';
+  actions.append(cancel, start);
+
+  form.append(nameField, fenField, fenError, actions);
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    fenError.textContent = '';
+    let rootFen: string | undefined;
+    const fenRaw = fenInput.value.trim();
+    if (fenRaw) {
+      const parsed = parseStandardXiangqiFen(fenRaw);
+      if (!parsed.ok) {
+        fenError.textContent = parsed.error;
+        return;
+      }
+      rootFen = standardXiangqiFen(parsed.state);
+    }
+    dialog.close('create');
+    onCreate(nameInput.value.trim(), rootFen);
+  });
+
+  dialog.append(heading, form);
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close('cancel');
+  });
+  dialog.addEventListener('close', () => dialog.remove());
+
+  document.body.append(dialog);
+  dialog.showModal();
+  nameInput.focus();
+  nameInput.select();
 }
 
 function renderError(root: HTMLElement, status: number): void {

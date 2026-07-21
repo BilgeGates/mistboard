@@ -212,7 +212,12 @@ export type DecisionSource = {
   run(): Promise<DecisionOverlay>;
 };
 
-export type TreeReviewConfig<Move> = {
+export type TreeReviewConfig<Move, Truth = never> = {
+  /** Root the tree at a hand-set position (a FEN-seeded composition) instead of
+   *  the variant's standard start. `truth` seeds the tree root; `fen` is the
+   *  canonical FEN persisted with a serialized tree (SerializedTree.rootFen).
+   *  The engine derives its own base FEN from the root truth. */
+  root?: { truth: Truth; fen: string };
   pageClassName?: string;
   ariaLabel: string;
   /** Info-card eyebrow when no meta card ('Analysis' / 'Game review'). */
@@ -273,7 +278,13 @@ export type TreeReviewConfig<Move> = {
    *  returns an error message to display, or null when it navigated/re-mounted.
    *  Only the analysis board supplies it; played/historical games keep these
    *  fields in the Share & export tab. */
-  importPanel?: { onImport(text: string): string | null };
+  importPanel?: {
+    onImport(text: string): string | null;
+    /** Accept a pasted FEN and re-mount from that position. When present the FEN
+     *  box turns editable (Enter or the Set position button submits); absent =
+     *  the box stays a read-only mirror of the current node. */
+    onImportFen?(fen: string): string | null;
+  };
 };
 
 /** Handle returned by mountTreeReview: lets a caller snapshot the current tree
@@ -289,15 +300,19 @@ let keyboardAbort: AbortController | null = null;
 export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   root: HTMLElement,
   presentation: TreePresentation<Move, Truth, View, Color, Arrow, Marker>,
-  config: TreeReviewConfig<Move>,
+  config: TreeReviewConfig<Move, Truth>,
 ): TreeReviewHandle {
   type Node = GameTreeNode<Move, Truth>;
   type Tree = GameTree<Move, Truth, View>;
   const { adapter } = presentation;
 
   const tree: Tree = config.initialTree
-    ? deserializeTree(adapter, config.initialTree)
-    : createGameTree(adapter, config.moves);
+    ? deserializeTree(adapter, config.initialTree, config.root?.truth)
+    : createGameTree(adapter, config.moves, config.root?.truth);
+  // A custom root repositions the engine too: 'moves' engines replay UCIs from
+  // this base instead of the variant's startpos.
+  const engineBaseFen =
+    config.root && presentation.engine ? presentation.engine.fen(tree.root.truth) : undefined;
   const mainlineLen = tree.mainlinePath().length;
   const notifyChange = (): void => config.onChange?.();
 
@@ -575,7 +590,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // FEN + moves-import block below the underboard tools (analysis board only);
   // its FEN mirrors the current node, its moves box prefills with the current
   // line but never clobbers in-progress typing (see render()).
-  const importPanel = config.importPanel ? createImportPanel(config.importPanel.onImport) : null;
+  const importPanel = config.importPanel ? createImportPanel(config.importPanel) : null;
   const analysisSummaryEl = document.createElement('div');
   // Chance-variant (jieqi) caption slot under the accuracy summary: a "Grading reveals…" placeholder
   // until the decomposition loads, then a one-line luck caption. Kept as a persistent child so
@@ -724,7 +739,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       if (presentation.engine?.positionMode === 'fen') {
         enginePanel.setPosition([], presentation.engine.fen(node.truth));
       } else {
-        enginePanel.setPosition(uciTo(node));
+        enginePanel.setPosition(uciTo(node), engineBaseFen);
       }
     }
     paintOverlays();
@@ -737,7 +752,9 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     // The import block mirrors the same live state: FEN of the current node, and
     // the current line in display notation — but never over a paste in progress.
     if (importPanel) {
-      if (presentation.engine) importPanel.fenInput.value = presentation.engine.fen(node.truth);
+      if (presentation.engine && document.activeElement !== importPanel.fenInput) {
+        importPanel.fenInput.value = presentation.engine.fen(node.truth);
+      }
       if (document.activeElement !== importPanel.movesInput) {
         importPanel.movesInput.value = lineLabels(node).join(' ');
       }
@@ -1034,6 +1051,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     serialize: () =>
       serializeTree(tree, adapter, {
         skip: (node) => compKeys.has(pathKey(tree.pathTo(node))),
+        rootFen: config.root?.fen,
       }),
   };
 }
@@ -1056,16 +1074,25 @@ function composeUnderboard(
   return stack;
 }
 
-/** The lichess.org/analysis FEN + moves boxes: a read-only FEN of the current
- *  position over a moves textarea with an Import action. Field refresh is driven
- *  by the controller's render(); the import handler is variant-supplied. */
-function createImportPanel(onImport: (text: string) => string | null): {
+/** The lichess.org/analysis FEN + moves boxes: the FEN of the current position
+ *  over a moves textarea with an Import action. Field refresh is driven by the
+ *  controller's render(); the import handlers are variant-supplied. With an
+ *  onImportFen handler the FEN box is editable (paste a composition → Enter or
+ *  Set position); without one it stays a read-only mirror. */
+function createImportPanel(handlers: {
+  onImport(text: string): string | null;
+  onImportFen?(fen: string): string | null;
+}): {
   el: HTMLElement;
   fenInput: HTMLInputElement;
   movesInput: HTMLTextAreaElement;
 } {
+  const { onImport, onImportFen } = handlers;
   const el = document.createElement('section');
   el.className = 'review-import';
+
+  const error = document.createElement('span');
+  error.className = 'review-import__error';
 
   const fenRow = document.createElement('div');
   fenRow.className = 'review-share__row';
@@ -1074,10 +1101,24 @@ function createImportPanel(onImport: (text: string) => string | null): {
   fenLabel.textContent = 'FEN';
   const fenInput = document.createElement('input');
   fenInput.className = 'review-share__field';
-  fenInput.readOnly = true;
+  fenInput.readOnly = !onImportFen;
   fenInput.setAttribute('aria-label', 'Current position FEN');
   fenInput.addEventListener('focus', () => fenInput.select());
   fenRow.append(fenLabel, fenInput);
+  if (onImportFen) {
+    const submitFen = (): void => {
+      error.textContent = onImportFen(fenInput.value) ?? '';
+    };
+    fenInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') submitFen();
+    });
+    const setButton = document.createElement('button');
+    setButton.type = 'button';
+    setButton.className = 'review-share__copy';
+    setButton.textContent = 'Set position';
+    setButton.addEventListener('click', submitFen);
+    fenRow.append(setButton);
+  }
 
   const movesRow = document.createElement('div');
   movesRow.className = 'review-share__row review-import__moves-row';
@@ -1091,8 +1132,6 @@ function createImportPanel(onImport: (text: string) => string | null): {
   movesInput.setAttribute('aria-label', 'Moves to import');
   movesRow.append(movesLabel, movesInput);
 
-  const error = document.createElement('span');
-  error.className = 'review-import__error';
   const importButton = document.createElement('button');
   importButton.type = 'button';
   importButton.className = 'review-share__copy';

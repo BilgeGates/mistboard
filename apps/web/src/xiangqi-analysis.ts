@@ -7,7 +7,14 @@
 // surface). This file only supplies the ingress, the client ceval sweep, and the
 // minimal meta card (no players).
 
-import type { XiangqiGameStatus, XiangqiMove } from '@mistboard/game';
+import {
+  parseStandardXiangqiFen,
+  standardXiangqiEngineFen,
+  standardXiangqiFen,
+  type XiangqiGameState,
+  type XiangqiGameStatus,
+  type XiangqiMove,
+} from '@mistboard/game';
 import './game-shell.css';
 import './live-xiangqi.css';
 import './dark-xiangqi-postgame.css';
@@ -38,6 +45,9 @@ export interface XiangqiAnalysisOptions {
   title?: string;
   /** Variant dropdown (analysis-page.ts), stacked above the meta card. */
   picker?: HTMLElement;
+  /** Hand-set start position (a FEN-seeded composition). The tree roots here,
+   *  the engine replays from this base, and `moves` apply from this state. */
+  startState?: XiangqiGameState;
 }
 
 /** Mount the interactive analysis board for a standard-xiangqi move list. An empty
@@ -48,7 +58,7 @@ export function mountXiangqiAnalysis(
   moves: XiangqiMove[],
   opts: XiangqiAnalysisOptions = {},
 ): void {
-  const replay = buildXiangqiReplayFromMoves(moves);
+  const replay = buildXiangqiReplayFromMoves(moves, opts.startState);
 
   const finalStatus = xiangqiReplayViewAtPly(replay, replay.maxPly).status;
   // With a variant picker (the /analysis route), the dropdown is the ENTIRE
@@ -63,7 +73,9 @@ export function mountXiangqiAnalysis(
       variantName: 'Xiangqi',
       subline: replay.maxPly
         ? `${replay.maxPly} ${replay.maxPly === 1 ? 'ply' : 'plies'}`
-        : 'Start position',
+        : opts.startState
+          ? 'Custom position'
+          : 'Start position',
       status:
         finalStatus.type === 'finished'
           ? `${finalStatus.winner === 'red' ? 'Red wins' : finalStatus.winner === 'black' ? 'Black wins' : 'Draw'} by ${finalStatus.reason}`
@@ -82,11 +94,19 @@ export function mountXiangqiAnalysis(
     // Pass the raw moves so the review's tree truncates an illegal seed itself and
     // surfaces the notice (the legal prefix drives the client sweep above).
     moves,
+    // A hand-set start roots the tree + engine at the composition's position.
+    root: opts.startState
+      ? { truth: opts.startState, fen: standardXiangqiFen(opts.startState) }
+      : undefined,
     // Roomless import: whole-game analysis is a client ceval sweep (shared with the
     // historical library). Null when there is no game yet to analyse.
-    analysis: buildXiangqiClientAnalysisSource(replay),
+    analysis: buildXiangqiClientAnalysisSource(
+      replay,
+      opts.startState ? standardXiangqiEngineFen(opts.startState) : undefined,
+    ),
     // Underboard FEN + moves boxes (lichess.org/analysis): a successful import
-    // re-mounts via the shareable ?moves= link, so the seeded board has a URL.
+    // re-mounts via the shareable ?moves= / ?fen= link, so the seeded board has
+    // a URL.
     importPanel: {
       onImport: (text) => {
         const trimmed = text.trim();
@@ -95,11 +115,25 @@ export function mountXiangqiAnalysis(
         if (result.error || result.moves.length === 0) {
           return result.error ?? 'No moves recognized.';
         }
+        // A full-game import is anchored at the standard start, so it replaces
+        // any custom position.
         const url = new URL(window.location.href);
+        url.searchParams.delete('fen');
         url.searchParams.set(
           'moves',
           result.moves.map((move) => `${move.from}-${move.to}`).join(' '),
         );
+        window.location.assign(url.toString());
+        return null;
+      },
+      onImportFen: (fen) => {
+        const trimmed = fen.trim();
+        if (!trimmed) return 'Paste a FEN to set the position.';
+        const parsed = parseStandardXiangqiFen(trimmed);
+        if (!parsed.ok) return parsed.error;
+        const url = new URL(window.location.href);
+        url.searchParams.delete('moves');
+        url.searchParams.set('fen', standardXiangqiFen(parsed.state));
         window.location.assign(url.toString());
         return null;
       },

@@ -16,9 +16,14 @@ const ANALYSIS_SWEEP_DEPTH = 12;
  *  fixed depth and reports progress; scores are normalized to Red's POV. */
 export function buildXiangqiClientAnalysisSource(
   replay: XiangqiReplay,
+  initialFen?: string,
 ): XiangqiAnalysisSource | null {
   if (replay.maxPly < 1) return null;
   const engineMovesUci = replay.moves.map((move) => xiangqiMoveToFsfUci(move));
+  // Ply parity maps to side-to-move via the START position's turn — a FEN-seeded
+  // composition can open with black to move, flipping every ply's POV sign.
+  const startStatus = replay.views[0]?.status;
+  const redStarts = startStatus?.type !== 'playing' || startStatus.turn === 'red';
   return {
     requestLabel: 'Analyse the whole game',
     run: async (onProgress) => {
@@ -28,11 +33,12 @@ export function buildXiangqiClientAnalysisSource(
         for (let ply = 0; ply <= replay.maxPly; ply += 1) {
           const update = await handle.evaluate({
             movesUci: engineMovesUci.slice(0, ply),
+            initialFen,
             multiPv: 1,
             maxDepth: ANALYSIS_SWEEP_DEPTH,
           });
           const best = update.lines[0];
-          const redToMove = ply % 2 === 0;
+          const redToMove = (ply % 2 === 0) === redStarts;
           const cp = best?.scoreCp ?? null;
           const mate = best?.mate ?? null;
           plies.push({
@@ -47,11 +53,14 @@ export function buildXiangqiClientAnalysisSource(
       } finally {
         handle.dispose();
       }
-      return computeGameAnalysis({
-        engineId: 'fairy-stockfish',
-        depth: ANALYSIS_SWEEP_DEPTH,
-        plies,
-      });
+      return computeGameAnalysis(
+        {
+          engineId: 'fairy-stockfish',
+          depth: ANALYSIS_SWEEP_DEPTH,
+          plies,
+        },
+        { firstMover: redStarts ? 'red' : 'black' },
+      );
     },
   };
 }

@@ -13,6 +13,7 @@ import {
   getStandardXiangqiPlayerView,
   isStandardXiangqiLegalMove,
   type StandardXiangqiPlayerView,
+  type XiangqiGameState,
   type XiangqiMove,
 } from '@mistboard/game';
 
@@ -30,12 +31,15 @@ export interface XiangqiReplay {
   illegalAt?: { ply: number; move: XiangqiMove };
 }
 
-/** Replay a move list from the standard opening, snapshotting the truth view at
- *  every ply. Stops (and reports `illegalAt`) at the first illegal move rather
- *  than throwing, so a bad import degrades to "the legal prefix" instead of a
- *  crash. */
-export function buildXiangqiReplayFromMoves(moves: readonly XiangqiMove[]): XiangqiReplay {
-  let state = createInitialXiangqiState('analysis');
+/** Replay a move list from the standard opening (or a hand-set `startState` — a
+ *  FEN-seeded composition), snapshotting the truth view at every ply. Stops (and
+ *  reports `illegalAt`) at the first illegal move rather than throwing, so a bad
+ *  import degrades to "the legal prefix" instead of a crash. */
+export function buildXiangqiReplayFromMoves(
+  moves: readonly XiangqiMove[],
+  startState?: XiangqiGameState,
+): XiangqiReplay {
+  let state = startState ?? createInitialXiangqiState('analysis');
   const views: StandardXiangqiPlayerView[] = [getStandardXiangqiPlayerView(state, 'red')];
   const applied: XiangqiMove[] = [];
   for (let i = 0; i < moves.length; i++) {

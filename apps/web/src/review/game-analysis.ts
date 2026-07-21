@@ -93,8 +93,14 @@ function moverCp(cpRed: number | null, mate: number | null, mover: 'red' | 'blac
   return sign * Math.max(-ACPL_CAP, Math.min(ACPL_CAP, cpRed ?? 0));
 }
 
-/** Turn the Red-POV eval series into per-move judgments + per-player aggregates. */
-export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): GameAnalysis {
+/** Turn the Red-POV eval series into per-move judgments + per-player aggregates.
+ *  `firstMover` attributes ply parity — a FEN-seeded composition can open with
+ *  black to move, flipping which side owns each ply (default red, ply 1). */
+export function computeGameAnalysis(
+  response: XiangqiGameAnalysisResponse,
+  opts?: { firstMover?: 'red' | 'black' },
+): GameAnalysis {
+  const firstMover = opts?.firstMover ?? 'red';
   const evals = [...response.plies].sort((a, b) => a.ply - b.ply);
   const moves: MoveAnalysis[] = [];
   const redWinPercents = evals.map((entry) => winPercent(entry.cp, entry.mate));
@@ -110,7 +116,8 @@ export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): Game
   for (let ply = 1; ply < evals.length; ply += 1) {
     const before = evals[ply - 1]!;
     const after = evals[ply]!;
-    const mover: 'red' | 'black' = ply % 2 === 1 ? 'red' : 'black';
+    const mover: 'red' | 'black' =
+      ply % 2 === 1 ? firstMover : firstMover === 'red' ? 'black' : 'red';
     // Win% from the mover's POV: Red POV as-is, Black POV is its complement.
     const redBefore = redWinPercents[ply - 1]!;
     const redAfter = redWinPercents[ply]!;
@@ -146,7 +153,7 @@ export function computeGameAnalysis(response: XiangqiGameAnalysisResponse): Game
   const summarize = (side: 'red' | 'black'): PlayerAnalysis => {
     const b = acc[side];
     return {
-      accuracy: side === 'red' ? accuracies.first : accuracies.second,
+      accuracy: side === firstMover ? accuracies.first : accuracies.second,
       inaccuracies: b.i,
       mistakes: b.m,
       blunders: b.b,

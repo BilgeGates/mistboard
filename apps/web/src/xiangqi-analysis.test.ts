@@ -106,6 +106,44 @@ describe('mountXiangqiAnalysisPage', () => {
     root.remove();
   });
 
+  it('seeds a hand-set position from a ?fen= link (composition ingress)', () => {
+    // Red cannon + soldier vs bare general — nothing like this is reachable
+    // from the start, so the pieces below prove the FEN actually rooted the tree.
+    const fen = encodeURIComponent('3k5/4P4/9/9/9/9/9/4C4/9/4K4 r - - 0 1');
+    window.history.pushState({}, '', `/analysis/xiangqi?fen=${fen}`);
+    const root = freshRoot();
+    mountXiangqiAnalysisPage(root);
+    expect(root.querySelector('.xiangqi-live-board')).not.toBeNull();
+    // 5 pieces on the board, not the 32-piece start.
+    expect(root.querySelectorAll('[data-square] .xq-piece, .xq-piece').length).toBeLessThan(10);
+    expect(root.textContent).toContain('Custom position');
+    // The FEN box is editable on the analysis surface (Set position affordance).
+    const fenInput = root.querySelector<HTMLInputElement>('.review-import input');
+    expect(fenInput?.readOnly).toBe(false);
+    expect(root.textContent).toContain('Set position');
+    root.remove();
+  });
+
+  it('reads ?moves= as coordinate moves from the ?fen= position', () => {
+    const fen = encodeURIComponent('3k5/4P4/9/9/9/9/9/4C4/9/4K4 r - - 0 1');
+    // e9-e10 is the winning soldier push in that position; legal only from the FEN root.
+    window.history.pushState({}, '', `/analysis/xiangqi?fen=${fen}&moves=e9e10`);
+    const root = freshRoot();
+    mountXiangqiAnalysisPage(root);
+    expect(root.querySelector('.move-tree')?.textContent).toContain('e9-e10');
+    expect(root.textContent).not.toMatch(/Truncated import/i);
+    root.remove();
+  });
+
+  it('degrades an invalid ?fen= to the standard start', () => {
+    window.history.pushState({}, '', '/analysis/xiangqi?fen=not-a-fen');
+    const root = freshRoot();
+    mountXiangqiAnalysisPage(root);
+    expect(root.querySelector('.xiangqi-live-board')).not.toBeNull();
+    expect(root.textContent).toContain('Start position');
+    root.remove();
+  });
+
   it('sizes the review shell for the square-grid river gutter', () => {
     window.history.pushState({}, '', '/analysis/xiangqi?xqLayout=cell');
     const root = freshRoot();

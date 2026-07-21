@@ -7,6 +7,7 @@
 import './game-shell.css';
 import './study.css';
 import './study-index.css';
+import { parseStandardXiangqiFen, standardXiangqiFen } from '@mistboard/game';
 import { buildNav } from './site-shell.js';
 
 // A fresh study starts with one blank chapter at the standard start position.
@@ -264,6 +265,18 @@ function openCreateStudyDialog(): void {
   visSelect.value = 'private';
   visField.append(visSelect);
 
+  // Optional hand-set start position (a composition / endgame study). Left
+  // empty, the chapter opens at the standard start.
+  const fenField = dialogField('Start position (FEN, optional)');
+  const fenInput = document.createElement('input');
+  fenInput.type = 'text';
+  fenInput.className = 'study-create-dialog__control';
+  fenInput.placeholder = 'Standard start';
+  fenInput.setAttribute('aria-label', 'Start position FEN');
+  fenField.append(fenInput);
+  const fenError = document.createElement('p');
+  fenError.className = 'study-create-dialog__error';
+
   const grid = document.createElement('div');
   grid.className = 'study-create-dialog__grid';
   grid.append(nameField, visField);
@@ -281,14 +294,26 @@ function openCreateStudyDialog(): void {
   start.textContent = 'Start';
   actions.append(cancel, start);
 
-  form.append(grid, actions);
+  form.append(grid, fenField, fenError, actions);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
+    fenError.textContent = '';
+    let rootFen: string | undefined;
+    const fenRaw = fenInput.value.trim();
+    if (fenRaw) {
+      const parsed = parseStandardXiangqiFen(fenRaw);
+      if (!parsed.ok) {
+        fenError.textContent = parsed.error;
+        return;
+      }
+      rootFen = standardXiangqiFen(parsed.state);
+    }
     start.disabled = true;
     start.textContent = 'Creating…';
     void createStudy(
       nameInput.value.trim() || 'Untitled study',
       visSelect.value as StudyVisibility,
+      rootFen,
     ).catch(() => {
       start.disabled = false;
       start.textContent = 'Sign in to create';
@@ -317,14 +342,21 @@ function dialogField(labelText: string): HTMLElement {
   return wrap;
 }
 
-async function createStudy(name: string, visibility: StudyVisibility): Promise<void> {
+async function createStudy(
+  name: string,
+  visibility: StudyVisibility,
+  rootFen?: string,
+): Promise<void> {
+  // rootFen rides inside the serialized tree blob (SerializedTree.rootFen), so a
+  // composition chapter needs no dedicated column or route change.
+  const root = rootFen ? { ...EMPTY_TREE, rootFen } : EMPTY_TREE;
   const response = await fetch('/api/studies', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       name,
       visibility,
-      chapter: { name: 'Chapter 1', variant: 'xiangqi', root: EMPTY_TREE },
+      chapter: { name: 'Chapter 1', variant: 'xiangqi', root },
     }),
   });
   if (!response.ok) throw new Error(`create failed: ${response.status}`);
