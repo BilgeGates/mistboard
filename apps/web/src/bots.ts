@@ -1,31 +1,24 @@
+// Public bot directory (/bots) and bot profile (/bot/:id). The directory is a
+// compact lichess-density roster (featured identities + the Fairy-Stockfish
+// ladder); the profile page reuses the player-profile surface primitives
+// (profile-shell, header shell, rating rail, game rows) so it renders as a
+// sibling of /@handle. Play affordances create the game directly via
+// bot-play.ts; there is no setup dialog.
 import { maybeGameSpecForId } from '@mistboard/game';
 import './account-profile.css';
 import './bots.css';
+import { bindBotPlayControl } from './bot-play.js';
 import { buildCommunityLayout } from './community-rail.js';
 import type { FeaturedGame } from './game-display.js';
 import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
 import { buildNav, buildNotice } from './site-shell.js';
+import { renderVariantMarker } from './variant-markers.js';
+import { variantMiniIdForRawVariant } from './variants.js';
 
-type BotPlay = {
-  mode: 'pve';
+type BotPlayOption = {
   gameSpecId: string;
   engineId: string;
-  timeControl: {
-    initialMs: number;
-    incrementMs: number;
-  };
-  preferredColor: BotPreferredColor;
-};
-
-type BotPreferredColor = 'random' | 'white' | 'black' | 'red';
-
-type BotPlayChoice = {
-  preferredColor: BotPreferredColor;
-};
-
-type BotColorChoice = {
-  value: BotPreferredColor;
-  label: string;
+  playable: boolean;
 };
 
 type BotRecord = {
@@ -56,7 +49,14 @@ type BotProfile = {
   activeEngineId: string;
   defaultGameSpecId: string;
   supportedGameSpecIds: string[];
-  play: BotPlay;
+  play: {
+    mode: 'pve';
+    gameSpecId: string;
+    engineId: string;
+    timeControl: { initialMs: number; incrementMs: number };
+    preferredColor: 'random' | 'white' | 'black' | 'red';
+  };
+  playOptions?: BotPlayOption[];
   gamesTotal: number;
   record: BotRecord;
   rating: BotRatingSnapshot | null;
@@ -72,9 +72,12 @@ const GAME_SPEC_LABELS: Record<string, string> = {
   jieqi: 'Reveal Xiangqi',
   banqi: 'Flip Xiangqi',
   'crossroads-chess': 'Crossroads Chess',
+  'fortress-xiangqi': 'Fortress Xiangqi',
 };
 
 const HIDDEN_BOT_GAME_SPEC_IDS = new Set(['dark-draft960']);
+
+const LADDER_BOT_ID_PREFIX = 'fairy-stockfish-level-';
 
 export async function mountBots(root: HTMLElement): Promise<void> {
   root.replaceChildren();
@@ -96,7 +99,7 @@ export async function mountBots(root: HTMLElement): Promise<void> {
 
   const sub = document.createElement('p');
   sub.className = 'bots-sub';
-  sub.textContent = 'Public engine opponents with published profiles and direct play.';
+  sub.textContent = 'Engine opponents with public profiles. Pick a variant to start a game.';
 
   header.append(eyebrow, heading, sub);
 
@@ -150,21 +153,19 @@ export async function mountBotProfile(root: HTMLElement, botId: string): Promise
 
   document.title = `${bot.displayName} · Bot · Mistboard`;
 
-  const main = document.createElement('div');
-  main.className = 'bot-profile-main';
-  main.append(buildBotHeader(bot), buildBotPlayPanel(bot), buildRecentGames(bot));
-
   const sidebar = document.createElement('aside');
   sidebar.className = 'bot-profile-sidebar';
-  sidebar.append(buildBotRatingPanel(bot));
-  if (bot.bio.trim().length > 0) sidebar.append(buildBotAbout(bot));
-  sidebar.append(buildBotVariantsPanel(bot));
+  sidebar.append(buildBotRatingsRail(bot), buildBotAbout(bot));
+
+  const main = document.createElement('div');
+  main.className = 'bot-profile-main';
+  main.append(buildBotPlayPanel(bot), buildRecentGames(bot));
 
   const body = document.createElement('div');
-  body.className = 'bot-profile-body';
+  body.className = 'profile-body bot-profile-body';
   body.append(sidebar, main);
 
-  shell.append(body);
+  shell.append(buildBotHeader(bot), body);
 }
 
 async function fetchBots(): Promise<BotProfile[]> {
@@ -184,115 +185,190 @@ async function fetchBotProfile(botId: string): Promise<BotProfile> {
   return data.bot;
 }
 
+// ── Directory ───────────────────────────────────────────────────────────────
+
 function buildBotDirectorySections(bots: BotProfile[]): HTMLElement[] {
-  const groups: Array<{ title: string; bots: BotProfile[] }> = [
-    { title: 'Featured bots', bots: bots.filter((bot) => bot.ownerType === 'system') },
-    { title: 'Community bots', bots: bots.filter((bot) => bot.ownerType === 'user') },
+  const system = bots.filter((bot) => bot.ownerType === 'system');
+  const ladder = system
+    .filter((bot) => bot.id.startsWith(LADDER_BOT_ID_PREFIX))
+    .sort((a, b) => ladderLevel(a) - ladderLevel(b));
+  const featured = system.filter((bot) => !bot.id.startsWith(LADDER_BOT_ID_PREFIX));
+  const community = bots.filter((bot) => bot.ownerType === 'user');
+
+  const groups: Array<{ title: string; rows: HTMLElement[] }> = [
+    { title: 'Featured', rows: featured.map(buildFeaturedRow) },
+    { title: 'Fairy-Stockfish ladder', rows: ladder.map(buildLadderRow) },
+    { title: 'Community bots', rows: community.map(buildFeaturedRow) },
   ];
-  return groups.filter((group) => group.bots.length > 0).map(buildBotDirectorySection);
+  return groups.filter((group) => group.rows.length > 0).map(buildRosterSection);
 }
 
-function buildBotDirectorySection(group: { title: string; bots: BotProfile[] }): HTMLElement {
+function ladderLevel(bot: BotProfile): number {
+  const level = Number.parseInt(bot.id.slice(LADDER_BOT_ID_PREFIX.length), 10);
+  return Number.isFinite(level) ? level : Number.MAX_SAFE_INTEGER;
+}
+
+function buildRosterSection(group: { title: string; rows: HTMLElement[] }): HTMLElement {
   const section = document.createElement('section');
-  section.className = 'bot-directory-section';
+  section.className = 'bot-roster-section';
 
   const header = document.createElement('div');
-  header.className = 'bot-directory-section-header';
+  header.className = 'bot-roster-header';
 
   const title = document.createElement('h2');
   title.textContent = group.title;
 
   const count = document.createElement('span');
-  count.className = 'bot-directory-count';
-  count.textContent = `${group.bots.length} ${group.bots.length === 1 ? 'bot' : 'bots'}`;
+  count.className = 'bot-roster-count';
+  count.textContent = `${group.rows.length} ${group.rows.length === 1 ? 'bot' : 'bots'}`;
 
   header.append(title, count);
 
   const list = document.createElement('div');
-  list.className = 'bot-directory-list';
-  list.append(...group.bots.map(buildBotCard));
+  list.className = 'bot-roster';
+  list.append(...group.rows);
 
   section.append(header, list);
   return section;
 }
 
-function buildBotCard(bot: BotProfile): HTMLElement {
-  const card = document.createElement('article');
-  card.className = 'bot-card';
+// Featured (and community) row: marker, name + bio + one chip per variant,
+// primary rating and games on the right.
+function buildFeaturedRow(bot: BotProfile): HTMLElement {
+  const row = document.createElement('article');
+  row.className = 'bot-row bot-row-featured';
 
-  const header = document.createElement('div');
-  header.className = 'bot-card-header';
+  const marker = variantThumb(bot.defaultGameSpecId, 40, 'bot-row-marker');
+  if (marker) row.append(marker);
 
-  const identity = document.createElement('div');
-  identity.className = 'bot-card-identity';
+  const body = document.createElement('div');
+  body.className = 'bot-row-body';
+
+  const title = document.createElement('div');
+  title.className = 'bot-row-title';
+
+  const name = document.createElement('a');
+  name.className = 'bot-row-name';
+  name.href = `/bot/${encodeURIComponent(bot.id)}`;
+  name.textContent = bot.displayName;
 
   const badge = document.createElement('span');
   badge.className = 'bot-badge';
   badge.textContent = 'BOT';
 
-  const title = document.createElement('a');
-  title.className = 'bot-card-title';
-  title.href = `/bot/${encodeURIComponent(bot.id)}`;
-  title.textContent = bot.displayName;
-  identity.append(badge, title);
-
-  header.append(identity, buildBotCardRating(bot));
-
-  const details = document.createElement('div');
-  details.className = 'bot-card-details';
-  details.append(
-    detailChip(defaultGameSpecLabel(bot)),
-    detailChip(timeControlLabel(bot.play.timeControl)),
-    detailChip(recordLabel(bot.record), 'bot-record-chip'),
-    detailChip(gameCountLabel(bot.gamesTotal), 'bot-games-chip'),
-  );
-
-  const ratingStrip = buildBotRatingStrip(bot, 4);
+  title.append(name, badge);
 
   const bio = document.createElement('p');
-  bio.className = 'bot-card-bio';
+  bio.className = 'bot-row-bio';
   bio.textContent = bot.bio.trim() || 'Public Mistboard bot profile.';
 
-  const variants = document.createElement('div');
-  variants.className = 'bot-variant-list';
-  for (const gameSpecId of supportedGameSpecIds(bot)) {
-    variants.append(detailChip(gameSpecLabel(gameSpecId), 'bot-variant-chip'));
-  }
+  const chips = document.createElement('div');
+  chips.className = 'bot-row-chips';
+  for (const option of playOptionsFor(bot)) chips.append(buildPlayChip(bot, option));
 
-  const actions = document.createElement('div');
-  actions.className = 'bot-card-actions';
-  actions.append(buildPlayButton(bot));
+  body.append(title, bio, chips);
 
-  const profile = document.createElement('a');
-  profile.className = 'bot-profile-link';
-  profile.href = title.href;
-  profile.textContent = 'Profile';
-  actions.append(profile);
+  const figures = document.createElement('div');
+  figures.className = 'bot-row-figures';
 
-  card.append(header, details);
-  if (ratingStrip) card.append(ratingStrip);
-  card.append(bio, variants, actions);
-  return card;
-}
-
-function buildBotCardRating(bot: BotProfile): HTMLElement {
-  const rating = document.createElement('div');
-  rating.className = 'bot-card-rating';
-
-  const value = document.createElement('span');
-  value.className = 'bot-card-rating-value';
   const ratingSnapshot = primaryRating(bot);
-  value.textContent = ratingSnapshot ? ratingLabel(ratingSnapshot) : '—';
+  const ratingValue = document.createElement('span');
+  ratingValue.className = 'bot-row-rating';
+  ratingValue.textContent = ratingSnapshot ? ratingLabel(ratingSnapshot) : '—';
 
-  const label = document.createElement('span');
-  label.className = 'bot-card-rating-label';
-  label.textContent = ratingSnapshot
-    ? `${timeClassLabel(ratingSnapshot.timeClass)} rating`
+  const ratingCaption = document.createElement('span');
+  ratingCaption.className = 'bot-row-figures-label';
+  ratingCaption.textContent = ratingSnapshot
+    ? `${gameSpecLabel(ratingSnapshot.gameSpecId)} ${timeClassLabel(ratingSnapshot.timeClass)}`
     : 'Unrated';
 
-  rating.append(value, label);
-  return rating;
+  const games = document.createElement('span');
+  games.className = 'bot-row-games';
+  games.textContent = gameCountLabel(bot.gamesTotal);
+
+  figures.append(ratingValue, ratingCaption, games);
+
+  row.append(body, figures);
+  return row;
 }
+
+// Ladder row: table-like, one per level. Name, xiangqi blitz rating, then a
+// play chip per variant (Fortress may be off in some environments).
+function buildLadderRow(bot: BotProfile): HTMLElement {
+  const row = document.createElement('article');
+  row.className = 'bot-row bot-row-ladder';
+
+  const name = document.createElement('a');
+  name.className = 'bot-row-name';
+  name.href = `/bot/${encodeURIComponent(bot.id)}`;
+  name.textContent = bot.displayName;
+
+  const rating = document.createElement('span');
+  rating.className = 'bot-row-rating bot-row-ladder-rating';
+  const blitz = botRatings(bot).find(
+    (snapshot) => snapshot.gameSpecId === 'xiangqi' && snapshot.timeClass === 'blitz',
+  );
+  rating.textContent = blitz ? ratingLabel(blitz) : '—';
+  rating.title = blitz ? 'Xiangqi blitz rating' : 'No published rating yet';
+
+  const chips = document.createElement('div');
+  chips.className = 'bot-row-chips';
+  for (const option of playOptionsFor(bot)) chips.append(buildPlayChip(bot, option));
+
+  row.append(name, rating, chips);
+  return row;
+}
+
+// A playable chip is itself the play control: click starts the game against
+// this bot in that variant (random side, the bot's standing clock). Unplayable
+// variants render as muted, non-interactive chips.
+function buildPlayChip(bot: BotProfile, option: BotPlayOption): HTMLElement {
+  const label = gameSpecLabel(option.gameSpecId);
+
+  if (!option.playable) {
+    const chip = document.createElement('span');
+    chip.className = 'bot-play-chip bot-play-chip-off';
+    chip.title = 'Not available right now';
+    appendChipContent(chip, option.gameSpecId, label);
+    return chip;
+  }
+
+  const chip = document.createElement('button');
+  chip.type = 'button';
+  chip.className = 'bot-play-chip';
+  chip.title = `Play ${label} against ${bot.displayName}`;
+  const labelEl = appendChipContent(chip, option.gameSpecId, label);
+
+  const arrow = document.createElement('span');
+  arrow.className = 'bot-play-chip-arrow';
+  arrow.setAttribute('aria-hidden', 'true');
+  arrow.textContent = '▸';
+  chip.append(arrow);
+
+  bindBotPlayControl(
+    chip,
+    () => ({ botId: bot.id, gameSpecId: option.gameSpecId, preferredColor: 'random' }),
+    {
+      onStateChange: (state) => {
+        labelEl.textContent =
+          state === 'pending' ? 'Starting...' : state === 'error' ? 'Try again' : label;
+      },
+    },
+  );
+  return chip;
+}
+
+function appendChipContent(chip: HTMLElement, gameSpecId: string, label: string): HTMLElement {
+  const thumb = variantThumb(gameSpecId, 16, 'bot-play-chip-thumb');
+  if (thumb) chip.append(thumb);
+  const labelEl = document.createElement('span');
+  labelEl.className = 'bot-play-chip-label';
+  labelEl.textContent = label;
+  chip.append(labelEl);
+  return labelEl;
+}
+
+// ── Profile ─────────────────────────────────────────────────────────────────
 
 function buildBotHeader(bot: BotProfile): HTMLElement {
   const games = document.createElement('span');
@@ -315,17 +391,25 @@ function buildBotHeader(bot: BotProfile): HTMLElement {
   });
 }
 
+// Trimmed to what matters: primary rating, record, games, variants count. The
+// raw engine id is provenance, not a stat; it lives in the About panel.
 function buildBotStats(bot: BotProfile): HTMLElement {
   const stats = document.createElement('div');
   stats.className = 'profile-stats bot-stats';
-  const cells = [statCell(gameSpecLabel(bot.defaultGameSpecId), 'Default')];
+  const cells: HTMLElement[] = [];
   const ratingSnapshot = primaryRating(bot);
-  if (ratingSnapshot) cells.push(statCell(ratingLabel(ratingSnapshot), 'Rating'));
+  if (ratingSnapshot) {
+    cells.push(
+      statCell(
+        ratingLabel(ratingSnapshot),
+        `${gameSpecLabel(ratingSnapshot.gameSpecId)} ${timeClassLabel(ratingSnapshot.timeClass)}`,
+      ),
+    );
+  }
   cells.push(
     statCell(recordLabel(bot.record), 'Record'),
-    statCell(timeControlLabel(bot.play.timeControl), 'Play clock'),
-    statCell(String(supportedGameSpecIds(bot).length), 'Variants'),
-    statCell(bot.activeEngineId, 'Engine'),
+    statCell(new Intl.NumberFormat().format(bot.gamesTotal), 'Games'),
+    statCell(String(playOptionsFor(bot).length), 'Variants'),
   );
   stats.append(...cells);
   return stats;
@@ -347,76 +431,158 @@ function statCell(value: string, label: string): HTMLElement {
   return stat;
 }
 
+// "Play <name>" panel: one row per supported variant, each with a direct-play
+// button. Unplayable variants stay listed but muted, with no action.
 function buildBotPlayPanel(bot: BotProfile): HTMLElement {
   const section = document.createElement('section');
-  section.className = 'bot-profile-play';
+  section.className = 'bot-panel bot-profile-play';
 
   const heading = document.createElement('h2');
-  heading.textContent = 'Play';
+  heading.textContent = `Play ${bot.displayName}`;
+  section.append(heading);
 
-  const meta = document.createElement('p');
-  meta.textContent = `${gameSpecLabel(bot.play.gameSpecId)} · ${timeControlLabel(
-    bot.play.timeControl,
-  )} · choose side`;
-
-  section.append(heading, meta, buildPlayButton(bot));
+  const list = document.createElement('div');
+  list.className = 'bot-play-list';
+  for (const option of playOptionsFor(bot)) list.append(buildPlayRow(bot, option));
+  section.append(list);
   return section;
 }
 
-function buildBotRatingPanel(bot: BotProfile): HTMLElement {
+function buildPlayRow(bot: BotProfile, option: BotPlayOption): HTMLElement {
+  const row = document.createElement('div');
+  row.className = option.playable ? 'bot-play-row' : 'bot-play-row bot-play-row-off';
+
+  const thumb = variantThumb(option.gameSpecId, 32, 'bot-play-row-marker');
+  if (thumb) row.append(thumb);
+
+  const meta = document.createElement('div');
+  meta.className = 'bot-play-row-meta';
+
+  const name = document.createElement('span');
+  name.className = 'bot-play-row-name';
+  name.textContent = gameSpecLabel(option.gameSpecId);
+
+  const clock = document.createElement('span');
+  clock.className = 'bot-play-row-clock';
+  clock.textContent = option.playable
+    ? `${timeControlLabel(bot.play.timeControl)} · random side`
+    : 'Not available right now';
+
+  meta.append(name, clock);
+  row.append(meta);
+
+  if (option.playable) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'landing-setup-start bot-play-row-button';
+    button.textContent = 'Play';
+    bindBotPlayControl(
+      button,
+      () => ({ botId: bot.id, gameSpecId: option.gameSpecId, preferredColor: 'random' }),
+      { pendingLabel: 'Starting...', errorLabel: 'Try again' },
+    );
+    row.append(button);
+  }
+
+  return row;
+}
+
+// Sidebar rating rail in the player-profile idiom: one compact row per
+// published variant/time-class snapshot.
+function buildBotRatingsRail(bot: BotProfile): HTMLElement {
   const section = document.createElement('section');
-  section.className = 'bot-profile-rating';
+  section.className = 'profile-ratings bot-profile-ratings';
 
   const heading = document.createElement('h2');
-  heading.textContent = 'Rating';
+  heading.className = 'profile-ratings-heading';
+  heading.textContent = 'Ratings';
   section.append(heading);
 
   const ratings = botRatings(bot);
   if (ratings.length === 0) {
     const empty = document.createElement('p');
+    empty.className = 'profile-ratings-empty';
     empty.textContent = 'No published rating yet.';
     section.append(empty);
     return section;
   }
 
-  section.append(buildBotRatingGrid(ratings));
+  const rail = document.createElement('div');
+  rail.className = 'profile-ratings-rail';
+  for (const rating of ratings) rail.append(buildBotRatingRow(rating));
+  section.append(rail);
   return section;
+}
+
+function buildBotRatingRow(rating: BotRatingSnapshot): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'profile-rating-row bot-rating-row';
+
+  const thumb = variantThumb(rating.gameSpecId, 32, 'profile-rating-thumb');
+  if (thumb) row.append(thumb);
+
+  const meta = document.createElement('div');
+  meta.className = 'profile-rating-meta';
+
+  const name = document.createElement('span');
+  name.className = 'profile-rating-name';
+  name.textContent = `${gameSpecLabel(rating.gameSpecId)} · ${timeClassLabel(rating.timeClass)}`;
+
+  const figures = document.createElement('span');
+  figures.className = 'profile-rating-figures';
+
+  const value = document.createElement('span');
+  value.className = 'profile-rating-value';
+  value.textContent = new Intl.NumberFormat().format(rating.rating);
+  if (rating.provisional) {
+    const q = document.createElement('span');
+    q.className = 'profile-rating-q';
+    q.textContent = '?';
+    value.append(q);
+  }
+
+  const games = document.createElement('span');
+  games.className = 'profile-rating-games';
+  games.textContent = `${rating.games} rated ${rating.games === 1 ? 'game' : 'games'}`;
+
+  figures.append(value, games);
+  meta.append(name, figures);
+  row.append(meta);
+  return row;
 }
 
 function buildBotAbout(bot: BotProfile): HTMLElement {
   const section = document.createElement('section');
-  section.className = 'bot-profile-about';
+  section.className = 'bot-panel bot-profile-about';
 
   const heading = document.createElement('h2');
   heading.textContent = 'About';
+  section.append(heading);
 
-  const body = document.createElement('p');
-  body.textContent = bot.bio;
+  const body = document.createElement('div');
+  body.className = 'bot-profile-about-body';
 
-  section.append(heading, body);
-  return section;
-}
-
-function buildBotVariantsPanel(bot: BotProfile): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'bot-profile-variants';
-
-  const heading = document.createElement('h2');
-  heading.textContent = 'Variants';
-
-  const list = document.createElement('div');
-  list.className = 'bot-profile-variant-list';
-  for (const gameSpecId of supportedGameSpecIds(bot)) {
-    list.append(detailChip(gameSpecLabel(gameSpecId), 'bot-variant-chip'));
+  if (bot.bio.trim().length > 0) {
+    const bio = document.createElement('p');
+    bio.textContent = bot.bio;
+    body.append(bio);
   }
 
-  section.append(heading, list);
+  const engineIds = [...new Set(playOptionsFor(bot).map((option) => option.engineId))];
+  if (engineIds.length > 0) {
+    const provenance = document.createElement('p');
+    provenance.className = 'bot-profile-provenance';
+    provenance.textContent = `${engineIds.length === 1 ? 'Engine' : 'Engines'}: ${engineIds.join(', ')}`;
+    body.append(provenance);
+  }
+
+  section.append(body);
   return section;
 }
 
 function buildRecentGames(bot: BotProfile): HTMLElement {
   const section = document.createElement('section');
-  section.className = 'profile-games';
+  section.className = 'bot-panel profile-games bot-profile-games';
 
   const heading = document.createElement('h2');
   heading.textContent = 'Recent games';
@@ -438,225 +604,16 @@ function buildRecentGames(bot: BotProfile): HTMLElement {
   return section;
 }
 
-function buildPlayButton(bot: BotProfile): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'landing-setup-start bot-play-button';
-  button.textContent = 'Play';
-  button.addEventListener('click', () => {
-    openBotPlayDialog(bot);
-  });
-  return button;
-}
+// ── Shared helpers ──────────────────────────────────────────────────────────
 
-function openBotPlayDialog(bot: BotProfile): void {
-  document.querySelector<HTMLElement>('[data-bot-play-dialog]')?.remove();
-
-  const choices = botColorChoices(bot);
-  let preferredColor = choices.some((choice) => choice.value === bot.play.preferredColor)
-    ? bot.play.preferredColor
-    : 'random';
-
-  const backdrop = document.createElement('div');
-  backdrop.className = 'bot-play-dialog-backdrop';
-  backdrop.dataset.botPlayDialog = '';
-
-  const dialog = document.createElement('section');
-  dialog.className = 'bot-play-dialog';
-  dialog.setAttribute('role', 'dialog');
-  dialog.setAttribute('aria-modal', 'true');
-  dialog.setAttribute('aria-labelledby', 'bot-play-dialog-title');
-  dialog.tabIndex = -1;
-
-  const header = document.createElement('div');
-  header.className = 'bot-play-dialog-header';
-
-  const heading = document.createElement('h2');
-  heading.id = 'bot-play-dialog-title';
-  heading.textContent = `Play ${bot.displayName}`;
-
-  const close = document.createElement('button');
-  close.type = 'button';
-  close.className = 'bot-play-dialog-close';
-  close.setAttribute('aria-label', 'Close');
-  close.textContent = 'x';
-
-  header.append(heading, close);
-
-  const meta = document.createElement('p');
-  meta.className = 'bot-play-dialog-meta';
-  meta.textContent = `${gameSpecLabel(bot.play.gameSpecId)} · ${timeControlLabel(
-    bot.play.timeControl,
-  )}`;
-
-  const choiceGroup = document.createElement('div');
-  choiceGroup.className = 'bot-play-choice-group';
-
-  const choiceLabel = document.createElement('span');
-  choiceLabel.className = 'bot-play-choice-label';
-  choiceLabel.textContent = bot.play.gameSpecId === 'banqi' ? 'Move order' : 'Side';
-
-  const options = document.createElement('div');
-  options.className = 'bot-play-choice-options';
-
-  const choiceButtons: HTMLButtonElement[] = [];
-  const selectChoice = (value: BotPreferredColor): void => {
-    preferredColor = value;
-    for (const button of choiceButtons) {
-      const selected = button.dataset.choice === value;
-      button.classList.toggle('selected', selected);
-      button.setAttribute('aria-pressed', selected ? 'true' : 'false');
-    }
-  };
-
-  for (const choice of choices) {
-    const choiceButton = document.createElement('button');
-    choiceButton.type = 'button';
-    choiceButton.className = 'bot-play-choice';
-    choiceButton.dataset.choice = choice.value;
-    choiceButton.textContent = choice.label;
-    choiceButton.setAttribute('aria-pressed', choice.value === preferredColor ? 'true' : 'false');
-    choiceButton.addEventListener('click', () => selectChoice(choice.value));
-    choiceButtons.push(choiceButton);
-    options.append(choiceButton);
-  }
-
-  choiceGroup.append(choiceLabel, options);
-
-  const error = document.createElement('p');
-  error.className = 'bot-play-dialog-error';
-  error.hidden = true;
-
-  const actions = document.createElement('div');
-  actions.className = 'bot-play-dialog-actions';
-
-  const cancel = document.createElement('button');
-  cancel.type = 'button';
-  cancel.className = 'bot-play-dialog-cancel';
-  cancel.textContent = 'Cancel';
-
-  const start = document.createElement('button');
-  start.type = 'button';
-  start.className = 'landing-setup-start bot-play-dialog-start';
-  start.textContent = 'Start game';
-
-  actions.append(cancel, start);
-  dialog.append(header, meta, choiceGroup, error, actions);
-  backdrop.append(dialog);
-
-  function closeDialog(): void {
-    document.removeEventListener('keydown', handleKeydown);
-    backdrop.remove();
-  }
-  function handleKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') closeDialog();
-  }
-
-  close.addEventListener('click', closeDialog);
-  cancel.addEventListener('click', closeDialog);
-  backdrop.addEventListener('click', (event) => {
-    if (event.target === backdrop) closeDialog();
-  });
-  start.addEventListener('click', () => {
-    void startBotGame(bot, start, { preferredColor }, error);
-  });
-
-  document.addEventListener('keydown', handleKeydown);
-  document.body.append(backdrop);
-  selectChoice(preferredColor);
-  dialog.focus();
-}
-
-async function startBotGame(
-  bot: BotProfile,
-  button: HTMLButtonElement,
-  choice: BotPlayChoice,
-  error?: HTMLElement,
-): Promise<void> {
-  button.disabled = true;
-  button.classList.remove('bot-play-button-error');
-  if (error) error.hidden = true;
-  button.textContent = 'Starting...';
-  try {
-    const response = await fetch('/api/rooms', {
-      method: 'POST',
-      headers: {
-        accept: 'application/json',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(roomRequestForBot(bot, choice)),
-    });
-    if (!response.ok) throw new Error(`room_create_failed_${response.status}`);
-    const data = (await response.json()) as { url?: string };
-    if (!data.url) throw new Error('room_create_missing_url');
-    window.location.href = data.url;
-  } catch {
-    button.disabled = false;
-    button.classList.add('bot-play-button-error');
-    button.textContent = 'Try again';
-    if (error) {
-      error.textContent = 'Could not start this game.';
-      error.hidden = false;
-    }
-  }
-}
-
-function roomRequestForBot(bot: BotProfile, choice: BotPlayChoice): Record<string, unknown> {
-  return {
-    mode: bot.play.mode,
-    botId: bot.id,
-    preferredColor: choice.preferredColor,
-    rated: false,
-  };
-}
-
-function botColorChoices(bot: BotProfile): BotColorChoice[] {
-  if (bot.play.gameSpecId === 'banqi') {
-    return [
-      { value: 'random', label: 'Random' },
-      { value: 'red', label: 'First' },
-      { value: 'black', label: 'Second' },
-    ];
-  }
-
-  if (bot.play.gameSpecId === 'crossroads-chess') {
-    return [
-      { value: 'random', label: 'Random' },
-      { value: 'white', label: 'White' },
-      { value: 'red', label: 'Red' },
-    ];
-  }
-
-  if (usesRedBlackSeats(bot.play.gameSpecId)) {
-    return [
-      { value: 'random', label: 'Random' },
-      { value: 'red', label: 'Red' },
-      { value: 'black', label: 'Black' },
-    ];
-  }
-
-  return [
-    { value: 'random', label: 'Random' },
-    { value: 'white', label: 'White' },
-    { value: 'black', label: 'Black' },
-  ];
-}
-
-function usesRedBlackSeats(gameSpecId: string): boolean {
-  return [
-    'dark-mini-xiangqi',
-    'dark-xiangqi',
-    'drop-mini-xiangqi',
-    'jieqi',
-    'mini-xiangqi',
-  ].includes(gameSpecId);
-}
-
-function detailChip(label: string, extraClass?: string): HTMLElement {
-  const chip = document.createElement('span');
-  chip.className = extraClass ? `bot-chip ${extraClass}` : 'bot-chip';
-  chip.textContent = label;
-  return chip;
+function variantThumb(gameSpecId: string, size: number, className: string): HTMLElement | null {
+  const miniId = variantMiniIdForRawVariant(gameSpecId);
+  if (!miniId) return null;
+  const thumb = document.createElement('span');
+  thumb.className = className;
+  thumb.setAttribute('aria-hidden', 'true');
+  thumb.innerHTML = renderVariantMarker(miniId, { size });
+  return thumb;
 }
 
 function statusLine(text: string): HTMLElement {
@@ -666,61 +623,16 @@ function statusLine(text: string): HTMLElement {
   return p;
 }
 
-function buildBotRatingStrip(bot: BotProfile, limit: number): HTMLElement | null {
-  const ratings = botRatings(bot);
-  if (ratings.length === 0) return null;
-
-  const strip = document.createElement('div');
-  strip.className = 'bot-rating-strip';
-  for (const rating of ratings.slice(0, limit)) {
-    strip.append(buildBotRatingChip(rating));
-  }
-  if (ratings.length > limit) {
-    strip.append(detailChip(`+${ratings.length - limit} more`, 'bot-rating-more-chip'));
-  }
-  return strip;
-}
-
-function buildBotRatingChip(rating: BotRatingSnapshot): HTMLElement {
-  const chip = document.createElement('span');
-  chip.className = 'bot-rating-chip';
-
-  const value = document.createElement('span');
-  value.className = 'bot-rating-chip-value';
-  value.textContent = ratingLabel(rating);
-
-  const label = document.createElement('span');
-  label.className = 'bot-rating-chip-label';
-  label.textContent = `${gameSpecLabel(rating.gameSpecId)} ${timeClassLabel(rating.timeClass)}`;
-
-  chip.append(value, label);
-  return chip;
-}
-
-function buildBotRatingGrid(ratings: readonly BotRatingSnapshot[]): HTMLElement {
-  const grid = document.createElement('div');
-  grid.className = 'bot-rating-grid';
-
-  for (const rating of ratings) {
-    const cell = document.createElement('div');
-    cell.className = 'bot-rating-cell';
-
-    const value = document.createElement('span');
-    value.className = 'bot-rating-cell-value';
-    value.textContent = ratingLabel(rating);
-
-    const label = document.createElement('span');
-    label.className = 'bot-rating-cell-label';
-    label.textContent = `${gameSpecLabel(rating.gameSpecId)} · ${timeClassLabel(rating.timeClass)}`;
-
-    const games = document.createElement('span');
-    games.className = 'bot-rating-cell-games';
-    games.textContent = `${rating.games} rated ${rating.games === 1 ? 'game' : 'games'}`;
-
-    cell.append(value, label, games);
-    grid.append(cell);
-  }
-  return grid;
+function playOptionsFor(bot: BotProfile): BotPlayOption[] {
+  const options =
+    bot.playOptions && bot.playOptions.length > 0
+      ? bot.playOptions
+      : supportedGameSpecIds(bot).map((gameSpecId) => ({
+          gameSpecId,
+          engineId: bot.activeEngineId,
+          playable: true,
+        }));
+  return options.filter((option) => !HIDDEN_BOT_GAME_SPEC_IDS.has(option.gameSpecId));
 }
 
 function supportedGameSpecIds(bot: BotProfile): string[] {
@@ -747,15 +659,11 @@ function primaryRating(bot: BotProfile): BotRatingSnapshot | null {
   );
 }
 
-function defaultGameSpecLabel(bot: BotProfile): string {
-  return gameSpecLabel(bot.defaultGameSpecId);
-}
-
 function gameSpecLabel(gameSpecId: string): string {
   return GAME_SPEC_LABELS[gameSpecId] ?? maybeGameSpecForId(gameSpecId)?.publicName ?? gameSpecId;
 }
 
-function timeControlLabel(timeControl: BotPlay['timeControl']): string {
+function timeControlLabel(timeControl: BotProfile['play']['timeControl']): string {
   const initialMinutes = timeControl.initialMs / 60_000;
   const incrementSeconds = timeControl.incrementMs / 1_000;
   if (Number.isInteger(initialMinutes) && Number.isInteger(incrementSeconds)) {

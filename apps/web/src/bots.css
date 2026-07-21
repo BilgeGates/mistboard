@@ -1,6 +1,8 @@
-/* Shell width comes from .community-shell (community-rail.css), so the rail
-   sits at the same x position as on /leaderboard; the directory column is
-   capped here instead of by the shell. */
+/* /bots directory + /bot/:id profile.
+   The profile page leans on account-profile.css (profile-shell, profile-header,
+   profile-stats, profile-rating-row rail, profile-game-row list); this file only
+   carries the compact roster rows, the play chips, and small panel glue. */
+
 .bots-shell {
   display: grid;
   gap: 14px;
@@ -8,7 +10,7 @@
 
 .bots-main {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   min-width: 0;
   max-width: 980px;
 }
@@ -32,96 +34,101 @@
 
 .bots-directory {
   display: grid;
-  gap: 14px;
+  gap: 18px;
 }
 
-.bot-directory-section {
+/* ── Roster sections ──────────────────────────────────────────────────────── */
+
+.bot-roster-section {
   display: grid;
   gap: 7px;
 }
 
-.bot-directory-section-header {
+.bot-roster-header {
   display: flex;
   gap: 10px;
   align-items: baseline;
   justify-content: space-between;
 }
 
-.bot-directory-section h2 {
+.bot-roster-section h2 {
   margin: 0;
   color: var(--site-heading);
   font-size: 16px;
   font-weight: 550;
 }
 
-.bot-directory-count {
+.bot-roster-count {
   color: var(--site-muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.bot-directory-list {
-  display: grid;
+.bot-roster {
   overflow: hidden;
   border: 1px solid var(--site-border);
-  border-radius: 3px;
+  border-radius: var(--site-radius-sm);
   background: var(--site-panel);
   box-shadow: 0 2px 2px color-mix(in srgb, var(--site-shadow) 20%, transparent);
 }
 
-.bot-card,
-.bot-profile-play,
-.bot-profile-about,
-.bot-profile-rating,
-.bot-profile-variants {
-  border: 1px solid var(--site-border);
-  border-radius: 3px;
-  background: var(--site-panel);
-  box-shadow: 0 2px 2px color-mix(in srgb, var(--site-shadow) 20%, transparent);
+.bot-roster > :nth-child(even) {
+  background: var(--site-zebra);
 }
 
-.bot-card {
+/* ── Rows ─────────────────────────────────────────────────────────────────── */
+
+.bot-row-featured {
   display: grid;
-  gap: 7px;
-  align-content: start;
-  padding: 12px 14px;
-  border: 0;
-  border-bottom: 1px solid var(--site-border-soft);
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.bot-card:last-child {
-  border-bottom: 0;
-}
-
-.bot-card:hover {
-  background: var(--site-hover);
-}
-
-.bot-card-header {
-  display: flex;
-  gap: 10px;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 12px;
   align-items: start;
-  justify-content: space-between;
+  padding: 10px 14px;
+}
+
+.bot-row-marker {
+  display: inline-flex;
+  line-height: 0;
+  margin-top: 2px;
+}
+
+.bot-row-body {
+  display: grid;
+  gap: 4px;
   min-width: 0;
 }
 
-.bot-card-identity {
+.bot-row-title {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   min-width: 0;
 }
 
+.bot-row-name {
+  min-width: 0;
+  color: var(--site-heading);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.25;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.bot-row-name:hover,
+.bot-row-name:focus-visible {
+  color: var(--site-accent-strong);
+  outline: none;
+}
+
 .bot-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 18px;
+  min-height: 17px;
   padding: 2px 5px;
-  border-radius: 3px;
+  border-radius: var(--site-radius-sm);
   background: color-mix(in srgb, #4f8edb 18%, var(--site-panel));
   color: #4f8edb;
   font-size: 10px;
@@ -130,290 +137,282 @@
   line-height: 1;
 }
 
-.bot-card-rating {
+.bot-row-bio {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.bot-row-figures {
   display: grid;
   gap: 1px;
   justify-items: end;
-  flex: 0 0 auto;
+  align-content: start;
   font-variant-numeric: tabular-nums;
 }
 
-.bot-card-rating-value {
+.bot-row-rating {
   color: var(--site-heading);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 750;
-  line-height: 1;
+  line-height: 1.15;
 }
 
-.bot-card-rating-label {
+.bot-row-figures-label,
+.bot-row-games {
   color: var(--site-muted);
   font-size: 11px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.bot-row-figures-label {
   font-weight: 700;
   text-transform: uppercase;
 }
 
-.bot-card-title {
-  min-width: 0;
-  color: var(--site-heading);
-  font-size: 16px;
-  font-weight: 650;
-  line-height: 1.2;
-  text-decoration: none;
-  overflow-wrap: anywhere;
+/* Ladder rows: one line each, lichess-lobby density. */
+.bot-row-ladder {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 36px;
+  padding: 4px 14px;
 }
 
-.bot-card-title:hover,
-.bot-card-title:focus-visible,
-.bot-profile-link:hover,
-.bot-profile-link:focus-visible {
-  color: var(--site-accent);
-  outline: none;
+.bot-row-ladder .bot-row-name {
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.bot-card-details,
-.bot-variant-list,
-.bot-card-actions,
-.bot-rating-strip {
+.bot-row-ladder-rating {
+  justify-self: end;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ── Play chips (the chip is the play control) ────────────────────────────── */
+
+.bot-row-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
   align-items: center;
 }
 
-.bot-card-bio {
-  margin: 0;
-  max-width: 74ch;
-  color: var(--site-muted);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.bot-chip {
+.bot-play-chip {
   display: inline-flex;
-  align-items: center;
-  min-height: 21px;
-  padding: 2px 7px;
-  border: 1px solid var(--site-border-soft);
-  border-radius: 3px;
-  background: var(--site-panel-soft);
-  color: var(--site-muted);
-  font-size: 11px;
-  font-weight: 650;
-  line-height: 1;
-}
-
-.bot-variant-chip {
-  background: color-mix(in srgb, #4f8edb 12%, var(--site-panel));
-  color: color-mix(in srgb, #4f8edb 82%, var(--site-heading));
-}
-
-.bot-record-chip {
-  background: color-mix(in srgb, var(--site-accent) 14%, var(--site-panel));
-  color: var(--site-accent-strong);
-}
-
-.bot-games-chip {
-  background: color-mix(in srgb, #5a9f73 16%, var(--site-panel));
-  color: color-mix(in srgb, #2f7f4e 88%, var(--site-heading));
-}
-
-.bot-rating-strip {
-  gap: 6px;
-}
-
-.bot-rating-chip {
-  display: inline-grid;
-  grid-template-columns: auto auto;
   gap: 5px;
-  align-items: baseline;
-  min-height: 23px;
-  padding: 3px 7px;
-  border: 1px solid var(--site-border-soft);
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--site-accent) 10%, var(--site-panel));
-  color: var(--site-muted);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.bot-rating-chip-value {
-  color: var(--site-heading);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.bot-rating-chip-label {
-  overflow-wrap: anywhere;
-}
-
-.bot-rating-more-chip {
-  min-height: 26px;
-  background: var(--site-panel-soft);
-}
-
-.bot-card-actions {
-  margin-top: 0;
-}
-
-.bot-profile-link {
-  display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 6px 9px;
-  color: var(--site-muted);
-  font-size: 13px;
-  font-weight: 650;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--site-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1;
-  text-decoration: none;
+  white-space: nowrap;
 }
 
-.bot-play-button-error {
+button.bot-play-chip {
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease,
+    background 120ms ease;
+}
+
+button.bot-play-chip:hover:not(:disabled),
+button.bot-play-chip:focus-visible {
+  border-color: var(--site-accent);
+  background: color-mix(in srgb, var(--site-accent) 10%, transparent);
+  color: var(--site-accent-strong);
+  outline: none;
+}
+
+button.bot-play-chip:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.bot-play-chip.bot-play-error {
   border-color: color-mix(in srgb, #c45b52 60%, var(--site-border));
   color: #c45b52;
 }
 
-.bot-play-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: rgba(15, 30, 24, 0.42);
-}
-
-.bot-play-dialog {
-  display: grid;
-  gap: 14px;
-  width: min(400px, 100%);
-  padding: 16px;
-  border: 1px solid var(--site-border);
-  border-radius: 4px;
-  background: var(--site-panel);
-  box-shadow: 0 18px 48px rgba(15, 30, 24, 0.22);
-  color: var(--site-text);
-}
-
-.bot-play-dialog:focus {
-  outline: none;
-}
-
-.bot-play-dialog-header,
-.bot-play-dialog-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.bot-play-dialog-header h2 {
-  margin: 0;
-  color: var(--site-heading);
-  font-size: 18px;
-  font-weight: 650;
-  line-height: 1.2;
-}
-
-.bot-play-dialog-close,
-.bot-play-dialog-cancel {
-  min-height: 30px;
-  border: 1px solid var(--site-border);
-  border-radius: 3px;
-  background: var(--site-panel);
+.bot-play-chip-off {
   color: var(--site-muted);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
+  opacity: 0.55;
 }
 
-.bot-play-dialog-close {
-  width: 30px;
-  padding: 0;
-  line-height: 1;
+.bot-play-chip-thumb {
+  display: inline-flex;
+  line-height: 0;
 }
 
-.bot-play-dialog-cancel {
-  padding: 5px 10px;
+.bot-play-chip-arrow {
+  color: var(--site-accent-strong);
+  font-size: 10px;
 }
 
-.bot-play-dialog-meta,
-.bot-play-dialog-error {
-  margin: 0;
-  color: var(--site-muted);
-  font-size: 13px;
-  line-height: 1.4;
+.bot-play-chip-off .bot-play-chip-arrow {
+  display: none;
 }
 
-.bot-play-choice-group {
+/* ── Bot profile (/bot/:id) ───────────────────────────────────────────────── */
+
+.bot-profile-shell {
   display: grid;
-  gap: 7px;
+  gap: 16px;
+  align-content: start;
 }
 
-.bot-play-choice-label {
-  color: var(--site-heading);
-  font-size: 12px;
-  font-weight: 750;
-  text-transform: uppercase;
-}
-
-.bot-play-choice-options {
+/* Grid geometry (270px rail + main, mobile collapse) comes from .profile-body. */
+.bot-profile-sidebar,
+.bot-profile-main {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-content: start;
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .bot-profile-main {
+    order: -1;
+  }
+}
+
+.bot-panel {
   overflow: hidden;
   border: 1px solid var(--site-border);
-  border-radius: 3px;
-  background: var(--site-border);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  box-shadow: 0 2px 2px color-mix(in srgb, var(--site-shadow) 24%, transparent);
 }
 
-.bot-play-choice {
+.bot-panel > h2 {
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--site-border-soft);
+  color: var(--site-heading);
+  font-size: 16px;
+  font-weight: 550;
+}
+
+.bot-stats .profile-stat-value {
+  font-size: 18px;
+}
+
+/* Play panel rows. */
+.bot-play-list {
+  display: grid;
+}
+
+.bot-play-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--site-border-soft);
+}
+
+.bot-play-row:last-child {
+  border-bottom: 0;
+}
+
+.bot-play-row-off {
+  opacity: 0.55;
+}
+
+.bot-play-row-marker {
+  display: inline-flex;
+  line-height: 0;
+}
+
+.bot-play-row-meta {
+  display: grid;
+  gap: 1px;
   min-width: 0;
-  min-height: 36px;
-  border: 0;
-  border-radius: 0;
-  background: var(--site-panel);
-  color: var(--site-text);
+}
+
+.bot-play-row-name {
+  color: var(--site-heading);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.bot-play-row-clock {
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.bot-play-row-button {
+  min-height: 28px;
+  min-width: 74px;
+  padding: 4px 14px;
+  border: 1px solid var(--site-accent);
+  border-radius: var(--site-radius-sm);
   font: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 650;
+  line-height: 1;
   cursor: pointer;
 }
 
-.bot-play-choice + .bot-play-choice {
-  border-left: 1px solid var(--site-border);
+.bot-play-row-button.bot-play-error {
+  border-color: color-mix(in srgb, #c45b52 60%, var(--site-border));
+  background: color-mix(in srgb, #c45b52 14%, var(--site-panel));
+  color: #c45b52;
 }
 
-.bot-play-choice:hover,
-.bot-play-choice:focus-visible,
-.bot-play-dialog-close:hover,
-.bot-play-dialog-close:focus-visible,
-.bot-play-dialog-cancel:hover,
-.bot-play-dialog-cancel:focus-visible {
-  border-color: var(--site-accent);
-  outline: 3px solid var(--site-focus);
-  outline-offset: -1px;
+/* Sidebar rating rail rows reuse the profile rail vocabulary but are not
+   selectable buttons here. */
+.bot-rating-row,
+.bot-rating-row:hover {
+  background: transparent;
+  cursor: default;
 }
 
-.bot-play-choice.selected {
-  background: color-mix(in srgb, var(--site-accent) 18%, var(--site-panel));
-  color: var(--site-accent-strong);
+/* About panel. */
+.bot-profile-about-body {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px 14px;
 }
 
-.bot-play-dialog-error {
-  color: #a0453d;
-  font-weight: 650;
+.bot-profile-about-body p {
+  margin: 0;
+  color: var(--site-text);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-.bot-play-dialog-actions {
-  justify-content: flex-end;
+.bot-profile-about-body .bot-profile-provenance {
+  color: var(--site-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
-.bot-play-dialog-start {
-  min-height: 32px;
-  padding: 6px 12px;
+/* Recent games panel: heading chrome comes from .bot-panel; the list rows come
+   from profile-game-row in account-profile.css. */
+.bot-profile-games .landing-games-empty {
+  margin: 0;
+  padding: 14px 16px;
 }
 
+/* Header badges shared with the directory. */
 .profile-role-bot {
   background: color-mix(in srgb, #4f8edb 18%, var(--site-panel));
   color: #4f8edb;
@@ -424,170 +423,24 @@
   color: var(--site-accent-strong);
 }
 
-.bot-profile-shell {
-  display: grid;
-  gap: 16px;
-}
-
-.bot-profile-body {
-  display: grid;
-  grid-template-columns: 312px minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-
-.bot-profile-main,
-.bot-profile-sidebar {
-  display: grid;
-  gap: 16px;
-  min-width: 0;
-}
-
-.bot-stats .profile-stat-value {
-  font-size: 18px;
-  overflow-wrap: anywhere;
-}
-
-.bot-profile-play,
-.bot-profile-about,
-.bot-profile-rating,
-.bot-profile-variants {
-  padding: 16px;
-}
-
-.bot-profile-about,
-.bot-profile-rating,
-.bot-profile-variants {
-  padding: 0;
-  overflow: hidden;
-}
-
-.bot-profile-play h2,
-.bot-profile-about h2,
-.bot-profile-rating h2,
-.bot-profile-variants h2 {
-  margin: 0 0 8px;
-  color: var(--site-heading);
-  font-size: 17px;
-  font-weight: 550;
-}
-
-.bot-profile-about h2,
-.bot-profile-rating h2,
-.bot-profile-variants h2 {
-  margin: 0;
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--site-border-soft);
-  font-size: 16px;
-}
-
-.bot-profile-play p,
-.bot-profile-about p,
-.bot-profile-rating p {
-  margin: 0 0 12px;
-  color: var(--site-muted);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.bot-profile-about p {
-  margin: 0;
-  padding: 14px 16px 16px;
-}
-
-.bot-rating-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-  gap: 1px;
-  border-top: 1px solid var(--site-border-soft);
-  background: var(--site-border-soft);
-}
-
-.bot-rating-cell {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  padding: 14px 16px;
-  background: var(--site-panel);
-  font-variant-numeric: tabular-nums;
-}
-
-.bot-rating-cell-value {
-  color: var(--site-heading);
-  font-size: 24px;
-  font-weight: 750;
-  line-height: 1;
-}
-
-.bot-rating-cell-label,
-.bot-rating-cell-games {
-  color: var(--site-muted);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-
-.bot-rating-cell-label {
-  text-transform: uppercase;
-}
-
-.bot-profile-variant-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  padding: 14px 16px 16px;
-}
-
-.bot-profile-rating p {
-  margin: 0;
-  padding: 0 16px 16px;
-}
-
-@media (min-width: 700px) {
-  .bot-card {
-    grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: 18px;
-  }
-
-  .bot-card-header,
-  .bot-card-details,
-  .bot-card-bio,
-  .bot-variant-list,
-  .bot-rating-strip {
-    grid-column: 1;
-  }
-
-  .bot-card-actions {
-    grid-column: 2;
-    grid-row: 1 / span 4;
-    align-self: center;
-    justify-content: flex-end;
-    min-width: 124px;
-  }
-}
-
 @media (max-width: 560px) {
-  .bot-card {
-    padding: 14px;
+  .bot-row-featured {
+    grid-template-columns: 40px minmax(0, 1fr);
   }
 
-  .bot-card-header {
-    display: grid;
-    gap: 8px;
-  }
-
-  .bot-card-rating {
+  .bot-row-figures {
+    grid-column: 2;
     justify-items: start;
-  }
-}
-
-@media (max-width: 820px) {
-  .bot-profile-body {
-    grid-template-columns: 1fr;
+    grid-auto-flow: column;
+    gap: 8px;
+    align-items: baseline;
   }
 
-  .bot-profile-main {
-    order: -1;
+  .bot-row-ladder {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .bot-row-ladder-rating {
+    display: none;
   }
 }

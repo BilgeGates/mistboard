@@ -9,7 +9,14 @@ import {
   test,
 } from './persistence-test-support.js';
 import type { HttpApiContext } from './routes/lib.js';
-import { tryHandle } from './routes/rooms.js';
+import { resolveBotRoomRequest, tryHandle } from './routes/rooms.js';
+// The multi-variant resolve tests exercise Misty's banqi entry, which needs
+// the banqi tenant registered (isBotSpecPlayable reads the launch flag through
+// the tenant registry; the flag itself is read lazily per request).
+import './variant-tenant/register-tenants.js';
+
+process.env.MISTBOARD_BANQI_ENABLED = 'true';
+
 import type { Room } from './server-types.js';
 import { roomFixture } from './test-builders.js';
 
@@ -98,6 +105,55 @@ definePersistenceTests('room bot play requests', () => {
     assert.equal(response.status, 400);
     assert.deepEqual(JSON.parse(response.body), { error: 'bot_engine_conflict' });
   });
+
+  test('a legacy bot id canonicalizes to the merged identity before the lookup', async () => {
+    await insertMistyProfile();
+    const response = captureResponse();
+
+    const resolved = await resolveBotRoomRequest(response, {
+      botId: 'misty-dark-chess',
+      mode: 'pve',
+    });
+
+    assert.ok(resolved);
+    assert.equal(resolved.botId, 'misty');
+    assert.equal(resolved.gameSpecId, 'dark-chess');
+    assert.equal(resolved.engineId, 'python-v2-v1.5');
+  });
+
+  test('a multi-variant bot resolves the per-spec engine for a supported spec', async () => {
+    await insertMistyProfile();
+    const response = captureResponse();
+
+    const resolved = await resolveBotRoomRequest(response, {
+      botId: 'misty',
+      gameSpecId: 'banqi',
+      mode: 'pve',
+      timeControl: { initialMs: 60_000, incrementMs: 1_000 },
+    });
+
+    assert.ok(resolved);
+    assert.equal(resolved.botId, 'misty');
+    assert.equal(resolved.gameSpecId, 'banqi');
+    assert.equal(resolved.engineId, 'misty-banqi');
+    // Caller-chosen pace passes through; the tenant gate downstream validates it.
+    assert.deepEqual(resolved.timeControl, { initialMs: 60_000, incrementMs: 1_000 });
+  });
+
+  test('a spec outside the bot roster rejects with bot_game_spec_conflict', async () => {
+    await insertMistyProfile();
+    const response = captureResponse();
+
+    const resolved = await resolveBotRoomRequest(response, {
+      botId: 'misty',
+      gameSpecId: 'xiangqi',
+      mode: 'pve',
+    });
+
+    assert.equal(resolved, null);
+    assert.equal(response.status, 400);
+    assert.deepEqual(JSON.parse(response.body), { error: 'bot_game_spec_conflict' });
+  });
 });
 
 function createContext(
@@ -147,6 +203,25 @@ function jsonPost(body: Record<string, unknown>): IncomingMessage {
   request.method = 'POST';
   request.headers = { accept: 'application/json', 'content-type': 'application/json' };
   return request;
+}
+
+// The merged Misty row as migration 111 writes it (the harness truncates
+// bot_profiles between tests, so each test re-inserts what it needs).
+async function insertMistyProfile(): Promise<void> {
+  const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+  await client.connect();
+  try {
+    await client.query(
+      `INSERT INTO bot_profiles
+         (id, display_name, bio, owner_type, active_engine_id, default_game_spec_id,
+          supported_game_spec_ids, play_initial_ms, play_increment_ms, visibility)
+       VALUES ('misty', 'Misty', '', 'system', 'python-v2-v1.5', 'dark-chess',
+               ARRAY['dark-chess', 'dark-draft960', 'dark-xiangqi', 'banqi', 'jungle', 'jungle-flip'],
+               180000, 2000, 'public')`,
+    );
+  } finally {
+    await client.end();
+  }
 }
 
 async function insertBotProfile(
