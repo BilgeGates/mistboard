@@ -32,8 +32,15 @@ export function buildTopPlayersWidget(options: { hydrate?: boolean } = {}): HTML
   return buildLeaderboardWidget(options);
 }
 
+/** Standalone Top studies box: the homepage band-2 slot (replaced Top players
+ *  2026-07-21 — with no rated liquidity yet, curated studies are the stronger
+ *  front-door proof; players return when the ladder has depth). */
+export function buildTopStudiesWidget(options: { hydrate?: boolean } = {}): HTMLElement {
+  return buildStudyWidget(options);
+}
+
 function buildStudyWidget(options: { hydrate?: boolean }): HTMLElement {
-  const { box, body } = buildSiteBox({ title: 'Popular studies', href: '/study' });
+  const { box, body } = buildSiteBox({ title: 'Top studies', href: '/study' });
   box.classList.add('landing-study-widget', 'landing-community-widget');
   body.append(statusRow('Loading studies.'));
   if (options.hydrate !== false) void hydrateStudies(body);

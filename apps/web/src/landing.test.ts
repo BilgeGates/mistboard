@@ -133,9 +133,8 @@ describe('landing shell', () => {
     wrap.innerHTML = renderLandingShellForPrerender();
 
     expect(wrap.querySelector('.landing-forum-column .landing-forum')).not.toBeNull();
-    expect(
-      wrap.querySelector('.landing-players-column .landing-leaderboard-widget'),
-    ).not.toBeNull();
+    // Band 2 right: Top studies (took the Top players slot 2026-07-21).
+    expect(wrap.querySelector('.landing-players-column .landing-study-widget')).not.toBeNull();
     // One play action only, and it is the primary unified entry.
     const actions = wrap.querySelectorAll('.landing-play-column .landing-play-action');
     expect(actions.length).toBe(1);

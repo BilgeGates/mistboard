@@ -20,7 +20,7 @@ import { t } from './i18n/catalog.js';
 import { currentLocale, localizedHref } from './i18n/locale.js';
 import { buildLandingActivity } from './landing-activity.js';
 import { buildLandingChat } from './landing-chat.js';
-import { buildTopPlayersWidget } from './landing-community-widgets.js';
+import { buildTopStudiesWidget } from './landing-community-widgets.js';
 import { buildLandingEventBanners } from './landing-event-banners.js';
 import { buildLandingForumPreview } from './landing-forum-preview.js';
 import {
@@ -627,14 +627,16 @@ function buildLandingStage(
     }),
   );
 
-  // ── Band 2: forum topics (center) and top players (right) beside the daily
-  // puzzle. Chat and the studies widget left the homepage in this cut. ──
+  // ── Band 2: forum topics (center) and top studies (right) beside the daily
+  // puzzle. Chat left the homepage in the 3-band cut; Top players gave this
+  // slot to Top studies 2026-07-21 (no rated liquidity yet — curated studies
+  // are the stronger front-door proof). ──
   const forumColumn = document.createElement('div');
   forumColumn.className = 'landing-forum-column';
   forumColumn.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
   const playersColumn = document.createElement('div');
   playersColumn.className = 'landing-players-column';
-  playersColumn.append(buildTopPlayersWidget({ hydrate: !opts.skipLiveWidgets }));
+  playersColumn.append(buildTopStudiesWidget({ hydrate: !opts.skipLiveWidgets }));
 
   // ── Band 3 (grid-area: blogs): the full-width blog row — compact article
   // cards (six per view), an announcement can take a slot, newest first. ──
