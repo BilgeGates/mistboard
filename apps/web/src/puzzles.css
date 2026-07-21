@@ -252,6 +252,19 @@
   min-height: 0;
 }
 
+.puzzle-analysis-open-link {
+  display: block;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  color: var(--site-muted);
+  text-decoration: none;
+}
+
+.puzzle-analysis-open-link:hover {
+  color: var(--site-accent);
+  text-decoration: underline;
+}
+
 .puzzle-trainer-panel,
 .puzzle-left-card {
   border: 1px solid var(--site-border-soft);

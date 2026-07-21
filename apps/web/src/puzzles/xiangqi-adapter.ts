@@ -227,9 +227,16 @@ function createPuzzleAnalysis(): PuzzleAnalysisController {
     },
   });
 
+  // Jump to the full /analysis/xiangqi board seeded at the displayed position
+  // (?fen= accepts the engine-dialect FEN). Follows the scrubber, so it opens
+  // whichever ply the solver is looking at.
+  const openLink = document.createElement('a');
+  openLink.className = 'puzzle-analysis-open-link';
+  openLink.textContent = 'Open in analysis board';
+
   const container = document.createElement('section');
   container.className = 'puzzle-analysis-panel';
-  container.append(panel.el);
+  container.append(panel.el, openLink);
 
   return {
     el: container,
@@ -239,7 +246,8 @@ function createPuzzleAnalysis(): PuzzleAnalysisController {
       // Re-apply the last-known arrows onto the rebuilt board immediately (the
       // board's arrow layer is regenerated empty on every render).
       paintArrows();
-      const fen = standardXiangqiEngineFen(displayState as XiangqiGameState);
+      const fen = puzzleAnalysisFen(displayState as XiangqiGameState);
+      openLink.href = `/analysis/xiangqi?fen=${encodeURIComponent(fen)}`;
       if (fen !== lastFen) {
         lastFen = fen;
         // setPosition clears arrows (onLines(null)) then re-evaluates if the
@@ -251,6 +259,21 @@ function createPuzzleAnalysis(): PuzzleAnalysisController {
       panel.dispose();
     },
   };
+}
+
+// standardXiangqiEngineFen writes a 'w' fallback turn for a FINISHED state (a
+// finished game has no side to move) — but the solved mate is exactly the
+// position this panel shows. "Red to move" over a mated black is an illegal
+// diagram (the mover could capture the general): the engine evaluates the
+// wrong side and parseStandardXiangqiFen rejects the analysis link, silently
+// opening the start position. Restore the real continuation turn: the side
+// that did not win is to move in the final position.
+function puzzleAnalysisFen(state: XiangqiGameState): string {
+  const fen = standardXiangqiEngineFen(state);
+  if (state.status.type !== 'finished' || !state.status.winner) return fen;
+  const parts = fen.split(' ');
+  parts[1] = state.status.winner === 'red' ? 'b' : 'w';
+  return parts.join(' ');
 }
 
 export const xiangqiPuzzleAdapter: PuzzleBoardAdapter = {
