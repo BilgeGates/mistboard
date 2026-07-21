@@ -290,11 +290,21 @@ function internationalImageMark(href: string, role: InternationalArtRole): strin
 }
 
 const INTERNATIONAL_FLAT_IMAGE_SCALE = 1.34;
+// The flat (disc-less) art is chess-style figurines whose content sits at a
+// different vertical offset inside each 1024px source box, so at a uniform scale
+// their flat bases land at different board-y values (measured content bottoms, as
+// % down the box: general 76.2, advisor 77.0, soldier 77.2, chariot 72.6). These
+// per-role yOffsets pull the general/advisor/soldier/chariot bases onto a common
+// baseline (~y=90, the general's), and the chariot — the smallest figure — is
+// scaled up to sit at the same visual weight as its neighbours.
 const INTERNATIONAL_FLAT_IMAGE_FITS: Partial<
-  Record<InternationalArtRole, { scale: number; yOffset?: number }>
+  Record<InternationalArtRole, { scale?: number; yOffset?: number }>
 > = {
+  advisor: { yOffset: -1.2 },
+  chariot: { scale: 1.46, yOffset: 3.4 },
   cannon: { scale: 1.4 },
   elephant: { scale: INTERNATIONAL_FLAT_IMAGE_SCALE, yOffset: -3 },
+  soldier: { yOffset: 3.6 },
 };
 
 function internationalFlatImageMark(href: string, role: InternationalArtRole): string {

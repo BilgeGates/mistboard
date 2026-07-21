@@ -119,6 +119,21 @@ describe('renderXiangqiPieceGlyphed', () => {
     expect(cannon).toContain('x="-35.4" y="-35.4" width="170.8" height="170.8"');
   });
 
+  it('aligns the Chess-style advisor/soldier/chariot bases and enlarges the chariot', () => {
+    const flat = (role: 'advisor' | 'soldier' | 'chariot') =>
+      renderXiangqiPieceGlyphed({ color: 'red', role }, 'international-flat', {});
+
+    // advisor: default 1.34 scale, nudged up 1.2 units so its base meets the
+    // general's (~y=90). Same box as the general, shifted in y only.
+    expect(flat('advisor')).toContain('x="-26.38" y="-27.58" width="152.76" height="152.76"');
+    // soldier: native-framed art pulled down 3.6 units onto the shared baseline.
+    expect(flat('soldier')).toContain('x="-17" y="-13.4" width="134" height="134"');
+    // chariot: the smallest figure, scaled up to 1.46 so it carries similar
+    // visual weight to its neighbours, with a yOffset that keeps its base on the
+    // shared baseline despite the larger box.
+    expect(flat('chariot')).toContain('x="-31.03" y="-29.82" width="162.06" height="166.44"');
+  });
+
   it('keeps the international soldier at native size while larger art fills more of the disc', () => {
     const soldier = renderXiangqiPieceGlyphed(
       { color: 'red', role: 'soldier' },
