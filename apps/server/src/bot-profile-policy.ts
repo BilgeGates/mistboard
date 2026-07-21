@@ -1,4 +1,3 @@
-import type { BotProfile } from './persistence-bots.js';
 import { variantTenantForSpecId } from './variant-tenant/registry.js';
 
 export const BOT_ID_PATTERN = /^[a-zA-Z0-9_-]{1,80}$/;
@@ -9,9 +8,11 @@ export function parsePublicBotId(value: unknown): string | null {
   return BOT_ID_PATTERN.test(botId) ? botId : null;
 }
 
-export function isBotPlayable(bot: Pick<BotProfile, 'defaultGameSpecId'>): boolean {
-  if (bot.defaultGameSpecId === 'dark-chess' || bot.defaultGameSpecId === 'dark-draft960') {
+/** Whether PvE rooms can currently be created for a game spec: the chess stack
+ *  is always live; everything else follows its tenant launch flag. */
+export function isBotSpecPlayable(gameSpecId: string): boolean {
+  if (gameSpecId === 'dark-chess' || gameSpecId === 'dark-draft960') {
     return true;
   }
-  return variantTenantForSpecId(bot.defaultGameSpecId)?.enabled() === true;
+  return variantTenantForSpecId(gameSpecId)?.enabled() === true;
 }

@@ -235,49 +235,49 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         },
         {
           id: 'fairy-stockfish-xiangqi-level-8',
-          name: 'Fairy-Stockfish - Level 8',
+          name: 'Fairy-Stockfish Level 8',
           familyName: 'Fairy-Stockfish',
           kind: 'container',
         },
         {
           id: 'fairy-stockfish-xiangqi-level-7',
-          name: 'Fairy-Stockfish - Level 7',
+          name: 'Fairy-Stockfish Level 7',
           familyName: 'Fairy-Stockfish',
           kind: 'container',
         },
         {
           id: 'fairy-stockfish-xiangqi-level-6',
-          name: 'Fairy-Stockfish - Level 6',
+          name: 'Fairy-Stockfish Level 6',
           familyName: 'Fairy-Stockfish',
           kind: 'container',
         },
         {
           id: 'fairy-stockfish-xiangqi-level-5',
-          name: 'Fairy-Stockfish - Level 5',
+          name: 'Fairy-Stockfish Level 5',
           familyName: 'Fairy-Stockfish',
           kind: 'container',
         },
         {
           id: 'fairy-stockfish-xiangqi-level-4',
-          name: 'Fairy-Stockfish - Level 4',
+          name: 'Fairy-Stockfish Level 4',
           familyName: 'Fairy-Stockfish',
           kind: 'container',
         },
         {
           id: 'fairy-stockfish-xiangqi-level-3',
-          name: 'Fairy-Stockfish - Level 3',
+          name: 'Fairy-Stockfish Level 3',
           familyName: 'Fairy-Stockfish',
           kind: 'container',
         },
         {
           id: 'fairy-stockfish-xiangqi-level-2',
-          name: 'Fairy-Stockfish - Level 2',
+          name: 'Fairy-Stockfish Level 2',
           familyName: 'Fairy-Stockfish',
           kind: 'container',
         },
         {
           id: 'fairy-stockfish-xiangqi-level-1',
-          name: 'Fairy-Stockfish - Level 1',
+          name: 'Fairy-Stockfish Level 1',
           familyName: 'Fairy-Stockfish',
           kind: 'container',
         },
@@ -326,8 +326,8 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       engineOptions: [
         {
           id: 'python-fdx-v1.1',
-          name: 'Misty DXQ 1.1',
-          familyName: 'Misty DXQ',
+          name: 'Misty',
+          familyName: 'Misty',
           kind: 'fog-xiangqi',
         },
       ],
@@ -377,24 +377,15 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: alwaysEnabled,
       acceptsDeepLink: dropMiniXiangqiEnabled,
-      // Ordered strongest-first so the toughest opponent sits at the top of the picker.
+      // One public identity (bot-consolidation 2026-07-21): Pikafish fronts the
+      // depth-10 jieqi profile. The amateur/strongest engine ids stay
+      // server-resolvable for history and EvE; no ladder until the jieqi engine
+      // grows a real strength knob.
       engineOptions: [
         {
-          id: 'pikafish-jieqi-strongest',
-          name: 'PikaJieQi - Strongest',
-          familyName: 'PikaJieQi',
-          kind: 'container',
-        },
-        {
           id: 'pikafish-jieqi-strong',
-          name: 'PikaJieQi - Strong',
-          familyName: 'PikaJieQi',
-          kind: 'container',
-        },
-        {
-          id: 'pikafish-jieqi-amateur',
-          name: 'PikaJieQi - Amateur',
-          familyName: 'PikaJieQi',
+          name: 'Pikafish',
+          familyName: 'Pikafish',
           kind: 'container',
         },
       ],
@@ -451,12 +442,12 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       offerInMenu: alwaysEnabled,
       acceptsDeepLink: alwaysEnabled,
       // One versioned bot (was 3 difficulty tiers; consolidated 2026-06-18 with the v0.2.0
-      // cheap-strength eval). Single full-strength MistyBanqi.
+      // cheap-strength eval), fronted by the merged Misty identity since 2026-07-21.
       engineOptions: [
         {
           id: 'misty-banqi',
-          name: 'MistyBanqi',
-          familyName: 'MistyBanqi',
+          name: 'Misty',
+          familyName: 'Misty',
           kind: 'container',
         },
       ],
@@ -525,25 +516,15 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: jungleEnabled,
       acceptsDeepLink: jungleEnabled,
-      // In-process Misty Jungle alpha-beta engine (server-jungle-engine.ts), three
-      // search-depth tiers. No Python/FSF — Jungle is perfect-information.
+      // In-process Misty Jungle alpha-beta engine (server-jungle-engine.ts).
+      // One public identity (bot-consolidation 2026-07-21): Misty fronts the
+      // depth-3 tier; levels 1/3 stay server-resolvable for history until the
+      // jungle engine gets a properly calibrated ladder.
       engineOptions: [
         {
-          id: 'misty-jungle-level-1',
-          name: 'Misty Jungle level 1',
-          familyName: 'Misty Jungle',
-          kind: 'builtin',
-        },
-        {
           id: 'misty-jungle-level-2',
-          name: 'Misty Jungle level 2',
-          familyName: 'Misty Jungle',
-          kind: 'builtin',
-        },
-        {
-          id: 'misty-jungle-level-3',
-          name: 'Misty Jungle level 3',
-          familyName: 'Misty Jungle',
+          name: 'Misty',
+          familyName: 'Misty',
           kind: 'builtin',
         },
       ],
@@ -599,12 +580,12 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       acceptsDeepLink: jungleFlipEnabled,
       // Tier-B MistyJungleFlip UCI engine (jungle-flip-engine in mistboard-engine),
       // served via server-jungle-flip-engine.ts. One versioned full-strength bot, like
-      // banqi — Flip Jungle is a small chance game, not a fog/belief search.
+      // banqi — fronted by the merged Misty identity since 2026-07-21.
       engineOptions: [
         {
           id: 'misty-jungle-flip',
-          name: 'MistyJungleFlip',
-          familyName: 'MistyJungleFlip',
+          name: 'Misty',
+          familyName: 'Misty',
           kind: 'container',
         },
       ],
@@ -805,27 +786,17 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['3m2', '5m5'],
       offerInMenu: fortressXiangqiEnabled,
       acceptsDeepLink: fortressXiangqiEnabled,
-      engineOptions: [
-        {
-          id: 'fairy-stockfish-fortress-xiangqi-very-strong',
-          name: 'Fairy Stockfish - Strongest',
-          familyName: 'Fairy Stockfish',
-          kind: 'container',
-        },
-        {
-          id: 'fairy-stockfish-fortress-xiangqi-strong',
-          name: 'Fairy Stockfish - Strong',
-          familyName: 'Fairy Stockfish',
-          kind: 'container',
-        },
-        {
-          id: 'fairy-stockfish-fortress-xiangqi-amateur',
-          name: 'Fairy Stockfish - Amateur',
-          familyName: 'Fairy Stockfish',
-          kind: 'container',
-        },
-      ],
-      defaultEngineId: 'fairy-stockfish-fortress-xiangqi-strong',
+      // Eight-level ladder (bot-consolidation 2026-07-21) mirroring the
+      // standard-xiangqi FSF bots, ordered strongest-first like the xiangqi
+      // picker. The retired amateur/strong/very-strong ids stay
+      // server-resolvable for history.
+      engineOptions: [8, 7, 6, 5, 4, 3, 2, 1].map((level) => ({
+        id: `fairy-stockfish-fortress-xiangqi-level-${level}`,
+        name: `Fairy-Stockfish Level ${level}`,
+        familyName: 'Fairy-Stockfish',
+        kind: 'container',
+      })),
+      defaultEngineId: 'fairy-stockfish-fortress-xiangqi-level-4',
     },
   },
   {

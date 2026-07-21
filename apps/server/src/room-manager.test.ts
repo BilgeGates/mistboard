@@ -616,7 +616,7 @@ test('buildGameSummary: current first-party engine seat records bot profile iden
     color: 'black',
     displayName: 'Misty',
     subjectType: 'bot',
-    subjectId: 'misty-dark-chess',
+    subjectId: 'misty',
     visibility: 'public',
   });
 });
@@ -654,8 +654,10 @@ test('buildGameSummary: explicit PvE bot id wins over engine-id inference', () =
   const summary = buildGameSummary(ctx, room);
 
   assert.equal(summary.participants?.[1]?.subjectType, 'bot');
-  assert.equal(summary.participants?.[1]?.subjectId, 'misty-dmx');
-  assert.equal(summary.participants?.[1]?.displayName, 'Misty DMX');
+  // The legacy pveBotId canonicalizes to the merged Misty identity at
+  // game-summary time, so new completions attribute to one profile.
+  assert.equal(summary.participants?.[1]?.subjectId, 'misty');
+  assert.equal(summary.participants?.[1]?.displayName, 'Misty');
 });
 
 test('buildGameSummary: historical first-party engine seat records bot profile identity', () => {
@@ -690,7 +692,7 @@ test('buildGameSummary: historical first-party engine seat records bot profile i
   const summary = buildGameSummary(ctx, room);
 
   assert.equal(summary.participants?.[1]?.subjectType, 'bot');
-  assert.equal(summary.participants?.[1]?.subjectId, 'misty-dark-chess');
+  assert.equal(summary.participants?.[1]?.subjectId, 'misty');
 });
 
 test('buildGameSummary: guest seats force rated=false even when room.rated=true', () => {

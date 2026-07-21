@@ -97,7 +97,7 @@ test('xiangqi engine catalog exposes the honest FSF human ladder', () => {
   );
   assert.deepEqual(fsf, {
     id: 'fairy-stockfish-xiangqi-level-1',
-    name: 'Fairy-Stockfish - Level 1',
+    name: 'Fairy-Stockfish Level 1',
     skill: -9,
     depth: 5,
     movetimeMs: 50,
@@ -117,7 +117,7 @@ test('xiangqi public catalog exposes the FSF ladder plus one elite Pikafish chal
     [
       ...Array.from({ length: 8 }, (_, index) => ({
         id: `fairy-stockfish-xiangqi-level-${index + 1}`,
-        name: `Fairy-Stockfish - Level ${index + 1}`,
+        name: `Fairy-Stockfish Level ${index + 1}`,
       })),
       { id: 'pikafish-xiangqi-level-8', name: 'Pikafish' },
     ],

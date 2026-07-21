@@ -380,7 +380,9 @@ function tenantParticipant<
         color: color as persistence.GameParticipantColor,
         displayName: bot?.displayName ?? tenant.engine.displayName(seatedClientId),
         subjectType: 'bot',
-        subjectId: room.pveBotId,
+        // Canonicalize: a room created against a pre-consolidation bot id
+        // still attributes its game to the merged identity.
+        subjectId: bot?.id ?? room.pveBotId,
         ...(engineVersion != null ? { engineVersion } : {}),
         visibility,
       };

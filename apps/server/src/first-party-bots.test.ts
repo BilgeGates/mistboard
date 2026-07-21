@@ -1,57 +1,131 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { firstPartyBotForEngine, firstPartyBotForId } from './first-party-bots.js';
+import {
+  FIRST_PARTY_BOT_PROFILES,
+  firstPartyBotEngineFor,
+  firstPartyBotForEngine,
+  firstPartyBotForId,
+} from './first-party-bots.js';
+import { FORTRESS_XIANGQI_PLAYABLE_ENGINES } from './fortress-xiangqi-fsf-engine.js';
 import { XIANGQI_PLAYABLE_ENGINES } from './xiangqi-engine-catalog.js';
 
-test('first-party Jieqi and Crossroads bot profiles expose three levels', () => {
-  assert.equal(firstPartyBotForEngine('pikafish-jieqi-amateur')?.id, 'pika-jieqi-amateur');
-  assert.equal(firstPartyBotForEngine('pikafish-jieqi-strong')?.id, 'pika-jieqi');
-  assert.equal(firstPartyBotForEngine('pikafish-jieqi-strongest')?.id, 'pika-jieqi-strongest');
+test('the merged Misty identity fronts every house variant', () => {
+  const misty = firstPartyBotForId('misty');
+  assert.ok(misty);
+  assert.equal(misty.displayName, 'Misty');
+  assert.equal(firstPartyBotEngineFor('misty', 'dark-chess'), 'python-v2-v1.5');
+  assert.equal(firstPartyBotEngineFor('misty', 'dark-xiangqi'), 'python-fdx-v1.1');
+  assert.equal(firstPartyBotEngineFor('misty', 'banqi'), 'misty-banqi');
+  assert.equal(firstPartyBotEngineFor('misty', 'jungle'), 'misty-jungle-level-2');
+  assert.equal(firstPartyBotEngineFor('misty', 'jungle-flip'), 'misty-jungle-flip');
+  // A variant Misty does not play resolves to null, never a guess.
+  assert.equal(firstPartyBotEngineFor('misty', 'xiangqi'), null);
 
-  assert.equal(
-    firstPartyBotForEngine('fairy-stockfish-crossroads-amateur')?.id,
-    'fairy-stockfish-crossroads-amateur',
-  );
-  assert.equal(
-    firstPartyBotForEngine('fairy-stockfish-crossroads-strong')?.id,
-    'fairy-stockfish-crossroads',
-  );
-  assert.equal(
-    firstPartyBotForEngine('fairy-stockfish-crossroads-very-strong')?.id,
-    'fairy-stockfish-crossroads-strongest',
-  );
+  // Pre-consolidation bot ids and retired engine versions keep resolving.
+  for (const legacyId of ['misty-dark-chess', 'misty-dmx', 'misty-banqi']) {
+    assert.equal(firstPartyBotForId(legacyId)?.id, 'misty', legacyId);
+  }
+  for (const engineId of [
+    'python-v2-v1.0',
+    'python-dmx-v1.0',
+    'misty-jungle-level-1',
+    'misty-jungle-level-3',
+  ]) {
+    assert.equal(firstPartyBotForEngine(engineId)?.id, 'misty', engineId);
+  }
+});
 
-  assert.equal(firstPartyBotForId('pika-jieqi')?.displayName, 'PikaJieQi - Strong');
-  // Fairy-Stockfish bots drop the redundant variant segment from the display name
-  // (the variant is always shown in context); level distinguishes them per variant.
+test('the merged Pikafish identity fronts xiangqi and jieqi', () => {
+  assert.equal(firstPartyBotEngineFor('pikafish', 'xiangqi'), 'pikafish-xiangqi-level-8');
+  assert.equal(firstPartyBotEngineFor('pikafish', 'jieqi'), 'pikafish-jieqi-strong');
+
+  // Every retired Pikafish bot id and engine id lands on the merged identity.
+  for (const legacyId of [
+    'pika-jieqi',
+    'pika-jieqi-amateur',
+    'pika-jieqi-strongest',
+    'pikafish-xiangqi',
+    'pikafish-xiangqi-amateur',
+    'pikafish-xiangqi-strongest',
+    'pikafish-xiangqi-level-3',
+  ]) {
+    assert.equal(firstPartyBotForId(legacyId)?.id, 'pikafish', legacyId);
+  }
+  for (const engineId of [
+    'pikafish-jieqi-amateur',
+    'pikafish-jieqi-strongest',
+    'pikafish-xiangqi-level-1',
+    'pikafish-xiangqi-strongest',
+  ]) {
+    assert.equal(firstPartyBotForEngine(engineId)?.id, 'pikafish', engineId);
+  }
+});
+
+test('each Fairy-Stockfish level plays xiangqi and fortress through one identity', () => {
+  for (let level = 1; level <= 8; level += 1) {
+    const botId = `fairy-stockfish-level-${level}`;
+    const bot = firstPartyBotForId(botId);
+    assert.ok(bot, botId);
+    assert.equal(bot.displayName, `Fairy-Stockfish Level ${level}`);
+    assert.equal(
+      firstPartyBotEngineFor(botId, 'xiangqi'),
+      `fairy-stockfish-xiangqi-level-${level}`,
+    );
+    assert.equal(
+      firstPartyBotEngineFor(botId, 'fortress-xiangqi'),
+      `fairy-stockfish-fortress-xiangqi-level-${level}`,
+    );
+    // The old per-variant bot id keeps resolving.
+    assert.equal(firstPartyBotForId(`fairy-stockfish-xiangqi-level-${level}`)?.id, botId);
+  }
+  // The retired fortress tiers absorbed by ordinal position.
+  assert.equal(
+    firstPartyBotForId('fairy-stockfish-fortress-xiangqi-amateur')?.id,
+    'fairy-stockfish-level-2',
+  );
+  assert.equal(
+    firstPartyBotForId('fairy-stockfish-fortress-xiangqi')?.id,
+    'fairy-stockfish-level-5',
+  );
+  assert.equal(
+    firstPartyBotForEngine('fairy-stockfish-fortress-xiangqi-very-strong')?.id,
+    'fairy-stockfish-level-8',
+  );
+});
+
+test('every public xiangqi and fortress engine resolves to a first-party bot', () => {
+  for (const tier of XIANGQI_PLAYABLE_ENGINES) {
+    const bot = firstPartyBotForEngine(tier.id);
+    assert.ok(bot, `${tier.id}: no first-party bot profile claims this engine id`);
+  }
+  for (const tier of FORTRESS_XIANGQI_PLAYABLE_ENGINES) {
+    const bot = firstPartyBotForEngine(tier.id);
+    assert.ok(bot, `${tier.id}: no first-party bot profile claims this engine id`);
+    assert.equal(firstPartyBotEngineFor(bot.id, 'fortress-xiangqi'), tier.id);
+  }
+});
+
+test('dormant retired-family profiles keep their names for history', () => {
   assert.equal(
     firstPartyBotForId('fairy-stockfish-crossroads')?.displayName,
     'Fairy Stockfish - Strong',
   );
-});
-
-test('every xiangqi ladder level has a first-party bot profile', () => {
-  for (const tier of XIANGQI_PLAYABLE_ENGINES) {
-    const bot = firstPartyBotForEngine(tier.id);
-    assert.ok(bot, `${tier.id}: no first-party bot profile claims this engine id`);
-    assert.equal(bot.defaultGameSpecId, 'xiangqi');
-    assert.equal(bot.displayName, tier.name, `${tier.id}: bot display name must match the tier`);
-  }
-});
-
-test('retired xiangqi engine ids attribute to the absorbing level profiles', () => {
-  // The pre-ladder tiers were absorbed into the matching levels. Their bot ids
-  // continue as the Level 2/5/8 profiles (existing /bots URLs and historical
-  // game attribution stay stable) and their retired engine ids resolve through
-  // attributionEngineIds, like Misty's retired engine versions.
-  assert.equal(firstPartyBotForEngine('pikafish-xiangqi-amateur')?.id, 'pikafish-xiangqi-amateur');
-  assert.equal(firstPartyBotForEngine('pikafish-xiangqi-strong')?.id, 'pikafish-xiangqi');
   assert.equal(
-    firstPartyBotForEngine('pikafish-xiangqi-strongest')?.id,
-    'pikafish-xiangqi-strongest',
+    firstPartyBotForEngine('fairy-stockfish-drop-mini-xiangqi-very-strong')?.id,
+    'fairy-stockfish-drop-mini-xiangqi-strongest',
   );
+});
 
-  assert.equal(firstPartyBotForId('pikafish-xiangqi-amateur')?.displayName, 'Pikafish - Level 2');
-  assert.equal(firstPartyBotForId('pikafish-xiangqi')?.displayName, 'Pikafish - Level 5');
-  assert.equal(firstPartyBotForId('pikafish-xiangqi-strongest')?.displayName, 'Pikafish');
+test('no engine id is claimed by two profiles with different identities', () => {
+  const owners = new Map<string, string>();
+  for (const bot of FIRST_PARTY_BOT_PROFILES) {
+    for (const engineId of [...Object.values(bot.engines), ...(bot.attributionEngineIds ?? [])]) {
+      const existing = owners.get(engineId);
+      assert.ok(
+        existing === undefined || existing === bot.id,
+        `${engineId} claimed by both ${existing} and ${bot.id}`,
+      );
+      owners.set(engineId, bot.id);
+    }
+  }
 });

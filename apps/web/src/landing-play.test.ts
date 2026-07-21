@@ -584,11 +584,10 @@ describe('landing play panel', () => {
     // Pick the strongest Crossroads engine (the default is the middle tier)...
     selectModalVariant('crossroads-chess');
     selectModalEngine('fairy-stockfish-crossroads-very-strong');
-    // ...then visit Jieqi (which resolves to its own engine)...
+    // ...then visit Jieqi (one public engine since the bot consolidation, so
+    // the dialog renders a static control instead of a select)...
     selectModalVariant('jieqi');
-    expect(document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]')!.value).toBe(
-      'pikafish-jieqi-strong',
-    );
+    expect(document.querySelector('.landing-variant-control')?.textContent).toBe('Pikafish');
     // ...and back to Crossroads: the earlier pick must survive the round-trip.
     selectModalVariant('crossroads-chess');
     expect(document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]')!.value).toBe(
@@ -894,7 +893,7 @@ describe('landing play panel', () => {
 
     openPlaySetup(panel, 'Play the engine');
     selectModalVariant('dark-xiangqi');
-    expect(document.querySelector('.landing-variant-control')?.textContent).toBe('Misty DXQ 1.1');
+    expect(document.querySelector('.landing-variant-control')?.textContent).toBe('Misty');
     clickModalColor('Black');
     clickModalButton('Start game');
     await flushPromises();

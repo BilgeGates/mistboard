@@ -691,7 +691,7 @@ test('snapshot seatDisplayNames resolves account, bot, and guest seats', () => {
     revokedAt: null,
   };
   const payload = darkMiniXiangqiSnapshotPayload(room, { id: 'R', seat: 'red', solo: false });
-  assert.deepEqual(payload.seatDisplayNames, { red: 'Brian', black: 'Misty DMX' });
+  assert.deepEqual(payload.seatDisplayNames, { red: 'Brian', black: 'Misty' });
 
   // Handle fallback when the account has no display name.
   room.seatTokens.red.userDisplayName = null;
@@ -709,7 +709,7 @@ test('snapshot seatDisplayNames resolves account, bot, and guest seats', () => {
     seat: 'spectator',
     solo: false,
   });
-  assert.deepEqual(spectator.seatDisplayNames, { black: 'Misty DMX' });
+  assert.deepEqual(spectator.seatDisplayNames, { black: 'Misty' });
 });
 
 function createEnabledDarkMiniXiangqiRuntimeRoom(

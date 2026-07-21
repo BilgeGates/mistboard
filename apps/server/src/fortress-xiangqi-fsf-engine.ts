@@ -31,13 +31,15 @@ import {
 const VARIANT = 'fortressxiangqi';
 const VARIANT_INI = 'fortress-xiangqi.ini';
 
-export const FORTRESS_XIANGQI_DEFAULT_ENGINE_ID = 'fairy-stockfish-fortress-xiangqi-strong';
+export const FORTRESS_XIANGQI_DEFAULT_ENGINE_ID = 'fairy-stockfish-fortress-xiangqi-level-4';
 // Engine BUILD version recorded per PvE game. Bump on any engine/config change
 // (including edits to fortress-xiangqi.ini).
 // 0.2.0: clock-aware per-move budgeting (shared budgetForMove allocator) + raise
 //        the Strongest movetime CEILING 2000->6000 so the 800k node budget binds
 //        on the slow prod vCPU (~2.4s) instead of being cut short at 2s.
-export const FORTRESS_XIANGQI_ENGINE_VERSION = '0.2.0';
+// 0.3.0: eight-level ladder (the xiangqi FSF level shape); the retired
+//        amateur/strong/very-strong tiers stay resolvable as legacy tiers.
+export const FORTRESS_XIANGQI_ENGINE_VERSION = '0.3.0';
 
 export type FortressXiangqiEngineTier = {
   id: string;
@@ -47,15 +49,80 @@ export type FortressXiangqiEngineTier = {
   movetimeMs: number;
 };
 
-// Tiers mirror Drop Mini Xiangqi: Skill Level weakens CPU-independently, the NODE
-// budget pins top-tier strength reproducibly across the slow prod vCPU, and the
-// `movetimeMs` is now the CEILING handed to the shared clock-aware allocator
-// (budgetForMove) — NOT a fixed think. It must be generous enough that the node
-// budget binds on prod (measured ~333k nps on the 7x8 board: 800k nodes ≈ 2.4s),
-// so Strongest is 6000ms; the allocator shrinks below it under time pressure.
-// Amateur/Strong caps are left low because their small node budgets (6k/60k) bind
-// in well under those caps regardless.
+// Level ladder mirrors the standard-xiangqi FSF bots: the SKILL values are the
+// lichess/PlayStrategy level ladder (stochastic Skill Level), while strength is
+// additionally pinned by a NODE budget (the fortress convention: reproducible
+// across the slow prod vCPU) instead of xiangqi's depth caps. `movetimeMs` is
+// the CEILING handed to the shared clock-aware allocator (budgetForMove) — NOT
+// a fixed think; it only needs to be generous enough that the node budget binds
+// on prod (~333k nps on the 7x8 board: 800k nodes ≈ 2.4s). Level 5 and Level 8
+// reproduce the retired Strong/Strongest tiers exactly; Levels 1-2 sit below
+// the retired Amateur tier so beginners finally get a beatable rung.
 const FORTRESS_XIANGQI_ENGINE_TIERS = [
+  {
+    id: 'fairy-stockfish-fortress-xiangqi-level-1',
+    name: 'Fairy-Stockfish Level 1',
+    skill: -9,
+    nodes: 3_000,
+    movetimeMs: 300,
+  },
+  {
+    id: 'fairy-stockfish-fortress-xiangqi-level-2',
+    name: 'Fairy-Stockfish Level 2',
+    skill: -5,
+    nodes: 6_000,
+    movetimeMs: 300,
+  },
+  {
+    id: 'fairy-stockfish-fortress-xiangqi-level-3',
+    name: 'Fairy-Stockfish Level 3',
+    skill: -1,
+    nodes: 12_000,
+    movetimeMs: 400,
+  },
+  {
+    id: FORTRESS_XIANGQI_DEFAULT_ENGINE_ID,
+    name: 'Fairy-Stockfish Level 4',
+    skill: 3,
+    nodes: 25_000,
+    movetimeMs: 500,
+  },
+  {
+    id: 'fairy-stockfish-fortress-xiangqi-level-5',
+    name: 'Fairy-Stockfish Level 5',
+    skill: 8,
+    nodes: 60_000,
+    movetimeMs: 800,
+  },
+  {
+    id: 'fairy-stockfish-fortress-xiangqi-level-6',
+    name: 'Fairy-Stockfish Level 6',
+    skill: 12,
+    nodes: 150_000,
+    movetimeMs: 1_500,
+  },
+  {
+    id: 'fairy-stockfish-fortress-xiangqi-level-7',
+    name: 'Fairy-Stockfish Level 7',
+    skill: 16,
+    nodes: 350_000,
+    movetimeMs: 3_000,
+  },
+  {
+    id: 'fairy-stockfish-fortress-xiangqi-level-8',
+    name: 'Fairy-Stockfish Level 8',
+    skill: 20,
+    nodes: 800_000,
+    // Ceiling, not fixed think: gives the 800k node budget room to bind on prod
+    // (~2.4s) instead of a low cap cutting the search short.
+    movetimeMs: 6_000,
+  },
+] as const satisfies readonly FortressXiangqiEngineTier[];
+
+// Retired pre-ladder tiers. Kept resolvable with their exact playing parameters
+// so old rooms/replays/postgame pages behave identically, but they are NOT in
+// FORTRESS_XIANGQI_PLAYABLE_ENGINES, so pickers never offer them.
+const FORTRESS_XIANGQI_LEGACY_ENGINE_TIERS = [
   {
     id: 'fairy-stockfish-fortress-xiangqi-amateur',
     name: 'Fairy Stockfish - Amateur',
@@ -64,7 +131,7 @@ const FORTRESS_XIANGQI_ENGINE_TIERS = [
     movetimeMs: 300,
   },
   {
-    id: FORTRESS_XIANGQI_DEFAULT_ENGINE_ID,
+    id: 'fairy-stockfish-fortress-xiangqi-strong',
     name: 'Fairy Stockfish - Strong',
     skill: 8,
     nodes: 60_000,
@@ -75,8 +142,6 @@ const FORTRESS_XIANGQI_ENGINE_TIERS = [
     name: 'Fairy Stockfish - Strongest',
     skill: 20,
     nodes: 800_000,
-    // Ceiling, not fixed think: gives the 800k node budget room to bind on prod
-    // (~2.4s) instead of the old 2s cap cutting the search short.
     movetimeMs: 6_000,
   },
 ] as const satisfies readonly FortressXiangqiEngineTier[];
@@ -85,7 +150,10 @@ export const FORTRESS_XIANGQI_PLAYABLE_ENGINES: readonly FortressXiangqiEngineTi
   FORTRESS_XIANGQI_ENGINE_TIERS;
 
 const FORTRESS_XIANGQI_ENGINE_BY_ID: ReadonlyMap<string, FortressXiangqiEngineTier> = new Map(
-  FORTRESS_XIANGQI_ENGINE_TIERS.map((engine) => [engine.id, engine]),
+  [...FORTRESS_XIANGQI_ENGINE_TIERS, ...FORTRESS_XIANGQI_LEGACY_ENGINE_TIERS].map((engine) => [
+    engine.id,
+    engine,
+  ]),
 );
 
 // Small FSF slot pool, separate from the other variants. Promote to a shared

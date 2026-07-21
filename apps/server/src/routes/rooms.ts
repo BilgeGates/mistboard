@@ -1,9 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { currentAccountUser } from './../account-session.js';
-import { isBotPlayable, parsePublicBotId } from './../bot-profile-policy.js';
+import { isBotSpecPlayable, parsePublicBotId } from './../bot-profile-policy.js';
 import { playableLiveEngines } from './../engine-registry.js';
 import { ratedEnabled } from './../feature-flags.js';
+import { firstPartyBotEngineFor, firstPartyBotForId } from './../first-party-bots.js';
 import { gateGameSpecRequest } from './../game-spec-request-gate.js';
 import { InternalEngineClientError } from './../internal-engine-client.js';
 import { engineCounters, logger } from './../obs.js';
@@ -240,8 +241,8 @@ export async function resolveBotRoomRequest(
   body: Record<string, unknown>,
 ): Promise<Record<string, unknown> | null> {
   if (body.botId === undefined) return body;
-  const botId = parsePublicBotId(body.botId);
-  if (!botId) {
+  const requestedBotId = parsePublicBotId(body.botId);
+  if (!requestedBotId) {
     writeJson(response, 400, { error: 'invalid_bot_id' });
     return null;
   }
@@ -257,48 +258,65 @@ export async function resolveBotRoomRequest(
     writeJson(response, 400, { error: 'bot_engine_conflict' });
     return null;
   }
+  // Pre-consolidation bot ids keep working: canonicalize before the DB lookup
+  // (the merged profile is the public row; legacy rows are unlisted).
+  const botId = firstPartyBotForId(requestedBotId)?.id ?? requestedBotId;
   const bot = await persistence.getPublicBotForPlay(botId);
-  if (!bot || !isBotPlayable(bot)) {
+  if (!bot) {
     writeJson(response, 404, { error: 'bot_not_found' });
     return null;
   }
-  if (body.gameSpecId !== undefined && body.gameSpecId !== bot.play.gameSpecId) {
+  // A multi-variant bot accepts any of its supported specs; omitted picks the
+  // bot's default. The per-spec engine comes from the first-party profile;
+  // single-variant (community) bots keep their stored engine.
+  const gameSpecId = body.gameSpecId === undefined ? bot.play.gameSpecId : body.gameSpecId;
+  if (
+    typeof gameSpecId !== 'string' ||
+    !(gameSpecId === bot.play.gameSpecId || bot.supportedGameSpecIds.includes(gameSpecId))
+  ) {
     writeJson(response, 400, { error: 'bot_game_spec_conflict' });
     return null;
   }
+  if (!isBotSpecPlayable(gameSpecId)) {
+    writeJson(response, 404, { error: 'bot_not_found' });
+    return null;
+  }
+  const engineId =
+    firstPartyBotEngineFor(botId, gameSpecId) ??
+    (gameSpecId === bot.play.gameSpecId ? bot.play.engineId : null);
+  if (!engineId) {
+    writeJson(response, 400, { error: 'bot_game_spec_conflict' });
+    return null;
+  }
+  // The caller may pick any pace the target surface allows (the tenant/chess
+  // time-control gates downstream stay authoritative); omitted keeps the bot's
+  // standing clock.
+  let timeControl = bot.play.timeControl;
   if (body.timeControl !== undefined) {
     const requested = parseRoomTimeControl(body.timeControl);
-    if (!requested || !sameTimeControl(requested, bot.play.timeControl)) {
+    if (!requested) {
       writeJson(response, 400, { error: 'bot_time_control_conflict' });
       return null;
     }
+    timeControl = requested;
   }
   return {
     ...body,
     botId,
     mode: 'pve',
-    gameSpecId: bot.play.gameSpecId,
-    engineId: bot.play.engineId,
-    timeControl: bot.play.timeControl,
+    gameSpecId,
+    engineId,
+    timeControl,
     preferredColor: body.preferredColor ?? bot.play.preferredColor,
     rated: body.rated ?? false,
-    ...(bot.play.gameSpecId === 'dark-chess' ? { variant: 'dark-chess' } : {}),
-    ...(bot.play.gameSpecId === 'dark-draft960'
-      ? { hiddenDraft960: true, variant: 'dark-chess' }
-      : {}),
+    ...(gameSpecId === 'dark-chess' ? { variant: 'dark-chess' } : {}),
+    ...(gameSpecId === 'dark-draft960' ? { hiddenDraft960: true, variant: 'dark-chess' } : {}),
   };
 }
 
 function parseRoomMode(body: Record<string, unknown>): 'pvp' | 'pve' | null {
   if (body.mode === 'pvp' || body.mode === 'pve') return body.mode;
   return null;
-}
-
-function sameTimeControl(
-  left: { initialMs: number; incrementMs: number },
-  right: { initialMs: number; incrementMs: number },
-): boolean {
-  return left.initialMs === right.initialMs && left.incrementMs === right.incrementMs;
 }
 
 function parsePlayablePveEngineId(value: unknown): string | null {
