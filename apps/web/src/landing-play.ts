@@ -898,7 +898,18 @@ function lobbyTableRow(request: OpenLobbyRequest, locale: Locale): HTMLElement {
       timeControl: request.timeControl,
       preferredColor: 'random',
     };
-    joinLobbyFromPlay(join, setup, status, locale);
+    // Same detached-status shape as lobbyRequestRow: a non-instant match means
+    // the seek was taken in the refresh window, so fail fast instead of
+    // queueing invisibly.
+    joinLobbyFromPlay(join, setup, status, locale, undefined, {
+      onNoInstantMatch: () => {
+        join.textContent = t('play.offerTaken', {}, locale);
+        window.setTimeout(() => {
+          join.disabled = false;
+          join.textContent = t('play.join', {}, locale);
+        }, 2000);
+      },
+    });
   });
   row.append(game, time, mode, join);
   return row;
@@ -988,8 +999,18 @@ function lobbyRequestRow(request: OpenLobbyRequest, locale: Locale = currentLoca
       preferredColor: 'random',
     };
     // Joining an open request matches instantly, so no engine offer is involved
-    // (unchanged from chess) — the offer only arms while waiting.
-    joinLobbyFromPlay(join, setup, status, locale);
+    // (unchanged from chess) — the offer only arms while waiting. The row has
+    // no waiting UI (`status` is never attached), so a non-instant match means
+    // the offer was already taken: fail fast rather than queue invisibly.
+    joinLobbyFromPlay(join, setup, status, locale, undefined, {
+      onNoInstantMatch: () => {
+        join.textContent = t('play.offerTaken', {}, locale);
+        window.setTimeout(() => {
+          join.disabled = false;
+          join.textContent = t('play.join', {}, locale);
+        }, 2000);
+      },
+    });
   });
 
   row.append(details, join);
@@ -2825,6 +2846,12 @@ function joinLobbyFromPlay(
   status: HTMLElement,
   locale: Locale = currentLocale(),
   engineId?: string,
+  opts?: {
+    /** Fail fast instead of queueing: when the join POST does not match
+     *  instantly (the offer was taken in the refresh window), delete the
+     *  freshly-created ticket and hand control back to the caller. */
+    onNoInstantMatch?: () => void;
+  },
 ): () => void {
   const controller = new AbortController();
   const originalText = button.textContent ?? '';
@@ -2994,6 +3021,16 @@ function joinLobbyFromPlay(
     const ticket = (await response.json()) as LobbyTicketResponse;
     track('lobby_queue_joined', bucketProps);
     if (!active || redirectIfMatched(ticket)) return;
+    if (opts?.onNoInstantMatch) {
+      // The joined offer was taken between the widget refresh and the click;
+      // the POST silently created a NEW ticket. Don't leave the user in an
+      // invisible queue: drop the ticket and let the caller revert the row.
+      track('lobby_offer_already_taken', bucketProps);
+      ticketId = ticket.ticketId ?? null;
+      cancel();
+      opts.onNoInstantMatch();
+      return;
+    }
     if (!ticket.ticketId) throw new Error('lobby did not return a ticket');
     ticketId = ticket.ticketId;
     pollTimer = window.setTimeout(() => {

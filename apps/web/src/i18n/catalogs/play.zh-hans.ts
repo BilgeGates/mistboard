@@ -36,6 +36,7 @@ export const ZH_HANS_PLAY = {
   'play.standard': '标准',
   'play.join': '加入',
   'play.joining': '加入中',
+  'play.offerTaken': '刚被抢走，换一个试试',
   'lobby.tabQuick': '快速配对',
   'lobby.tabLobby': '大厅',
   'lobby.tabCorrespondence': '通信',

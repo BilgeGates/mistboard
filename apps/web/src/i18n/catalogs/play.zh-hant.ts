@@ -36,6 +36,7 @@ export const ZH_HANT_PLAY = {
   'play.standard': '標準',
   'play.join': '加入',
   'play.joining': '加入中',
+  'play.offerTaken': '剛被搶走，換一個試試',
   'lobby.tabQuick': '快速配對',
   'lobby.tabLobby': '大廳',
   'lobby.tabCorrespondence': '通信',
