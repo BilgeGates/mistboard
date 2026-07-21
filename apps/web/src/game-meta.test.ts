@@ -60,6 +60,23 @@ describe('reviewUrlForGame', () => {
       '/game/dchx_review',
     );
   });
+
+  // Regression: dark-xiangqi registers gameRouteBase but NO reviewRouteBase, so
+  // the old reviewRouteBase-only lookup fell through to /game/:id, whose chess
+  // shell 403s (game_not_public) on a dxq_ event log. Prefer gameRouteBase.
+  it('routes a finished dark-xiangqi game to its tenant postgame route', () => {
+    expect(reviewUrlForGame(game({ variant: 'dark-xiangqi', roomId: 'dxq_review' }))).toBe(
+      '/dark-xiangqi/game/dxq_review',
+    );
+  });
+
+  // Resolving by room-id prefix survives legacy variant-alias rows: a dxq_ game
+  // persisted under the 'fog-xiangqi' alias still routes to the tenant.
+  it('routes by room-id prefix even when the persisted variant is a legacy alias', () => {
+    expect(reviewUrlForGame(game({ variant: 'fog-xiangqi', roomId: 'dxq_legacy' }))).toBe(
+      '/dark-xiangqi/game/dxq_legacy',
+    );
+  });
 });
 
 describe('timeControlLabelForGame', () => {

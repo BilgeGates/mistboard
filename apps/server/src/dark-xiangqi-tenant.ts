@@ -283,9 +283,12 @@ function darkXiangqiParticipant(
       visibility,
     };
   }
+  // Anonymous seat: name it 'Guest', matching every other persistence path
+  // (room-manager, persistence-games). A color word here reads as a side label,
+  // not a player, and surfaces as "Red"/"Black" on watch thumbnails and reviews.
   return {
     color,
-    displayName: color === 'red' ? 'Red' : 'Black',
+    displayName: 'Guest',
     subjectType: 'guest',
     subjectId: null,
     visibility,

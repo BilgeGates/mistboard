@@ -3,7 +3,7 @@ import './board-fog.css';
 import './styles.css';
 import { initializeAccountNav } from './account-nav.js';
 import { analysisVariantFromPath, analysisVariantLabel } from './analysis-catalog.js';
-import { setPostHogInstance } from './analytics.js';
+import { captureException, setPostHogInstance } from './analytics.js';
 import type { ArticleLang } from './article-i18n.js';
 import {
   clearChunkReloadAttempt,
@@ -111,6 +111,7 @@ const wantsLive =
   (params.has('room') || params.has('variant') || params.has('dev'));
 const page = params.get('page');
 const gameRoomId = gameRoomIdFromPath(path);
+const gameRoomTenantRedirect = gameRoomId ? tenantRedirectForGameRoomId(gameRoomId) : null;
 const tenantPostgame = tenantPostgameFromPath(path);
 const liveRoomId = liveRoomIdFromPath(path);
 const wantsAbout = path === '/about' || page === 'about';
@@ -301,6 +302,13 @@ if (replaySample) {
   appRoot.dataset.favoriteGameId = roomId;
   setTitle(tenant.pageTitle);
   void mountOrReport(() => mount(appRoot, roomId).then(() => undefined));
+} else if (gameRoomTenantRedirect) {
+  // A stale/shared /game/<tenant-id> link (e.g. /game/dxq_...): variant-tenant
+  // games replay ONLY under their tenant postgame route; the legacy chess shell
+  // 403s (game_not_public) on their event log. Redirect to the canonical route
+  // so the link works and the URL is correct (replace, not push, so the broken
+  // URL leaves no history entry). The reload lands on the tenantPostgame branch.
+  window.location.replace(gameRoomTenantRedirect);
 } else if (gameRoomId) {
   appRoot.dataset.favoriteGameId = gameRoomId;
   setTitle('Game');
@@ -719,6 +727,11 @@ async function mountOrReport(run: () => Promise<void>): Promise<void> {
   } catch (err) {
     console.error(err);
     if (reloadForChunkLoadError(err)) return;
+    // Surface the swallowed mount failure to Error Tracking. Without this the
+    // friendly "Page failed to load" panel below is the ONLY trace of a broken
+    // route (e.g. a stale /game/<tenant-id> link 403ing on the chess shell) —
+    // handled errors never reach posthog's automatic $exception hook.
+    captureException(err, { context: 'route_mount', path: window.location.pathname });
     appRoot.replaceChildren();
     appRoot.classList.add('landing-page');
     const shell = document.createElement('main');
@@ -763,6 +776,17 @@ function tenantPostgameFromPath(value: string): {
     return { tenant, mount: tenant.mountPostgame.bind(tenant), roomId: decodeURIComponent(rest) };
   }
   return null;
+}
+
+// Canonical tenant postgame URL for a room-id reached via the legacy /game/:id
+// route, or null when the id is a chess-family game that belongs on /game/:id.
+// Resolves the tenant by room-id prefix; a tenant with a postgame surface
+// (gameRouteBase + mountPostgame) owns the replay, so /game/<its id> is a stale
+// link that must redirect there rather than 403 on the chess shell.
+function tenantRedirectForGameRoomId(roomId: string): string | null {
+  const tenant = webVariantTenantForRoomId(roomId);
+  if (!tenant?.gameRouteBase || !tenant.mountPostgame || !tenant.enabled()) return null;
+  return `${tenant.gameRouteBase}/${encodeURIComponent(roomId)}`;
 }
 
 function liveRoomIdFromPath(value: string): string | null {

@@ -13,6 +13,7 @@ import test from 'node:test';
 import { DARK_XIANGQI_SPEC_ID, type XiangqiCapture } from '@mistboard/game';
 import type { DarkXiangqiEvent } from './dark-xiangqi-runtime.js';
 import {
+  buildDarkXiangqiGameSummary,
   darkXiangqiCaptureLedger,
   darkXiangqiObservedCaptures,
   darkXiangqiTenant,
@@ -100,6 +101,28 @@ test('live snapshot: both seats carry identical full captures, spectator empty',
     red: ledger.filter((c) => c.victim.color === 'red').map((c) => c.victim.role),
     black: ledger.filter((c) => c.victim.color === 'black').map((c) => c.victim.role),
   });
+});
+
+// ── Participant naming ───────────────────────────────────────────────────────
+
+test('game summary: anonymous seats are named "Guest", never a color word', () => {
+  // Regression: the guest branch used `color === 'red' ? 'Red' : 'Black'`, so an
+  // anonymous human surfaced as "Red"/"Black" on watch thumbnails and reviews —
+  // reading as a side label, not a player, and (with a red seat) as the wrong
+  // color. Every other persistence path names an anonymous seat "Guest".
+  const roomId = 'dxq_guest_naming';
+  const created = createTenantRuntimeRoomFromEvents(
+    darkXiangqiTenant,
+    captureGameEvents(roomId, { resign: true }),
+  );
+  if (!created.ok) throw new Error('capture game must hydrate');
+
+  const summary = buildDarkXiangqiGameSummary(created.room);
+  const names = Object.fromEntries(
+    (summary.participants ?? []).map((p) => [p.color, p.displayName]),
+  );
+  assert.equal(names.red, 'Guest');
+  assert.equal(names.black, 'Guest');
 });
 
 // ── Postgame history truncation ──────────────────────────────────────────────

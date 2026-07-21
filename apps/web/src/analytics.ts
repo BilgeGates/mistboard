@@ -56,6 +56,7 @@ export function gameSpecAnalyticsPropsForId(gameSpecId: GameSpecId): GameSpecAna
 
 type PostHogLike = {
   capture: (name: string, props?: Record<string, unknown>) => void;
+  captureException?: (error: unknown, props?: Record<string, unknown>) => void;
   identify: (distinctId: string, props?: Record<string, unknown>) => void;
   reset: () => void;
 };
@@ -85,6 +86,28 @@ export function track(name: string, props?: Record<string, unknown>): void {
     console.log('[track]', name, props ?? {});
   }
   enqueue((ph) => ph.capture(name, props));
+}
+
+// Report a CAUGHT error to PostHog Error Tracking. posthog's automatic
+// capture_exceptions only sees UNHANDLED errors/promise rejections, so any error
+// we swallow into a friendly UI panel is invisible to monitoring unless we report
+// it here. Groups in Error Tracking the same as an unhandled throw (and rides the
+// same before_send filter). No-op in DEV; queues until posthog loads in PROD.
+export function captureException(error: unknown, props?: Record<string, unknown>): void {
+  if (import.meta.env.DEV) {
+    console.error('[captureException]', error, props ?? {});
+    return;
+  }
+  enqueue((ph) => {
+    if (ph.captureException) {
+      ph.captureException(error, props);
+    } else {
+      ph.capture('$exception', {
+        ...props,
+        $exception_message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
 }
 
 export type GameLifecycleStatusType = 'pregame' | 'playing' | 'finished' | 'aborted';
