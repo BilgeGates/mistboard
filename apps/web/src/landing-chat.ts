@@ -34,6 +34,31 @@ const AGE_OUT_TICK_MS = 60 * 1000;
 
 type LandingChatMode = 'live' | 'mock';
 
+// The mute toggle is a persistent per-browser preference: a viewer who mutes the
+// lobby chat expects it to stay muted across reloads and navigations, not reset
+// every page load. Mirrors the theme.ts sound-muted pattern (string boolean,
+// cached fallback so a thrown localStorage degrades gracefully).
+const CHAT_MUTED_STORAGE_KEY = 'mistboard.chatMuted';
+let cachedChatMuted = false;
+
+export function readStoredChatMuted(): boolean {
+  try {
+    cachedChatMuted = window.localStorage.getItem(CHAT_MUTED_STORAGE_KEY) === 'true';
+    return cachedChatMuted;
+  } catch {
+    return cachedChatMuted;
+  }
+}
+
+function writeStoredChatMuted(muted: boolean): void {
+  cachedChatMuted = muted;
+  try {
+    window.localStorage.setItem(CHAT_MUTED_STORAGE_KEY, muted ? 'true' : 'false');
+  } catch {
+    // Mute state still applies for the current page.
+  }
+}
+
 // The windowed view: lines newer than `now - CHAT_WINDOW_MS`, capped to the
 // newest CHAT_VISIBLE_LINES. Lines with unparseable timestamps are dropped
 // (fail closed: never show a line we cannot age out).
@@ -88,6 +113,16 @@ async function hydrateChat(mount: HTMLElement, mode: LandingChatMode): Promise<v
   const top = box.querySelector('.site-box-top');
   top?.append(buildChatToggle(box, body, mount, mode, locale));
 
+  // Honor a persisted mute: render the box + toggle in the muted state (no feed,
+  // no pollers) so a muted viewer's preference survives reload. The toggle
+  // unmutes on demand. Mock mode ignores it so the preview always shows the room.
+  if (mode !== 'mock' && readStoredChatMuted()) {
+    box.classList.add('is-chat-muted');
+    clearMountTimers(mount);
+    mount.replaceChildren(box);
+    return;
+  }
+
   // Quiet when the visibility window is empty, not merely when the latest
   // line is old: the same predicate that decides what the room renders.
   if (visibleChatWindow(state.lines, Date.now()).length === 0) {
@@ -111,9 +146,11 @@ function buildChatToggle(
   toggle.title = mode === 'mock' ? 'Toggle chat preview' : t('chat.title', {}, locale);
   toggle.addEventListener('click', () => {
     if (box.classList.contains('is-chat-muted')) {
+      if (mode !== 'mock') writeStoredChatMuted(false);
       void hydrateChat(mount, mode);
       return;
     }
+    if (mode !== 'mock') writeStoredChatMuted(true);
     box.classList.add('is-chat-muted');
     clearMountTimers(mount);
     body.replaceChildren();

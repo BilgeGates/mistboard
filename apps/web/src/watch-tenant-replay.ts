@@ -123,6 +123,13 @@ export type TenantWatchReplayOptions = {
    */
   compact?: boolean;
   /**
+   * Compact only: suppress the flanking reserve strips for drop/reserve variants
+   * (fortress-xiangqi), rendering just the bare board. The "Previously on" queue
+   * thumbnails use this — at thumbnail scale the hands are unreadable clutter, so
+   * the preview shows the board alone. The featured board and full TV keep them.
+   */
+  hideReserve?: boolean;
+  /**
    * Called once when the game reaches its final ply under autoplay (after the
    * loop hold), instead of restarting the same game. Lets an outer showcase
    * controller advance to the next pooled game (possibly a different variant).
@@ -685,7 +692,8 @@ export async function mountTenantWatchReplay<
       boardOrientation = target.orientation;
       // Compact never uses the pane's top/bottom capture rows: drop/reserve
       // variants show side strips, and every other variant shows no captures here.
-      const sided = adapter.sidedCaptures === true;
+      // hideReserve drops the strips too (queue thumbnails render the bare board).
+      const sided = adapter.sidedCaptures === true && options.hideReserve !== true;
       const pane = createPane('', adapter.paneKind(target.key), false, 'split');
       boardTargets = [{ pane, key: target.key }];
       controls = null;

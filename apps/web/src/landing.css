@@ -15,8 +15,13 @@
 
 .landing-demo {
   /* Shared height for the band-2 widget boxes (forum, top players; the forum
-     CSS reads --landing-lower-widget-height, kept under its historical name). */
+     CSS reads --landing-lower-widget-height, kept under its historical name).
+     On desktop the min-width:1241px block re-derives this from the rail width so
+     the boxes match the full-width daily-puzzle board. */
   --landing-lower-widget-height: 20em;
+  /* Desktop side-rail (puzzle / players column) width. Single-sourced here so the
+     grid columns and the puzzle board's derived height stay in sync. */
+  --landing-rail-width: 340px;
 
   display: grid;
   /* lichess-shaped portal in three bands. Band 1 (~the first two-thirds of the
@@ -28,7 +33,9 @@
      34%/1fr grid). Center takes the free space (1fr) while the side rails hold
      a tight 280-340px, so the panel reads as the focal block, not a co-equal
      third column. */
-  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr) minmax(280px, 340px);
+  grid-template-columns:
+    minmax(280px, var(--landing-rail-width)) minmax(0, 1fr)
+    minmax(280px, var(--landing-rail-width));
   grid-template-areas:
     "left   panel play"
     "puzzle forum players"
@@ -1501,11 +1508,20 @@
   }
 
   /* ── Band-2 equal heights ────────────────────────────────────────────────────
-     The puzzle box adopts the shared widget height (the forum/players boxes'
-     20em), so all three band-2 boxes align top AND bottom; the square board
-     shrinks to match instead of running past the row. */
+     The daily-puzzle board fills the rail width. A standard xiangqi board is
+     portrait (540:612), so the box is taller than the old square: derive the
+     shared band-2 height from the rail width times that ratio, and the box takes
+     it. The forum and top-players boxes read the same variable, so all three
+     band-2 boxes still align top AND bottom. The board sizes from this height and
+     its width lands flush with the rail (no pillarboxing). */
+  .landing-demo {
+    --landing-lower-widget-height: calc(var(--landing-rail-width) * 612 / 540);
+  }
+
   .landing-puzzle-column .home-puzzle-box {
-    width: min(100%, var(--landing-lower-widget-height));
+    width: 100%;
+    height: var(--landing-lower-widget-height);
+    aspect-ratio: auto;
   }
 
   /* ── Homepage viewer: flush box model (Stage 2) ──────────────────────────────

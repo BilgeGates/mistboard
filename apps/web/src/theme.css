@@ -520,6 +520,15 @@
   direction: rtl;
 }
 
+/* The volume slider occupies the left column of the sound panel, so the last
+   option (silent) has the slider divider to its left: a rounded bottom-left
+   corner would float over that seam. Square it; the slider's own box keeps the
+   panel's bottom-left radius. */
+.appearance-sound-list .appearance-choice-option:last-child,
+.appearance-sound-list .appearance-choice-option:only-child {
+  border-bottom-left-radius: 0;
+}
+
 .appearance-sound-list {
   align-content: center;
 }

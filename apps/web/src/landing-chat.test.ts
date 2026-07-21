@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildLandingChat,
   CHAT_VISIBLE_LINES,
   CHAT_WINDOW_MS,
   type ChatLine,
   createLandingChatFeed,
+  readStoredChatMuted,
   visibleChatWindow,
 } from './landing-chat.js';
 
@@ -219,5 +220,106 @@ describe('buildLandingChat (live, stubbed fetch)', () => {
     });
     const texts = [...mount.querySelectorAll('.landing-chat-text')].map((el) => el.textContent);
     expect(texts).toEqual(['hello there']);
+  });
+});
+
+describe('landing chat mute persistence (live)', () => {
+  const CHAT_MUTED_KEY = 'mistboard.chatMuted';
+
+  // The jsdom test env ships no window.localStorage (production code try/catches
+  // around it); install an in-memory stub so the persistence path is exercised.
+  let originalLocalStorage: PropertyDescriptor | undefined;
+
+  beforeEach(() => {
+    originalLocalStorage = Object.getOwnPropertyDescriptor(window, 'localStorage');
+    const store = new Map<string, string>();
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => (store.has(k) ? (store.get(k) as string) : null),
+        setItem: (k: string, v: string) => void store.set(k, String(v)),
+        removeItem: (k: string) => void store.delete(k),
+        clear: () => store.clear(),
+        key: (i: number) => [...store.keys()][i] ?? null,
+        get length() {
+          return store.size;
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    if (originalLocalStorage) {
+      Object.defineProperty(window, 'localStorage', originalLocalStorage);
+    } else {
+      Reflect.deleteProperty(window as unknown as Record<string, unknown>, 'localStorage');
+    }
+    document.body.replaceChildren();
+  });
+
+  function stubRoomFetch(): void {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          lines: [line('a', 60_000, Date.now()), line('b', 1000, Date.now())],
+          canPost: true,
+          canReport: false,
+          viewerHandle: 'you',
+          isAdmin: false,
+        }),
+      })),
+    );
+  }
+
+  it('reads the stored mute flag', () => {
+    expect(readStoredChatMuted()).toBe(false);
+    window.localStorage.setItem(CHAT_MUTED_KEY, 'true');
+    expect(readStoredChatMuted()).toBe(true);
+    window.localStorage.setItem(CHAT_MUTED_KEY, 'false');
+    expect(readStoredChatMuted()).toBe(false);
+  });
+
+  it('renders the muted box (no feed) on load when mute was persisted', async () => {
+    window.localStorage.setItem(CHAT_MUTED_KEY, 'true');
+    stubRoomFetch();
+
+    const mount = buildLandingChat();
+    document.body.append(mount);
+    // The box paints (chat exists) but in the muted state: the toggle is present,
+    // the feed is not.
+    await vi.waitFor(() => {
+      expect(mount.querySelector('.landing-chat.is-chat-muted')).toBeTruthy();
+    });
+    expect(mount.querySelector('.landing-chat-toggle')).toBeTruthy();
+    expect(mount.querySelectorAll('.landing-chat-line')).toHaveLength(0);
+  });
+
+  it('toggling mute writes the flag, and unmuting restores the feed and clears it', async () => {
+    stubRoomFetch();
+
+    const mount = buildLandingChat();
+    document.body.append(mount);
+    await vi.waitFor(() => {
+      expect(mount.querySelectorAll('.landing-chat-line').length).toBeGreaterThan(0);
+    });
+
+    const toggle = mount.querySelector<HTMLButtonElement>('.landing-chat-toggle');
+    expect(toggle).toBeTruthy();
+    if (!toggle) return;
+
+    toggle.click();
+    expect(window.localStorage.getItem(CHAT_MUTED_KEY)).toBe('true');
+    expect(mount.querySelector('.landing-chat.is-chat-muted')).toBeTruthy();
+    expect(mount.querySelectorAll('.landing-chat-line')).toHaveLength(0);
+
+    toggle.click();
+    expect(window.localStorage.getItem(CHAT_MUTED_KEY)).toBe('false');
+    await vi.waitFor(() => {
+      expect(mount.querySelectorAll('.landing-chat-line').length).toBeGreaterThan(0);
+    });
   });
 });

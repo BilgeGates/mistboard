@@ -24,6 +24,10 @@ export type ShowcaseBoardOptions = {
   // Autoplay through the game (default). false = mount paused at the start
   // position, used by the dev sheet to show each variant's opening.
   autoplay?: boolean;
+  // Tenant path only: suppress the flanking reserve strips for drop/reserve
+  // variants (fortress-xiangqi) so the compact board renders bare. Used by the
+  // /watch queue thumbnails, where hands are unreadable at preview scale.
+  hideReserve?: boolean;
   // POV for the chess (chessground) path; tenants pick their own showcase side.
   pov: 'white' | 'black';
   // Completed-game grids can reveal the final chess position. The homepage keeps
@@ -57,6 +61,7 @@ export async function mountShowcaseBoard(
       compact: true,
       onGameEnd: options.onGameEnd,
       namesByRoomId: options.namesByRoomId,
+      ...(options.hideReserve ? { hideReserve: true } : {}),
       ...(options.live ? { live: true } : {}),
       ...(options.loadPostgameOverride
         ? { loadPostgameOverride: options.loadPostgameOverride }

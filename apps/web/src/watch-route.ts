@@ -575,6 +575,7 @@ async function mountWatchQueuePreview(
       namesByRoomId,
       pov: 'white',
       revealOnFinish: true,
+      hideReserve: true,
     },
   );
   handle.setPov?.('truth');
