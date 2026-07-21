@@ -156,7 +156,7 @@ if (!testDbUrl) {
     await hydratedBlack.disconnect();
   });
 
-  test('Dark Xiangqi completion records private family-native game summary', async () => {
+  test('Dark Xiangqi completion records a public family-native game summary', async () => {
     const createdResponse = await createDarkXiangqiRoom(serverInstance);
     assert.equal(createdResponse.status, 201);
     const created = (await createdResponse.json()) as { roomId: string };
@@ -221,7 +221,9 @@ if (!testDbUrl) {
       ply_count: 2,
       mode: 'pvp',
       status: 'completed',
-      visibility: 'private',
+      // Human PvP games are public now (no more private games); fog live-view
+      // stays gated by the spec policy, not by this concluded-row visibility.
+      visibility: 'public',
       rated: false,
       white_client: null,
       black_client: null,
@@ -248,14 +250,14 @@ if (!testDbUrl) {
         // Anonymous seats are named 'Guest', not a color word (which read as a
         // side label and mislabeled the seat on watch thumbnails / reviews).
         display_name: 'Guest',
-        visibility: 'private',
+        visibility: 'public',
       },
       {
         color: 'red',
         subject_type: 'guest',
         subject_id: null,
         display_name: 'Guest',
-        visibility: 'private',
+        visibility: 'public',
       },
     ]);
 
@@ -310,7 +312,7 @@ if (!testDbUrl) {
     assert.equal(publicResponse.status, 200);
     const publicPostgame = (await publicResponse.json()) as DarkXiangqiPostgameResponse;
     assert.equal(publicPostgame.game.variant, 'dark-xiangqi');
-    assert.equal(publicPostgame.game.visibility, 'private');
+    assert.equal(publicPostgame.game.visibility, 'public');
     assert.equal(publicPostgame.view.perspective, 'red');
     assert.deepEqual(publicPostgame.views?.red?.board.b4, {
       piece: { color: 'red', role: 'cannon' },
