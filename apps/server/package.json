@@ -27,6 +27,7 @@
     "backfill:xiangqi-broadcast-translations": "tsx src/backfill-xiangqi-broadcast-translations.ts",
     "import:historical-xiangqi": "tsx src/import-historical-xiangqi.ts",
     "import:elephantchess-xiangqi": "tsx src/import-elephantchess-xiangqi.ts",
+    "pilot:elephantchess-manifest": "tsx src/generate-elephantchess-pilot-manifest.ts",
     "poll:xiangqi-broadcast": "tsx src/poll-xiangqi-broadcast-source.ts",
     "simulate:xiangqi-broadcast": "tsx src/simulate-xiangqi-broadcast.ts",
     "source:xiangqi-broadcast": "tsx src/serve-xiangqi-broadcast-source.ts",

@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   assembleMinedXiangqiPuzzle,
   buildXiangqiSolutionFromPv,
+  classifyXiangqiSolverMoveUniqueness,
   createInitialXiangqiState,
   detectXiangqiBlunderCandidates,
   isXiangqiSolverMoveUnique,
@@ -175,12 +176,19 @@ test('isXiangqiUniquelyWinning accepts a lone mate over a non-mate second line',
 // ── Winning-floor per-ply uniqueness (gated re-mine) ─────────────────────────
 
 // winHi 0.80 ~ +240cp, winLo 0.60 ~ +70cp on the K=400 logistic.
-const SOLVER_UNIQUE_OPTS = { winHi: 0.8, winLo: 0.6, materialGapCp: 250 };
+const SOLVER_UNIQUE_OPTS = { winHi: 0.8, winLo: 0.6, minGapCp: 200, materialGapCp: 250 };
 
 test('isXiangqiSolverMoveUnique: only-move (no runner-up) is unique', () => {
   assert.equal(
     isXiangqiSolverMoveUnique({ scoreCp: 400, mate: null }, undefined, SOLVER_UNIQUE_OPTS),
     true,
+  );
+});
+
+test('isXiangqiSolverMoveUnique: a losing only move is not a puzzle answer', () => {
+  assert.equal(
+    isXiangqiSolverMoveUnique({ scoreCp: -400, mate: null }, undefined, SOLVER_UNIQUE_OPTS),
+    false,
   );
 });
 
@@ -217,6 +225,24 @@ test('isXiangqiSolverMoveUnique: unique when the runner-up loses the win', () =>
       SOLVER_UNIQUE_OPTS,
     ),
     true,
+  );
+});
+
+test('isXiangqiSolverMoveUnique: hard near-tie floor rejects a boundary-sensitive result', () => {
+  const verdict = classifyXiangqiSolverMoveUniqueness(
+    { scoreCp: 270, mate: null },
+    { scoreCp: 71, mate: null },
+    SOLVER_UNIQUE_OPTS,
+  );
+  assert.deepEqual(verdict, { unique: false, reason: 'near-tie' });
+
+  assert.deepEqual(
+    classifyXiangqiSolverMoveUniqueness(
+      { scoreCp: 270, mate: null },
+      { scoreCp: 70, mate: null },
+      SOLVER_UNIQUE_OPTS,
+    ),
+    { unique: true, reason: 'runner-up-loses-win' },
   );
 });
 

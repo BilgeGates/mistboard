@@ -172,35 +172,72 @@ export type XiangqiSolverUniquenessOptions = {
   winHi: number;
   /** A runner-up at or below this win probability has lost the win (=> wrong). */
   winLo: number;
+  /** Hard stability floor: reject any non-mate runner-up closer than this even
+   *  when it happens to straddle the winLo boundary in one engine process. */
+  minGapCp: number;
   /** ...or a runner-up trailing best by at least this many cp is wrong even if
    *  it is still nominally winning (win the chariot, not the horse). */
   materialGapCp: number;
+};
+
+export type XiangqiSolverUniquenessReason =
+  | 'missing-best'
+  | 'fastest-mate'
+  | 'mate-not-unique'
+  | 'best-not-winning'
+  | 'only-move'
+  | 'runner-up-mates'
+  | 'near-tie'
+  | 'runner-up-loses-win'
+  | 'material-gap'
+  | 'alternative-still-good';
+
+export type XiangqiSolverUniquenessVerdict = {
+  unique: boolean;
+  reason: XiangqiSolverUniquenessReason;
 };
 
 /** Per-ply gate for a solver move: is the best line uniquely correct? True when
  *  best keeps a clear win AND the runner-up is actually wrong (lost the win or
  *  trails by a whole piece). Mates: unique iff best is the strictly fastest
  *  forced mate. No runner-up => the only move => unique. */
+export function classifyXiangqiSolverMoveUniqueness(
+  best: XiangqiVerifyLine | undefined,
+  second: XiangqiVerifyLine | undefined,
+  opts: XiangqiSolverUniquenessOptions,
+): XiangqiSolverUniquenessVerdict {
+  if (!best) return { unique: false, reason: 'missing-best' };
+  const bestMates = best.mate !== null && best.mate > 0;
+  if (bestMates) {
+    if (!second) return { unique: true, reason: 'fastest-mate' };
+    const secondMate = second.mate;
+    if (secondMate === null || secondMate <= 0) return { unique: true, reason: 'fastest-mate' };
+    return (best.mate as number) < secondMate
+      ? { unique: true, reason: 'fastest-mate' }
+      : { unique: false, reason: 'mate-not-unique' };
+  }
+  if (xiangqiWinRate(best.scoreCp) < opts.winHi) {
+    return { unique: false, reason: 'best-not-winning' };
+  }
+  if (!second) return { unique: true, reason: 'only-move' };
+  if (second.mate !== null && second.mate > 0) {
+    return { unique: false, reason: 'runner-up-mates' };
+  }
+  const gapCp = best.scoreCp - second.scoreCp;
+  if (gapCp < opts.minGapCp) return { unique: false, reason: 'near-tie' };
+  if (xiangqiWinRate(second.scoreCp) <= opts.winLo) {
+    return { unique: true, reason: 'runner-up-loses-win' };
+  }
+  if (gapCp >= opts.materialGapCp) return { unique: true, reason: 'material-gap' };
+  return { unique: false, reason: 'alternative-still-good' };
+}
+
 export function isXiangqiSolverMoveUnique(
   best: XiangqiVerifyLine | undefined,
   second: XiangqiVerifyLine | undefined,
   opts: XiangqiSolverUniquenessOptions,
 ): boolean {
-  if (!best) return false;
-  const bestMates = best.mate !== null && best.mate > 0;
-  if (bestMates) {
-    if (!second) return true;
-    const secondMate = second.mate;
-    if (secondMate === null || secondMate <= 0) return true;
-    return (best.mate as number) < secondMate;
-  }
-  if (!second) return true; // only move
-  if (second.mate !== null && second.mate > 0) return false; // runner-up mates, best does not
-  if (xiangqiWinRate(best.scoreCp) < opts.winHi) return false;
-  return (
-    xiangqiWinRate(second.scoreCp) <= opts.winLo ||
-    best.scoreCp - second.scoreCp >= opts.materialGapCp
-  );
+  return classifyXiangqiSolverMoveUniqueness(best, second, opts).unique;
 }
 
 // ── Puzzle initial state ─────────────────────────────────────────────────────

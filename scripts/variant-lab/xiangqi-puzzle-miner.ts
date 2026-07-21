@@ -112,6 +112,7 @@ type CliOptions = {
   verifyDepth: number;
   winHi: number;
   winLo: number;
+  minGapCp: number;
   materialGapCp: number;
   minPly: number;
   maxSolutionPlies: number;
@@ -186,6 +187,10 @@ const { values } = parseArgs({
     // audit tool, so the two CLIs cannot drift apart on what "unique" means.
     'win-hi': { type: 'string', default: String(XIANGQI_SOLVER_GATE_DEFAULTS.winHi) },
     'win-lo': { type: 'string', default: String(XIANGQI_SOLVER_GATE_DEFAULTS.winLo) },
+    'min-gap-cp': {
+      type: 'string',
+      default: String(XIANGQI_SOLVER_GATE_DEFAULTS.minGapCp),
+    },
     'material-gap-cp': {
       type: 'string',
       default: String(XIANGQI_SOLVER_GATE_DEFAULTS.materialGapCp),
@@ -231,6 +236,7 @@ const options: CliOptions = {
   verifyDepth: parsePositiveInt(values['verify-depth'], 20),
   winHi: Number.parseFloat(values['win-hi'] ?? String(XIANGQI_SOLVER_GATE_DEFAULTS.winHi)),
   winLo: Number.parseFloat(values['win-lo'] ?? String(XIANGQI_SOLVER_GATE_DEFAULTS.winLo)),
+  minGapCp: parsePositiveInt(values['min-gap-cp'], XIANGQI_SOLVER_GATE_DEFAULTS.minGapCp),
   materialGapCp: parsePositiveInt(
     values['material-gap-cp'],
     XIANGQI_SOLVER_GATE_DEFAULTS.materialGapCp,
@@ -488,7 +494,12 @@ async function buildGatedLine(
   postBlunderState: XiangqiGameState,
   opts: CliOptions,
 ): Promise<GatedLineResult> {
-  const gate = { winHi: opts.winHi, winLo: opts.winLo, materialGapCp: opts.materialGapCp };
+  const gate = {
+    winHi: opts.winHi,
+    winLo: opts.winLo,
+    minGapCp: opts.minGapCp,
+    materialGapCp: opts.materialGapCp,
+  };
   const limits = { depth: opts.verifyDepth, nodes: opts.verifyNodes };
   const pv: XiangqiMove[] = [];
   let cur: XiangqiGameState = postBlunderState;
@@ -505,7 +516,13 @@ async function buildGatedLine(
       firstSecondCp = ply.second?.scoreCp ?? null;
     }
     if (!ply.unique) {
-      if (firstSolverPly) return { ok: false, reason: 'not-unique-or-not-winning', evals };
+      if (firstSolverPly) {
+        return {
+          ok: false,
+          reason: ply.reason === 'near-tie' ? 'near-tie' : 'not-unique-or-not-winning',
+          evals,
+        };
+      }
       break; // line ends on the last committed solver move
     }
     const solverTok = ply.lines[0]?.pvUci[0];
@@ -519,6 +536,7 @@ async function buildGatedLine(
     if (cur.status.type !== 'playing') break; // mate: line ends on the solver move
     if (pv.length >= opts.maxSolutionPlies) break;
     // Defender reply: the engine's best defense (uniqueness not required of it).
+    await engine.newGame();
     const replyLines = await engine.analyzeFen(standardXiangqiEngineFen(cur), limits, 1);
     evals += 1;
     const replyTok = replyLines[0]?.pvUci[0];
@@ -750,6 +768,10 @@ async function main(): Promise<void> {
       winCp: options.winCp,
       decidedCp: options.decidedCp,
       uniqueGapCp: options.uniqueGapCp,
+      winHi: options.winHi,
+      winLo: options.winLo,
+      minGapCp: options.minGapCp,
+      materialGapCp: options.materialGapCp,
       minPly: options.minPly,
       maxSolutionPlies: options.maxSolutionPlies,
       minSolutionPlies: options.minSolutionPlies,
@@ -804,6 +826,7 @@ Detection:
   --unique-gap-cp N       (legacy) Min best-vs-second gap; the per-ply gate below supersedes it. Default: 150.
   --win-hi F              Per-ply gate: min win prob for the best solver line. Default: 0.80.
   --win-lo F              Per-ply gate: a runner-up at/below this win prob has lost the win. Default: 0.60.
+  --min-gap-cp N          Hard near-tie rejection floor for non-mate alternatives. Default: 200.
   --material-gap-cp N     Per-ply gate: a runner-up trailing best by >= N cp is wrong even if winning. Default: 250.
   --min-ply N             Skip game plies before N (opening filter). Default: 8.
   --max-solution-plies N  Solution-line cap (normalized to odd). Default: 7.

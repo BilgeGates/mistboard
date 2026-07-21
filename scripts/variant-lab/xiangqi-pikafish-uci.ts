@@ -29,7 +29,7 @@
 
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import {
-  isXiangqiSolverMoveUnique,
+  classifyXiangqiSolverMoveUniqueness,
   standardXiangqiEngineFen,
   type XiangqiGameState,
   type XiangqiSolverUniquenessOptions,
@@ -46,6 +46,7 @@ import {
 export const XIANGQI_SOLVER_GATE_DEFAULTS: XiangqiSolverUniquenessOptions = {
   winHi: 0.8,
   winLo: 0.6,
+  minGapCp: 200,
   materialGapCp: 250,
 };
 
@@ -239,6 +240,8 @@ export type XiangqiSolverPlyAnalysis = {
   second: XiangqiVerifyLine | undefined;
   /** The shared winning-floor gate's verdict on this ply. */
   unique: boolean;
+  /** Structured reason for metrics/audit output, including deterministic near ties. */
+  reason: ReturnType<typeof classifyXiangqiSolverMoveUniqueness>['reason'];
 };
 
 /** Judge one solver ply the ONE canonical way, shared by the miner's verify
@@ -247,13 +250,19 @@ export type XiangqiSolverPlyAnalysis = {
  *  xiangqiUciScoreToCp, and apply isXiangqiSolverMoveUnique. Any future gate
  *  or position-loading change lands on both tools by construction. */
 export async function analyzeXiangqiSolverPly(
-  engine: Pick<PikafishEngine, 'analyzeFen'>,
+  engine: Pick<PikafishEngine, 'analyzeFen' | 'newGame'>,
   state: XiangqiGameState,
   limits: XiangqiSearchLimits,
   gate: XiangqiSolverUniquenessOptions,
 ): Promise<XiangqiSolverPlyAnalysis> {
+  // Every solver position must start with a fresh hash. The gated re-mine's
+  // four residual near-ties came from two processes giving boundary positions
+  // different hash/history context. Clearing here makes miner and later audit
+  // searches independent and apples-to-apples.
+  await engine.newGame();
   const lines = await engine.analyzeFen(standardXiangqiEngineFen(state), limits, 2);
   const best = xiangqiScoredLineToVerifyLine(lines[0]);
   const second = xiangqiScoredLineToVerifyLine(lines[1]);
-  return { lines, best, second, unique: isXiangqiSolverMoveUnique(best, second, gate) };
+  const verdict = classifyXiangqiSolverMoveUniqueness(best, second, gate);
+  return { lines, best, second, unique: verdict.unique, reason: verdict.reason };
 }

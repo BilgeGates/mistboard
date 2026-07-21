@@ -33,12 +33,12 @@ import {
 import {
   applyStandardXiangqiMove,
   pikafishUciToXiangqiSquares,
-  XIANGQI_PUZZLES,
   type XiangqiGameState,
   type XiangqiMove,
   type XiangqiPuzzle,
   xiangqiWinRate,
 } from '../../packages/game/src/index.ts';
+import { loadSeedPuzzleRegistry } from '../../packages/game/src/puzzle-seed.ts';
 import {
   analyzeXiangqiSolverPly,
   PikafishEngine,
@@ -50,6 +50,7 @@ type CliOptions = {
   nodes: number | null;
   winHi: number;
   winLo: number;
+  minGapCp: number;
   materialGapCp: number;
   limit: number;
   ids: Set<string> | null;
@@ -66,6 +67,10 @@ function parseOptions(): CliOptions {
       // the mined corpus rather than a second, drifting definition.
       'win-hi': { type: 'string', default: String(XIANGQI_SOLVER_GATE_DEFAULTS.winHi) },
       'win-lo': { type: 'string', default: String(XIANGQI_SOLVER_GATE_DEFAULTS.winLo) },
+      'min-gap-cp': {
+        type: 'string',
+        default: String(XIANGQI_SOLVER_GATE_DEFAULTS.minGapCp),
+      },
       'material-gap-cp': {
         type: 'string',
         default: String(XIANGQI_SOLVER_GATE_DEFAULTS.materialGapCp),
@@ -80,6 +85,7 @@ function parseOptions(): CliOptions {
     nodes: values.nodes ? parsePositiveInt(values.nodes, 0) || null : null,
     winHi: Number.parseFloat(values['win-hi'] ?? String(XIANGQI_SOLVER_GATE_DEFAULTS.winHi)),
     winLo: Number.parseFloat(values['win-lo'] ?? String(XIANGQI_SOLVER_GATE_DEFAULTS.winLo)),
+    minGapCp: parsePositiveInt(values['min-gap-cp'], XIANGQI_SOLVER_GATE_DEFAULTS.minGapCp),
     materialGapCp: parsePositiveInt(
       values['material-gap-cp'],
       XIANGQI_SOLVER_GATE_DEFAULTS.materialGapCp,
@@ -114,6 +120,7 @@ type SolverPlyReport = {
   gapCp: number | null;
   gapWinrate: number | null;
   unique: boolean;
+  uniquenessReason: string;
 };
 
 type PuzzleReport = {
@@ -135,15 +142,19 @@ async function auditPuzzle(
   puzzle: XiangqiPuzzle,
   opts: CliOptions,
 ): Promise<PuzzleReport> {
-  const gate = { winHi: opts.winHi, winLo: opts.winLo, materialGapCp: opts.materialGapCp };
+  const gate = {
+    winHi: opts.winHi,
+    winLo: opts.winLo,
+    minGapCp: opts.minGapCp,
+    materialGapCp: opts.materialGapCp,
+  };
   const limits = { depth: opts.depth, ...(opts.nodes ? { nodes: opts.nodes } : {}) };
   const plies: SolverPlyReport[] = [];
   let state: XiangqiGameState = puzzle.initial;
-  await engine.newGame();
   for (let ply = 0; ply < puzzle.solution.length; ply += 1) {
     const move = puzzle.solution[ply] as XiangqiMove;
     if (ply % 2 === 0 && state.status.type === 'playing') {
-      const { lines, best, second, unique } = await analyzeXiangqiSolverPly(
+      const { lines, best, second, unique, reason } = await analyzeXiangqiSolverPly(
         engine,
         state,
         limits,
@@ -170,6 +181,7 @@ async function auditPuzzle(
         gapCp,
         gapWinrate,
         unique,
+        uniquenessReason: reason,
       });
     }
     if (state.status.type !== 'playing') break;
@@ -201,7 +213,7 @@ async function main(): Promise<void> {
   const engine = new PikafishEngine(bin, net);
   await engine.init();
 
-  let corpus: readonly XiangqiPuzzle[] = XIANGQI_PUZZLES;
+  let corpus = loadSeedPuzzleRegistry('xiangqi') as readonly XiangqiPuzzle[];
   if (opts.ids) corpus = corpus.filter((p) => opts.ids?.has(p.id));
   if (opts.limit > 0) corpus = corpus.slice(0, opts.limit);
 
@@ -232,7 +244,7 @@ async function main(): Promise<void> {
   }
 
   process.stdout.write(
-    `\n=== audit summary (depth=${opts.depth} win-hi=${opts.winHi} win-lo=${opts.winLo} material-gap-cp=${opts.materialGapCp}) ===\n` +
+    `\n=== audit summary (depth=${opts.depth} win-hi=${opts.winHi} win-lo=${opts.winLo} min-gap-cp=${opts.minGapCp} material-gap-cp=${opts.materialGapCp}) ===\n` +
       `puzzles:            ${reports.length}\n` +
       `  single solver move: ${summary.singleMove}\n` +
       `  multi solver move:  ${summary.multiMove}\n` +

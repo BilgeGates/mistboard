@@ -73,6 +73,11 @@ test('gate contract: a decisive material gap separates two winning moves', () =>
   assert.equal(gateVerdict('cp 900', 'cp 600'), true);
 });
 
+test('gate contract: hard floor rejects near ties before win-band classification', () => {
+  assert.equal(gateVerdict('cp 270', 'cp 71'), false); // 199cp gap
+  assert.equal(gateVerdict('cp 270', 'cp 70'), true); // 200cp gap, runner-up <= winLo
+});
+
 test('gate contract: best move below the winning floor fails even when unique-ish', () => {
   // +150 ~ win% 0.70, under winHi 0.80: not decisively winning, not a puzzle.
   assert.equal(gateVerdict('cp 150', 'cp -50'), false);
@@ -130,7 +135,11 @@ test('parseXiangqiScoredLines keeps the deepest info line per rank, in rank orde
 test('analyzeXiangqiSolverPly searches the standalone FEN at MultiPV 2 and gates it', async () => {
   const state = createInitialXiangqiState('gate-contract-test');
   const seen: { fen: string; multipv: number }[] = [];
+  let resets = 0;
   const fake = {
+    newGame: async () => {
+      resets += 1;
+    },
     analyzeFen: async (fen: string, _limits: unknown, multipv: number) => {
       seen.push({ fen, multipv });
       return parseXiangqiScoredLines(uciSearch('cp 600', 'cp 40'));
@@ -145,6 +154,7 @@ test('analyzeXiangqiSolverPly searches the standalone FEN at MultiPV 2 and gates
   // Both tools must judge from exactly the position a solver sees: the
   // standalone FEN (history-free), never `position startpos moves ...`.
   assert.deepEqual(seen, [{ fen: standardXiangqiEngineFen(state), multipv: 2 }]);
+  assert.equal(resets, 1, 'solver-ply verification must clear hash before every search');
   assert.equal(ply.unique, true);
   assert.equal(ply.best?.scoreCp, 600);
   assert.equal(ply.second?.scoreCp, 40);
@@ -152,6 +162,9 @@ test('analyzeXiangqiSolverPly searches the standalone FEN at MultiPV 2 and gates
 
   const dual = await analyzeXiangqiSolverPly(
     {
+      newGame: async () => {
+        resets += 1;
+      },
       analyzeFen: async () => parseXiangqiScoredLines(uciSearch('cp 600', 'cp 550')),
     },
     state,
@@ -159,4 +172,6 @@ test('analyzeXiangqiSolverPly searches the standalone FEN at MultiPV 2 and gates
     XIANGQI_SOLVER_GATE_DEFAULTS,
   );
   assert.equal(dual.unique, false);
+  assert.equal(dual.reason, 'near-tie');
+  assert.equal(resets, 2);
 });
