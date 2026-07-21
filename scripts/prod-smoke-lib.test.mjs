@@ -241,9 +241,13 @@ test('engine seat matching is version-agnostic for versioned engine ids', () => 
   assert.equal(matchesEngineSeat(dmx, 'python-dmx-v2.0'), true);
   assert.equal(matchesEngineSeat(dmx, 'python-fdx-v1.1'), false);
 
+  // Fortress is prefix-matched across the whole ladder: the default rung is a
+  // product knob (Level 4 since the bot consolidation), and the retired tier
+  // ids keep matching for any environment still pinned to them.
   const fortress = VARIANT_SMOKE_CONFIGS.fortress.engineSeat;
+  assert.equal(matchesEngineSeat(fortress, 'fairy-stockfish-fortress-xiangqi-level-4'), true);
   assert.equal(matchesEngineSeat(fortress, 'fairy-stockfish-fortress-xiangqi-strong'), true);
-  assert.equal(matchesEngineSeat(fortress, 'fairy-stockfish-fortress-xiangqi-weak'), false);
+  assert.equal(matchesEngineSeat(fortress, 'fairy-stockfish-xiangqi-level-4'), false);
 
   assert.equal(matchesEngineSeat(dxq, undefined), false);
   assert.equal(matchesEngineSeat(dxq, 42), false);

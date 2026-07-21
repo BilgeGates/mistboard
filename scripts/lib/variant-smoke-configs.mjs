@@ -16,12 +16,13 @@ export const VARIANT_SMOKE_CONFIGS = {
     usage: 'npm run prod:smoke:fortress -- [options]',
     gameSpecId: 'fortress-xiangqi',
     defaultTimeoutMs: 40_000,
-    // Prod assigns the Fairy-Stockfish Fortress Xiangqi engine to the red seat
-    // for a PvE room. The smoke asserts this exact seat so a silent
-    // engine-routing change (wrong engine, or none) reds the release rather
-    // than passing on a stub. The id names a strength level, not a version, so
-    // an exact match is safe here.
-    engineSeat: { equals: 'fairy-stockfish-fortress-xiangqi-strong' },
+    // Prod assigns a Fairy-Stockfish Fortress Xiangqi engine to the red seat
+    // for a PvE room. Prefix-matched, NOT pinned to one rung: the default is a
+    // product knob (an 8-level ladder since the 2026-07 bot consolidation),
+    // and pinning the old 'strong' id made this smoke time out on a perfectly
+    // healthy engine when the default moved to Level 4 — the exact bfb02b95
+    // failure mode described above.
+    engineSeat: { prefix: 'fairy-stockfish-fortress-xiangqi-' },
   },
   dmx: {
     name: 'dmx',
