@@ -136,6 +136,23 @@ export function reviewResultLabel(result: string, variant?: string): string {
   return labelize(result);
 }
 
+/** Lichess room-anatomy outcome line, matching the live room meta card
+ *  (live-render.ts `renderGameInfo`): "<Reason> • <Winner> is victorious" for a
+ *  decisive result, "Draw • <reason>" for a draw. Replaces the ad-hoc
+ *  "<Winner> wins by <Reason>" each postgame adapter used to build, so the
+ *  postgame page reads the same as the live room. `resultLabel` is the
+ *  already-computed "<Color> wins" / "Draw" string (variant- and seat-aware);
+ *  `termination` is the raw kebab reason (e.g. 'king-captured'). */
+export function reviewOutcomeLine(resultLabel: string, termination: string): string {
+  const reason = termination.replace(/-/g, ' ').trim();
+  if (/^draw\b/i.test(resultLabel)) {
+    return reason ? `Draw • ${reason}` : 'Draw';
+  }
+  const winner = resultLabel.replace(/\s+wins?\b.*$/i, '').trim() || resultLabel.trim();
+  const capped = reason ? `${reason.charAt(0).toUpperCase()}${reason.slice(1)}` : '';
+  return capped ? `${capped} • ${winner} is victorious` : `${winner} is victorious`;
+}
+
 /** kebab/space token → Title Case, e.g. 'king-captured' → 'King Captured'. */
 export function labelize(value: string): string {
   return value

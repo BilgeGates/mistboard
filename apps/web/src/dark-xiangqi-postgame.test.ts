@@ -33,7 +33,7 @@ describe('Dark Xiangqi postgame page', () => {
     expect(fetchSpy).toHaveBeenCalledWith('/api/dark-xiangqi/games/dxq_postgame');
     expect(root.querySelector('.site-nav')).not.toBeNull();
     expect(root.textContent).toContain('Spectator room');
-    expect(root.textContent).toContain('Red wins');
+    expect(root.textContent).toContain('Red is victorious');
     // The interactive tree renders ONE board plus a segmented perspective toggle
     // (the same control the watch page uses), defaulting to the revealed truth.
     const povButtons = [...root.querySelectorAll<HTMLButtonElement>('.review-pov__button')];

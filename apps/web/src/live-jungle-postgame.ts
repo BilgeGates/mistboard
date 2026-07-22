@@ -10,7 +10,11 @@ import './landing.css';
 import './game-route.css';
 import { jungleEnabled } from './feature-flags.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
-import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
+import {
+  buildReviewMeta,
+  reviewOutcomeLine,
+  reviewResultLabel,
+} from './review/game-review-meta.js';
 import { mountJungleReview } from './review/jungle-review.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
@@ -127,7 +131,10 @@ function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): vo
     black: gamePlayers.find((p) => p.color === 'black')?.name,
   };
 
-  const status = `${reviewResultLabel(postgame.game.result, 'jungle')} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(
+    reviewResultLabel(postgame.game.result, 'jungle'),
+    postgame.game.termination,
+  );
   const { metaCard, details } = buildReviewMeta({
     markerId: 'jungle',
     variantName: 'Jungle Chess',

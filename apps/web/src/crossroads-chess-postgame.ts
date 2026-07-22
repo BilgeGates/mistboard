@@ -14,7 +14,7 @@ import {
 } from './crossroads-chess-render.js';
 import { crossroadsChessEnabled } from './feature-flags.js';
 import { createPane } from './replay-board.js';
-import { buildReviewMeta } from './review/game-review-meta.js';
+import { buildReviewMeta, reviewOutcomeLine } from './review/game-review-meta.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -148,7 +148,7 @@ function renderPostgame(root: HTMLElement, postgame: CrossroadsChessPostgameResp
   moveList.className = 'move-list';
   movesCard.append(movesHeading, moveList);
 
-  const status = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(resultLabel(postgame.game.result), postgame.game.termination);
   const { metaCard, details } = buildReviewMeta({
     markerId: 'crossroads',
     variantName: 'Crossroads Chess',

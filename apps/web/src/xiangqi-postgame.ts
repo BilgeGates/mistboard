@@ -11,7 +11,11 @@ import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
 import { xiangqiEnabled } from './feature-flags.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
-import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
+import {
+  buildReviewMeta,
+  reviewOutcomeLine,
+  reviewResultLabel,
+} from './review/game-review-meta.js';
 import { mountXiangqiReview } from './review/xiangqi-review.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
@@ -128,7 +132,10 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
     black: gamePlayers.find((p) => p.color === 'black')?.name,
   };
 
-  const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(
+    reviewResultLabel(postgame.game.result),
+    postgame.game.termination,
+  );
   const { metaCard, details } = buildReviewMeta({
     markerId: 'xiangqi',
     variantName: 'Xiangqi',

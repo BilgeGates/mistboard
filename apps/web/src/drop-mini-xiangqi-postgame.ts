@@ -18,7 +18,7 @@ import {
   renderMiniXiangqiBoardSvg,
 } from './live-mini-xiangqi-render.js';
 import { createPane } from './replay-board.js';
-import { buildReviewMeta } from './review/game-review-meta.js';
+import { buildReviewMeta, reviewOutcomeLine } from './review/game-review-meta.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -155,7 +155,7 @@ function renderPostgame(root: HTMLElement, postgame: DropMiniXiangqiPostgameResp
   moveList.className = 'move-list';
   movesCard.append(movesHeading, moveList);
 
-  const status = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(resultLabel(postgame.game.result), postgame.game.termination);
   const { metaCard, details } = buildReviewMeta({
     markerId: 'drop-mini-xiangqi',
     variantName: 'Drop Mini Xiangqi',
@@ -363,13 +363,4 @@ function postgameTimeControl(
   const incrementMs = postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? null;
   if (initialMs === null || incrementMs === null) return null;
   return { initialMs, incrementMs };
-}
-
-function labelize(value: string): string {
-  return value.split('-').filter(Boolean).map(capitalize).join(' ');
-}
-
-function capitalize(value: string): string {
-  if (!value) return value;
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }

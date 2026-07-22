@@ -96,8 +96,10 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--site-muted);
-  font-size: 12px;
+  /* Nav arrows read as live controls, not disabled chrome: step up from
+     --site-muted to the body text tone (hover still lifts to --site-heading). */
+  color: var(--site-text);
+  font-size: 13px;
   line-height: 1;
 }
 

@@ -16,7 +16,7 @@ import { miniXiangqiCapturesFromTruthView } from './mini-xiangqi-captures.js';
 import { createPane } from './replay-board.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createFlankCaptures } from './review/flank-captures.js';
-import { buildReviewMeta } from './review/game-review-meta.js';
+import { buildReviewMeta, reviewOutcomeLine } from './review/game-review-meta.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -166,7 +166,7 @@ function renderPostgame(root: HTMLElement, postgame: DarkMiniXiangqiPostgameResp
   moveList.className = 'move-list';
   movesCard.append(movesHeading, moveList);
 
-  const status = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(resultLabel(postgame.game.result), postgame.game.termination);
   const { metaCard, details } = buildReviewMeta({
     markerId: 'dark-mini-xiangqi',
     variantName: 'Dark Mini Xiangqi',

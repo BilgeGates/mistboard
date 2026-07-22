@@ -12,7 +12,7 @@ import './dark-xiangqi-postgame.css';
 import { revealChessEnabled } from './feature-flags.js';
 import { fillCapturedPool } from './live-reveal-chess.js';
 import { renderRevealChessBoardSvg } from './reveal-chess-render.js';
-import { buildReviewMeta } from './review/game-review-meta.js';
+import { buildReviewMeta, reviewOutcomeLine } from './review/game-review-meta.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -133,7 +133,7 @@ function renderPostgame(root: HTMLElement, postgame: RevealChessPostgameResponse
     return { entry, el, board, capturesTop, capturesBottom };
   });
 
-  const status = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(resultLabel(postgame.game.result), postgame.game.termination);
   const { metaCard, details } = buildReviewMeta({
     markerId: 'reveal-chess',
     variantName: 'Reveal Chess',

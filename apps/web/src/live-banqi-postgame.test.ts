@@ -63,7 +63,7 @@ describe('Banqi postgame page', () => {
     // Single clean left rail (meta card + spectator room) — no action buttons.
     expect(root.textContent).toContain('Spectator room');
     expect(root.textContent).toContain('Flip Xiangqi');
-    expect(root.textContent).toContain('Black wins');
+    expect(root.textContent).toContain('Black is victorious');
     expect(root.querySelector('.game-meta-card')).not.toBeNull();
     const playerRows = root.querySelectorAll('.game-meta-card__player');
     expect(playerRows[0]?.textContent).toContain('MistyBanqi');

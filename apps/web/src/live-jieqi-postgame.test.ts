@@ -45,7 +45,7 @@ describe('Jieqi postgame page', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/jieqi/games/jq_postgame');
     expect(root.textContent).toContain('Reveal Xiangqi');
-    expect(root.textContent).toContain('Red wins');
+    expect(root.textContent).toContain('Red is victorious');
     // The review left column is button-free.
     expect(root.textContent).not.toContain('Play again');
     // Two-column move list: the cell shows the bare coordinate move (jieqi has no

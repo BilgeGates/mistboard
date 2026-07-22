@@ -13,7 +13,7 @@ import {
 import { mountBanqiReview } from './review/banqi-review.js';
 import { recoverBanqiDeal } from './review/banqi-tree-adapter.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
-import { buildReviewMeta, labelize } from './review/game-review-meta.js';
+import { buildReviewMeta, reviewOutcomeLine } from './review/game-review-meta.js';
 import type { DecisionOverlay } from './review/tree-review.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
@@ -160,7 +160,10 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
       } as const)
     : undefined;
 
-  const status = `${banqiResultLabel(postgame.game.result, firstColor)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(
+    banqiResultLabel(postgame.game.result, firstColor),
+    postgame.game.termination,
+  );
   const { metaCard, details } = buildReviewMeta({
     markerId: 'banqi',
     variantName: 'Flip Xiangqi',

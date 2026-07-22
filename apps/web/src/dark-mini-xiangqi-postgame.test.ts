@@ -36,7 +36,7 @@ describe('Dark Mini Xiangqi postgame page', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/dark-mini-xiangqi/games/dmxq_postgame');
     expect(root.textContent).toContain('Dark Mini Xiangqi');
-    expect(root.textContent).toContain('Red wins');
+    expect(root.textContent).toContain('Red is victorious');
     expect(root.textContent).toContain('Red view');
     expect(root.textContent).toContain('Server truth');
     expect(root.textContent).toContain('Black view');

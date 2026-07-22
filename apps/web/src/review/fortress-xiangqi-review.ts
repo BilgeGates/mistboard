@@ -7,8 +7,9 @@
 // fortress-xiangqi.ini). The eval gauge + engine panel + Share FEN are live; the
 // engine reads the tree's FSF move list (startpos + moves), so no server round-trip.
 // On-board PV arrows are deferred (the fortress board has no overlay layer yet), so
-// engineArrowsFromLines/bestMoveArrow return []. Still no reserve strips / drop
-// gesture (drops replay in the mainline but are not a user affordance yet).
+// engineArrowsFromLines/bestMoveArrow return []. Drop reserves and the drop gesture
+// are both absent here by choice — drops replay in the mainline. (The live room
+// does show reserves; see the `material` note on the presentation below.)
 
 import {
   type FortressXiangqiColor,
@@ -79,6 +80,12 @@ const fortressPresentation: TreePresentation<
   },
   shapeToArrow: (s: NodeShape) => s,
   shapeToMarker: (s: NodeShape) => s,
+  // Drop reserves are deliberately NOT rendered here (product call): drops
+  // replay in the mainline instead. To turn them back on, supply the controller's
+  // `material` hook — it hands you the mat-top / mat-bot rows and a per-ply
+  // updater, and fortress is perfect-information so ONE projection
+  // (getFortressXiangqiPlayerView) carries both seats' pockets for
+  // fillFortressXiangqiReserve. The live room keeps showing them either way.
 };
 
 export function mountFortressXiangqiReview(

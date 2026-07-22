@@ -10,15 +10,20 @@ import { fortressXiangqiEnabled } from './feature-flags.js';
 import { installFortressXiangqiBoardStyles } from './fortress-xiangqi-render.js';
 import { mountFortressXiangqiReview } from './review/fortress-xiangqi-review.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
-import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
+import {
+  buildReviewMeta,
+  reviewOutcomeLine,
+  reviewResultLabel,
+} from './review/game-review-meta.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
 
 // Postgame review for Fortress Xiangqi. Perfect-information board (7 files x 8
-// ranks) plus per-seat drop RESERVES (top/bottom strips flanking the board). The
-// shared review layout owns the shell, scrubber, keyboard, flip, and viewport-
-// fill sizing; this module supplies the board host + reserves + move list.
+// ranks). Per-seat drop RESERVES are NOT shown on this surface (product call —
+// drops replay in the mainline); the live room shows them in its right rail. The
+// shared review layout owns the shell, scrubber, keyboard, flip, and viewport-fill
+// sizing; this module supplies the board host + move list.
 
 type FortressXiangqiViewKey = 'truth';
 
@@ -140,7 +145,10 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
     black: gamePlayers.find((p) => p.color === 'black')?.name,
   };
 
-  const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(
+    reviewResultLabel(postgame.game.result),
+    postgame.game.termination,
+  );
   const { metaCard, details } = buildReviewMeta({
     markerId: 'fortress-xiangqi',
     variantName: 'Fortress Xiangqi',
@@ -163,8 +171,7 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
     // Server whole-game FSF analysis, DB-cached: an already-analysed game loads from
     // cache on open (a GET that never computes). Requesting a fresh compute is
     // account-gated (the server rejects anon POSTs), so a signed-out visitor gets a
-    // sign-in CTA instead of a request that would 401. (The drop reserves are still
-    // not shown; drops replay in the mainline.)
+    // sign-in CTA instead of a request that would 401.
     analysis: {
       requestLabel: isLikelySignedIn()
         ? 'Request computer analysis'

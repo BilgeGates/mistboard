@@ -5,7 +5,11 @@ import './game-route.css';
 import { jieqiEnabled } from './feature-flags.js';
 import { installJieqiBoardStyles } from './live-jieqi-render.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
-import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
+import {
+  buildReviewMeta,
+  reviewOutcomeLine,
+  reviewResultLabel,
+} from './review/game-review-meta.js';
 import {
   fetchCachedJieqiDecisions,
   type JieqiDecisionSummary,
@@ -153,7 +157,10 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
     black: gamePlayers.find((p) => p.color === 'black')?.name,
   };
 
-  const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(
+    reviewResultLabel(postgame.game.result),
+    postgame.game.termination,
+  );
   const { metaCard, details } = buildReviewMeta({
     markerId: 'jieqi',
     variantName: 'Reveal Xiangqi',

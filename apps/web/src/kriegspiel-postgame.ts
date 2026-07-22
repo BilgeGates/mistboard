@@ -7,7 +7,7 @@ import './dark-xiangqi-postgame.css';
 import './kriegspiel-postgame.css';
 import { kriegspielEnabled } from './feature-flags.js';
 import { renderKriegspielBoardSvg } from './kriegspiel-render.js';
-import { buildReviewMeta } from './review/game-review-meta.js';
+import { buildReviewMeta, reviewOutcomeLine } from './review/game-review-meta.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -133,7 +133,7 @@ function renderPostgame(root: HTMLElement, postgame: KriegspielPostgameResponse)
     return { entry, el, board };
   });
 
-  const status = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(resultLabel(postgame.game.result), postgame.game.termination);
   const { metaCard, details } = buildReviewMeta({
     markerId: 'kriegspiel',
     variantName: 'Kriegspiel',

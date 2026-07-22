@@ -52,7 +52,7 @@ describe('Reveal Chess postgame page', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/reveal-chess/games/rc_postgame');
     expect(root.textContent).toContain('Reveal Chess');
-    expect(root.textContent).toContain('White wins');
+    expect(root.textContent).toContain('White is victorious');
     expect(root.textContent).toContain('White view');
     expect(root.textContent).toContain('Server truth');
     expect(root.textContent).toContain('Black view');
@@ -86,8 +86,8 @@ describe('Reveal Chess postgame page', () => {
     mountRevealChessPostgame(root, 'rc_black_win');
     await flushPromises();
 
-    expect(root.textContent).toContain('Black wins');
-    expect(root.textContent).not.toContain('Red wins');
+    expect(root.textContent).toContain('Black is victorious');
+    expect(root.textContent).not.toContain('Red is victorious');
   });
 
   it('does not fetch postgame data when the build flag is false', async () => {

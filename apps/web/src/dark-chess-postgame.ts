@@ -6,7 +6,11 @@ import './game-route.css';
 // variants ride; the board renderer + its fog theme live in our own files.
 import './dark-xiangqi-postgame.css';
 import { mountDarkChessReview } from './review/dark-chess-review.js';
-import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
+import {
+  buildReviewMeta,
+  reviewOutcomeLine,
+  reviewResultLabel,
+} from './review/game-review-meta.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
 
@@ -54,7 +58,7 @@ export function mountDarkChessPostgame(
     })
     .map((event) => event.move);
 
-  const status = `${reviewResultLabel(game.result)} by ${labelize(game.termination)}`;
+  const status = reviewOutcomeLine(reviewResultLabel(game.result), game.termination);
   const { metaCard, details } = buildReviewMeta({
     markerId: 'dark-chess',
     variantName: 'Fog Chess',

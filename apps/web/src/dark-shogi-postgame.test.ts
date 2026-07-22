@@ -40,7 +40,7 @@ describe('Dark Shogi postgame page', () => {
     expect(root.querySelector('.site-nav')).not.toBeNull();
     expect(root.querySelector('.review-shell')).not.toBeNull();
     expect(root.textContent).toContain('Fog Shogi');
-    expect(root.textContent).toContain('Black wins');
+    expect(root.textContent).toContain('Black is victorious');
     expect(root.textContent).toContain('Black view');
     expect(root.textContent).toContain('Server truth');
     expect(root.textContent).toContain('White view');

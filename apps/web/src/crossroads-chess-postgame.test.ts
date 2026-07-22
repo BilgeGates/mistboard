@@ -51,7 +51,7 @@ describe('Crossroads Chess postgame page', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/crossroads-chess/games/dchess_postgame');
     expect(root.textContent).toContain('Crossroads Chess');
-    expect(root.textContent).toContain('White wins');
+    expect(root.textContent).toContain('White is victorious');
     expect(root.textContent).not.toContain('Play again');
     expect(root.querySelector('.move-row')?.textContent?.replace(/\s+/g, '')).toBe('1a2-a3');
     // The scrubber's "Ply X of Y" status was removed with the lichess control bar;
@@ -121,8 +121,8 @@ describe('Crossroads Chess postgame page', () => {
     mountCrossroadsChessPostgame(root, 'dchess_red_win');
     await flushPromises();
 
-    expect(root.textContent).toContain('Red wins');
-    expect(root.textContent).not.toContain('Black wins');
+    expect(root.textContent).toContain('Red is victorious');
+    expect(root.textContent).not.toContain('Black is victorious');
   });
 
   it('creates a new live Crossroads room from the review time control', async () => {

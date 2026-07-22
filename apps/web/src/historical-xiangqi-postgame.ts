@@ -8,6 +8,7 @@ import {
   historicalXiangqiOutcomeLabel,
 } from './historical-xiangqi-search.js';
 import { createGameMetaCard } from './review/game-meta-card.js';
+import { reviewOutcomeLine } from './review/game-review-meta.js';
 import { buildSpectatorChat } from './review/spectator-chat.js';
 import { buildXiangqiClientAnalysisSource } from './review/xiangqi-client-analysis.js';
 import { mountXiangqiReview } from './review/xiangqi-review.js';
@@ -247,7 +248,7 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
 
 function resultStatus(game: HistoricalXiangqiGameDetail): string {
   const result = historicalXiangqiOutcomeLabel(game.result);
-  return game.termination ? `${result} by ${labelize(game.termination)}` : result;
+  return game.termination ? reviewOutcomeLine(result, game.termination) : result;
 }
 
 function formatDate(value: string | null): string {
@@ -255,13 +256,4 @@ function formatDate(value: string | null): string {
   const date = new Date(`${value}T00:00:00.000Z`);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-function labelize(value: string): string {
-  return value.split('-').filter(Boolean).map(capitalize).join(' ');
-}
-
-function capitalize(value: string): string {
-  if (!value) return value;
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
 }

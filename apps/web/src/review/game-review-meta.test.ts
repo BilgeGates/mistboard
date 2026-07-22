@@ -3,6 +3,7 @@ import {
   buildReviewMeta,
   labelize,
   reviewMetaPlayers,
+  reviewOutcomeLine,
   reviewResultLabel,
   reviewTimeControlLabel,
 } from './game-review-meta.js';
@@ -43,6 +44,25 @@ describe('reviewResultLabel', () => {
 
   it('labelizes an unknown token instead of guessing a color', () => {
     expect(reviewResultLabel('abandoned')).toBe('Abandoned');
+  });
+});
+
+describe('reviewOutcomeLine', () => {
+  it('reads like the live room meta card for a decisive result', () => {
+    expect(reviewOutcomeLine('Black wins', 'checkmate')).toBe('Checkmate • Black is victorious');
+    expect(reviewOutcomeLine('Red wins', 'king-captured')).toBe(
+      'King captured • Red is victorious',
+    );
+    expect(reviewOutcomeLine('Blue wins', 'elimination')).toBe('Elimination • Blue is victorious');
+  });
+
+  it('formats draws as "Draw • <reason>"', () => {
+    expect(reviewOutcomeLine('Draw', 'no-progress')).toBe('Draw • no progress');
+    expect(reviewOutcomeLine('Draw', '')).toBe('Draw');
+  });
+
+  it('degrades gracefully when the termination is missing', () => {
+    expect(reviewOutcomeLine('Black wins', '')).toBe('Black is victorious');
   });
 });
 

@@ -14,7 +14,7 @@ import './live-dark-shogi.css';
 import './dark-xiangqi-postgame.css';
 import './dark-shogi-postgame.css';
 import { darkShogiEnabled } from './feature-flags.js';
-import { buildReviewMeta } from './review/game-review-meta.js';
+import { buildReviewMeta, reviewOutcomeLine } from './review/game-review-meta.js';
 import { createMoveList, type MoveListEntry } from './review/move-list.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { renderShogiBoardSvg, SHOGI_HAND_ORDER, shogiHandKomaSvg } from './shogi-render.js';
@@ -139,7 +139,7 @@ function renderPostgame(root: HTMLElement, postgame: DarkShogiPostgameResponse):
   // /game postgame pages reveal by design.
   const moveList = createMoveList(moveEntries(postgame), { title: 'Moves' });
 
-  const status = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(resultLabel(postgame.game.result), postgame.game.termination);
   const { metaCard, details } = buildReviewMeta({
     markerId: 'dark-shogi',
     variantName: 'Fog Shogi',

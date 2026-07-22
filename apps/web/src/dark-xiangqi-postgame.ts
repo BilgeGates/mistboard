@@ -5,7 +5,11 @@ import './dark-xiangqi-postgame.css';
 import { darkXiangqiEnabled } from './feature-flags.js';
 import type { DarkXiangqiWireView } from './live-dark-xiangqi.js';
 import { mountDarkXiangqiReview } from './review/dark-xiangqi-review.js';
-import { buildReviewMeta, labelize, reviewResultLabel } from './review/game-review-meta.js';
+import {
+  buildReviewMeta,
+  reviewOutcomeLine,
+  reviewResultLabel,
+} from './review/game-review-meta.js';
 import { buildNav } from './site-shell.js';
 
 export type DarkXiangqiPostgameViewKey = XiangqiColor | 'truth';
@@ -125,7 +129,10 @@ function renderPostgame(root: HTMLElement, postgame: DarkXiangqiPostgameResponse
     black: gamePlayers.find((p) => p.color === 'black')?.name,
   };
 
-  const status = `${reviewResultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(
+    reviewResultLabel(postgame.game.result),
+    postgame.game.termination,
+  );
   const { metaCard, details } = buildReviewMeta({
     markerId: 'dark-xiangqi',
     variantName: 'Fog Xiangqi',

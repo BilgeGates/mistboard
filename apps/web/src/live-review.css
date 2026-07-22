@@ -41,6 +41,21 @@
   display: none;
 }
 
+/* Drop-reserve strips (fortress hands) hold a FIXED band whether or not the
+   pocket has pieces, so captures flowing in and out never shift the console
+   under them. The band itself is defined in drop-mini-xiangqi.css; the generic
+   .rail-material reset above (height:auto / min-height:0) and the :empty
+   collapse would otherwise undo it, which is exactly what made the right column
+   jump mid-game. Plain captured-material strips still collapse when empty — a
+   permanently reserved empty band is only wanted where drops are a real
+   mechanic. Both seats reserve their band independently (mat-top + mat-bot). */
+.live-review__cluster .rail-material.drop-mini-reserve-strip,
+.live-review__cluster .rail-material.drop-mini-reserve-strip:empty {
+  display: block;
+  height: var(--drop-mini-hand-band-height);
+  min-height: var(--drop-mini-hand-band-height);
+}
+
 .live-review__cluster .rail-material .captures-row {
   flex-wrap: wrap;
   row-gap: 2px;
@@ -100,11 +115,12 @@
   }
   .live-review__cluster .review-spectator-chat--live {
     display: flex;
-    /* Lichess chat proportions: a bit taller than the rail is wide, not flush
-       to the cluster bottom. Shrinkable so short boards never overflow. */
-    flex: 0 1 auto;
-    aspect-ratio: 5 / 6;
-    min-height: 96px;
+    /* Fill the rail beneath the meta card so the left column tracks the board
+       height (lichess anatomy) instead of bottoming out in a void. The rail is
+       bounded by the board-driven row, so filling never runs past the board;
+       a floor keeps the feed usable when the board is short. */
+    flex: 1 1 auto;
+    min-height: 180px;
   }
 }
 
@@ -118,9 +134,11 @@
     flex-direction: column;
     min-height: 0;
   }
-  /* The boxed table hugs its content and the whole cluster (material · clock ·
-     table · clock · material) centers vertically against the board (lichess
-     proportions) instead of stretching the box to board height. */
+  /* The boxed table (material · clock · table · clock · material) hugs its
+     content and centres vertically against the board — the board itself stays
+     top-pinned (see .review-shell__center below), so the right column reads as a
+     centred console beside a top-aligned board. The move window stays a fixed
+     ~4-row scroll (game-shell.css). */
   .live-review__cluster .game-console {
     flex: 1 1 auto;
     min-height: 0;
@@ -148,5 +166,13 @@
     flex: 0 0 auto;
     min-height: 0;
     height: auto;
+  }
+  /* Board pins to the top of its column — aligned with the left meta card — and
+     stays there on resize, instead of floating to the vertical centre
+     (review-shell.css align-items: center) when a side rail is taller than the
+     board (e.g. wide/short boards like Flip Jungle). The right console centres
+     against it by design (see .game-console above). */
+  .live-review__cluster .review-shell__center {
+    align-items: flex-start;
   }
 }

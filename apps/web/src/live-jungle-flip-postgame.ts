@@ -10,7 +10,7 @@ import './game-route.css';
 import { jungleFlipEnabled } from './feature-flags.js';
 import { jungleFlipResultLabel, jungleFlipSeatInk } from './jungle-flip-result-label.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
-import { buildReviewMeta, labelize } from './review/game-review-meta.js';
+import { buildReviewMeta, reviewOutcomeLine } from './review/game-review-meta.js';
 import {
   fetchCachedJungleFlipDecisions,
   type JungleFlipDecisionSummary,
@@ -157,7 +157,10 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
     black: jungleFlipSeatInk('black', firstColor) ?? 'black',
   } as const;
 
-  const status = `${jungleFlipResultLabel(postgame.game.result, firstColor)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(
+    jungleFlipResultLabel(postgame.game.result, firstColor),
+    postgame.game.termination,
+  );
   const { metaCard, details } = buildReviewMeta({
     markerId: 'jungle-flip',
     variantName: 'Flip Jungle',

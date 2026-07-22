@@ -16,7 +16,7 @@ import { createPane } from './replay-board.js';
 import { capturedByDiff } from './review/captured-diff.js';
 import { fillCapturedPoolWith } from './review/captured-pool.js';
 import { createFlankCaptures } from './review/flank-captures.js';
-import { buildReviewMeta } from './review/game-review-meta.js';
+import { buildReviewMeta, reviewOutcomeLine } from './review/game-review-meta.js';
 import { mountReviewLayout } from './review/review-layout.js';
 import { buildNav } from './site-shell.js';
 import { setBoardFamily } from './theme.js';
@@ -171,7 +171,7 @@ function renderPostgame(root: HTMLElement, postgame: MiniXiangqiPostgameResponse
   moveList.className = 'move-list';
   movesCard.append(movesHeading, moveList);
 
-  const status = `${resultLabel(postgame.game.result)} by ${labelize(postgame.game.termination)}`;
+  const status = reviewOutcomeLine(resultLabel(postgame.game.result), postgame.game.termination);
   const { metaCard, details } = buildReviewMeta({
     markerId: 'mini-xiangqi',
     variantName: 'Mini Xiangqi',
@@ -348,9 +348,4 @@ async function safeJson(response: Response): Promise<{ error?: unknown } | null>
   } catch {
     return null;
   }
-}
-
-function labelize(value: string): string {
-  const spaced = value.replace(/-/g, ' ');
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }

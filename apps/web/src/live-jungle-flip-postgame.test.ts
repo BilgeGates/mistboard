@@ -74,7 +74,7 @@ describe('Flip Jungle postgame page', () => {
     expect(fetchSpy).toHaveBeenCalledWith('/api/jungle-flip/games/jgf_postgame');
     expect(root.textContent).toContain('Spectator room');
     expect(root.textContent).toContain('Flip Jungle');
-    expect(root.textContent).toContain('Blue wins');
+    expect(root.textContent).toContain('Blue is victorious');
     expect(root.querySelectorAll('.jungle-flip-postgame-board')).toHaveLength(1);
     expect(root.querySelector('.review-stage')?.classList).toContain('review-stage--board-only');
     expect(root.querySelector('.review-shell__right .captures-strip')).toBeNull();
