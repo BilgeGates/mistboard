@@ -36,6 +36,7 @@ import {
   fetchPuzzleSolution,
   fetchUserPuzzleRating,
   reportAttemptRating,
+  sendPuzzleQualityEvent,
   setOnAttemptRating,
   setPuzzleRatedPref,
   submitPuzzleAttempt,
@@ -256,8 +257,14 @@ export async function mountPuzzles(
     }
     // Tear down the outgoing puzzle's engine (worker + arrows) before swapping
     // in the next session, so a stale ceval handle does not outlive its board.
+    if (session && !isPuzzleComplete(session)) {
+      void sendPuzzleQualityEvent(session.puzzle.id, session.qualitySessionId, 'abandon').catch(
+        () => {},
+      );
+    }
     session?.analysis?.dispose();
     session = createPuzzleSession(puzzle);
+    void sendPuzzleQualityEvent(puzzle.id, session.qualitySessionId, 'view').catch(() => {});
     markPuzzleSeen(id);
     renderSession();
     renderControls();
@@ -299,10 +306,17 @@ export async function mountPuzzles(
   renderStatus(controls, 'Loading');
   renderStatus(detail, 'Loading');
   summaries = await fetchPuzzleList();
+  const targetRatings = new Map<string, number>();
+  await Promise.all(
+    [...new Set(summaries.map((puzzle) => puzzle.variant))].map(async (variant) => {
+      const rating = await fetchUserPuzzleRating(variant);
+      targetRatings.set(variant, rating?.rating ?? 1500);
+    }),
+  );
   // Rotate the queue so both the leading puzzle and the sequence vary between
   // visits instead of being identical every time. Computed once per visit so
   // navigation stays stable while solving; filtering by variant preserves it.
-  summaries = rotatePuzzleOrder(summaries, seenPuzzles);
+  summaries = rotatePuzzleOrder(summaries, seenPuzzles, targetRatings);
   // The deep-link path may be a short code; resolve it to the full id before it
   // drives variant selection and queue matching below.
   if (selectedId) selectedId = resolveToFullPuzzleId(selectedId, summaries);
@@ -332,6 +346,13 @@ export async function mountPuzzles(
     if (id) void selectPuzzle(id, false);
   });
 
+  window.addEventListener('pagehide', () => {
+    if (!session || isPuzzleComplete(session)) return;
+    void sendPuzzleQualityEvent(session.puzzle.id, session.qualitySessionId, 'abandon').catch(
+      () => {},
+    );
+  });
+
   // The variant boards render pieces as inline SVG, so a live piece-set or
   // board-theme change (from the appearance menu) must re-render to pick up the
   // new set — matching every other xiangqi surface (replay, postgame, live).
@@ -343,6 +364,7 @@ export async function mountPuzzles(
 
 function createPuzzleSession(puzzle: PuzzleDetail): PuzzleSession {
   return {
+    qualitySessionId: globalThis.crypto.randomUUID(),
     puzzle,
     state: clonePuzzleState(puzzle.initial),
     playedMoves: [],
@@ -399,6 +421,14 @@ function renderPuzzleDetail(
     feedbackPanel(session, navigation, renderSession, {
       onHint: () => void requestHint(session, renderSession),
       onReveal: () => void revealSolution(session, renderSession),
+      onVote: (vote) => {
+        void sendPuzzleQualityEvent(
+          session.puzzle.id,
+          session.qualitySessionId,
+          'vote',
+          vote,
+        ).catch(() => {});
+      },
     }),
   );
   side.append(trainer, actionPanel(session, renderSession));
@@ -531,7 +561,11 @@ async function submitMove(
   const beforeCount = puzzlePieceCount(session.state);
   const playedCountBefore = session.playedMoves.length;
   const nextSolverMoves = [...session.solverMoves, move];
-  const { attempt, rating } = await submitPuzzleAttempt(session.puzzle.id, nextSolverMoves);
+  const { attempt, rating } = await submitPuzzleAttempt(
+    session.puzzle.id,
+    nextSolverMoves,
+    session.qualitySessionId,
+  );
   session.submitting = false;
   session.selectedSquare = null;
   session.selectedDrop = null;
@@ -583,7 +617,11 @@ async function requestHint(session: PuzzleSession, renderSession: () => void): P
   session.submitting = true;
   session.feedback = { kind: 'pending', text: 'Fetching a hint.' };
   renderSession();
-  const { move, rating } = await fetchPuzzleHint(session.puzzle.id, session.playedMoves.length);
+  const { move, rating } = await fetchPuzzleHint(
+    session.puzzle.id,
+    session.playedMoves.length,
+    session.qualitySessionId,
+  );
   session.submitting = false;
   if (!move) {
     session.feedback = { kind: 'neutral', text: 'No hint available.' };
@@ -613,7 +651,10 @@ async function revealSolution(session: PuzzleSession, renderSession: () => void)
   session.submitting = true;
   session.feedback = { kind: 'pending', text: 'Loading the solution.' };
   renderSession();
-  const { solution, rating } = await fetchPuzzleSolution(session.puzzle.id);
+  const { solution, rating } = await fetchPuzzleSolution(
+    session.puzzle.id,
+    session.qualitySessionId,
+  );
   session.submitting = false;
   if (!solution || solution.length === 0) {
     session.feedback = { kind: 'neutral', text: 'No solution available.' };

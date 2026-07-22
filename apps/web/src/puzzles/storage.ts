@@ -34,14 +34,13 @@ export function saveSolvedPuzzleIds(ids: ReadonlySet<string>): void {
   }
 }
 
-// Order puzzles for rotation: unseen first (shuffled for real variety), then
-// seen puzzles from least- to most-recently-seen so revisits resurface the
-// oldest ones first. Real randomness is intentional here — this is client-side
-// UX ordering, not a replay path — and rating-adaptive selection is a separate,
-// later work item (issue #142).
+// Order puzzles for rotation: unseen first, matched to the viewer's per-variant
+// rating with regular exploration and light theme diversity. Seen puzzles stay
+// least- to most-recently-seen so old material eventually resurfaces.
 export function rotatePuzzleOrder(
   puzzles: readonly PuzzleSummary[],
   seen: ReadonlyMap<string, number>,
+  targetRatings: ReadonlyMap<string, number> = new Map(),
 ): PuzzleSummary[] {
   const unseen: PuzzleSummary[] = [];
   const seenList: PuzzleSummary[] = [];
@@ -49,19 +48,50 @@ export function rotatePuzzleOrder(
     if (seen.has(puzzle.id)) seenList.push(puzzle);
     else unseen.push(puzzle);
   }
-  shufflePuzzles(unseen);
+  const unseenByVariant = new Map<string, PuzzleSummary[]>();
+  for (const puzzle of unseen) {
+    const group = unseenByVariant.get(puzzle.variant) ?? [];
+    group.push(puzzle);
+    unseenByVariant.set(puzzle.variant, group);
+  }
+  const adaptive = [...unseenByVariant.values()].flatMap((group) =>
+    adaptivePuzzleOrder(group, targetRatings.get(group[0]!.variant) ?? 1500),
+  );
   seenList.sort((a, b) => (seen.get(a.id) ?? 0) - (seen.get(b.id) ?? 0));
-  return [...unseen, ...seenList];
+  return [...adaptive, ...seenList];
 }
 
-function shufflePuzzles(puzzles: PuzzleSummary[]): void {
-  // Fisher-Yates in place.
-  for (let i = puzzles.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const swap = puzzles[i]!;
-    puzzles[i] = puzzles[j]!;
-    puzzles[j] = swap;
+function adaptivePuzzleOrder(
+  puzzles: readonly PuzzleSummary[],
+  targetRating: number,
+): PuzzleSummary[] {
+  const remaining = puzzles.map((puzzle) => ({ puzzle, jitter: Math.random() * 30 }));
+  const ordered: PuzzleSummary[] = [];
+  while (remaining.length > 0) {
+    const explore = ordered.length % 5 === 4;
+    let selectedIndex = 0;
+    if (explore) {
+      selectedIndex = Math.floor(Math.random() * remaining.length);
+    } else {
+      const recentThemes = new Set(
+        ordered.slice(-2).flatMap((puzzle) => puzzle.themes.slice(0, 1)),
+      );
+      let bestScore = Number.POSITIVE_INFINITY;
+      for (let index = 0; index < remaining.length; index += 1) {
+        const candidate = remaining[index]!;
+        const primaryTheme = candidate.puzzle.themes[0];
+        const repeatPenalty = primaryTheme && recentThemes.has(primaryTheme) ? 75 : 0;
+        const score =
+          Math.abs(candidate.puzzle.rating - targetRating) + repeatPenalty + candidate.jitter;
+        if (score < bestScore) {
+          bestScore = score;
+          selectedIndex = index;
+        }
+      }
+    }
+    ordered.push(remaining.splice(selectedIndex, 1)[0]!.puzzle);
   }
+  return ordered;
 }
 
 export function loadSeenPuzzles(): Map<string, number> {

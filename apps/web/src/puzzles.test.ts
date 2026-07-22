@@ -25,6 +25,8 @@ function publicSummary(puzzle: MiniXiangqiPuzzle | XiangqiPuzzle) {
     goal: puzzle.goal,
     themes: puzzle.themes,
     solutionPlyCount: puzzle.solution.length,
+    rating: 1500,
+    ratingProvisional: true,
   };
 }
 
@@ -177,16 +179,26 @@ describe('puzzles route', () => {
     const drop = MINI_XIANGQI_PUZZLES.find(
       (puzzle) => puzzle.id === 'drop-mini-xiangqi-red-chariot-drop-mate-1',
     )!;
+    const qualityEvents: Array<{ sessionId: string; event: string; vote?: string | null }> = [];
+    let attemptQualitySessionId: string | null = null;
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === '/api/puzzles') return json({ puzzles: [publicSummary(drop)] });
       if (url === `/api/puzzles/${drop.id}`) return json({ puzzle: publicDetail(drop) });
+      if (url === `/api/puzzles/${drop.id}/quality`) {
+        qualityEvents.push(JSON.parse(String(init?.body)));
+        return new Response(null, { status: 204 });
+      }
       if (url === `/api/puzzles/${drop.id}/attempt`) {
         expect(init?.method).toBe('POST');
-        expect(JSON.parse(String(init?.body))).toEqual({
-          moves: [{ drop: 'chariot', to: 'd4' }],
-          rated: true,
-        });
+        const body = JSON.parse(String(init?.body));
+        expect(body).toEqual(
+          expect.objectContaining({
+            moves: [{ drop: 'chariot', to: 'd4' }],
+            rated: true,
+          }),
+        );
+        attemptQualitySessionId = body.qualitySessionId;
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(drop, [{ drop: 'chariot', to: 'd4' }]),
         });
@@ -203,6 +215,14 @@ describe('puzzles route', () => {
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     await vi.waitFor(() => expect(root.textContent).toContain('Success!'));
+    root.querySelector<HTMLButtonElement>('[aria-label="Puzzle was helpful"]')?.click();
+    await vi.waitFor(() =>
+      expect(qualityEvents.some((event) => event.event === 'vote' && event.vote === 'up')).toBe(
+        true,
+      ),
+    );
+    const view = qualityEvents.find((event) => event.event === 'view');
+    expect(view?.sessionId).toBe(attemptQualitySessionId);
     expect(root.querySelector('.puzzle-reserves')).toBeNull();
     expect(root.textContent).not.toContain('d5');
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -223,18 +243,22 @@ describe('puzzles route', () => {
         expect(init?.method).toBe('POST');
         const body = JSON.parse(String(init?.body));
         if (body.moves.length === 1) {
-          expect(body).toEqual({ moves: [{ from: 'c5', to: 'd5' }], rated: true });
+          expect(body).toEqual(
+            expect.objectContaining({ moves: [{ from: 'c5', to: 'd5' }], rated: true }),
+          );
           return json({
             attempt: attemptMiniXiangqiPuzzleLine(multi, [{ from: 'c5', to: 'd5' }]),
           });
         }
-        expect(body).toEqual({
-          moves: [
-            { from: 'c5', to: 'd5' },
-            { from: 'f1', to: 'e1' },
-          ],
-          rated: true,
-        });
+        expect(body).toEqual(
+          expect.objectContaining({
+            moves: [
+              { from: 'c5', to: 'd5' },
+              { from: 'f1', to: 'e1' },
+            ],
+            rated: true,
+          }),
+        );
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(multi, [
             { from: 'c5', to: 'd5' },
@@ -296,10 +320,12 @@ describe('puzzles route', () => {
       if (url === `/api/puzzles/${redDrop.id}`) return json({ puzzle: publicDetail(redDrop) });
       if (url === `/api/puzzles/${blackDrop.id}`) return json({ puzzle: publicDetail(blackDrop) });
       if (url === `/api/puzzles/${redDrop.id}/attempt`) {
-        expect(JSON.parse(String(init?.body))).toEqual({
-          moves: [{ drop: 'chariot', to: 'd4' }],
-          rated: true,
-        });
+        expect(JSON.parse(String(init?.body))).toEqual(
+          expect.objectContaining({
+            moves: [{ drop: 'chariot', to: 'd4' }],
+            rated: true,
+          }),
+        );
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(redDrop, [{ drop: 'chariot', to: 'd4' }]),
         });
@@ -453,12 +479,17 @@ describe('puzzles route', () => {
     stubWindowLocalStorage(
       memoryStorage({ 'mistboard:puzzles:seen': JSON.stringify({ [blackDrop.id]: 1 }) }),
     );
-    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+    const qualityEvents: Array<{ sessionId: string; event: string }> = [];
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === '/api/puzzles')
         return json({ puzzles: [publicSummary(redDrop), publicSummary(blackDrop)] });
       if (url === `/api/puzzles/${redDrop.id}`) return json({ puzzle: publicDetail(redDrop) });
       if (url === `/api/puzzles/${blackDrop.id}`) return json({ puzzle: publicDetail(blackDrop) });
+      if (url.endsWith('/quality')) {
+        qualityEvents.push(JSON.parse(String(init?.body)));
+        return new Response(null, { status: 204 });
+      }
       if (url === `/api/puzzles/${redDrop.id}/attempt`)
         return json({
           // e4 is a legal drop square but not the solution: incorrect-move.
@@ -487,6 +518,7 @@ describe('puzzles route', () => {
     await vi.waitFor(() =>
       expect(root.querySelector('.puzzle-detail h2')?.textContent).toBe('Black to move'),
     );
+    expect(qualityEvents.some((event) => event.event === 'abandon')).toBe(true);
     expect(fetchSpy).toHaveBeenCalledWith(`/api/puzzles/${blackDrop.id}`);
   });
 
@@ -510,10 +542,12 @@ describe('puzzles route', () => {
       if (url === `/api/puzzles/${redDrop.id}`) return json({ puzzle: publicDetail(redDrop) });
       if (url === `/api/puzzles/${blackDrop.id}`) return json({ puzzle: publicDetail(blackDrop) });
       if (url === `/api/puzzles/${redDrop.id}/attempt`) {
-        expect(JSON.parse(String(init?.body))).toEqual({
-          moves: [{ drop: 'chariot', to: 'd4' }],
-          rated: true,
-        });
+        expect(JSON.parse(String(init?.body))).toEqual(
+          expect.objectContaining({
+            moves: [{ drop: 'chariot', to: 'd4' }],
+            rated: true,
+          }),
+        );
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(redDrop, [{ drop: 'chariot', to: 'd4' }]),
         });
@@ -611,10 +645,12 @@ describe('puzzles route', () => {
       if (url === '/api/puzzles') return json({ puzzles: [publicSummary(drop)] });
       if (url === `/api/puzzles/${drop.id}`) return json({ puzzle: publicDetail(drop) });
       if (url === `/api/puzzles/${drop.id}/attempt`) {
-        expect(JSON.parse(String(init?.body))).toEqual({
-          moves: [{ drop: 'chariot', to: 'd4' }],
-          rated: true,
-        });
+        expect(JSON.parse(String(init?.body))).toEqual(
+          expect.objectContaining({
+            moves: [{ drop: 'chariot', to: 'd4' }],
+            rated: true,
+          }),
+        );
         return json({
           attempt: attemptMiniXiangqiPuzzleLine(drop, [{ drop: 'chariot', to: 'd4' }]),
         });
