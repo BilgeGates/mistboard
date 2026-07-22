@@ -22,7 +22,7 @@ describe('Dark Xiangqi postgame page', () => {
     expect(darkXiangqiPostgameApiUrl('dxq room')).toBe('/api/dark-xiangqi/games/dxq%20room');
   });
 
-  it('renders the interactive fog triptych — revealed truth board + fogged POV boards', async () => {
+  it('renders one interactive fog board plus a Red | Truth | Black perspective toggle', async () => {
     const fetchSpy = vi.fn(async () => jsonResponse(postgameFixture()));
     vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
@@ -34,13 +34,13 @@ describe('Dark Xiangqi postgame page', () => {
     expect(root.querySelector('.site-nav')).not.toBeNull();
     expect(root.textContent).toContain('Spectator room');
     expect(root.textContent).toContain('Red wins');
-    // The interactive tree renders the triptych: a dominant truth board plus each
-    // seat's fogged POV, labeled from the fog adapter's projection.
-    expect(root.textContent).toContain('Truth');
-    expect(root.textContent).toContain("Red's view");
-    expect(root.textContent).toContain("Black's view");
+    // The interactive tree renders ONE board plus a segmented perspective toggle
+    // (the same control the watch page uses), defaulting to the revealed truth.
+    const povButtons = [...root.querySelectorAll<HTMLButtonElement>('.review-pov__button')];
+    expect(povButtons.map((b) => b.textContent)).toEqual(['Red', 'Truth', 'Black']);
+    expect(povButtons.find((b) => b.classList.contains('active'))?.textContent).toBe('Truth');
     expect(root.textContent).not.toContain('Play again');
-    expect(root.querySelectorAll('.xq-live-svg')).toHaveLength(3);
+    expect(root.querySelectorAll('.xq-live-svg')).toHaveLength(1);
 
     // Moves render in the shared branching move tree, paired two per numbered row
     // (Red move, then Black move), each a jump-to-node button.
@@ -56,15 +56,29 @@ describe('Dark Xiangqi postgame page', () => {
       root.querySelector('.review-move-list__move--current .review-move-list__san')?.textContent ??
       null;
 
-    // Hidden-info invariant: the interactive truth board is fully revealed (no fog
-    // layer, no shrouded piece); each read-only POV board keeps its fog mask. The
+    // Hidden-info invariant: the single board is fully revealed on Truth (no fog
+    // layer, no shrouded piece) and fogs when toggled to a seat's POV. The
     // positions are reconstructed CLIENT-side from the true move list through the
     // fog kernel, not from the server per-ply snapshots.
-    const truthWrap = boardWrap(root, 'Truth');
-    expect(truthWrap.querySelector('.xq-live-fog-mask')).toBeNull();
-    expect(truthWrap.innerHTML).not.toContain('hidden piece');
-    expect(boardWrap(root, "Red's view").querySelector('.xq-live-fog-mask')).not.toBeNull();
-    expect(boardWrap(root, "Black's view").querySelector('.xq-live-fog-mask')).not.toBeNull();
+    const boardHost = (): HTMLElement => {
+      const el = root.querySelector<HTMLElement>('.dxq-postgame__board');
+      if (!el) throw new Error('Missing board host');
+      return el;
+    };
+    const pov = (label: string): HTMLButtonElement => {
+      const button = povButtons.find((b) => b.textContent === label);
+      if (!button) throw new Error(`Missing POV button: ${label}`);
+      return button;
+    };
+    expect(boardHost().querySelector('.xq-live-fog-mask')).toBeNull();
+    expect(boardHost().innerHTML).not.toContain('hidden piece');
+    pov('Red').click();
+    expect(boardHost().querySelector('.xq-live-fog-mask')).not.toBeNull();
+    pov('Black').click();
+    expect(boardHost().querySelector('.xq-live-fog-mask')).not.toBeNull();
+    // Back to Truth: the fog clears and the board is interactive again.
+    pov('Truth').click();
+    expect(boardHost().querySelector('.xq-live-fog-mask')).toBeNull();
 
     // Clicking a move jumps the whole triptych to that node.
     moveButtons[0]?.click();
@@ -73,8 +87,8 @@ describe('Dark Xiangqi postgame page', () => {
     expect(currentSan()).toBe('b8-b7');
 
     // Flip lives in the control bar's menu overlay (present in the DOM even while
-    // the menu is closed). Flipping re-orients every board.
-    const truthSvg = () => truthWrap.querySelector('.xq-live-svg')?.innerHTML ?? '';
+    // the menu is closed). Flipping re-orients the board.
+    const truthSvg = () => boardHost().querySelector('.xq-live-svg')?.innerHTML ?? '';
     const beforeFlip = truthSvg();
     const menuFlip = [...root.querySelectorAll<HTMLButtonElement>('.review-menu__item')].find((b) =>
       b.textContent?.includes('Flip board'),
@@ -100,14 +114,6 @@ describe('Dark Xiangqi postgame page', () => {
     expect(currentSan()).toBe('b3-b4');
   });
 });
-
-function boardWrap(root: HTMLElement, label: string): HTMLElement {
-  const wrap = [...root.querySelectorAll<HTMLElement>('.dxq-postgame__board-wrap')].find(
-    (el) => el.querySelector('.dxq-postgame__board-title')?.textContent === label,
-  );
-  if (!wrap) throw new Error(`Missing board wrap: ${label}`);
-  return wrap;
-}
 
 function postgameFixture() {
   return {
