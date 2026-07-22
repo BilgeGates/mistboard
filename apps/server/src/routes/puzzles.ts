@@ -29,7 +29,19 @@ import {
   type XiangqiPuzzle,
 } from '@mistboard/game';
 import { currentAccountUser } from '../account-session.js';
-import { getUserPuzzleRating, recordPuzzleAttempt } from '../persistence-puzzle-ratings.js';
+import { createAuthRateLimiter } from '../auth-rate-limit.js';
+import {
+  isPuzzleQualitySessionId,
+  type PuzzleQualityVote,
+  recordPuzzleQualityEvent,
+  recordPuzzleQualityVote,
+} from '../persistence-puzzle-quality.js';
+import {
+  getPuzzleRating,
+  getUserPuzzleRating,
+  listPuzzleRatingSummaries,
+  recordPuzzleAttempt,
+} from '../persistence-puzzle-ratings.js';
 import {
   currentDailyPuzzleDay,
   getOrCreateDailyPuzzleSelection,
@@ -37,7 +49,12 @@ import {
 } from '../persistence-puzzles.js';
 import { seedPuzzleRating } from '../puzzle-rating.js';
 import { getPuzzleStore, type PuzzleStoreSnapshot } from '../puzzle-store.js';
+import { clientIpForRateLimit } from '../server-policy.js';
 import { type HttpApiContext, readJsonBody, requireMethod, writeJson } from './lib.js';
+
+// High enough for fast play, low enough to prevent unbounded anonymous UUID
+// insertion. The IP key stays only in process memory and is never persisted.
+const puzzleQualityRateLimiter = createAuthRateLimiter(300, 60_000);
 
 // The public puzzle surface spans the Mini/Drop-Mini registry, the Fortress
 // Xiangqi registry, the Jungle registry, and the standard-xiangqi registry.
@@ -72,6 +89,8 @@ type PuzzleSummary = {
   goal: PublicPuzzle['goal'];
   themes: readonly string[];
   solutionPlyCount: number;
+  rating: number;
+  ratingProvisional: boolean;
 };
 
 type PuzzleDetail = PuzzleSummary & {
@@ -100,7 +119,15 @@ export async function tryHandle(
     const puzzles = variant
       ? discoverable.filter((puzzle) => puzzle.variant === variant)
       : discoverable;
-    writeJson(response, 200, { puzzles: puzzles.map(puzzleSummary) });
+    const ratings = await listPuzzleRatingSummaries(puzzles.map((puzzle) => puzzle.id));
+    writeJson(response, 200, {
+      puzzles: puzzles.map((puzzle) =>
+        puzzleSummary(
+          puzzle,
+          ratings.get(puzzle.id) ?? seededPuzzleRatingSummary(puzzle.solution.length),
+        ),
+      ),
+    });
     return true;
   }
 
@@ -120,7 +147,7 @@ export async function tryHandle(
         slot: daily.slot,
         source: daily.source,
       },
-      puzzle: puzzleDetail(daily.puzzle),
+      puzzle: await puzzleDetail(daily.puzzle),
     });
     return true;
   }
@@ -149,6 +176,50 @@ export async function tryHandle(
     return true;
   }
 
+  const qualityMatch = pathname.match(/^\/api\/puzzles\/([^/]+)\/quality$/);
+  if (qualityMatch) {
+    if (!requireMethod(request, response, 'POST')) return true;
+    const puzzle = await puzzleById(decodeURIComponent(qualityMatch[1]!));
+    if (!puzzle) {
+      writeJson(response, 404, { error: 'not_found' });
+      return true;
+    }
+    const body = await readJsonBody(request);
+    if (!isPuzzleQualitySessionId(body.sessionId)) {
+      writeJson(response, 400, { error: 'invalid_quality_session' });
+      return true;
+    }
+    if (!puzzleQualityRateLimiter.check(clientIpForRateLimit(request))) {
+      writeJson(response, 429, { error: 'rate_limited' });
+      return true;
+    }
+    if (body.event === 'vote') {
+      const vote = parsePuzzleQualityVote(body.vote);
+      if (vote === 'invalid') {
+        writeJson(response, 400, { error: 'invalid_vote' });
+        return true;
+      }
+      await recordPuzzleQualityVote({
+        puzzleId: puzzle.id,
+        sessionId: body.sessionId,
+        variant: puzzle.variant,
+        vote,
+      });
+    } else if (body.event === 'view' || body.event === 'start' || body.event === 'abandon') {
+      await recordPuzzleQualityEvent({
+        puzzleId: puzzle.id,
+        sessionId: body.sessionId,
+        variant: puzzle.variant,
+        event: body.event,
+      });
+    } else {
+      writeJson(response, 400, { error: 'invalid_quality_event' });
+      return true;
+    }
+    response.writeHead(204).end();
+    return true;
+  }
+
   const attemptMatch = pathname.match(/^\/api\/puzzles\/([^/]+)\/attempt$/);
   if (attemptMatch) {
     if (!requireMethod(request, response, 'POST')) return true;
@@ -158,12 +229,34 @@ export async function tryHandle(
       return true;
     }
     const body = await readJsonBody(request);
+    const qualitySessionId = parseOptionalQualitySessionId(body.qualitySessionId);
+    if (qualitySessionId === 'invalid') {
+      writeJson(response, 400, { error: 'invalid_quality_session' });
+      return true;
+    }
     const moves = parsePuzzleMoves(body.moves);
     if (!moves) {
       writeJson(response, 400, { error: 'invalid_moves' });
       return true;
     }
     const attempt = attemptPuzzle(puzzle, moves);
+    if (qualitySessionId && puzzleQualityRateLimiter.check(clientIpForRateLimit(request))) {
+      const qualityEvent = attempt.ok
+        ? attempt.complete
+          ? 'solve'
+          : 'start'
+        : attempt.code === 'incorrect-move'
+          ? 'wrong'
+          : null;
+      if (qualityEvent) {
+        await recordPuzzleQualityEvent({
+          puzzleId: puzzle.id,
+          sessionId: qualitySessionId,
+          variant: puzzle.variant,
+          event: qualityEvent,
+        });
+      }
+    }
     const rating = await recordAttemptRating(request, puzzle, attempt, body.rated !== false);
     writeJson(response, 200, { attempt, ...(rating ? { rating } : {}) });
     return true;
@@ -185,12 +278,37 @@ export async function tryHandle(
       return true;
     }
     const body = await readJsonBody(request);
+    const qualitySessionId = parseOptionalQualitySessionId(body.qualitySessionId);
+    if (qualitySessionId === 'invalid') {
+      writeJson(response, 400, { error: 'invalid_quality_session' });
+      return true;
+    }
     const rated = body.rated !== false;
     const rating = await recordOutcomeRating(request, puzzle, false, rated);
     if (body.mode === 'hint') {
       const move = puzzleNextMove(puzzle, parsePlayedPlyCount(body.playedPlyCount));
+      if (
+        qualitySessionId &&
+        move &&
+        puzzleQualityRateLimiter.check(clientIpForRateLimit(request))
+      ) {
+        await recordPuzzleQualityEvent({
+          puzzleId: puzzle.id,
+          sessionId: qualitySessionId,
+          variant: puzzle.variant,
+          event: 'hint',
+        });
+      }
       writeJson(response, 200, { move, ...(rating ? { rating } : {}) });
       return true;
+    }
+    if (qualitySessionId && puzzleQualityRateLimiter.check(clientIpForRateLimit(request))) {
+      await recordPuzzleQualityEvent({
+        puzzleId: puzzle.id,
+        sessionId: qualitySessionId,
+        variant: puzzle.variant,
+        event: 'reveal',
+      });
     }
     writeJson(response, 200, { solution: puzzle.solution, ...(rating ? { rating } : {}) });
     return true;
@@ -205,7 +323,7 @@ export async function tryHandle(
     writeJson(response, 404, { error: 'not_found' });
     return true;
   }
-  writeJson(response, 200, { puzzle: puzzleDetail(puzzle) });
+  writeJson(response, 200, { puzzle: await puzzleDetail(puzzle) });
   return true;
 }
 
@@ -345,7 +463,10 @@ function parsePuzzleVariant(value: string | null): PublicPuzzleVariant | null | 
   return 'invalid';
 }
 
-function puzzleSummary(puzzle: PublicPuzzle): PuzzleSummary {
+function puzzleSummary(
+  puzzle: PublicPuzzle,
+  rating: { rating: number; provisional: boolean },
+): PuzzleSummary {
   return {
     id: puzzle.id,
     variant: puzzle.variant,
@@ -354,17 +475,42 @@ function puzzleSummary(puzzle: PublicPuzzle): PuzzleSummary {
     goal: puzzle.goal,
     themes: puzzle.themes,
     solutionPlyCount: puzzle.solution.length,
+    rating: rating.rating,
+    ratingProvisional: rating.provisional,
   };
 }
 
-function puzzleDetail(puzzle: PublicPuzzle): PuzzleDetail {
+async function puzzleDetail(puzzle: PublicPuzzle): Promise<PuzzleDetail> {
+  const stored = await getPuzzleRating(puzzle.id);
   return {
-    ...puzzleSummary(puzzle),
+    ...puzzleSummary(
+      puzzle,
+      stored
+        ? { rating: stored.rating, provisional: stored.provisional }
+        : seededPuzzleRatingSummary(puzzle.solution.length),
+    ),
     initial: puzzle.initial,
     ...(puzzle.variant === XIANGQI_SPEC_ID && puzzle.sourceGame
       ? { sourceGame: puzzle.sourceGame }
       : {}),
   };
+}
+
+function seededPuzzleRatingSummary(solutionPlyCount: number): {
+  rating: number;
+  provisional: boolean;
+} {
+  return { rating: Math.round(seedPuzzleRating(solutionPlyCount).rating), provisional: true };
+}
+
+function parseOptionalQualitySessionId(value: unknown): string | null | 'invalid' {
+  if (value === undefined || value === null) return null;
+  return isPuzzleQualitySessionId(value) ? value : 'invalid';
+}
+
+function parsePuzzleQualityVote(value: unknown): PuzzleQualityVote | 'invalid' {
+  if (value === 'up' || value === 'down' || value === null) return value;
+  return 'invalid';
 }
 
 function parsePuzzleMoves(value: unknown): PublicPuzzleMove[] | null {

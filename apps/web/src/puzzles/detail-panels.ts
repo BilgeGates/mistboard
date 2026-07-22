@@ -17,6 +17,7 @@ import { puzzleBoardAdapter } from './registry.js';
 export type PuzzleAssistHooks = {
   onHint: () => void;
   onReveal: () => void;
+  onVote: (vote: 'up' | 'down' | null) => void;
 };
 
 export function feedbackPanel(
@@ -25,7 +26,7 @@ export function feedbackPanel(
   renderSession: () => void,
   assist: PuzzleAssistHooks,
 ): HTMLElement {
-  if (isSessionSolved(session)) return solvedPanel(session, navigation, renderSession);
+  if (isSessionSolved(session)) return solvedPanel(session, navigation, renderSession, assist);
   if (session.revealed) return revealedPanel(navigation);
 
   const panel = document.createElement('div');
@@ -119,6 +120,7 @@ function solvedPanel(
   session: PuzzleSession,
   navigation: PuzzleNavigation,
   renderSession: () => void,
+  assist: PuzzleAssistHooks,
 ): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'puzzle-solved-panel';
@@ -148,8 +150,8 @@ function solvedPanel(
   const votes = document.createElement('div');
   votes.className = 'puzzle-vote-actions';
   votes.append(
-    puzzleVoteButton('up', session, renderSession),
-    puzzleVoteButton('down', session, renderSession),
+    puzzleVoteButton('up', session, renderSession, assist),
+    puzzleVoteButton('down', session, renderSession, assist),
   );
   feedbackRow.append(prompt, votes);
 
@@ -164,6 +166,7 @@ function puzzleVoteButton(
   kind: 'up' | 'down',
   session: PuzzleSession,
   renderSession: () => void,
+  assist: PuzzleAssistHooks,
 ): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
@@ -181,6 +184,7 @@ function puzzleVoteButton(
     // Toggle off if re-clicking the current vote, else set it. Re-render so both
     // buttons reflect the new state (and the prompt updates).
     session.vote = session.vote === kind ? null : kind;
+    assist.onVote(session.vote);
     renderSession();
   });
   return button;

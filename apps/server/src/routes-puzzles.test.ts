@@ -44,11 +44,13 @@ function captureResponse(): ServerResponse & ResponseCapture {
 }
 
 function request(method = 'GET', body?: unknown): IncomingMessage {
-  if (body === undefined) return { method, headers: {} } as unknown as IncomingMessage;
+  const socket = { remoteAddress: '127.0.0.1' };
+  if (body === undefined) return { method, headers: {}, socket } as unknown as IncomingMessage;
   const raw = Buffer.from(JSON.stringify(body));
   return {
     method,
     headers: { 'content-type': 'application/json' },
+    socket,
     async *[Symbol.asyncIterator]() {
       yield raw;
     },
@@ -76,6 +78,8 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
       variant: string;
       solution?: unknown;
       solutionPlyCount: number;
+      rating: number;
+      ratingProvisional: boolean;
       goal: { type: string };
     }>;
   };
@@ -103,6 +107,14 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
   assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'fortress-xiangqi').length, 0);
   assert.equal(
     body.puzzles.every((puzzle) => puzzle.solution === undefined),
+    true,
+  );
+  assert.equal(
+    body.puzzles.every((puzzle) => Number.isFinite(puzzle.rating)),
+    true,
+  );
+  assert.equal(
+    body.puzzles.every((puzzle) => puzzle.ratingProvisional),
     true,
   );
   const mateInTwoIds = [
@@ -230,6 +242,41 @@ test('puzzle rating route accepts the standard xiangqi variant', async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(JSON.parse(response.body), { rating: null });
+});
+
+test('puzzle quality route accepts a per-view UUID and rejects malformed ids', async () => {
+  const puzzle = XIANGQI_PUZZLES[0]!;
+  const accepted = await route(`/api/puzzles/${puzzle.id}/quality`, 'POST', {
+    sessionId: 'a85ef43f-73b3-4ef0-bdc2-d1e907c1ff35',
+    event: 'view',
+  });
+  assert.equal(accepted.status, 204);
+
+  const rejected = await route(`/api/puzzles/${puzzle.id}/quality`, 'POST', {
+    sessionId: 'cross-puzzle-browser-id',
+    event: 'view',
+  });
+  assert.equal(rejected.status, 400);
+  assert.deepEqual(JSON.parse(rejected.body), { error: 'invalid_quality_session' });
+});
+
+test('attempt and reveal routes accept a quality session without exposing the solution', async () => {
+  const puzzle = XIANGQI_PUZZLES[0]!;
+  const qualitySessionId = 'f75cdffd-6cae-4052-a5cf-5fdd72155bed';
+  const attempt = await route(`/api/puzzles/${puzzle.id}/attempt`, 'POST', {
+    moves: [puzzle.solution[0]],
+    qualitySessionId,
+  });
+  assert.equal(attempt.status, 200);
+  assert.equal(JSON.parse(attempt.body).attempt.solution, undefined);
+
+  const reveal = await route(`/api/puzzles/${puzzle.id}/reveal`, 'POST', {
+    mode: 'hint',
+    playedPlyCount: 0,
+    qualitySessionId,
+  });
+  assert.equal(reveal.status, 200);
+  assert.deepEqual(JSON.parse(reveal.body).move, puzzle.solution[0]);
 });
 
 test('Fortress puzzle attempts solve the mined mate and stay solution-hidden', async () => {

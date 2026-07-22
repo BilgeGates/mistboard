@@ -54,6 +54,8 @@ export type PuzzleSummary = {
   goal: PuzzleGoal;
   themes: string[];
   solutionPlyCount: number;
+  rating: number;
+  ratingProvisional: boolean;
   // Attribution for the "From game" card (standard-xiangqi mined puzzles). The
   // source game is not hosted yet, so this is display-only, not a link.
   sourceGame?: {
@@ -72,6 +74,9 @@ export type PuzzleDetail = PuzzleSummary & { initial: PuzzleState };
 export type FeedbackKind = 'neutral' | 'good' | 'bad' | 'pending';
 
 export type PuzzleSession = {
+  // Fresh for every puzzle view and never reused across puzzles. This lets the
+  // server aggregate anonymous quality outcomes without a cross-puzzle identity.
+  qualitySessionId: string;
   puzzle: PuzzleDetail;
   state: PuzzleState;
   playedMoves: PuzzleMove[];

@@ -76,11 +76,12 @@ export async function fetchPuzzleDetail(id: string): Promise<PuzzleDetail | null
 export async function submitPuzzleAttempt(
   id: string,
   moves: readonly PuzzleMove[],
+  qualitySessionId?: string,
 ): Promise<{ attempt: PuzzleAttempt; rating: PuzzleAttemptRating | null }> {
   const response = await fetch(`/api/puzzles/${encodeURIComponent(id)}/attempt`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ moves, rated: puzzleRatedPref }),
+    body: JSON.stringify({ moves, rated: puzzleRatedPref, qualitySessionId }),
   });
   if (!response.ok) throw new Error(`Puzzle attempt failed: ${response.status}`);
   const body = (await response.json()) as {
@@ -95,11 +96,12 @@ export async function submitPuzzleAttempt(
 // exposes solution moves). POST because it books a failed rated attempt.
 export async function fetchPuzzleSolution(
   id: string,
+  qualitySessionId?: string,
 ): Promise<{ solution: PuzzleMove[] | null; rating: PuzzleAttemptRating | null }> {
   const response = await fetch(`/api/puzzles/${encodeURIComponent(id)}/reveal`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ mode: 'solution', rated: puzzleRatedPref }),
+    body: JSON.stringify({ mode: 'solution', rated: puzzleRatedPref, qualitySessionId }),
   });
   if (!response.ok) throw new Error(`Puzzle reveal failed: ${response.status}`);
   const body = (await response.json()) as {
@@ -115,11 +117,17 @@ export async function fetchPuzzleSolution(
 export async function fetchPuzzleHint(
   id: string,
   playedPlyCount: number,
+  qualitySessionId?: string,
 ): Promise<{ move: PuzzleMove | null; rating: PuzzleAttemptRating | null }> {
   const response = await fetch(`/api/puzzles/${encodeURIComponent(id)}/reveal`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ mode: 'hint', playedPlyCount, rated: puzzleRatedPref }),
+    body: JSON.stringify({
+      mode: 'hint',
+      playedPlyCount,
+      rated: puzzleRatedPref,
+      qualitySessionId,
+    }),
   });
   if (!response.ok) throw new Error(`Puzzle hint failed: ${response.status}`);
   const body = (await response.json()) as {
@@ -138,4 +146,21 @@ export async function fetchUserPuzzleRating(variant: string): Promise<UserPuzzle
   } catch {
     return null;
   }
+}
+
+export type PuzzleQualityVote = 'up' | 'down' | null;
+
+export async function sendPuzzleQualityEvent(
+  id: string,
+  sessionId: string,
+  event: 'view' | 'start' | 'abandon' | 'vote',
+  vote?: PuzzleQualityVote,
+): Promise<void> {
+  const response = await fetch(`/api/puzzles/${encodeURIComponent(id)}/quality`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ sessionId, event, ...(event === 'vote' ? { vote } : {}) }),
+    keepalive: true,
+  });
+  if (!response.ok) throw new Error(`Puzzle quality event failed: ${response.status}`);
 }

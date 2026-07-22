@@ -27,6 +27,11 @@ export type PuzzleRating = {
   solves: number;
 };
 
+export type PuzzleRatingSummary = {
+  rating: number;
+  provisional: boolean;
+};
+
 export type RecordPuzzleAttemptInput = {
   userId: string;
   puzzleId: string;
@@ -93,6 +98,23 @@ export async function getPuzzleRating(puzzleId: string): Promise<PuzzleRating | 
     plays: row.plays,
     solves: row.solves,
   };
+}
+
+export async function listPuzzleRatingSummaries(
+  puzzleIds: readonly string[],
+): Promise<ReadonlyMap<string, PuzzleRatingSummary>> {
+  if (!isInitialized() || puzzleIds.length === 0) return new Map();
+  const { rows } = await getPool().query<RatingRow & { puzzle_id: string }>(
+    `SELECT puzzle_id, rating, rating_deviation, volatility
+     FROM puzzle_ratings WHERE puzzle_id = ANY($1::text[])`,
+    [puzzleIds],
+  );
+  return new Map(
+    rows.map((row) => [
+      row.puzzle_id,
+      { rating: Math.round(row.rating), provisional: isProvisional(row.rating_deviation) },
+    ]),
+  );
 }
 
 // Record a user's first outcome for a puzzle and, if rated, apply the Glicko-2
