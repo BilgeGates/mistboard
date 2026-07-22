@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import {
   canonicalVariantOrderIndex,
   gameSpecForId,
+  hasStartFen,
+  normalizeStartFen,
   STUDY_ELIGIBLE_SPEC_IDS,
 } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
@@ -44,14 +46,22 @@ describe('study catalog', () => {
     expect(isStudyVariantId('')).toBe(false);
   });
 
-  it('offers compositions only where a FEN parser exists', () => {
-    // Widening this needs a parser in @mistboard/game plus a branch in
-    // study-review.ts — a FEN we cannot parse back would be silently dropped.
+  it('offers compositions exactly where a FEN parser exists', () => {
+    // The catalog must not offer the start-position box where normalizeStartFen
+    // would refuse the FEN: the author would type a legal position and be told
+    // it is wrong. Reading the game package rather than restating the list is
+    // the point — one source, no drift.
     for (const variant of STUDY_VARIANTS) {
-      expect(studyVariantSupportsComposition(variant.id)).toBe(variant.id === 'xiangqi');
-      expect(studyVariantSupportsGamebook(variant.id)).toBe(variant.id === 'xiangqi');
+      expect(studyVariantSupportsComposition(variant.id)).toBe(hasStartFen(variant.id));
+      expect(normalizeStartFen(variant.id, 'not a fen at all').ok).toBe(false);
     }
     expect(studyVariantSupportsComposition(DEFAULT_STUDY_VARIANT)).toBe(true);
+  });
+
+  it('keeps gamebooks on the one variant with an interactive lesson player', () => {
+    for (const variant of STUDY_VARIANTS) {
+      expect(studyVariantSupportsGamebook(variant.id)).toBe(variant.id === 'xiangqi');
+    }
   });
 });
 
@@ -69,6 +79,20 @@ describe('study board dispatch', () => {
       expect(source, `${variant.id} has no case in review/study-review.ts`).toContain(
         `case '${variant.id}':`,
       );
+    }
+  });
+
+  // A branch that ignores rootFen still typechecks and still renders — it just
+  // opens every composition chapter at the standard start, which reads as data
+  // loss rather than a bug. The catalog offers the box for all five, so all five
+  // have to honour it.
+  it('resolves the chapter rootFen in every branch', () => {
+    for (const variant of STUDY_VARIANTS) {
+      const branch = source.slice(source.indexOf(`case '${variant.id}':`));
+      const nextCase = branch.indexOf("\n    case '");
+      const body = nextCase === -1 ? branch : branch.slice(0, nextCase);
+      expect(body, `${variant.id} ignores rootFen in review/study-review.ts`).toContain('rootFen');
+      expect(body, `${variant.id} does not seed a root truth`).toContain('truth:');
     }
   });
 

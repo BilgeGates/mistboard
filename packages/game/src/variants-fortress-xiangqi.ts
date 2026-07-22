@@ -346,6 +346,156 @@ export function fortressXiangqiEngineFen(state: FortressXiangqiGameState): strin
   return `${board} ${turn} - - 0 ${state.moveNumber}`;
 }
 
+// ── FEN parsing ──────────────────────────────────────────────────────────────
+// Inverse of fortressXiangqiEngineFen, so a hand-set position can seed a study
+// chapter or an analysis board. Lives next to the writer on purpose: the two
+// share the letter tables, and a dialect drift between them would be invisible
+// anywhere else.
+//
+// Validation covers only what play can never produce: a general off its palace,
+// a defender outside its standing region, more copies of a role than the sets
+// contain (board AND pockets — a capture moves a piece into the CAPTURER's hand,
+// so the bound is per role across both colours), and a side to move who can
+// simply take the enemy general.
+
+export type ParseFortressXiangqiFenResult =
+  | { ok: true; state: FortressXiangqiGameState }
+  | { ok: false; error: string };
+
+const FORTRESS_FEN_LETTER_TO_ROLE: Record<string, FortressXiangqiPieceRole> = {
+  ...Object.fromEntries(
+    Object.entries(FORTRESS_FSF_LETTER_TO_DROP_ROLE).map(([letter, role]) => [
+      letter.toLowerCase(),
+      role as FortressXiangqiPieceRole,
+    ]),
+  ),
+  k: 'general',
+};
+
+// Total copies of a role in the two starting sets. A captured piece changes
+// owner (it lands in the capturer's pocket), so the ceiling is shared, not
+// per-colour.
+const FORTRESS_ROLE_SUPPLY: Record<FortressXiangqiPieceRole, number> = {
+  general: 2,
+  advisor: 2,
+  elephant: 2,
+  horse: 2,
+  cannon: 2,
+  chariot: 2,
+  treasure: 2,
+  soldier: 10, // five a side (pp1p1pp)
+};
+
+export function parseFortressXiangqiFen(
+  fen: string,
+  gameId = 'fen-import',
+): ParseFortressXiangqiFenResult {
+  const fields = fen.trim().split(/\s+/);
+  const first = fields[0];
+  if (!first) return { ok: false, error: 'Empty FEN.' };
+
+  // The pocket rides in brackets on the placement field (crazyhouse dialect).
+  const bracket = first.indexOf('[');
+  let placement = first;
+  let pocketText = '';
+  if (bracket >= 0) {
+    if (!first.endsWith(']')) return { ok: false, error: 'Unclosed "[" in the pocket field.' };
+    placement = first.slice(0, bracket);
+    pocketText = first.slice(bracket + 1, -1);
+  }
+
+  const rows = placement.split('/');
+  if (rows.length !== RANKS) {
+    return { ok: false, error: `Expected ${RANKS} ranks in the placement, got ${rows.length}.` };
+  }
+
+  const supply: Partial<Record<FortressXiangqiPieceRole, number>> = {};
+  const board: FortressXiangqiBoard = {};
+  const generals: Partial<Record<FortressXiangqiColor, FortressXiangqiSquare>> = {};
+  for (let i = 0; i < RANKS; i += 1) {
+    const rank = RANKS - i;
+    let file = 0;
+    for (const ch of rows[i]!) {
+      if (ch >= '1' && ch <= '9') {
+        file += Number(ch);
+        continue;
+      }
+      const role = FORTRESS_FEN_LETTER_TO_ROLE[ch.toLowerCase()];
+      if (!role) return { ok: false, error: `Unknown piece "${ch}" on rank ${rank}.` };
+      if (file > FILES - 1) return { ok: false, error: `Rank ${rank} runs past ${FILES} files.` };
+      const color: FortressXiangqiColor = /[A-Z]/.test(ch) ? 'red' : 'black';
+      const square = fortressXiangqiSquareOf(file, rank);
+      if (role === 'general') {
+        if (generals[color]) return { ok: false, error: `Two ${color} generals.` };
+        if (!fortressXiangqiInPalace(color, file, rank)) {
+          return { ok: false, error: `The ${color} general on ${square} is outside its palace.` };
+        }
+        generals[color] = square;
+      } else if (role === 'advisor' && !fortressXiangqiInPalace(color, file, rank)) {
+        return { ok: false, error: `The ${color} advisor on ${square} is outside its palace.` };
+      } else if (role === 'elephant' && !fortressXiangqiInOwnHalf(color, rank)) {
+        return { ok: false, error: `The ${color} elephant on ${square} has crossed the river.` };
+      }
+      supply[role] = (supply[role] ?? 0) + 1;
+      board[square] = { color, role };
+      file += 1;
+    }
+    if (file !== FILES) {
+      return { ok: false, error: `Rank ${rank} covers ${file} files, expected ${FILES}.` };
+    }
+  }
+
+  const hands: FortressXiangqiHands = emptyHands();
+  for (const ch of pocketText) {
+    const role = FORTRESS_FEN_LETTER_TO_ROLE[ch.toLowerCase()];
+    if (!role) return { ok: false, error: `Unknown pocket piece "${ch}".` };
+    if (role === 'general') return { ok: false, error: 'A general can never be in hand.' };
+    const color: FortressXiangqiColor = /[A-Z]/.test(ch) ? 'red' : 'black';
+    const hand = hands[color];
+    hand[role] = (hand[role] ?? 0) + 1;
+    supply[role] = (supply[role] ?? 0) + 1;
+  }
+
+  for (const [role, count] of Object.entries(supply)) {
+    const max = FORTRESS_ROLE_SUPPLY[role as FortressXiangqiPieceRole];
+    if (count > max) {
+      return { ok: false, error: `Too many ${role}s: ${count} on board and in hand (max ${max}).` };
+    }
+  }
+  for (const color of ['red', 'black'] as const) {
+    if (!generals[color]) return { ok: false, error: `Missing the ${color} general.` };
+  }
+
+  const turnToken = fields[1] ?? 'w';
+  let turn: FortressXiangqiColor;
+  if (turnToken === 'w' || turnToken === 'r') turn = 'red';
+  else if (turnToken === 'b') turn = 'black';
+  else return { ok: false, error: `Unknown side-to-move "${turnToken}" (expected w/r or b).` };
+
+  const moveField = fields[5];
+  const base: FortressXiangqiGameState = {
+    id: gameId,
+    board,
+    hands,
+    status: { type: 'playing', turn },
+    moveNumber: moveField && /^\d+$/.test(moveField) ? Number(moveField) : 1,
+    positionCounts: {},
+  };
+  // The side NOT to move must not be sitting in check: the move that produced
+  // this position could never have been played, so the diagram is wrong.
+  const waiting = oppositeFortressXiangqiColor(turn);
+  if (isFortressXiangqiGeneralInCheck(base, waiting)) {
+    return {
+      ok: false,
+      error: `Illegal position: the ${waiting} general is in check with ${turn} to move.`,
+    };
+  }
+  return {
+    ok: true,
+    state: { ...base, positionCounts: { [fortressXiangqiPositionRepetitionKey(base)]: 1 } },
+  };
+}
+
 // ── Initial position ────────────────────────────────────────────────────────
 
 export function createInitialFortressXiangqiBoard(): FortressXiangqiBoard {

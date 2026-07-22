@@ -19,7 +19,7 @@ import {
 } from './tree-review.js';
 
 /** Config for a Fog Chess review mount. */
-export type DarkChessReviewConfig = TreeReviewConfig<Move>;
+export type DarkChessReviewConfig = TreeReviewConfig<Move, GameState>;
 
 /** Handle returned by mountDarkChessReview: snapshot the current tree to persist it. */
 export type DarkChessReviewHandle = TreeReviewHandle;

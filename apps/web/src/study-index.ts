@@ -7,7 +7,7 @@
 import './game-shell.css';
 import './study.css';
 import './study-index.css';
-import { parseStandardXiangqiFen, standardXiangqiFen } from '@mistboard/game';
+import { normalizeStartFen } from '@mistboard/game';
 import { buildNav } from './site-shell.js';
 import {
   buildStudyVariantSelect,
@@ -272,8 +272,8 @@ function openCreateStudyDialog(): void {
   visSelect.value = 'private';
   visField.append(visSelect);
 
-  // The first chapter's variant. A study can hold chapters of several variants
-  // (the column is per-chapter); this only seeds chapter 1.
+  // The study's variant, chosen once here: every chapter inherits it (the server
+  // refuses a chapter that names a different one).
   const variantField = dialogField('Variant');
   const variantSelect = buildStudyVariantSelect('Study variant', DEFAULT_STUDY_VARIANT);
   variantField.append(variantSelect);
@@ -310,10 +310,10 @@ function openCreateStudyDialog(): void {
 
   const syncFenField = (): void => {
     fenField.hidden = !studyVariantSupportsComposition(selectedStudyVariant(variantSelect));
-    if (fenField.hidden) {
-      fenInput.value = '';
-      fenError.textContent = '';
-    }
+    // A FEN is variant-specific, so switching variants drops whatever was typed
+    // rather than carrying a string the new board would reject.
+    fenInput.value = '';
+    fenError.textContent = '';
   };
   variantSelect.addEventListener('change', syncFenField);
   syncFenField();
@@ -326,12 +326,14 @@ function openCreateStudyDialog(): void {
     let rootFen: string | undefined;
     const fenRaw = studyVariantSupportsComposition(variant) ? fenInput.value.trim() : '';
     if (fenRaw) {
-      const parsed = parseStandardXiangqiFen(fenRaw);
+      // Store the CANONICAL spelling, not what was pasted: the board replays the
+      // stored string, so one position must have exactly one stored form.
+      const parsed = normalizeStartFen(variant, fenRaw);
       if (!parsed.ok) {
         fenError.textContent = parsed.error;
         return;
       }
-      rootFen = standardXiangqiFen(parsed.state);
+      rootFen = parsed.fen;
     }
     start.disabled = true;
     start.textContent = 'Creating…';

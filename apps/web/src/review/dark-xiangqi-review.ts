@@ -22,7 +22,7 @@ import {
 } from './tree-review.js';
 
 /** Config for a Fog Xiangqi review mount. */
-export type DarkXiangqiReviewConfig = TreeReviewConfig<XiangqiMove>;
+export type DarkXiangqiReviewConfig = TreeReviewConfig<XiangqiMove, XiangqiGameState>;
 
 /** Handle returned by mountDarkXiangqiReview: snapshot the current tree to persist it. */
 export type DarkXiangqiReviewHandle = TreeReviewHandle;

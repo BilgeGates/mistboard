@@ -41,7 +41,10 @@ function formatFortressEngineMove(uci: string): string {
 }
 
 /** Config for a Fortress Xiangqi review mount. */
-export type FortressXiangqiReviewConfig = TreeReviewConfig<FortressXiangqiMove>;
+export type FortressXiangqiReviewConfig = TreeReviewConfig<
+  FortressXiangqiMove,
+  FortressXiangqiGameState
+>;
 
 /** Handle returned by mountFortressXiangqiReview: snapshot the tree to persist it. */
 export type FortressXiangqiReviewHandle = TreeReviewHandle;

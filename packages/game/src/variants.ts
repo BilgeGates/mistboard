@@ -1,5 +1,6 @@
 import { Board as ChessopsBoard } from 'chessops/board';
-import { Chess } from 'chessops/chess';
+import { Chess, IllegalSetup } from 'chessops/chess';
+import { makeFen, parseFen } from 'chessops/fen';
 import type { Setup } from 'chessops/setup';
 import { SquareSet } from 'chessops/squareSet';
 import type { Move as ChessopsMove, Square as ChessopsSquare, Role } from 'chessops/types';
@@ -24,6 +25,7 @@ import type {
 // SECTION: Fog sliding/stepping      fogStepMoves, fogSlideMoves
 // SECTION: Fog castling              fogCastlingMoves
 // SECTION: Standard chess helpers    positionFromState, boardToChessops, boardFromChessops
+// SECTION: Fog chess FEN             darkChessFen, parseDarkChessFen
 // SECTION: Variant registry          variantForId
 
 const initialBoard: Board = {
@@ -509,6 +511,65 @@ function boardFromChessops(board: ChessopsBoard): Board {
     };
   }
   return nextBoard;
+}
+
+// ── SECTION: Fog chess FEN ──────────────────────────────────────────────────
+// Standard chess FEN in and out of the fog state, so a hand-set position can seed
+// a study chapter or an analysis board. The dialect is ordinary chess FEN: fog
+// changes what each player SEES, never the position itself, so there is nothing
+// extra to encode.
+
+export function darkChessFen(state: GameState): string {
+  return makeFen(setupFromState(state));
+}
+
+export type ParseDarkChessFenResult = { ok: true; state: GameState } | { ok: false; error: string };
+
+// Legality is chessops' with ONE rule dropped: a position where the side NOT to
+// move stands in check is legal under fog. Neither player sees the whole board,
+// so walking into check (and being taken) is ordinary play here rather than the
+// contradiction it is in standard chess.
+const FOG_TOLERATED_SETUP_ERRORS: ReadonlySet<string> = new Set([IllegalSetup.OppositeCheck]);
+
+const SETUP_ERROR_MESSAGES: Record<string, string> = {
+  [IllegalSetup.Empty]: 'The board is empty.',
+  [IllegalSetup.Kings]: 'A fog chess position needs exactly one king per side.',
+  [IllegalSetup.PawnsOnBackrank]: 'A pawn is on a back rank, which no move can produce.',
+  [IllegalSetup.Variant]: 'That position is not reachable in chess.',
+};
+
+export function parseDarkChessFen(fen: string, gameId = 'fen-import'): ParseDarkChessFenResult {
+  return parseFen(fen.trim()).unwrap<ParseDarkChessFenResult>(
+    (setup) => {
+      const invalid = Chess.fromSetup(setup).unwrap<string | null>(
+        () => null,
+        (error) => error.message,
+      );
+      if (invalid && !FOG_TOLERATED_SETUP_ERRORS.has(invalid)) {
+        return {
+          ok: false,
+          error: SETUP_ERROR_MESSAGES[invalid] ?? `Illegal position (${invalid}).`,
+        };
+      }
+      const state: GameState = {
+        id: gameId,
+        variant: 'dark-chess',
+        board: boardFromChessops(setup.board),
+        status: { type: 'playing', turn: setup.turn },
+        moveNumber: setup.fullmoves,
+        castlingRights: [...setup.castlingRights].map((square) => makeSquare(square) as Square),
+        enPassantSquare:
+          setup.epSquare === undefined ? undefined : (makeSquare(setup.epSquare) as Square),
+        halfmoveClock: setup.halfmoves,
+        positionCounts: {},
+      };
+      return {
+        ok: true,
+        state: { ...state, positionCounts: { [positionRepetitionKey(state)]: 1 } },
+      };
+    },
+    (error) => ({ ok: false, error: `Could not read that FEN (${error.message}).` }),
+  );
 }
 
 function toChessopsMove(move: Move): ChessopsMove | null {

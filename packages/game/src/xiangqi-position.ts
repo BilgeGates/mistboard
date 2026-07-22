@@ -105,6 +105,14 @@ export type ParseXiangqiFenResult =
   | { ok: true; state: XiangqiGameState }
   | { ok: false; error: string };
 
+export type ParseXiangqiFenOptions = {
+  /** Accept a position where the side to move can simply take the enemy general.
+   *  Standard xiangqi cannot reach one (the move that produced it would have been
+   *  illegal), but FOG xiangqi can: neither player sees the whole board, so leaving
+   *  the general en prise is ordinary play there, not a misread diagram. */
+  allowExposedGeneral?: boolean;
+};
+
 const FEN_TO_ROLE: Record<string, XiangqiPieceRole> = Object.fromEntries(
   Object.entries(ROLE_TO_FEN).map(([role, code]) => [code, role as XiangqiPieceRole]),
 );
@@ -149,7 +157,11 @@ function onAdvisorPoint(color: XiangqiColor, file: number, rank: number): boolea
   );
 }
 
-export function parseStandardXiangqiFen(fen: string, gameId = 'fen-import'): ParseXiangqiFenResult {
+export function parseStandardXiangqiFen(
+  fen: string,
+  gameId = 'fen-import',
+  options: ParseXiangqiFenOptions = {},
+): ParseXiangqiFenResult {
   const fields = fen.trim().split(/\s+/);
   const placement = fields[0];
   if (!placement) return { ok: false, error: 'Empty FEN.' };
@@ -253,6 +265,9 @@ export function parseStandardXiangqiFen(fen: string, gameId = 'fen-import'): Par
   // elephantops kernel rejects such setups (facing kings, opposite check) by
   // throwing, so probing the legal-move generator doubles as that validation.
   const enemyGeneral = generals[turn === 'red' ? 'black' : 'red']!;
+  if (options.allowExposedGeneral) {
+    return { ok: true, state: { ...base, positionCounts: { [positionRepetitionKey(base)]: 1 } } };
+  }
   try {
     if (getStandardXiangqiLegalMoves(base).some((move) => move.to === enemyGeneral)) {
       return {

@@ -11,7 +11,7 @@
 // Imported by study.ts and study-index.ts; keep it tiny (no review/board
 // imports) so the create dialog does not pull a board stack.
 
-import { type GameSpecId, gameSpecForId, XIANGQI_SPEC_ID } from '@mistboard/game';
+import { type GameSpecId, gameSpecForId, hasStartFen, XIANGQI_SPEC_ID } from '@mistboard/game';
 
 // The literal mirror of STUDY_ELIGIBLE_SPEC_IDS. It exists so the client gets a
 // NARROW union — that is what makes the board dispatch in review/study-review.ts
@@ -76,12 +76,14 @@ export function selectedStudyVariant(select: HTMLSelectElement): StudyVariantId 
   return isStudyVariantId(select.value) ? select.value : DEFAULT_STUDY_VARIANT;
 }
 
-/** Whether a chapter of this variant can be rooted at a hand-set position. Gated
- *  on the variant having a FEN *parser* in @mistboard/game — every other variant
- *  ships only one-way state->engine-FEN, so a pasted FEN could not be replayed.
- *  Widening this list means adding a parser plus a branch in study-review.ts. */
+/** Whether a chapter of this variant can be rooted at a hand-set position. Reads
+ *  the same list normalizeStartFen dispatches on, so the box is offered exactly
+ *  where a pasted FEN can actually be parsed back and replayed. Every current
+ *  study variant qualifies; the check stays because the variants Tier 2 adds
+ *  (banqi, jieqi, jungle-flip) carry a hidden DEAL, which no placement string
+ *  can express. */
 export function studyVariantSupportsComposition(id: StudyVariantId): boolean {
-  return id === XIANGQI_SPEC_ID;
+  return hasStartFen(id);
 }
 
 /** Whether a chapter of this variant can be turned into a gamebook (guess-the-move)
