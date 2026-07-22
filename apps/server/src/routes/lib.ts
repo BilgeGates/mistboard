@@ -71,6 +71,7 @@ export interface HttpApiContext {
   isDraining(): boolean;
   drainDeadlineMs(): number | null;
   activeGameCount(): number;
+  persistenceHealth?(): { count1m: number; lastAt: number | null };
 }
 
 // ── HTTP utilities ─────────────────────────────────────────────────────────

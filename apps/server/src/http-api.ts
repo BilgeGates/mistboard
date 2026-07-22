@@ -43,6 +43,7 @@ import * as metaRoute from './routes/meta.js';
 import * as miniXiangqiGamesRoute from './routes/mini-xiangqi-games.js';
 import * as patronRoute from './routes/patron.js';
 import * as puzzlesRoute from './routes/puzzles.js';
+import * as readoutsRoute from './routes/readouts.js';
 import * as relationsRoute from './routes/relations.js';
 import * as revealChessGamesRoute from './routes/reveal-chess-games.js';
 import * as roomsRoute from './routes/rooms.js';
@@ -94,6 +95,7 @@ export const routes: RouteModule[] = [
   inboxRoute,
   metaRoute,
   puzzlesRoute,
+  readoutsRoute,
   roomsRoute,
   correspondenceGamesRoute,
   correspondenceSeeksRoute,
