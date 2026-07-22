@@ -1,6 +1,7 @@
 import { type TimeClass, timeClassFromTimeControl } from '@mistboard/game';
 import pg from 'pg';
 import {
+  buildEngineEloMleReport,
   buildEngineEloReport,
   type EngineEloReport,
   type EngineEloRow,
@@ -186,6 +187,7 @@ type CliArgs = {
   anchorRating?: number;
   jobId?: string;
   minAnchorGames?: number;
+  model?: 'anchor' | 'mle';
   publish?: boolean;
   sourceRef?: string;
   timeClass?: TimeClass;
@@ -205,13 +207,15 @@ async function main(): Promise<void> {
       timeControlBucket:
         args.timeControlBucket ?? process.env.ENGINE_RATING_TIME_CONTROL_BUCKET ?? null,
     });
-    const report = buildEngineEloReport(rows, {
-      anchorEngineId:
-        args.anchorEngineId ?? process.env.ENGINE_RATING_ANCHOR ?? DEFAULT_ANCHOR_ENGINE_ID,
-      minAnchorGames:
-        args.minAnchorGames ??
-        positiveInteger(process.env.ENGINE_RATING_MIN_ANCHOR_GAMES, DEFAULT_MIN_ANCHOR_GAMES),
-    });
+    const anchorEngineId =
+      args.anchorEngineId ?? process.env.ENGINE_RATING_ANCHOR ?? DEFAULT_ANCHOR_ENGINE_ID;
+    const minGames =
+      args.minAnchorGames ??
+      positiveInteger(process.env.ENGINE_RATING_MIN_ANCHOR_GAMES, DEFAULT_MIN_ANCHOR_GAMES);
+    const report =
+      (args.model ?? process.env.ENGINE_RATING_MODEL ?? 'anchor') === 'mle'
+        ? buildEngineEloMleReport(rows, { anchorEngineId, minGames })
+        : buildEngineEloReport(rows, { anchorEngineId, minAnchorGames: minGames });
     const bots = await loadBotRatingImportBots(pool);
     const plan = buildBotRatingSnapshotPlan(report, bots, {
       anchorRating: args.anchorRating,
@@ -291,6 +295,10 @@ function parseArgs(values: string[]): CliArgs {
         break;
       case 'min-anchor-games':
         parsed.minAnchorGames = positiveInteger(value, DEFAULT_MIN_ANCHOR_GAMES);
+        break;
+      case 'model':
+        if (value !== 'anchor' && value !== 'mle') throw new Error('--model must be anchor or mle');
+        parsed.model = value;
         break;
       case 'publish':
         parsed.publish = booleanFlag(value);
