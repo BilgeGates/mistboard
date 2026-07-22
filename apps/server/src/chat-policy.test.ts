@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { evaluateChatText, normalizeChatText } from './chat-policy.js';
+import { CHAT_POLICY, evaluateChatText, normalizeChatText } from './chat-policy.js';
+
+test('chat stays visible for seven days of activity', () => {
+  assert.equal(CHAT_POLICY.quietAfterMs, 7 * 24 * 60 * 60 * 1000);
+});
 
 test('normalizeChatText folds spacing, case, and compatibility forms', () => {
   assert.equal(normalizeChatText('  HELLO   Ｗorld  '), 'hello world');

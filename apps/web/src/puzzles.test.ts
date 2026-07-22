@@ -73,9 +73,9 @@ describe('puzzles route', () => {
 
     expect(root.querySelector('.site-section-heading')?.textContent).toBe('Puzzles');
     expect(root.querySelectorAll('.puzzle-list-item')).toHaveLength(0);
-    // The variant picker surfaces Fortress + Xiangqi + Jungle, so it is shown. A direct
-    // deep link into a Drop Mini puzzle (not in the picker) still resolves + renders.
-    expect(root.querySelector('[data-puzzle-variant]')).not.toBeNull();
+    // Only Xiangqi is surfaced, so there is no variant picker. A direct deep
+    // link into a Drop Mini puzzle still resolves and renders.
+    expect(root.querySelector('[data-puzzle-variant]')).toBeNull();
     expect(root.querySelector('.puzzles-sidebar')?.textContent).toContain('0 solved of 1');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain('All puzzles');
     expect(root.querySelector('.puzzles-sidebar')?.textContent).not.toContain(' / ');
@@ -727,7 +727,7 @@ describe('standard xiangqi puzzles', () => {
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   }
 
-  it('renders a mined puzzle on the canonical 9x10 board and offers the variant', async () => {
+  it('renders a mined puzzle on the canonical 9x10 board', async () => {
     const puzzle = minedByPlyCount(3);
     vi.stubGlobal('fetch', xiangqiFetchMock([puzzle]));
     const root = document.createElement('div');
@@ -738,10 +738,9 @@ describe('standard xiangqi puzzles', () => {
     expect(root.querySelector('.xq-live-svg')).not.toBeNull();
     // No reserves on the open-information board.
     expect(root.querySelector('.puzzle-board-shell')).toBeNull();
-    // The variant is surfaced in the settings picker and selected by the deep link.
+    // Xiangqi is the sole surfaced variant, so the redundant picker stays hidden.
     const select = root.querySelector<HTMLSelectElement>('[data-puzzle-variant]');
-    expect(select?.querySelector('option[value="xiangqi"]')).not.toBeNull();
-    expect(select?.value).toBe('xiangqi');
+    expect(select).toBeNull();
     expect(root.querySelector('.puzzles-sidebar')?.textContent).toContain('From set Xiangqi');
     // Every intersection carries a click target for the shared drag helper.
     expect(root.querySelectorAll('[data-square]').length).toBe(90);

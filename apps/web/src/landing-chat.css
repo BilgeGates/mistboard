@@ -90,6 +90,16 @@
   line-height: 1.22;
 }
 
+.landing-chat-timestamp {
+  flex: 0 0 66px;
+  color: color-mix(in srgb, var(--landing-chat-handle) 74%, transparent);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .landing-chat-handle {
   flex-shrink: 0;
   font-weight: 700;

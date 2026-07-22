@@ -24,7 +24,7 @@ const baseAnnouncements: Announcement[] = [
     body: 'Signed-in players can now choose Rated when finding an opponent in the lobby. Ratings use Glicko-2, start at 1500, and appear on your profile and the leaderboard once they settle.',
     href: '/leaderboard',
     cta: 'See the leaderboard',
-    showInHomeArticleWidget: true,
+    showInHomeArticleWidget: false,
   },
   {
     date: '2026-07-21',

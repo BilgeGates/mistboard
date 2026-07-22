@@ -1,6 +1,6 @@
 // Profile + leaderboard pages — extracted from landing.ts.
 
-import type { RatingVariant } from '@mistboard/game';
+import { FORTRESS_XIANGQI_SPEC_ID, JUNGLE_SPEC_ID, type RatingVariant } from '@mistboard/game';
 import './account-profile.css';
 import { openChallengeDialog } from './challenge-dialog.js';
 import { buildCommunityLayout } from './community-rail.js';
@@ -1985,6 +1985,11 @@ const PUZZLE_VARIANT_LABELS: Record<string, string> = {
   'drop-mini-xiangqi': 'Drop Mini Xiangqi',
 };
 
+const HIDDEN_PROFILE_PUZZLE_VARIANTS: ReadonlySet<string> = new Set([
+  FORTRESS_XIANGQI_SPEC_ID,
+  JUNGLE_SPEC_ID,
+]);
+
 function puzzleVariantLabel(variant: string): string {
   return (
     PUZZLE_VARIANT_LABELS[variant] ??
@@ -2004,7 +2009,10 @@ function appendProfilePuzzleRatings(
   puzzleRatings: ProfilePuzzleRating[],
   locale: Locale,
 ): void {
-  if (puzzleRatings.length === 0) return;
+  const visibleRatings = puzzleRatings.filter(
+    (entry) => !HIDDEN_PROFILE_PUZZLE_VARIANTS.has(entry.variant),
+  );
+  if (visibleRatings.length === 0) return;
 
   const block = document.createElement('div');
   block.className = 'profile-puzzle-ratings';
@@ -2016,7 +2024,7 @@ function appendProfilePuzzleRatings(
   const rail = document.createElement('div');
   rail.className = 'profile-puzzle-rail';
 
-  for (const entry of puzzleRatings) {
+  for (const entry of visibleRatings) {
     const row = document.createElement('div');
     row.className = 'profile-puzzle-row';
 

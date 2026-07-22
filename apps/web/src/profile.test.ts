@@ -208,6 +208,29 @@ describe('profile ratings rail', () => {
                 provisional: false,
               },
             ],
+            puzzleRatings: [
+              {
+                variant: 'xiangqi',
+                rating: 1575,
+                provisional: false,
+                solved: 12,
+                attempts: 18,
+              },
+              {
+                variant: 'fortress-xiangqi',
+                rating: 1510,
+                provisional: true,
+                solved: 3,
+                attempts: 7,
+              },
+              {
+                variant: 'jungle',
+                rating: 1490,
+                provisional: false,
+                solved: 5,
+                attempts: 9,
+              },
+            ],
             games: [
               {
                 roomId: 'jgf-profile-1',
@@ -305,6 +328,10 @@ describe('profile ratings rail', () => {
     );
     expect(root.querySelector('.profile-activity-summary-row')?.textContent).toContain('1 draw');
     expect(root.querySelector('.profile-activity-summary-row')?.textContent).toContain('1 loss');
+    const puzzleRatings = root.querySelector('.profile-puzzle-ratings');
+    expect(puzzleRatings?.textContent).toContain('Xiangqi');
+    expect(puzzleRatings?.textContent).not.toContain('Fortress Xiangqi');
+    expect(puzzleRatings?.textContent).not.toContain('Jungle');
 
     // Lichess-style identity block: presence dot ahead of the handle (filled
     // once /api/players/online confirms), the join date in the side column, and

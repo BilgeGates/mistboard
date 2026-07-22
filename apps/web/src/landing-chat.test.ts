@@ -21,6 +21,10 @@ function line(id: string, ageMs: number, now = T0): ChatLine {
 }
 
 describe('visibleChatWindow', () => {
+  it('keeps a seven-day activity window', () => {
+    expect(CHAT_WINDOW_MS).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+
   it('keeps lines inside the window and drops lines at or beyond it', () => {
     const lines = [
       line('expired', CHAT_WINDOW_MS + 1),
@@ -74,6 +78,17 @@ describe('createLandingChatFeed', () => {
     feed.ingest([line('old', CHAT_WINDOW_MS + 5000), line('a', 60_000), line('b', 1000)]);
     expect(renderedIds(feed)).toEqual(['a', 'b']);
     expect(feed.visibleIds()).toEqual(['a', 'b']);
+  });
+
+  it('renders a localized timestamp for every visible line', () => {
+    const { feed } = feedWithClock();
+    const message = line('timestamped', 60_000);
+    feed.ingest([message]);
+
+    const timestamp = feed.element.querySelector<HTMLTimeElement>('.landing-chat-timestamp');
+    expect(timestamp?.dateTime).toBe(message.createdAt);
+    expect(timestamp?.textContent).toMatch(/Fri.*(AM|PM)/);
+    expect(timestamp?.title).toContain('2026');
   });
 
   it('does not resurrect expired lines when a new message is ingested', () => {

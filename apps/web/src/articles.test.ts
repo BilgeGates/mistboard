@@ -261,6 +261,13 @@ describe('article public listing gates', () => {
     expect(cards?.textContent).not.toContain('Kriegspiel is open for alpha play.');
   });
 
+  it('keeps the rated xiangqi announcement out of the homepage article row', () => {
+    const cards = buildHomeArticleCards(50);
+
+    expect(cards?.textContent).not.toContain('Rated xiangqi is live.');
+    expect(cards?.querySelector('.landing-announcement-card[href="/leaderboard"]')).toBeNull();
+  });
+
   it('does not show the Drop Mini Xiangqi launch announcement in the homepage article widget', () => {
     vi.stubEnv('DEV', false);
 

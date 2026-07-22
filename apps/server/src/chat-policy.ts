@@ -10,7 +10,7 @@ export const CHAT_POLICY = {
   retainedLines: 200,
   servedLines: 100,
   visibleLines: 30,
-  quietAfterMs: 24 * 60 * 60 * 1000,
+  quietAfterMs: 7 * 24 * 60 * 60 * 1000,
   maxLineChars: 140,
   floodWindowMs: 60 * 1000,
   floodLimitPerWindow: 10,

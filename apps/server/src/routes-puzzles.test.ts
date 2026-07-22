@@ -70,7 +70,7 @@ async function route(path: string, method = 'GET', body?: unknown): Promise<Resp
   return response;
 }
 
-test('puzzle list returns public Mini and Drop Mini summaries without solutions', async () => {
+test('puzzle list returns surfaced summaries without solutions', async () => {
   const response = await route('/api/puzzles');
   const body = JSON.parse(response.body) as {
     puzzles: Array<{
@@ -85,13 +85,9 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
   };
 
   assert.equal(response.status, 200);
-  // Fortress is hidden from the discoverable pool while the variant is demoted
-  // (awaiting a re-mine with the per-ply uniqueness gate), so the unfiltered
-  // list excludes it.
-  assert.equal(
-    body.puzzles.length,
-    MINI_XIANGQI_PUZZLES.length + JUNGLE_PUZZLES.length + XIANGQI_PUZZLES.length,
-  );
+  // Fortress and Jungle are hidden from the discoverable pool while their
+  // puzzle surfaces are parked, so the unfiltered list excludes both.
+  assert.equal(body.puzzles.length, MINI_XIANGQI_PUZZLES.length + XIANGQI_PUZZLES.length);
   assert.deepEqual(
     body.puzzles.slice(0, 6).map((puzzle) => puzzle.variant),
     [
@@ -105,6 +101,7 @@ test('puzzle list returns public Mini and Drop Mini summaries without solutions'
   );
   assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'drop-mini-xiangqi').length, 30);
   assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'fortress-xiangqi').length, 0);
+  assert.equal(body.puzzles.filter((puzzle) => puzzle.variant === 'jungle').length, 0);
   assert.equal(
     body.puzzles.every((puzzle) => puzzle.solution === undefined),
     true,
@@ -174,22 +171,14 @@ test('puzzle list hides Fortress Xiangqi puzzles while the variant is demoted', 
   assert.equal(body.puzzles.length, 0);
 });
 
-test('puzzle list filters to Jungle puzzles', async () => {
+test('puzzle list hides Jungle puzzles while the surface is parked', async () => {
   const response = await route('/api/puzzles?variant=jungle');
   const body = JSON.parse(response.body) as {
     puzzles: Array<{ variant: string; solution?: unknown }>;
   };
 
   assert.equal(response.status, 200);
-  assert.equal(body.puzzles.length, JUNGLE_PUZZLES.length);
-  assert.equal(
-    body.puzzles.every((puzzle) => puzzle.variant === 'jungle'),
-    true,
-  );
-  assert.equal(
-    body.puzzles.every((puzzle) => puzzle.solution === undefined),
-    true,
-  );
+  assert.equal(body.puzzles.length, 0);
 });
 
 test('puzzle list rejects unsupported variants', async () => {

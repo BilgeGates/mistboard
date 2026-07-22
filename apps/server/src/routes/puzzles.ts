@@ -72,13 +72,14 @@ type PublicPuzzleVariant =
   | typeof XIANGQI_SPEC_ID;
 type PublicPuzzleMove = MiniXiangqiPuzzleMove | FortressXiangqiMove | JungleMove | XiangqiMove;
 
-// Fortress is omitted from the discoverable pool (list + random) while the
-// variant is demoted and its puzzles await a re-mine with the per-ply
-// uniqueness gate. Its puzzles stay resolvable by id/short-code below
-// (puzzleById scans the whole store), so existing links do not hard-404.
-// Remove the filter when the re-mined corpus lands.
+// Fortress and Jungle are omitted from the discoverable pool (list + random)
+// while those puzzle surfaces are parked. Their puzzles stay resolvable by
+// id/short-code below (puzzleById scans the whole store), so existing links do
+// not hard-404. Remove a variant from this filter to surface it again.
 function discoverablePuzzles(store: PuzzleStoreSnapshot): PublicPuzzle[] {
-  return store.puzzles.filter((puzzle) => puzzle.variant !== FORTRESS_XIANGQI_SPEC_ID);
+  return store.puzzles.filter(
+    (puzzle) => puzzle.variant !== FORTRESS_XIANGQI_SPEC_ID && puzzle.variant !== JUNGLE_SPEC_ID,
+  );
 }
 
 type PuzzleSummary = {

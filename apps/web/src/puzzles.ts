@@ -11,12 +11,7 @@
  * change. See puzzles/adapter.ts for the contract.
  */
 
-import {
-  FORTRESS_XIANGQI_SPEC_ID,
-  JUNGLE_SPEC_ID,
-  resolvePuzzleShortCode,
-  XIANGQI_SPEC_ID,
-} from '@mistboard/game';
+import { resolvePuzzleShortCode, XIANGQI_SPEC_ID } from '@mistboard/game';
 import './puzzles.css';
 import { initLiveSound, playSound } from './live-sound.js';
 import {
@@ -78,13 +73,11 @@ const REVEAL_STEP_MS = 650;
 
 // Variants surfaced in the Settings variant picker (order = display order; the
 // first is the default view). Standard Xiangqi (the mined real-game corpus,
-// the bet variant) leads; Fortress and Jungle are offered alongside it. Mini /
-// Drop Mini stay in the corpus + API (deep links still resolve server-side)
-// but are hidden from the selector. Add a spec id here to unhide it.
-// Fortress is hidden from the picker while the variant is demoted and its
-// puzzles await a re-mine with the per-ply uniqueness gate. Re-add
-// FORTRESS_XIANGQI_SPEC_ID here when the re-mined corpus lands.
-const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [XIANGQI_SPEC_ID, JUNGLE_SPEC_ID];
+// the bet variant) is the only surfaced trainer. Fortress and Jungle stay in
+// the corpus + API for direct links, but are hidden from discovery for now.
+// Mini / Drop Mini follow the same deep-link-only policy. Add a spec id here
+// to unhide it.
+const PUZZLE_VARIANT_FILTERS: readonly PuzzleVariantFilter[] = [XIANGQI_SPEC_ID];
 
 export async function mountPuzzles(
   root: HTMLElement,
@@ -116,7 +109,7 @@ export async function mountPuzzles(
 
   let summaries: PuzzleSummary[] = [];
   let selectedId = initialPuzzleId;
-  let variantFilter: PuzzleVariantFilter = PUZZLE_VARIANT_FILTERS[0] ?? FORTRESS_XIANGQI_SPEC_ID;
+  let variantFilter: PuzzleVariantFilter = PUZZLE_VARIANT_FILTERS[0] ?? XIANGQI_SPEC_ID;
   let session: PuzzleSession | null = null;
   const solvedIds = loadSolvedPuzzleIds();
   const seenPuzzles = loadSeenPuzzles();

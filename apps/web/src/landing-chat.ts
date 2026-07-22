@@ -27,8 +27,8 @@ type ChatState = {
 const POLL_MS = 7000;
 // Visibility window and cap match server chat policy (chat-policy.ts:
 // quietAfterMs / visibleLines). The server retains 200 lines and serves 100;
-// the client shows at most the newest 30 from the last 24 hours.
-export const CHAT_WINDOW_MS = 24 * 60 * 60 * 1000;
+// the client shows at most the newest 30 from the last seven days.
+export const CHAT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 export const CHAT_VISIBLE_LINES = 30;
 const AGE_OUT_TICK_MS = 60 * 1000;
 
@@ -342,16 +342,34 @@ function buildLineRow(
   who.className = 'landing-chat-handle';
   who.href = line.handle ? `/@/${encodeURIComponent(line.handle)}` : '#';
   who.textContent = line.handle ?? t('chat.deletedAccount', {}, locale);
+  const timestamp = buildChatTimestamp(line.createdAt, locale);
   const text = document.createElement('span');
   text.className = 'landing-chat-text';
   appendChatText(text, line.text);
-  row.append(who, text);
+  row.append(timestamp, who, text);
   if (state.isAdmin && line.handle) {
     row.append(buildAdminControls(line, feed));
   } else if (canReportLine(state, line)) {
     row.append(buildReportControl(line, locale, mode, reported));
   }
   return row;
+}
+
+function buildChatTimestamp(createdAt: string, locale: Locale): HTMLTimeElement {
+  const date = new Date(createdAt);
+  const timestamp = document.createElement('time');
+  timestamp.className = 'landing-chat-timestamp';
+  timestamp.dateTime = createdAt;
+  timestamp.textContent = new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+  timestamp.title = new Intl.DateTimeFormat(locale, {
+    dateStyle: 'full',
+    timeStyle: 'short',
+  }).format(date);
+  return timestamp;
 }
 
 function canReportLine(
