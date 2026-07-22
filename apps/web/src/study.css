@@ -58,6 +58,10 @@
 }
 
 .study-chapters__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.4rem 14px 0.25rem;
   font-size: 0.74rem;
   font-weight: 600;
@@ -121,6 +125,15 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The study's variant, named once in the chapters header (a study is
+   single-variant, so it does not belong on every row). */
+.study-chapters__variant {
+  flex: 0 0 auto;
+  font-weight: 500;
+  opacity: 0.75;
   white-space: nowrap;
 }
 

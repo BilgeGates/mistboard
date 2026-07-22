@@ -202,6 +202,28 @@ export const CORRESPONDENCE_ELIGIBLE_SPEC_IDS: readonly GameSpecId[] = [
   XIANGQI_SPEC_ID,
 ];
 
+// Specs a study chapter may hold, in display order. The SINGLE source of truth
+// shared by the server's fail-closed route allowlist (routes/studies.ts) and the
+// web study catalog, so a chapter the API accepts always has a board to render it.
+// Membership is a CAPABILITY, not a product call: a variant qualifies once it has
+// a tree-review stack (adapter + presentation in apps/web/src/review/) AND a
+// deterministic start position. Hidden-deal variants (banqi, jieqi, jungle-flip)
+// are excluded until a chapter can persist its deal — replaying a saved tree
+// against a freshly minted deal would truncate the line to its legal prefix.
+export const STUDY_ELIGIBLE_SPEC_IDS: readonly GameSpecId[] = [
+  XIANGQI_SPEC_ID,
+  JUNGLE_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
+  DARK_XIANGQI_SPEC_ID,
+  DARK_CHESS_SPEC_ID,
+];
+
+/** Fail-closed membership test for {@link STUDY_ELIGIBLE_SPEC_IDS} — narrows an
+ *  untrusted request string (or a persisted chapter's variant column). */
+export function isStudyEligibleSpecId(value: string): value is GameSpecId {
+  return (STUDY_ELIGIBLE_SPEC_IDS as readonly string[]).includes(value);
+}
+
 // Single source of truth for variant DISPLAY order across every surface: the
 // play-menu picker, the leaderboard/profile grids, the Mistboard TV watch rail,
 // and the /rules rail. Specs not listed here sort to the end in their own order,

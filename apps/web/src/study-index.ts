@@ -9,6 +9,13 @@ import './study.css';
 import './study-index.css';
 import { parseStandardXiangqiFen, standardXiangqiFen } from '@mistboard/game';
 import { buildNav } from './site-shell.js';
+import {
+  buildStudyVariantSelect,
+  DEFAULT_STUDY_VARIANT,
+  type StudyVariantId,
+  selectedStudyVariant,
+  studyVariantSupportsComposition,
+} from './study-catalog.js';
 
 // A fresh study starts with one blank chapter at the standard start position.
 const EMPTY_TREE = { version: 1, root: { children: [] } };
@@ -265,8 +272,15 @@ function openCreateStudyDialog(): void {
   visSelect.value = 'private';
   visField.append(visSelect);
 
+  // The first chapter's variant. A study can hold chapters of several variants
+  // (the column is per-chapter); this only seeds chapter 1.
+  const variantField = dialogField('Variant');
+  const variantSelect = buildStudyVariantSelect('Study variant', DEFAULT_STUDY_VARIANT);
+  variantField.append(variantSelect);
+
   // Optional hand-set start position (a composition / endgame study). Left
-  // empty, the chapter opens at the standard start.
+  // empty, the chapter opens at the standard start. Only shown for variants that
+  // can parse a FEN back into a position.
   const fenField = dialogField('Start position (FEN, optional)');
   const fenInput = document.createElement('input');
   fenInput.type = 'text';
@@ -279,7 +293,7 @@ function openCreateStudyDialog(): void {
 
   const grid = document.createElement('div');
   grid.className = 'study-create-dialog__grid';
-  grid.append(nameField, visField);
+  grid.append(nameField, visField, variantField);
 
   const actions = document.createElement('div');
   actions.className = 'study-create-dialog__actions';
@@ -294,12 +308,23 @@ function openCreateStudyDialog(): void {
   start.textContent = 'Start';
   actions.append(cancel, start);
 
+  const syncFenField = (): void => {
+    fenField.hidden = !studyVariantSupportsComposition(selectedStudyVariant(variantSelect));
+    if (fenField.hidden) {
+      fenInput.value = '';
+      fenError.textContent = '';
+    }
+  };
+  variantSelect.addEventListener('change', syncFenField);
+  syncFenField();
+
   form.append(grid, fenField, fenError, actions);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     fenError.textContent = '';
+    const variant = selectedStudyVariant(variantSelect);
     let rootFen: string | undefined;
-    const fenRaw = fenInput.value.trim();
+    const fenRaw = studyVariantSupportsComposition(variant) ? fenInput.value.trim() : '';
     if (fenRaw) {
       const parsed = parseStandardXiangqiFen(fenRaw);
       if (!parsed.ok) {
@@ -313,6 +338,7 @@ function openCreateStudyDialog(): void {
     void createStudy(
       nameInput.value.trim() || 'Untitled study',
       visSelect.value as StudyVisibility,
+      variant,
       rootFen,
     ).catch(() => {
       start.disabled = false;
@@ -345,6 +371,7 @@ function dialogField(labelText: string): HTMLElement {
 async function createStudy(
   name: string,
   visibility: StudyVisibility,
+  variant: StudyVariantId,
   rootFen?: string,
 ): Promise<void> {
   // rootFen rides inside the serialized tree blob (SerializedTree.rootFen), so a
@@ -356,7 +383,7 @@ async function createStudy(
     body: JSON.stringify({
       name,
       visibility,
-      chapter: { name: 'Chapter 1', variant: 'xiangqi', root },
+      chapter: { name: 'Chapter 1', variant, root },
     }),
   });
   if (!response.ok) throw new Error(`create failed: ${response.status}`);

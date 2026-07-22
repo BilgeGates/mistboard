@@ -13,14 +13,10 @@
 //   DELETE /api/studies/:id/chapters/:cid     delete a chapter (owner; refuses the last)
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { isStudyEligibleSpecId } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
 import * as persistence from './../persistence.js';
 import { readJsonBody, requireMethod, requirePersistence, writeJson } from './lib.js';
-
-// Fail-closed allowlist of variants a study may hold. The tree spine is
-// variant-generic, but each variant needs a client adapter to render/replay; only
-// the ones wired get in. Extend as S5 lands other perfect-info variants.
-const STUDY_VARIANTS = new Set(['xiangqi']);
 
 const ID = '[A-Za-z0-9]+';
 const STUDY_PATH = new RegExp(`^/api/studies/(${ID})$`);
@@ -226,7 +222,7 @@ async function createStudy(
     return true;
   }
   const variant = typeof chapter.variant === 'string' ? chapter.variant : '';
-  if (!STUDY_VARIANTS.has(variant)) {
+  if (!isStudyEligibleSpecId(variant)) {
     writeJson(response, 400, { error: 'unsupported_variant' });
     return true;
   }
@@ -296,9 +292,23 @@ async function addChapter(
   ownerId: string,
 ): Promise<boolean> {
   const body = await readJsonBody(request);
-  const variant = typeof body.variant === 'string' ? body.variant : '';
-  if (!STUDY_VARIANTS.has(variant)) {
+  // A study is single-variant: the variant is fixed at create time and every
+  // later chapter inherits it. The column stays per-chapter (it is what the board
+  // dispatch reads), but the API is the enforcement point — a request may omit
+  // `variant` entirely, and one that names a different variant is refused rather
+  // than silently coerced.
+  const study = await persistence.getStudyById(studyId);
+  if (!study) {
+    writeJson(response, 404, { error: 'not_found' });
+    return true;
+  }
+  const variant = study.chapters[0]?.variant ?? '';
+  if (!isStudyEligibleSpecId(variant)) {
     writeJson(response, 400, { error: 'unsupported_variant' });
+    return true;
+  }
+  if (typeof body.variant === 'string' && body.variant !== variant) {
+    writeJson(response, 400, { error: 'variant_mismatch' });
     return true;
   }
   if (!isSerializedTree(body.root)) {

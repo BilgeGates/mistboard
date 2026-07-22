@@ -1,8 +1,10 @@
 // Study viewer/editor (/study/:id). Fetches a persisted study, rebuilds each
-// chapter's tree from its serialized blob, and mounts the shared xiangqi review
-// surface. Chapters list in a compact scrolling left-rail panel (lichess study
-// anatomy) with a per-study chat room beneath; switching re-mounts the review
-// for that chapter. For the owner, tree edits autosave (debounced) through the
+// chapter's tree from its serialized blob, and mounts that chapter variant's
+// review surface (review/study-review.ts owns the board dispatch — a study is
+// mixed-variant capable: `variant` is a per-CHAPTER column, not a study one).
+// Chapters list in a compact scrolling left-rail panel (lichess study anatomy)
+// with a per-study chat room beneath; switching re-mounts the review for that
+// chapter. For the owner, tree edits autosave (debounced) through the
 // version-guarded chapter PATCH, and the owner can add/delete chapters.
 // Non-owners get a read/explore view.
 
@@ -13,10 +15,19 @@ import './study.css';
 import './study-index.css';
 import { parseStandardXiangqiFen, standardXiangqiFen } from '@mistboard/game';
 import { buildStudyChat } from './review/spectator-chat.js';
+import { mountStudyReview } from './review/study-review.js';
+import type { TreeReviewHandle } from './review/tree-review.js';
 import type { SerializedTree } from './review/tree-serialize.js';
 import { mountXiangqiGamebook } from './review/xiangqi-gamebook.js';
-import { mountXiangqiReview, type XiangqiReviewHandle } from './review/xiangqi-review.js';
 import { buildNav } from './site-shell.js';
+import {
+  DEFAULT_STUDY_VARIANT,
+  isStudyVariantId,
+  type StudyVariantId,
+  studyVariantLabel,
+  studyVariantSupportsComposition,
+  studyVariantSupportsGamebook,
+} from './study-catalog.js';
 
 type StudyVisibility = 'private' | 'unlisted' | 'public';
 
@@ -72,6 +83,8 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     return;
   }
   let activeId = chapters[0]!.id;
+  // Bumped on every render so an in-flight async board mount knows it is stale.
+  let mountSeq = 0;
 
   const switchTo = (id: string): void => {
     // No-op when already active — otherwise a double-click (two clicks) would
@@ -79,6 +92,13 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     if (id === activeId) return;
     activeId = id;
     renderActive();
+  };
+
+  // A study is single-variant: chapters inherit the variant chosen at create
+  // time, so no chapter request carries one (the server refuses a mismatch).
+  const studyVariant = (): StudyVariantId => {
+    const first = chapters[0];
+    return first && isStudyVariantId(first.variant) ? first.variant : DEFAULT_STUDY_VARIANT;
   };
 
   const createChapter = async (name: string, rootFen?: string): Promise<void> => {
@@ -90,7 +110,6 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         name: name || `Chapter ${chapters.length + 1}`,
-        variant: 'xiangqi',
         root,
       }),
     });
@@ -101,7 +120,7 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
   };
 
   const addChapter = (): void =>
-    openAddChapterDialog(`Chapter ${chapters.length + 1}`, (name, rootFen) => {
+    openAddChapterDialog(`Chapter ${chapters.length + 1}`, studyVariant(), (name, rootFen) => {
       void createChapter(name, rootFen);
     });
 
@@ -168,10 +187,14 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
 
   function renderActive(): void {
     const chapter = chapters.find((entry) => entry.id === activeId) ?? chapters[0];
-    if (chapter?.variant !== 'xiangqi') {
+    // Fail-closed: a chapter whose variant has no board on this client (an older
+    // client, or a variant retired from the study catalog) reports unsupported
+    // rather than rendering some other variant's board.
+    if (!chapter || !isStudyVariantId(chapter.variant)) {
       renderError(root, 415);
       return;
     }
+    const variant = chapter.variant;
     activeId = chapter.id;
 
     const chapterActions: ChapterActions = {
@@ -180,9 +203,12 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
       onRemove: removeChapter,
       onRename: study.isOwner ? (id, name) => void renameChapter(id, name) : undefined,
     };
+    const gamebookable = studyVariantSupportsGamebook(variant);
     const owner: OwnerControls | undefined = study.isOwner
       ? {
-          gamebook: chapter.gamebook,
+          // The lesson toggle only appears where a gamebook player exists; the
+          // flag stays whatever it was for variants that cannot use it.
+          gamebook: gamebookable ? chapter.gamebook : null,
           preview: previewMode,
           onToggleGamebook: (on) => void setGamebook(chapter.id, on),
           onTogglePreview: setPreview,
@@ -194,7 +220,7 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
 
     // A gamebook chapter is played (guess-the-move) by viewers and by the owner in
     // preview; the owner authors it in the review board otherwise.
-    if (chapter.gamebook && (!study.isOwner || previewMode)) {
+    if (gamebookable && chapter.gamebook && (!study.isOwner || previewMode)) {
       const aside = document.createElement('div');
       aside.className = 'study-aside';
       aside.append(
@@ -212,15 +238,8 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     }
 
     let version = chapter.version;
-    let handle: XiangqiReviewHandle | null = null;
+    let handle: TreeReviewHandle | null = null;
     const status = statusSpan();
-
-    // A composition chapter (SerializedTree.rootFen) roots the board at its
-    // hand-set position; an invalid FEN degrades to the standard start, same
-    // posture as a corrupt blob.
-    const rootFen = chapter.root.rootFen;
-    const rootParsed = rootFen ? parseStandardXiangqiFen(rootFen) : null;
-    const rootConfig = rootParsed?.ok ? { truth: rootParsed.state, fen: rootFen! } : undefined;
 
     const save = debounce(() => {
       if (!handle) return;
@@ -249,21 +268,28 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
         .catch(() => setStatus(status, 'error', 'Save failed'));
     }, 700);
 
-    handle = mountXiangqiReview(root, {
-      pageClassName: 'xiangqi-review study-review',
+    // The board stacks are code-split per variant, so the mount is async: the
+    // page renders its nav, then the board lands. A stale mount (the reader
+    // switched chapters while the chunk loaded) is dropped on arrival.
+    const mountToken = ++mountSeq;
+    void mountStudyReview(variant, root, {
+      pageClassName: `${variant}-review study-review`,
       ariaLabel: 'Study',
       // Empty eyebrow: the info card leads with the study name itself.
       eyebrow: '',
       title: study.name,
       summary:
         study.description || (study.isOwner ? 'Draw, comment, and branch. Edits autosave.' : ''),
-      boardAriaLabel: 'Xiangqi board',
+      boardAriaLabel: `${studyVariantLabel(variant)} board`,
       actions: buildActions(study, chapters, activeId, status, chapterActions, owner),
       details: buildStudyChat(study.id),
-      gamebookEditing: chapter.gamebook && study.isOwner,
+      gamebookEditing: gamebookable && chapter.gamebook && study.isOwner,
       annotationEditing: study.isOwner,
       initialTree: chapter.root,
-      root: rootConfig,
+      // A composition chapter (SerializedTree.rootFen) roots the board at its
+      // hand-set position; an invalid FEN degrades to the standard start, same
+      // posture as a corrupt blob.
+      rootFen: chapter.root.rootFen,
       onChange: study.isOwner
         ? () => {
             // Keep the in-memory chapter tree fresh so switching tabs never drops an
@@ -274,10 +300,13 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
             save();
           }
         : undefined,
-      moves: [],
-      analysis: null,
-    });
-    clampSummary(root);
+    })
+      .then((mounted) => {
+        if (mountToken !== mountSeq) return;
+        handle = mounted;
+        clampSummary(root);
+      })
+      .catch(() => renderError(root, 415));
   }
 
   renderActive();
@@ -312,7 +341,8 @@ type ChapterActions = {
 };
 
 type OwnerControls = {
-  gamebook: boolean;
+  /** null = this chapter's variant has no gamebook player, so the row is hidden. */
+  gamebook: boolean | null;
   preview: boolean;
   onToggleGamebook: (on: boolean) => void;
   onTogglePreview: (on: boolean) => void;
@@ -344,7 +374,7 @@ function buildActions(
     if (active && chapterActions.onRename) {
       wrap.append(chapterNameControl(active, chapterActions.onRename));
     }
-    wrap.append(lessonControls(owner));
+    if (owner.gamebook !== null) wrap.append(lessonControls(owner));
     wrap.append(visibilityControl(study));
     wrap.append(status);
   }
@@ -411,15 +441,16 @@ function lessonControls(owner: OwnerControls): HTMLElement {
   const label = document.createElement('span');
   label.className = 'study-actions__label';
   label.textContent = 'Lesson';
+  // Only reached when the variant has a gamebook player (buildActions guards on
+  // null), so the flag reads as a plain boolean here.
+  const on = owner.gamebook === true;
   const toggle = document.createElement('button');
   toggle.type = 'button';
-  toggle.className = owner.gamebook
-    ? 'study-actions__vis study-actions__vis--active'
-    : 'study-actions__vis';
-  toggle.textContent = owner.gamebook ? 'On' : 'Off';
-  toggle.addEventListener('click', () => owner.onToggleGamebook(!owner.gamebook));
+  toggle.className = on ? 'study-actions__vis study-actions__vis--active' : 'study-actions__vis';
+  toggle.textContent = on ? 'On' : 'Off';
+  toggle.addEventListener('click', () => owner.onToggleGamebook(!on));
   row.append(label, toggle);
-  if (owner.gamebook) {
+  if (on) {
     const preview = document.createElement('button');
     preview.type = 'button';
     preview.className = 'study-actions__copy';
@@ -446,6 +477,15 @@ function chapterPanel(
   const head = document.createElement('div');
   head.className = 'study-chapters__head';
   head.textContent = `${chapters.length} ${chapters.length === 1 ? 'Chapter' : 'Chapters'}`;
+  // The variant is a study-level fact now, so it is named once here rather than
+  // repeated per chapter row.
+  const first = chapters[0];
+  if (first && isStudyVariantId(first.variant)) {
+    const variant = document.createElement('span');
+    variant.className = 'study-chapters__variant';
+    variant.textContent = studyVariantLabel(first.variant);
+    head.append(variant);
+  }
   panel.append(head);
 
   const list = document.createElement('ol');
@@ -594,9 +634,13 @@ function notice(text: string): HTMLElement {
 
 // Add-chapter dialog: name + optional hand-set start position (a composition /
 // endgame chapter). Mirrors the create-study dialog on /study (same classes,
-// study-index.css).
+// study-index.css). No variant picker: the study's variant is fixed at create
+// time. The FEN field only shows for variants that can parse one back
+// (studyVariantSupportsComposition) — offering the box where the FEN would be
+// silently dropped is worse than not offering it.
 function openAddChapterDialog(
   defaultName: string,
+  studyVariant: StudyVariantId,
   onCreate: (name: string, rootFen?: string) => void,
 ): void {
   document.querySelector<HTMLDialogElement>('dialog[data-add-chapter]')?.remove();
@@ -652,12 +696,17 @@ function openAddChapterDialog(
   start.textContent = 'Add';
   actions.append(cancel, start);
 
+  // The chapter inherits the study's variant, so the only variant-dependent part
+  // left here is whether a start FEN can be parsed back.
+  const composable = studyVariantSupportsComposition(studyVariant);
+  fenField.hidden = !composable;
+
   form.append(nameField, fenField, fenError, actions);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     fenError.textContent = '';
     let rootFen: string | undefined;
-    const fenRaw = fenInput.value.trim();
+    const fenRaw = composable ? fenInput.value.trim() : '';
     if (fenRaw) {
       const parsed = parseStandardXiangqiFen(fenRaw);
       if (!parsed.ok) {

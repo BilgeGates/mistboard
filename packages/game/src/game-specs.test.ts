@@ -17,6 +17,7 @@ import {
   gameSpecForLegacyLiveRoom,
   isGameSpecId,
   isRatedPoolBase,
+  isStudyEligibleSpecId,
   JIEQI_SPEC_ID,
   JUNGLE_FLIP_SPEC_ID,
   JUNGLE_SPEC_ID,
@@ -29,6 +30,7 @@ import {
   type RatingVariant,
   REVEAL_CHESS_SPEC_ID,
   ratingPoolForSpec,
+  STUDY_ELIGIBLE_SPEC_IDS,
 } from './game-specs.js';
 
 test('current dark chess maps to the flagship chess spec', () => {
@@ -381,4 +383,19 @@ test('ratingPoolForSpec is rated for launched pools and null for casual-only spe
   assert.equal(isRatedPoolBase('dark_shogi'), true);
   assert.equal(isRatedPoolBase('kriegspiel'), true);
   assert.equal(isRatedPoolBase('not-a-pool'), false);
+});
+
+test('study-eligible specs are real specs, fail closed, and exclude hidden-deal variants', () => {
+  for (const id of STUDY_ELIGIBLE_SPEC_IDS) {
+    assert.ok(maybeGameSpecForId(id), `${id} is not a real game spec`);
+    assert.equal(isStudyEligibleSpecId(id), true);
+  }
+  // Hidden-deal variants stay out until a chapter can persist its deal: replaying
+  // a saved tree against a freshly minted deal would truncate the line.
+  for (const id of [BANQI_SPEC_ID, JIEQI_SPEC_ID, JUNGLE_FLIP_SPEC_ID]) {
+    assert.equal(isStudyEligibleSpecId(id), false, `${id} needs deal persistence first`);
+  }
+  assert.equal(isStudyEligibleSpecId('chess'), false);
+  assert.equal(isStudyEligibleSpecId('not-a-variant'), false);
+  assert.equal(isStudyEligibleSpecId(''), false);
 });
