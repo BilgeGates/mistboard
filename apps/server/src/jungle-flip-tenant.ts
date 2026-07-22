@@ -27,6 +27,7 @@ import {
   JUNGLE_FLIP_SEATS,
   JUNGLE_FLIP_SPEC_ID,
   type JungleFlipDeal,
+  type JungleFlipGameEndReason,
   type JungleFlipGameState,
   type JungleFlipMove,
   type JungleFlipPlayerView,
@@ -129,6 +130,18 @@ export function getJungleFlipClientView(
   return getJungleFlipPlayerView(state, client.seat);
 }
 
+// Kernel end reason -> persisted GameTermination. Total by construction: adding a
+// JungleFlipGameEndReason without a termination is a compile error here.
+const JUNGLE_FLIP_TERMINATIONS: Record<JungleFlipGameEndReason, persistence.GameTermination> = {
+  stalemate: 'stalemate',
+  'no-progress': 'progress-clock',
+  repetition: 'repetition',
+  'dead-position': 'dead-position',
+  timeout: 'timeout',
+  resignation: 'resignation',
+  abandonment: 'abandonment',
+};
+
 export const jungleFlipTenant: JungleFlipTenant = {
   kind: 'jungle-flip',
   gameSpecId: JUNGLE_FLIP_SPEC_ID,
@@ -185,11 +198,14 @@ export const jungleFlipTenant: JungleFlipTenant = {
       if (winner === 'black') return 'black-wins';
       return 'draw';
     },
-    // The kernel spells the no-progress draw 'no-progress'; the canonical
-    // GameTermination value is 'progress-clock'. 'stalemate' and 'repetition' already
-    // match the games_termination_check set.
+    // A total map over the kernel's end reasons. It must stay total: a value missing
+    // from the games_termination_check allowlist fails the whole recordGameEnd
+    // transaction, so the games row AND its participants roll back and the finished
+    // game ends up with no row at all -- the postgame API 404s and the game is absent
+    // from profile lists. The old code cast the raw reason instead, which is how
+    // 'dead-position' reached production without an allowlist entry.
     termination: (reason: string): persistence.GameTermination =>
-      reason === 'no-progress' ? 'progress-clock' : (reason as persistence.GameTermination),
+      JUNGLE_FLIP_TERMINATIONS[reason as JungleFlipGameEndReason] ?? 'draw',
     logKindPrefix: 'jungle_flip',
     logLabel: 'Flip Jungle',
   },
