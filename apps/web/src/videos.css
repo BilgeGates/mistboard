@@ -18,7 +18,58 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+}
+
+.videos-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--site-muted);
+  font-size: 14px;
+}
+
+.videos-sort-label {
+  white-space: nowrap;
+}
+
+.videos-sort-select {
+  padding: 7px 10px;
+  font-size: 14px;
+  color: var(--site-text);
+  background: var(--site-panel);
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius-sm);
+  cursor: pointer;
+}
+
+.videos-sort-select:focus-visible {
+  outline: none;
+  border-color: var(--site-accent);
+  box-shadow: 0 0 0 3px var(--site-focus);
+}
+
+/* Stacked facet rows: a fixed-width label gutter keeps the chip rows aligned. */
+.videos-facets {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.videos-facet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+}
+
+.videos-facet-label {
+  flex: 0 0 auto;
+  min-width: 52px;
+  color: var(--site-muted);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .videos-search {
@@ -99,11 +150,27 @@
 }
 
 .videos-thumb {
+  position: relative;
   display: block;
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border-radius: var(--site-radius-sm);
   background: var(--site-bg-soft);
+}
+
+/* First-party marker, pinned to the thumbnail corner. */
+.videos-source-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--site-on-accent);
+  background: var(--site-accent-strong);
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 .videos-thumb img {
@@ -140,6 +207,14 @@
   color: var(--site-accent-strong);
   background: var(--site-accent-soft);
   border-radius: 999px;
+}
+
+/* Difficulty leads the badge row in a neutral, outlined pill so it reads as a
+   separate axis from the accent-colored topic tags. */
+.videos-card-level {
+  color: var(--site-muted);
+  background: transparent;
+  border: 1px solid var(--site-border);
 }
 
 .videos-empty {
