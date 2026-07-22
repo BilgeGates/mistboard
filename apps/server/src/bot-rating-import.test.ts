@@ -60,6 +60,52 @@ test('builds published bot rating drafts from rated engine Elo rows', () => {
   assert.deepEqual(plan.skippedEngineIds, ['below-floor']);
 });
 
+test('clockless reports accept an explicit time class (xiangqi EvE)', () => {
+  const plan = buildBotRatingSnapshotPlan(
+    report({
+      variant: 'xiangqi',
+      timeControlBucket: 'untimed',
+      rows: [row({ engineId: 'fairy-stockfish-xiangqi-level-3', elo: 210, games: 18 })],
+    }),
+    [
+      {
+        id: 'fairy-stockfish-level-3',
+        activeEngineId: 'fairy-stockfish-xiangqi-level-3',
+        defaultGameSpecId: 'xiangqi',
+      },
+    ],
+    { timeClass: 'blitz' },
+  );
+  assert.equal(plan.drafts.length, 1);
+  assert.equal(plan.drafts[0]?.botId, 'fairy-stockfish-level-3');
+  assert.equal(plan.drafts[0]?.timeClass, 'blitz');
+});
+
+test('multi-variant first-party bots match their per-variant engine, not just the default', () => {
+  // fairy-stockfish-level-3 defaults to xiangqi; its fortress engine must
+  // still map through the first-party engines table for a fortress report.
+  const plan = buildBotRatingSnapshotPlan(
+    report({
+      variant: 'fortress-xiangqi',
+      timeControlBucket: 'untimed',
+      rows: [row({ engineId: 'fairy-stockfish-fortress-xiangqi-level-3', elo: 150, games: 16 })],
+    }),
+    [
+      {
+        id: 'fairy-stockfish-level-3',
+        activeEngineId: 'fairy-stockfish-xiangqi-level-3',
+        defaultGameSpecId: 'xiangqi',
+      },
+    ],
+    { timeClass: 'rapid' },
+  );
+  assert.equal(plan.drafts.length, 1);
+  assert.deepEqual(
+    { botId: plan.drafts[0]?.botId, gameSpecId: plan.drafts[0]?.gameSpecId },
+    { botId: 'fairy-stockfish-level-3', gameSpecId: 'fortress-xiangqi' },
+  );
+});
+
 test('rejects ambiguous bot rating import reports', () => {
   assert.throws(
     () => buildBotRatingSnapshotPlan(report({ variant: null }), []),

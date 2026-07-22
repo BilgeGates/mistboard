@@ -6,6 +6,7 @@ import {
   type EngineEloRow,
   loadRatedEngineEloRows,
 } from './engine-elo-report.js';
+import { firstPartyBotForId } from './first-party-bots.js';
 import { DEFAULT_RATING } from './glicko.js';
 
 const DEFAULT_ANCHOR_ENGINE_ID = 'python-random-legal';
@@ -40,6 +41,10 @@ export type BotRatingImportOptions = {
   anchorRating?: number;
   published?: boolean;
   sourceRef?: string | null;
+  /** Explicit time class for reports without an official time-control bucket
+   *  (clockless EvE variants like xiangqi, where engine strength is
+   *  pace-independent). The bucket-derived class still wins when present. */
+  timeClass?: TimeClass;
 };
 
 export function buildBotRatingSnapshotPlan(
@@ -48,20 +53,35 @@ export function buildBotRatingSnapshotPlan(
   options: BotRatingImportOptions = {},
 ): BotRatingImportPlan {
   if (!report.variant) throw new Error('bot rating import requires a single report variant');
-  const timeClass = timeClassFromEngineTimeControlBucket(report.timeControlBucket);
+  const timeClass =
+    timeClassFromEngineTimeControlBucket(report.timeControlBucket) ?? options.timeClass ?? null;
   if (!timeClass) {
     throw new Error(
-      `bot rating import requires an official time-control bucket, got ${report.timeControlBucket ?? '-'}`,
+      `bot rating import requires an official time-control bucket (or an explicit --time-class for clockless variants), got ${report.timeControlBucket ?? '-'}`,
     );
   }
 
   const anchorRating = options.anchorRating ?? DEFAULT_RATING;
   const sourceRef = options.sourceRef ?? defaultSourceRef(report, anchorRating);
-  const botByEngine = new Map(
-    bots
-      .filter((bot) => bot.defaultGameSpecId === report.variant)
-      .map((bot) => [bot.activeEngineId, bot]),
-  );
+  // Engine -> bot. A CANONICAL first-party row (its id is the profile id, not
+  // a legacy alias) claims its per-variant engine from the first-party engines
+  // map, so a multi-variant bot like fairy-stockfish-level-N matches its
+  // fortress engine too. Everything else (legacy alias rows, community bots)
+  // falls back to exact activeEngineId matching on the report variant, and
+  // never shadows a canonical claim.
+  const botByEngine = new Map<string, BotRatingImportBot>();
+  for (const bot of bots) {
+    const firstParty = firstPartyBotForId(bot.id);
+    if (firstParty?.id !== bot.id) continue;
+    const engineId = firstParty.engines[report.variant];
+    if (engineId) botByEngine.set(engineId, bot);
+  }
+  for (const bot of bots) {
+    const firstParty = firstPartyBotForId(bot.id);
+    if (firstParty?.id === bot.id) continue;
+    if (bot.defaultGameSpecId !== report.variant) continue;
+    if (!botByEngine.has(bot.activeEngineId)) botByEngine.set(bot.activeEngineId, bot);
+  }
   const drafts: BotRatingSnapshotDraft[] = [];
   const skippedEngineIds: string[] = [];
   const unmatchedEngineIds: string[] = [];
@@ -151,7 +171,8 @@ async function loadBotRatingImportBots(db: pg.Pool): Promise<BotRatingImportBot[
   }>(
     `SELECT id, active_engine_id, default_game_spec_id
        FROM bot_profiles
-      WHERE owner_type = 'system'`,
+      WHERE owner_type = 'system'
+        AND visibility = 'public'`,
   );
   return rows.map((row) => ({
     id: row.id,
@@ -167,6 +188,7 @@ type CliArgs = {
   minAnchorGames?: number;
   publish?: boolean;
   sourceRef?: string;
+  timeClass?: TimeClass;
   timeControlBucket?: string;
   tournamentId?: string;
 };
@@ -195,6 +217,7 @@ async function main(): Promise<void> {
       anchorRating: args.anchorRating,
       published: args.publish ?? false,
       sourceRef: args.sourceRef ?? null,
+      ...(args.timeClass ? { timeClass: args.timeClass } : {}),
     });
     const inserted = await insertBotRatingSnapshotDrafts(pool, plan.drafts);
     console.log(
@@ -274,6 +297,12 @@ function parseArgs(values: string[]): CliArgs {
         break;
       case 'source-ref':
         parsed.sourceRef = value;
+        break;
+      case 'time-class':
+        if (value !== 'bullet' && value !== 'blitz' && value !== 'rapid') {
+          throw new Error(`--time-class must be bullet|blitz|rapid, got ${value}`);
+        }
+        parsed.timeClass = value;
         break;
       case 'time-control-bucket':
         parsed.timeControlBucket = value;
