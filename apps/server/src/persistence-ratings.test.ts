@@ -210,6 +210,86 @@ definePersistenceTests('ratings', () => {
     }
   });
 
+  test('rated standard Xiangqi PvP game rates red and black users in the xiangqi bucket', async () => {
+    // Regression for the #151 flip: xiangqi seats are red/black, and until the
+    // ratedParticipantColorsForVariant entry existed the rating block searched
+    // for a 'white' participant, found none, and SILENTLY rated nobody while
+    // the games row still said rated=true.
+    const now = new Date();
+    await createUser({
+      id: 'user_xq_red',
+      email: 'xq-red@example.com',
+      emailVerifiedAt: now,
+      handle: 'xqred',
+      displayName: 'XQ Red',
+      now,
+    });
+    await createUser({
+      id: 'user_xq_black',
+      email: 'xq-black@example.com',
+      emailVerifiedAt: now,
+      handle: 'xqblack',
+      displayName: 'XQ Black',
+      now,
+    });
+
+    await recordGameEnd('rated-xq-1', {
+      variant: 'xiangqi',
+      mode: 'pvp',
+      rated: true,
+      result: 'black-wins',
+      termination: 'resignation',
+      plyCount: 3,
+      startedAt: now,
+      endedAt: now,
+      initialMs: 180000,
+      incrementMs: 2000,
+      whiteClient: null,
+      blackClient: null,
+      whiteName: null,
+      blackName: null,
+      corpusId: null,
+      participants: [
+        {
+          color: 'red',
+          displayName: 'XQ Red',
+          subjectType: 'user',
+          subjectId: 'user_xq_red',
+          visibility: 'public',
+        },
+        {
+          color: 'black',
+          displayName: 'XQ Black',
+          subjectType: 'user',
+          subjectId: 'user_xq_black',
+          visibility: 'public',
+        },
+      ],
+      visibility: 'public',
+    });
+
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      const { rows } = await client.query<{
+        user_id: string;
+        elo_rating: number;
+        games_played: number;
+      }>(
+        `SELECT user_id, elo_rating, games_played
+         FROM user_ratings WHERE variant = 'xiangqi' AND time_class = 'blitz'`,
+      );
+      assert.equal(rows.length, 2, 'both xiangqi players got a rating row');
+      const red = rows.find((r) => r.user_id === 'user_xq_red')!;
+      const black = rows.find((r) => r.user_id === 'user_xq_black')!;
+      assert.ok(black.elo_rating > 1500, `black rating ${black.elo_rating}`);
+      assert.ok(red.elo_rating < 1500, `red rating ${red.elo_rating}`);
+      assert.equal(black.games_played, 1);
+    } finally {
+      await client.end();
+    }
+  });
+
   test('rated Crossroads Chess PvP game rates white and red users in the Crossroads bucket', async () => {
     const now = new Date();
     await createUser({

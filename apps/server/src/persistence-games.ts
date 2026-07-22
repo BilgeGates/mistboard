@@ -4,9 +4,11 @@ import {
   CROSSROADS_CHESS_SPEC_ID,
   DARK_MINI_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   TIME_CONTROLS,
   type TimeClass,
+  XIANGQI_SPEC_ID,
   type XiangqiColor,
 } from '@mistboard/game';
 import { engineVersionDisplayName } from './engine-registry.js';
@@ -1245,6 +1247,11 @@ function ratedParticipantColorsForVariant(variant: string): {
   // DMX/Drop Mini; banqi keys on the SEAT, not ink). The default result mapping
   // below then applies (red-wins -> white-wins, black-wins passthrough), so no result arm.
   if (variant === JIEQI_SPEC_ID || variant === BANQI_SPEC_ID)
+    return { white: 'red', black: 'black' };
+  // Standard + Fortress Xiangqi are red/black too. Missing here meant the
+  // rating block found no 'white' participant and SILENTLY skipped: the #151
+  // flip's first rated game recorded rated=true but moved nobody's rating.
+  if (variant === XIANGQI_SPEC_ID || variant === FORTRESS_XIANGQI_SPEC_ID)
     return { white: 'red', black: 'black' };
   if (variant === CROSSROADS_CHESS_SPEC_ID) return { white: 'white', black: 'red' };
   return { white: 'white', black: 'black' };

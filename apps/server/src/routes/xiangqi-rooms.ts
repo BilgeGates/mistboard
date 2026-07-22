@@ -6,9 +6,9 @@ import {
 } from './../variant-tenant/rooms-route.js';
 
 // The slice of server context this route needs; the registry entry binds the
-// tenant's room factory in (xiangqi-registration.ts). Standard Xiangqi is
-// unrated for now (held off the leaderboard until launch); PvE is served by
-// mainline Pikafish.
+// tenant's room factory in (xiangqi-registration.ts). Rated PvP is
+// account-gated (#151 rated flip); PvE is served by mainline Pikafish and
+// stays casual.
 export type XiangqiCreateContext = {
   databaseRequired: boolean;
   isDraining(): boolean;
@@ -16,9 +16,10 @@ export type XiangqiCreateContext = {
   createXiangqiRoom(
     timeControl?: RoomTimeControl,
     creatorPreference?: 'red' | 'black' | 'random',
+    rated?: boolean,
     engine?: { engineId: string; seat: 'red' | 'black'; botId?: string },
   ): Promise<
-    | { ok: true; room: { id: string; gameSpecId: string } }
+    | { ok: true; room: { id: string; gameSpecId: string; rated: boolean } }
     | { ok: false; error: 'xiangqi_disabled' | 'persistence_failure' | 'room_id_collision' }
   >;
 };
@@ -41,8 +42,8 @@ const xiangqiRoute = createTenantRoomsRoute<
     seats: XIANGQI_SEATS,
   },
   rated: { kind: 'account-gated' },
-  createRoom: (ctx, { timeControl, preferredColor, engine }) =>
-    ctx.createXiangqiRoom(timeControl, preferredColor, engine),
+  createRoom: (ctx, { timeControl, preferredColor, rated, engine }) =>
+    ctx.createXiangqiRoom(timeControl, preferredColor, rated, engine),
 });
 
 export const requestsXiangqi = xiangqiRoute.matchesCreateRequest;

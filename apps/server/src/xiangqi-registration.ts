@@ -6,6 +6,7 @@
  */
 
 import type { RoomTimeControl } from '@mistboard/game';
+import { currentAccountUser } from './account-session.js';
 import * as persistence from './persistence.js';
 import { isAllowedFullTimeControl } from './routes/lib.js';
 import { handleXiangqiCreate, requestsXiangqi } from './routes/xiangqi-rooms.js';
@@ -38,6 +39,7 @@ export const xiangqiRooms = new Map<string, XiangqiLiveRoom>();
 export async function createXiangqiRoom(
   timeControl?: RoomTimeControl,
   creatorPreference?: XiangqiCreatorPreference,
+  rated = false,
   engine?: XiangqiRoomEngineSeat,
 ): Promise<XiangqiLiveRoomCreation> {
   return createXiangqiLiveRoom(
@@ -51,6 +53,7 @@ export async function createXiangqiRoom(
     },
     timeControl,
     creatorPreference,
+    rated,
     engine,
   );
 }
@@ -147,14 +150,18 @@ registerVariantTenant({
   clearRooms: () => xiangqiRooms.clear(),
   http: {
     matchesCreateRequest: requestsXiangqi,
-    handleCreate: (ctx, _request, response, body) =>
-      handleXiangqiCreate({ ...ctx, createXiangqiRoom }, response, body),
+    handleCreate: async (ctx, request, response, body) => {
+      // Rated is account-gated: resolve the requester only when the request
+      // asks for a rated game (the route factory 401s without it).
+      const accountUser = body.rated === true ? await currentAccountUser(request) : null;
+      await handleXiangqiCreate({ ...ctx, createXiangqiRoom }, response, body, accountUser);
+    },
   },
   lobby: {
-    supportsRated: false,
+    supportsRated: true,
     allowsTimeControl: isAllowedFullTimeControl,
-    createRoom: async (timeControl) => {
-      const created = await createXiangqiRoom(timeControl, 'random');
+    createRoom: async (timeControl, rated) => {
+      const created = await createXiangqiRoom(timeControl, 'random', rated);
       if (!created.ok) throw new Error(`xiangqi_room_create_failed:${created.error}`);
       return { id: created.room.id, region: 'global' };
     },

@@ -1,10 +1,9 @@
 /**
  * Thin adapter over the generic tenant room factory
  * (variant-tenant/room-factory.ts) for open-information Standard Xiangqi. No
- * running-game record (recordGameStart omitted) and no rated options, matching
- * the Dark Xiangqi factory this was copied from. There is no xiangqi engine
- * yet, so the engine pre-seat path is present only for structural parity with
- * the generic factory and is always unused.
+ * running-game record (recordGameStart omitted), matching the Dark Xiangqi
+ * factory this was copied from; the finished-games row written at game end is
+ * the record, and it carries the rated flag (#151 rated flip).
  */
 
 import type { RoomTimeControl, XiangqiColor } from '@mistboard/game';
@@ -37,6 +36,7 @@ export async function createXiangqiLiveRoom(
   ctx: XiangqiLiveRoomFactoryContext,
   timeControl?: RoomTimeControl,
   creatorPreference?: XiangqiCreatorPreference,
+  rated = false,
   engine?: XiangqiRoomEngineSeat,
 ): Promise<XiangqiLiveRoomCreation> {
   const created = await createTenantLiveRoom(
@@ -51,7 +51,7 @@ export async function createXiangqiLiveRoom(
       isPersistenceEnabled: ctx.isPersistenceEnabled,
       recordPersistenceError: ctx.recordPersistenceError,
     },
-    { timeControl, creatorPreference, engine },
+    { timeControl, creatorPreference, rated, engine },
   );
   if (!created.ok) {
     return created.error === 'disabled'

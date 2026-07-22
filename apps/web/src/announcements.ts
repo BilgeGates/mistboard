@@ -18,6 +18,15 @@ export type Announcement = {
 
 const baseAnnouncements: Announcement[] = [
   {
+    date: '2026-07-22',
+    kind: 'release',
+    headline: 'Rated xiangqi is live.',
+    body: 'Signed-in players can now choose Rated when finding an opponent in the lobby. Ratings use Glicko-2, start at 1500, and appear on your profile and the leaderboard once they settle.',
+    href: '/leaderboard',
+    cta: 'See the leaderboard',
+    showInHomeArticleWidget: true,
+  },
+  {
     date: '2026-07-21',
     kind: 'article',
     headline: 'Two classical xiangqi studies, published.',

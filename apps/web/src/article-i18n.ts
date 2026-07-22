@@ -824,8 +824,9 @@ const ZH_HANS: Record<string, string> = {
   'Equal animals remove each other.': '同等级动物会一起离场。',
   'Play on Mistboard': '在 Mistboard 上对弈',
   'Play vs computer': '对战电脑',
-  'Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.':
-    '象棋可在 Mistboard 上对弈。挑战引擎或邀请好友，无需账户。',
+  'Xiangqi is playable on Mistboard: find a casual or rated game against another player, take on the engine ladder, or challenge a friend. No account required. Signing in unlocks rated games.':
+    '象棋可在 Mistboard 上对弈：与其他玩家进行休闲或积分对局，挑战引擎等级阶梯，或邀请好友。无需账户即可对弈，登录后可进行积分对局。',
+  'Find an opponent': '寻找对手',
   'Fortress Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.':
     '堡垒象棋可在 Mistboard 上对弈。挑战引擎或邀请好友，无需账户。',
   'Flip Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.':

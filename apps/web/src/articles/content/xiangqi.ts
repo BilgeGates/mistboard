@@ -185,11 +185,11 @@ export const xiangqiArticle: Article = {
       },
       playClosing({
         heading: 'Play on Mistboard',
-        lead: 'Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.',
-        playLabel: 'Play vs computer',
-        playHref: '/?play=computer&gameSpecId=xiangqi',
+        lead: 'Xiangqi is playable on Mistboard: find a casual or rated game against another player, take on the engine ladder, or challenge a friend. No account required. Signing in unlocks rated games.',
+        playLabel: 'Find an opponent',
+        playHref: '/?play=lobby&gameSpecId=xiangqi',
         secondary: [
-          { label: 'Challenge a friend', href: '/?play=friend&gameSpecId=xiangqi', emphasis: 'secondary' },
+          { label: 'Play vs computer', href: '/?play=computer&gameSpecId=xiangqi', emphasis: 'secondary' },
         ],
       }),
     ],

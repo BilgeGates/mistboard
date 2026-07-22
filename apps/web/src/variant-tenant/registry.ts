@@ -213,7 +213,10 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     landing: {
       capabilities: {
         ...XIANGQI_CAPABILITIES_BASE,
-        supportsRated: false,
+        // Rated live-but-quiet (#151): the toggle stays disabled until the
+        // server's MISTBOARD_RATED_ENABLED mirror flips it on for signed-in
+        // players; games are account-gated again at game end.
+        supportsRated: true,
         supportsStartFormat: false,
         supportsTimeControl: true,
       },
