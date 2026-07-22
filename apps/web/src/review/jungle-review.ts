@@ -24,7 +24,7 @@ import {
 } from './tree-review.js';
 
 /** Config for a jungle review mount. */
-export type JungleReviewConfig = TreeReviewConfig<JungleMove>;
+export type JungleReviewConfig = TreeReviewConfig<JungleMove, JungleGameState>;
 
 /** Handle returned by mountJungleReview: snapshot the current tree to persist it. */
 export type JungleReviewHandle = TreeReviewHandle;

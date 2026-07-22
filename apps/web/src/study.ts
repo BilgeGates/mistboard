@@ -13,7 +13,7 @@ import './live-xiangqi.css';
 import './xiangqi-postgame.css';
 import './study.css';
 import './study-index.css';
-import { parseStandardXiangqiFen, standardXiangqiFen } from '@mistboard/game';
+import { normalizeStartFen } from '@mistboard/game';
 import { buildStudyChat } from './review/spectator-chat.js';
 import { mountStudyReview } from './review/study-review.js';
 import type { TreeReviewHandle } from './review/tree-review.js';
@@ -708,12 +708,14 @@ function openAddChapterDialog(
     let rootFen: string | undefined;
     const fenRaw = composable ? fenInput.value.trim() : '';
     if (fenRaw) {
-      const parsed = parseStandardXiangqiFen(fenRaw);
+      // Store the CANONICAL spelling, not what was pasted: the board replays the
+      // stored string, so one position must have exactly one stored form.
+      const parsed = normalizeStartFen(studyVariant, fenRaw);
       if (!parsed.ok) {
         fenError.textContent = parsed.error;
         return;
       }
-      rootFen = standardXiangqiFen(parsed.state);
+      rootFen = parsed.fen;
     }
     dialog.close('create');
     onCreate(nameInput.value.trim(), rootFen);

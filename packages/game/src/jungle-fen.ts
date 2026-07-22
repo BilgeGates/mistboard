@@ -14,12 +14,18 @@
 // (jungle-wasm) builds the identical FEN the server does — one encoder, both sides.
 
 import {
+  JUNGLE_DENS,
   JUNGLE_HEIGHT,
   JUNGLE_ROLE_LETTER,
   JUNGLE_WIDTH,
+  type JungleBoard,
+  type JungleColor,
   type JungleGameState,
   type JungleMove,
+  type JunglePieceRole,
   type JungleSquare,
+  jungleIsWater,
+  junglePositionRepetitionKey,
   jungleSquareOf,
 } from './variants-jungle.js';
 
@@ -67,4 +73,119 @@ export function engineUciToJungleMove(uci: string | null | undefined): JungleMov
   const match = ENGINE_UCI_RE.exec(uci.trim());
   if (!match) return null;
   return { from: match[1] as JungleSquare, to: match[2] as JungleSquare };
+}
+
+// ── FEN parsing ──────────────────────────────────────────────────────────────
+// The inverse of jungleStateToEngineFen: reads a FEN back into canonical state so
+// a hand-set position can seed a study chapter or an analysis board. Rejections
+// are specific because a bad FEN is nearly always a mistyped diagram, and the
+// message is the only clue the author gets.
+//
+// What is rejected is limited to what CANNOT arise from play: a piece in water
+// that is not a rat, a piece standing in its own den, a duplicated animal, an
+// already-decided position (a piece in the enemy den, a side with no pieces
+// left). Everything else, including lopsided material, is a legal study.
+
+export type ParseJungleFenResult =
+  | { ok: true; state: JungleGameState }
+  | { ok: false; error: string };
+
+const LETTER_TO_JUNGLE_ROLE: Record<string, JunglePieceRole> = Object.fromEntries(
+  Object.entries(JUNGLE_ROLE_LETTER).map(([role, letter]) => [
+    letter.toLowerCase(),
+    role as JunglePieceRole,
+  ]),
+);
+
+export function parseJungleFen(fen: string, gameId = 'fen-import'): ParseJungleFenResult {
+  const fields = fen.trim().split(/\s+/);
+  const placement = fields[0];
+  if (!placement) return { ok: false, error: 'Empty FEN.' };
+
+  const rows = placement.split('/');
+  if (rows.length !== JUNGLE_HEIGHT) {
+    return {
+      ok: false,
+      error: `Expected ${JUNGLE_HEIGHT} ranks in the placement, got ${rows.length}.`,
+    };
+  }
+
+  const board: JungleBoard = {};
+  const counts: Record<JungleColor, Partial<Record<JunglePieceRole, number>>> = {
+    red: {},
+    black: {},
+  };
+  for (let i = 0; i < JUNGLE_HEIGHT; i += 1) {
+    const rank = JUNGLE_HEIGHT - i;
+    let file = 0;
+    for (const ch of rows[i]!) {
+      if (ch >= '1' && ch <= '9') {
+        file += Number(ch);
+        continue;
+      }
+      const role = LETTER_TO_JUNGLE_ROLE[ch.toLowerCase()];
+      if (!role) return { ok: false, error: `Unknown piece "${ch}" on rank ${rank}.` };
+      if (file > JUNGLE_WIDTH - 1) {
+        return { ok: false, error: `Rank ${rank} runs past ${JUNGLE_WIDTH} files.` };
+      }
+      const color: JungleColor = /[A-Z]/.test(ch) ? 'red' : 'black';
+      const square = jungleSquareOf(file, rank);
+      if (jungleIsWater(square) && role !== 'rat') {
+        return {
+          ok: false,
+          error: `Only the rat may stand in water; found a ${role} on ${square}.`,
+        };
+      }
+      if (square === JUNGLE_DENS[color]) {
+        return { ok: false, error: `The ${color} ${role} on ${square} is in its own den.` };
+      }
+      counts[color][role] = (counts[color][role] ?? 0) + 1;
+      board[square] = { color, role };
+      file += 1;
+    }
+    if (file !== JUNGLE_WIDTH) {
+      return { ok: false, error: `Rank ${rank} covers ${file} files, expected ${JUNGLE_WIDTH}.` };
+    }
+  }
+
+  for (const color of ['red', 'black'] as const) {
+    const roles = Object.entries(counts[color]);
+    if (roles.length === 0) {
+      return { ok: false, error: `The ${color} side has no pieces, so the game is already over.` };
+    }
+    for (const [role, count] of roles) {
+      if (count > 1)
+        return { ok: false, error: `Two ${color} ${role}s: a side has one of each animal.` };
+    }
+    // Reaching the opponent's den ends the game, so a piece sitting there is a
+    // finished position, not a study start.
+    const enemyDen = JUNGLE_DENS[color === 'red' ? 'black' : 'red'];
+    if (board[enemyDen]?.color === color) {
+      return {
+        ok: false,
+        error: `A ${color} piece already occupies the enemy den on ${enemyDen}.`,
+      };
+    }
+  }
+
+  const turnToken = fields[1] ?? 'r';
+  let turn: JungleColor;
+  if (turnToken === 'r' || turnToken === 'w') turn = 'red';
+  else if (turnToken === 'b') turn = 'black';
+  else return { ok: false, error: `Unknown side-to-move "${turnToken}" (expected r or b).` };
+
+  const progressField = fields[2];
+  const moveField = fields[3];
+  const base: JungleGameState = {
+    id: gameId,
+    board,
+    status: { type: 'playing', turn },
+    moveNumber: moveField && /^\d+$/.test(moveField) ? Number(moveField) : 1,
+    progressClock: progressField && /^\d+$/.test(progressField) ? Number(progressField) : 0,
+    positionCounts: {},
+  };
+  return {
+    ok: true,
+    state: { ...base, positionCounts: { [junglePositionRepetitionKey(base)]: 1 } },
+  };
 }
