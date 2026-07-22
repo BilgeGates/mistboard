@@ -1,0 +1,216 @@
+name: Mistboard Readout
+
+on:
+  schedule:
+    # Non-round minute reduces scheduled-job contention. The application emits
+    # a weekly snapshot on Monday and a silent daily snapshot otherwise.
+    - cron: "23 17 * * *"
+  workflow_dispatch:
+    inputs:
+      trigger:
+        description: "Readout trigger"
+        required: true
+        default: auto
+        type: choice
+        options: [auto, daily, weekly, manual]
+      dry_run:
+        description: "Generate a report without storing it or changing issues"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: mistboard-readout-production
+  cancel-in-progress: false
+
+jobs:
+  readout:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    steps:
+      - name: Generate and route readout
+        id: readout
+        uses: actions/github-script@v9
+        env:
+          REQUESTED_TRIGGER: ${{ github.event_name == 'workflow_dispatch' && inputs.trigger || 'auto' }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+        with:
+          script: |
+            const fs = require('fs');
+            const audience = 'https://mistboard.com/api/admin/readouts';
+            const oidc = await core.getIDToken(audience);
+            const response = await fetch('https://mistboard.com/api/admin/readouts/generate', {
+              method: 'POST',
+              headers: {
+                authorization: `Bearer ${oidc}`,
+                'content-type': 'application/json',
+              },
+              body: JSON.stringify({
+                trigger: process.env.REQUESTED_TRIGGER,
+                dryRun: process.env.DRY_RUN === 'true',
+              }),
+              signal: AbortSignal.timeout(60_000),
+            });
+            if (!response.ok) {
+              throw new Error(`readout endpoint failed with HTTP ${response.status}`);
+            }
+            const payload = await response.json();
+            const report = payload.report;
+            const markdown = payload.markdown;
+            if (
+              !report || report.kind !== 'mistboard-readout' || report.schemaVersion !== 1 ||
+              typeof markdown !== 'string'
+            ) {
+              throw new Error('readout endpoint returned an unsupported payload');
+            }
+            await core.summary.addRaw(markdown).write();
+            fs.writeFileSync('mistboard-readout.json', `${JSON.stringify(report, null, 2)}\n`);
+            fs.writeFileSync('mistboard-readout.md', markdown);
+            core.setOutput('snapshot_id', report.snapshotId);
+
+            if (process.env.DRY_RUN === 'true') return;
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const label = 'ops-readout';
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: label });
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              await github.rest.issues.createLabel({
+                owner,
+                repo,
+                name: label,
+                color: '1d76db',
+                description: 'Scheduled aggregate operating readouts',
+              });
+            }
+
+            if (report.trigger === 'weekly') {
+              const { data: anchors } = await github.rest.issues.listForRepo({
+                owner,
+                repo,
+                state: 'open',
+                labels: label,
+                per_page: 10,
+              });
+              let anchor = anchors.find((issue) => issue.title === 'Mistboard weekly readout');
+              const anchorBody = [
+                'This is the durable anchor for scheduled Mistboard operating readouts.',
+                'Healthy daily checks are silent. Weekly history appears in comments.',
+                '',
+                markdown,
+                '<!-- mistboard-readout-anchor -->',
+              ].join('\n');
+              if (!anchor) {
+                const created = await github.rest.issues.create({
+                  owner,
+                  repo,
+                  title: 'Mistboard weekly readout',
+                  body: anchorBody,
+                  labels: [label],
+                });
+                anchor = created.data;
+              } else {
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: anchor.number,
+                  body: anchorBody,
+                });
+              }
+              const weeklyMarker = `<!-- mistboard-readout-week:${report.snapshotKey} -->`;
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: anchor.number,
+                per_page: 100,
+              });
+              if (!comments.some((comment) => comment.body?.includes(weeklyMarker))) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: anchor.number,
+                  body: `${markdown}\n${weeklyMarker}`,
+                });
+              }
+            }
+
+            for (const action of report.actions) {
+              if (!action.ownerIssue) continue;
+              const marker = `<!-- mistboard-readout-event:${action.dedupeKey} -->`;
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: action.ownerIssue,
+                per_page: 100,
+              });
+              if (comments.some((comment) => comment.body?.includes(marker))) continue;
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: action.ownerIssue,
+                body: [
+                  `**Readout ${action.severity}:** ${action.text}`,
+                  '',
+                  `Snapshot: \`${report.snapshotId}\``,
+                  marker,
+                ].join('\n'),
+              });
+            }
+
+      - name: Upload redacted readout
+        uses: actions/upload-artifact@v6
+        with:
+          name: mistboard-readout-${{ steps.readout.outputs.snapshot_id }}
+          path: |
+            mistboard-readout.json
+            mistboard-readout.md
+          retention-days: 90
+
+  notify-failure:
+    needs: [readout]
+    if: always() && needs.readout.result == 'failure'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              'Scheduled Mistboard readout failed.',
+              '',
+              `Run: ${runUrl}`,
+              '',
+              '<!-- mistboard-readout-workflow-failure -->',
+            ].join('\n');
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'prod-health',
+              per_page: 10,
+            });
+            if (existing.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: 'Scheduled Mistboard readout failing',
+                body,
+                labels: ['prod-health'],
+              });
+            }

@@ -436,21 +436,16 @@ async function handleHealthRequest(
   options: Pick<ServerHttpHandlerOptions, 'databaseRequired' | 'persistenceErrors'>,
   response: ServerResponse,
 ): Promise<void> {
-  const cutoff1m = Date.now() - 60_000;
-  const recent = options.persistenceErrors.filter((entry) => entry.at > cutoff1m);
-  const lastAt =
-    options.persistenceErrors.length > 0
-      ? options.persistenceErrors[options.persistenceErrors.length - 1]!.at
-      : null;
+  const persistenceHealth = currentPersistenceHealth(options.persistenceErrors);
   const dbReachable = options.databaseRequired ? await persistence.probeDb() : true;
-  const ok = recent.length === 0 && dbReachable;
+  const ok = persistenceHealth.count1m === 0 && dbReachable;
   response.writeHead(ok ? 200 : 503, { 'content-type': 'application/json' });
   response.end(
     JSON.stringify({
       ok,
       databaseRequired: options.databaseRequired,
       persistence: persistence.isInitialized() ? 'enabled' : 'disabled',
-      persistenceErrors: { count1m: recent.length, lastAt },
+      persistenceErrors: persistenceHealth,
     }),
   );
 }
@@ -473,5 +468,17 @@ function buildApiContext(options: ServerHttpHandlerOptions): HttpApiContext {
     isDraining: options.drainController.isDraining,
     drainDeadlineMs: options.drainController.drainDeadlineMs,
     activeGameCount: options.drainController.activeGameCount,
+    persistenceHealth: () => currentPersistenceHealth(options.persistenceErrors),
   };
+}
+
+function currentPersistenceHealth(persistenceErrors: readonly PersistenceHealthEntry[]): {
+  count1m: number;
+  lastAt: number | null;
+} {
+  const cutoff1m = Date.now() - 60_000;
+  const recent = persistenceErrors.filter((entry) => entry.at > cutoff1m);
+  const lastAt =
+    persistenceErrors.length > 0 ? persistenceErrors[persistenceErrors.length - 1]!.at : null;
+  return { count1m: recent.length, lastAt };
 }
