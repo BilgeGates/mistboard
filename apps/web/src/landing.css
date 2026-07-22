@@ -1206,36 +1206,26 @@
   display: none;
 }
 
-/* Fixed square widget: every variant occupies the same box, so the cross-variant
-   swap never jumps the page and chess (a square board) and the tenant boards share
-   one frame. Non-square boards (jungle, the xiangqi family, banqi 8x4) scale to fit
-   INSIDE the box, centered and letterboxed. */
+/* Fit-to-width widget: the board fills the column width and its HEIGHT follows
+   its own aspect ratio (the inline SVG's viewBox gives it an intrinsic ratio, so
+   `height: auto` at 100% width lands the natural shape — 552:612 xiangqi, 568:312
+   banqi, square chess — with no letterbox). The panel flexes to whatever height
+   the board needs; the seats then sit right against it (no confining square, no
+   dead gap between the names and a short board like banqi). */
 .showcase-widget .replay-layout-solo .replay-board {
   width: var(--showcase-widget-size);
-  height: var(--showcase-widget-size);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Match the daily-puzzle treatment above: the homepage viewer keeps its shared
-   square slot, while the square-grid Xiangqi board itself is height-driven inside
-   that slot. This accounts for the river gutter without changing widget height. */
-.showcase-widget .replay-layout-solo .replay-board:has(.xq-live-svg--cell) {
-  flex: 0 0 auto;
-  width: auto;
   max-width: 100%;
-  height: var(--showcase-widget-size);
-  aspect-ratio: 540 / 612;
-  margin-inline: auto;
+  height: auto;
+  display: block;
 }
 
-/* Fill the box; the SVG's default preserveAspectRatio (xMidYMid meet) scales the
-   viewBox content to contain within it, centered, without distortion. */
+/* The SVG defines the height: full width, aspect-driven height (was 100%/100%,
+   which forced the old square). preserveAspectRatio still guards against any
+   distortion if a viewBox ever disagrees with the box. */
 .showcase-widget .replay-layout-solo .replay-board svg {
   display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
 }
 
 /* Player name + real (reconstructed) clock framing the tenant showcase board,
@@ -1341,56 +1331,72 @@
   }
 }
 
-/* Drop/reserve variants: the board flanked by vertical hand strips (each side's
-   droppable reserve). The board keeps its fixed square; the strips add narrow
-   columns on either side. */
+/* Drop/reserve variants (fortress-xiangqi): the hands are part of the position,
+   so each side's reserve rides as a HORIZONTAL row — the opponent's above the
+   board, the point-of-view player's below — with the board filling the full
+   column width between them (fit-to-width, like every other variant). The two
+   reserve rows are a FIXED height and never grow with the number of held pieces:
+   the panel height stays predictable across plies as pieces flow in and out of
+   hand. DOM order in .showcase-board-row is [reserve-left, board, reserve-right];
+   as a flex column that lands reserve-left on top (opponent) and reserve-right on
+   the bottom (POV), matching fillCaptures' owner assignment. */
 .showcase-widget .replay-layout-solo .showcase-board-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
   width: var(--showcase-widget-size);
   max-width: 100%;
 }
 
-/* Sided: shrink only the board WIDTH so board + two strips + gaps == the widget
-   width, but keep full height so the panel stays the same height as the
-   board-only variants (the board graphic letterboxes inside). */
-.showcase-widget .replay-layout-solo .showcase-board-row .replay-board {
-  width: calc(var(--showcase-widget-size) - 96px);
-  height: var(--showcase-widget-size);
+.showcase-widget .replay-layout-solo .showcase-board-row .replay-pane {
+  width: 100%;
+  max-width: 100%;
 }
 
+/* Board fills the column width; height follows its aspect (base .replay-board
+   rule). Override the old two-strip `width: size - 96px` / square-height rule. */
+.showcase-widget .replay-layout-solo .showcase-board-row .replay-board {
+  width: 100%;
+  height: auto;
+}
+
+/* Fixed-height hand row. `flex: 0 0 auto` + a set height keeps it from growing as
+   pieces accumulate; extra pieces stay on the single line (overflow clipped)
+   rather than pushing the board around. */
 .showcase-widget .replay-layout-solo .showcase-reserve {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
+  justify-content: center;
+  gap: 3px;
   flex: 0 0 auto;
-  width: 40px;
-  align-self: stretch;
-  padding: 6px 2px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.04);
+  width: 100%;
+  height: 34px;
+  padding: 3px 4px;
+  overflow: hidden;
 }
 
 /* The drop-mini reserve fill applies its live-game band CSS: `.drop-mini-reserve-row`
-   is a HORIZONTAL row and tiles are sized via 100cqw (~58px), inside a fixed-height
-   band. Stuffed into the narrow side strip that overflows sideways over the board.
-   In the showcase, force a compact VERTICAL stack of small fixed-size tiles. */
+   is a HORIZONTAL row of tiles sized via 100cqw (~58px) inside a fixed-height band.
+   In the showcase, hold it to a single compact horizontal line of small fixed-size
+   tiles that fit the reserve row. Both the piece glyph size AND the tile frame size
+   are pinned here: the tile-size var normally rides on `.drop-mini-reserve-container`
+   (a `.replay-pane`/`.board-shell` ancestor), but the showcase reserve is a SIBLING
+   of the pane, so that ancestor never matches and the var must be set locally. */
 .showcase-widget .replay-layout-solo .showcase-reserve.drop-mini-reserve-strip {
-  --drop-mini-hand-piece-size: 26px;
-  height: auto;
+  --drop-mini-hand-piece-size: 20px;
+  --drop-mini-hand-tile-size: 26px;
   min-height: 0;
 }
 
 .showcase-widget .replay-layout-solo .showcase-reserve .drop-mini-reserve-row {
-  flex-direction: column;
+  flex-direction: row;
   flex-wrap: nowrap;
+  align-items: center;
   width: auto;
   min-height: 0;
-  gap: 4px;
+  gap: 3px;
 }
 
 /* ── Chess showcase unification ──────────────────────────────────────────────
@@ -1743,61 +1749,12 @@
     top: calc(100% + 2px);
   }
 
-  /* Drop/fortress reserves: stack BOTH hand strips in one column on the outer (left)
-   edge with the board spanning the inner (right) column, mirroring the puzzle's
-   single reserve column. A 4-row grid centers the two strips vertically (1fr
-   spacers top and bottom) while the board spans the full height. */
+  /* Fortress reserves stack ABOVE and BELOW the board (the base
+     .showcase-board-row column model), with the board filling the rail width and
+     the two fixed-height hand rows framing it. Nothing desktop-specific is needed
+     beyond the shared width var below — the base rules already lay it out. */
   .landing-page .landing-board-column #landing-replay .replay-layout-solo .showcase-board-row {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: 1fr auto auto 1fr;
-    gap: 0 8px;
     width: var(--showcase-widget-size);
-    height: var(--showcase-widget-size);
-  }
-
-  .landing-page
-    .landing-board-column
-    #landing-replay
-    .replay-layout-solo
-    .showcase-board-row
-    .showcase-reserve-left {
-    grid-column: 1;
-    grid-row: 2;
-    align-self: end;
-  }
-
-  .landing-page
-    .landing-board-column
-    #landing-replay
-    .replay-layout-solo
-    .showcase-board-row
-    .showcase-reserve-right {
-    grid-column: 1;
-    grid-row: 3;
-    align-self: start;
-  }
-
-  .landing-page
-    .landing-board-column
-    #landing-replay
-    .replay-layout-solo
-    .showcase-board-row
-    .replay-pane {
-    grid-column: 2;
-    grid-row: 1 / 5;
-    width: 100%;
-    height: 100%;
-  }
-
-  /* Board fills the inner column (override the two-strip -96px width rule). */
-  .landing-page .landing-board-column
-    #landing-replay
-    .replay-layout-solo
-    .showcase-board-row
-    .replay-board {
-    width: 100%;
-    height: 100%;
   }
 } /* end @media (min-width: 1241px) — homepage viewer flush box model */
 
