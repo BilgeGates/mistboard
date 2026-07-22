@@ -398,43 +398,97 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   const viewForKey = (key: string): View | null =>
     adapter.project(currentNode().truth).find((v) => v.key === key)?.view ?? null;
 
-  const boardSlots: BoardSlot[] = projectionShape.map((pv) => {
-    const wrap = document.createElement('section');
-    wrap.className = presentation.boardWrapClassName;
-    // Multi-board (fog) hosts carry a per-view label so the reviewer can tell the
-    // truth board from each seat's fogged view; single-board hosts stay label-free.
-    if (multiBoard) {
-      // Reuse the shared postgame board-title class: it already carries the
-      // styling and the board-only primary-collapse rule (review-stage.css), so
-      // the big truth board stays label-free and only the POV boards show a title.
-      const heading = document.createElement('h2');
-      heading.className = 'dxq-postgame__board-title';
-      heading.textContent = pv.label;
-      wrap.append(heading);
-    }
-    const boardEl = document.createElement('div');
-    boardEl.className = presentation.boardHostClassName;
-    const ariaLabel = config.boardAriaLabel ?? presentation.defaultBoardAriaLabel;
-    boardEl.setAttribute('aria-label', multiBoard ? `${pv.label} — ${ariaLabel}` : ariaLabel);
-    wrap.append(boardEl);
-    const primary = pv.tier === 'primary';
-    const handle = presentation.createBoard({
-      board: boardEl,
-      getInteractionView: () => viewForKey(pv.key),
-      getPerspective: orientation,
-      seatFor: presentation.seatFor,
-      // Only the truth board plays moves; secondaries are read-only projections.
-      enabled: () => primary,
-      onMove: primary ? handleMove : () => {},
-      onDrawShape: primary ? handleDrawShape : undefined,
-    });
-    return { key: pv.key, wrap, boardEl, handle, primary };
-  });
+  // Fog variants project N views (truth + each seat's fogged POV). The review
+  // surface standardizes on ONE interactive board plus a segmented perspective
+  // toggle beneath it (Red | Truth | Black) — the same control the watch page
+  // uses — instead of a dominant truth board flanked by two small read-only POV
+  // boards. Open variants project a single truth view: one board, no toggle. The
+  // board keys fog off enabled() (showFog: !enabled()), so a single instance
+  // renders the fully-revealed truth or a fogged POV as `currentPov` flips.
+  const primaryProjection =
+    projectionShape.find((pv) => pv.tier === 'primary') ?? projectionShape[0]!;
+  const truthKey = primaryProjection.key;
+  // Which projected view the single board currently shows. Input (branching the
+  // tree) is live only on the truth view; POV views are read-only projections.
+  let currentPov = truthKey;
 
-  const primarySlot = boardSlots.find((slot) => slot.primary) ?? boardSlots[0]!;
-  // Animation + overlay (engine/user arrows) target the interactive truth board.
-  const boardEl = primarySlot.boardEl;
-  const interactive = primarySlot.handle;
+  const wrap = document.createElement('section');
+  wrap.className = presentation.boardWrapClassName;
+  const boardEl = document.createElement('div');
+  boardEl.className = presentation.boardHostClassName;
+  const boardAriaLabel = config.boardAriaLabel ?? presentation.defaultBoardAriaLabel;
+  boardEl.setAttribute('aria-label', boardAriaLabel);
+  wrap.append(boardEl);
+  const interactive = presentation.createBoard({
+    board: boardEl,
+    getInteractionView: () => viewForKey(currentPov),
+    getPerspective: orientation,
+    seatFor: presentation.seatFor,
+    // Only the truth view plays moves; POV views are read-only (and fogged).
+    enabled: () => currentPov === truthKey,
+    onMove: (move) => {
+      if (currentPov === truthKey) handleMove(move);
+    },
+    onDrawShape: (orig, dest, opts) => {
+      if (currentPov === truthKey) handleDrawShape(orig, dest, opts);
+    },
+  });
+  const primarySlot: BoardSlot = {
+    key: truthKey,
+    wrap,
+    boardEl,
+    handle: interactive,
+    primary: true,
+  };
+  // One board reaches the scaffold — the board-stage renders it exactly as a
+  // single-view (open) variant; the POV toggle carries the other perspectives.
+  const boardSlots: BoardSlot[] = [primarySlot];
+
+  // The perspective toggle: a segmented control under the board that swaps which
+  // projected view the single board shows. Built once for fog (multi-view)
+  // variants and synced on every render; absent for single-view variants.
+  const povToggle = multiBoard ? buildPovToggle() : null;
+  if (povToggle) wrap.append(povToggle.el);
+
+  function buildPovToggle(): { el: HTMLElement; sync: () => void } {
+    const secondaries = projectionShape.filter((pv) => pv.key !== truthKey);
+    // Truth in the MIDDLE (Red | Truth | Black), matching the watch-page toggle;
+    // fall back to truth-first if a variant ever projects other than two POVs.
+    const ordered =
+      secondaries.length === 2
+        ? [secondaries[0]!, primaryProjection, secondaries[1]!]
+        : [primaryProjection, ...secondaries];
+    const group = document.createElement('div');
+    group.className = 'review-pov';
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', 'Board perspective');
+    const buttons: HTMLButtonElement[] = [];
+    const sync = (): void => {
+      for (const button of buttons) {
+        const active = button.dataset.pov === currentPov;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      }
+    };
+    for (const pv of ordered) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'review-pov__button';
+      button.dataset.pov = pv.key;
+      // Compact single word: the projection label is "Red's view" — strip the
+      // possessive so the segmented control stays terse (truth reads "Truth").
+      button.textContent = pv.key === truthKey ? pv.label : pv.label.replace(/['’]s view$/i, '');
+      button.setAttribute('aria-pressed', pv.key === currentPov ? 'true' : 'false');
+      button.addEventListener('click', () => {
+        if (currentPov === pv.key) return;
+        currentPov = pv.key;
+        render();
+      });
+      buttons.push(button);
+      group.append(button);
+    }
+    return { el: group, sync };
+  }
 
   // No client engine → no eval gauge (and no engine panel below).
   const evalBar = presentation.engine ? createEvalBar() : null;
@@ -843,13 +897,13 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
 
   function render(): void {
     const node = currentNode();
-    // Re-project once per navigation and render each board host from its own
-    // view (open = the single truth board; fog = truth + the two POV boards).
+    // Re-project once per navigation and render the single board from the view
+    // the POV toggle currently selects (open = always the truth view; fog =
+    // truth or a fogged seat POV). The board keys fog off enabled().
     const projection = adapter.project(node.truth);
-    for (const slot of boardSlots) {
-      const projected = projection.find((v) => v.key === slot.key);
-      slot.handle.render(projected?.view ?? null, orientation());
-    }
+    const view = projection.find((v) => v.key === currentPov)?.view ?? null;
+    interactive.render(view, orientation());
+    povToggle?.sync();
     evalBar?.setFlipped(flipped);
     materialUpdate?.(node.truth, tree.root.truth, flipped);
 
