@@ -580,10 +580,17 @@ function formatArticleDate(iso: string, locale: Locale): string {
 // so any overflow scrolls into view without a jarring rewind. No-ops (and hides
 // the arrows) when every card already fits. Self-clears its timer once the
 // carousel leaves the DOM, matching the other landing pollers.
+// Wires every `.landing-carousel` on the page (the blog strip and, since band 4,
+// the video strip) so each auto-rotates and drives its own arrows independently.
 export function initLandingCarousel(root: HTMLElement): void {
-  const carousel = root.querySelector<HTMLElement>('.landing-carousel');
-  const track = carousel?.querySelector<HTMLElement>('.landing-carousel-track');
-  if (!carousel || !track) return;
+  for (const carousel of root.querySelectorAll<HTMLElement>('.landing-carousel')) {
+    initSingleCarousel(carousel);
+  }
+}
+
+function initSingleCarousel(carousel: HTMLElement): void {
+  const track = carousel.querySelector<HTMLElement>('.landing-carousel-track');
+  if (!track) return;
   const cards = [...track.children] as HTMLElement[];
   const prev = carousel.querySelector<HTMLButtonElement>('.landing-carousel-nav-prev');
   const next = carousel.querySelector<HTMLButtonElement>('.landing-carousel-nav-next');

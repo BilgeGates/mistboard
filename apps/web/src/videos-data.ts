@@ -297,7 +297,8 @@ const YOUTUBE_VIDEOS: readonly YoutubeVideo[] = [
   {
     source: 'youtube',
     id: 'VMvry99QA-I',
-    title: 'Hu Rong Hua Best Xiangqi Match #1 - Learning Chinese Chess',
+    // Double space after the dash is verbatim from oembed (re-checked 2026-07-22).
+    title: 'Hu Rong Hua Best Xiangqi Match #1 -  Learning Chinese Chess',
     author: 'Learning Chinese Chess',
     tags: ['games'],
     level: 'advanced',

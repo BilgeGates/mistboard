@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildHomeVideoCards,
   buildVideoCard,
   buildVideosPage,
   filterVideos,
@@ -243,6 +244,46 @@ describe('videos page', () => {
     );
     expect(levelRow).toBeDefined();
     expect(page.querySelector('.videos-sort-select option')?.textContent).toBe('最新');
+  });
+});
+
+describe('buildHomeVideoCards', () => {
+  it('builds a curated carousel of external video cards that open on YouTube', () => {
+    const row = buildHomeVideoCards(8, 'en');
+    expect(row).not.toBeNull();
+    const cards = [...row!.querySelectorAll<HTMLAnchorElement>('.landing-video-card')];
+    expect(cards.length).toBeGreaterThan(0);
+    expect(cards.length).toBeLessThanOrEqual(8);
+    // Reuses the blog carousel scaffold so initLandingCarousel drives it.
+    expect(row!.querySelector('.landing-carousel-track')).not.toBeNull();
+    expect(row!.querySelector('.landing-carousel-nav-prev')).not.toBeNull();
+    for (const card of cards) {
+      expect(card.dataset.cardKind).toBe('video');
+      expect(card.href).toMatch(/^https:\/\/www\.youtube\.com\/watch\?v=/);
+      expect(card.target).toBe('_blank');
+      expect(card.rel).toBe('noopener noreferrer');
+      // Every card carries a play affordance + a title.
+      expect(card.querySelector('.landing-video-card-play')).not.toBeNull();
+      expect(card.querySelector('.landing-video-card-title')?.textContent).toBeTruthy();
+    }
+  });
+
+  it('honors the limit', () => {
+    const row = buildHomeVideoCards(3, 'en');
+    expect(row!.querySelectorAll('.landing-video-card').length).toBe(3);
+  });
+
+  it('only surfaces curated keys that resolve against the catalog', () => {
+    const row = buildHomeVideoCards(8, 'en');
+    const known = new Set(VIDEOS.map((video) => videoKey(video)));
+    const hrefs = [...row!.querySelectorAll<HTMLAnchorElement>('.landing-video-card')].map(
+      (card) => card.href,
+    );
+    // Each rendered card's watch URL corresponds to a real catalog video.
+    for (const href of hrefs) {
+      const id = new URL(href).searchParams.get('v');
+      expect(known.has(`yt:${id}`)).toBe(true);
+    }
   });
 });
 

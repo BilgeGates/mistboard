@@ -24,6 +24,7 @@ import {
   type VideoSource,
   type VideoTag,
   type VideoVariant,
+  videoKey,
 } from './videos-data.js';
 
 const TAG_LABEL_KEYS: Record<VideoTag, `videos.tag.${VideoTag}`> = {
@@ -433,4 +434,133 @@ export function buildVideoCard(video: VideoEntry, locale: Locale = currentLocale
   link.append(thumb, title, meta, tags);
   item.append(link);
   return item;
+}
+
+// ── Homepage video strip (band 3, beneath the blog row) ─────────────────────
+// A curated front-door set, hand-picked like articles' HOME_ARTICLE_SLUGS. Order
+// IS the editorial arc, and the carousel reveals it three cards at a time:
+// 60-second hook -> full rules primer -> chess-player framing -> tactics ->
+// openings -> endgames -> a title game -> culture. One slot per role: the earlier
+// draft spent five of eight slots on near-duplicate "how to play" videos, which
+// read as one repeated promise and hid the depth of the catalog behind it.
+//
+// Newest-first is deliberately NOT used here (it skews to dense game commentary).
+// Keys are videoKey() values; an unknown key is dropped so a removed video never
+// breaks the row. First-party Mistboard videos, once they exist, can be pinned
+// here to lead the strip. Every id below was re-verified live against YouTube's
+// oembed endpoint on 2026-07-22 (200 + exact title/author match).
+const HOME_VIDEO_KEYS: readonly string[] = [
+  'yt:qbbFuWyx0XI', // 60-second hook — Sam Copeland (a name chess players know)
+  'yt:kSL7JErRMx8', // Full rules primer — AncientChess
+  'yt:vklqOLf6mtU', // A Chess Player's Guide to Xiangqi — the conversion framing
+  'yt:950nyyjOirU', // Basic checkmate strategies — the first step past the rules
+  'yt:MyLXgkL4C5A', // The Most Popular Openings in Xiangqi
+  'yt:dmSDt1VQNfs', // Endgame compositions — ties to the classical PD study corpus
+  'yt:uF3-KrlXprE', // 2023 World Championship final — the aspirational ceiling
+  'yt:gkD29aQW3Vw', // The Four Types of Chinese Chess Players — culture
+];
+
+// Builds the homepage video carousel: the same `.landing-carousel` structure the
+// blog strip uses (so initLandingCarousel drives it), filled with compact video
+// cards. Returns null when none of the curated keys resolve (row is omitted).
+export function buildHomeVideoCards(
+  limit = 8,
+  locale: Locale = currentLocale(),
+): HTMLElement | null {
+  const byKey = new Map(VIDEOS.map((video) => [videoKey(video), video]));
+  const picks = HOME_VIDEO_KEYS.flatMap((key) => {
+    const video = byKey.get(key);
+    return video ? [video] : [];
+  }).slice(0, limit);
+  if (picks.length === 0) return null;
+
+  const section = document.createElement('section');
+  section.className = 'landing-videos';
+  section.setAttribute('aria-label', t('videos.heading', {}, locale));
+
+  const carousel = document.createElement('div');
+  carousel.className = 'landing-carousel';
+
+  const track = document.createElement('div');
+  track.className = 'landing-carousel-track';
+  for (const video of picks) track.append(landingVideoCard(video, locale));
+
+  const prev = homeVideoNavButton('prev', '‹', locale);
+  const next = homeVideoNavButton('next', '›', locale);
+
+  carousel.append(prev, track, next);
+  section.append(carousel);
+  return section;
+}
+
+function homeVideoNavButton(
+  dir: 'prev' | 'next',
+  glyph: string,
+  locale: Locale,
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `landing-carousel-nav landing-carousel-nav-${dir}`;
+  button.setAttribute(
+    'aria-label',
+    t(dir === 'prev' ? 'videos.previousVideos' : 'videos.moreVideos', {}, locale),
+  );
+  button.textContent = glyph;
+  return button;
+}
+
+// Compact home card: reuses the blog card's base classes (border/hover/title
+// clamp) so the two strips stay in visual lockstep, and adds a 16:9 photographic
+// thumbnail with a play glyph + duration/source pills — the cues that read
+// "video" at a glance next to the blog strip's board-diagram thumbnails.
+function landingVideoCard(video: VideoEntry, locale: Locale): HTMLElement {
+  const link = document.createElement('a');
+  link.className = 'landing-article-card landing-video-card';
+  link.dataset.cardKind = 'video';
+  link.href = videoWatchUrl(video);
+  if (video.source === 'youtube') {
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+  }
+
+  const thumb = document.createElement('div');
+  thumb.className = 'landing-article-card-thumb landing-video-card-thumb';
+
+  const img = document.createElement('img');
+  img.className = 'landing-video-card-img';
+  img.src = videoThumbUrl(video);
+  img.alt = '';
+  img.loading = 'lazy';
+  thumb.append(img);
+
+  const play = document.createElement('span');
+  play.className = 'landing-video-card-play';
+  play.setAttribute('aria-hidden', 'true');
+  play.textContent = '▶';
+  thumb.append(play);
+
+  if (video.durationMinutes !== undefined) {
+    const duration = document.createElement('span');
+    duration.className = 'landing-video-card-duration';
+    duration.textContent = t('videos.duration', { count: video.durationMinutes }, locale);
+    thumb.append(duration);
+  }
+
+  if (video.source === 'mistboard') {
+    const badge = document.createElement('span');
+    badge.className = 'landing-video-card-badge';
+    badge.textContent = t('videos.badge.mistboard', {}, locale);
+    thumb.append(badge);
+  }
+
+  const title = document.createElement('strong');
+  title.className = 'landing-article-card-title landing-video-card-title';
+  title.textContent = video.title;
+
+  const meta = document.createElement('span');
+  meta.className = 'landing-video-card-meta';
+  meta.textContent = video.author;
+
+  link.append(thumb, title, meta);
+  return link;
 }

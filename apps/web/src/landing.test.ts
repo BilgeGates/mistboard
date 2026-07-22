@@ -108,6 +108,10 @@ describe('landing shell', () => {
     expect(demo?.querySelector(':scope > .landing-forum-column')).not.toBeNull();
     expect(demo?.querySelector(':scope > .landing-players-column')).not.toBeNull();
     expect(demo?.querySelector(':scope > .landing-articles-row')).not.toBeNull();
+    // Band 4: the video strip sits in its own grid-area beneath the blog row.
+    const videoRow = demo?.querySelector(':scope > .landing-videos-row');
+    expect(videoRow).not.toBeNull();
+    expect(videoRow?.querySelectorAll('.landing-video-card').length).toBeGreaterThan(0);
     expect(demo?.querySelector('.landing-left-column .landing-board-column')).not.toBeNull();
     // The support/store pair left the homepage (patronage stays in the nav).
     expect(demo?.querySelector('.landing-support-row')).toBeNull();

@@ -40,6 +40,8 @@ export const ZH_HANS_CONTENT = {
   'videos.sort.newest': '最新',
   'videos.sort.longest': '最长',
   'videos.sort.shortest': '最短',
+  'videos.previousVideos': '上一个视频',
+  'videos.moreVideos': '更多视频',
   'articles.heading': '文章',
   'articles.read': '阅读',
   'articles.intro': '原创策略游戏的文章、规则说明与引擎工作。',

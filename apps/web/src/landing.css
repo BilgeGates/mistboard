@@ -39,9 +39,12 @@
   grid-template-areas:
     "left   panel play"
     "puzzle forum players"
-    ".      blogs .";
-  column-gap: clamp(10px, 0.9vw, 15px);
-  row-gap: clamp(14px, 1.8vw, 24px);
+    ".      blogs ."
+    ".      videos .";
+  --landing-col-gap: clamp(10px, 0.9vw, 15px);
+  --landing-row-gap: clamp(14px, 1.8vw, 24px);
+  column-gap: var(--landing-col-gap);
+  row-gap: var(--landing-row-gap);
   align-items: start;
   justify-content: center;
   width: 100%;
@@ -747,6 +750,117 @@
   padding: 0 9px;
   font-size: 12.5px;
   line-height: 1.35;
+}
+
+/* Band 4: the video strip mirrors the blog row (same centered center-column
+   area, three compact cards per view), so the two strips read as a matched pair.
+   Only the thumbnail and its overlays differ. */
+.landing-videos-row {
+  grid-area: videos;
+  /* The video strip pairs with the blog strip above it, so it sits tighter than
+     the band-to-band row-gap: pull it up by (row-gap - col-gap) so the gap to the
+     blog row matches the inter-column gap. */
+  margin-top: calc(var(--landing-col-gap) - var(--landing-row-gap));
+}
+
+.landing-videos-row .landing-video-card {
+  flex-basis: calc((100% - 2 * var(--landing-carousel-gap)) / 3);
+}
+
+/* Photographic still. The thumb keeps the base card's 8:5 frame so a video card
+   is dimensionally identical to a blog card above it (matched pair); the YouTube
+   hqdefault (4:3 with baked letterbox) is object-fit: cover, cropping the bars to
+   fill. Dark fill shows only while the still loads or if it 404s — a video-frame
+   placeholder, not the blog row's light panel. Scoped past the base thumb rule so
+   it wins regardless of source order. */
+.landing-videos-row .landing-video-card-thumb {
+  background: #0e120f;
+}
+
+.landing-video-card-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Play glyph badge, centered — the at-a-glance "this is a video" cue. */
+.landing-video-card-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: color-mix(in srgb, #0b0f0c 62%, transparent);
+  color: #ffffff;
+  font-size: 15px;
+  /* Nudge the triangle glyph toward optical center of the circle. */
+  padding-left: 3px;
+  backdrop-filter: blur(2px);
+  transition:
+    background 120ms ease,
+    transform 120ms ease;
+}
+
+.landing-video-card:hover .landing-video-card-play {
+  background: var(--site-accent);
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+/* Duration pill, bottom-right — YouTube grammar. */
+.landing-video-card-duration {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, #0b0f0c 78%, transparent);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+/* First-party badge, top-left — mirrors the /videos "Mistboard" tag. */
+.landing-video-card-badge {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  z-index: 1;
+  padding: 3px 7px 4px;
+  border-radius: var(--site-radius) 0 7px 0;
+  background: color-mix(in srgb, var(--site-accent) 92%, transparent);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.landing-videos-row .landing-video-card-title {
+  margin: 7px 0 2px;
+  padding: 0 9px;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+/* Channel line under the title (blog cards carry no meta; the video strip keeps
+   attribution). Single line, ellipsized. */
+.landing-video-card-meta {
+  display: block;
+  margin: 0 0 9px;
+  padding: 0 9px;
+  overflow: hidden;
+  color: var(--site-muted);
+  font-size: 11px;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .landing-carousel {
@@ -1768,8 +1882,8 @@
 
 @media (max-width: 1240px) {
   /* Collapse to one column: Play button + activity + chat, the lobby panel,
-     banners + viewer, then the band-2 widgets (puzzle, forum, players) and the
-     blog row. */
+     banners + viewer, then the band-2 widgets (puzzle, forum, players), the
+     blog row, and the video row. */
   .landing-demo {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
@@ -1779,7 +1893,8 @@
       "puzzle"
       "forum"
       "players"
-      "blogs";
+      "blogs"
+      "videos";
     max-width: 640px;
   }
 
@@ -1868,6 +1983,10 @@
   }
 
   .landing-articles-row .landing-article-card {
+    flex-basis: calc((100% - var(--landing-carousel-gap)) / 2);
+  }
+
+  .landing-videos-row .landing-video-card {
     flex-basis: calc((100% - var(--landing-carousel-gap)) / 2);
   }
 }

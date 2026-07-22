@@ -42,6 +42,7 @@ import type { ShowcaseEntry } from './showcase-cycler.js';
 import { specIdForShowcaseVariant } from './showcase-dispatch.js';
 import { buildHomeFooter, buildNav, buildNotice } from './site-shell.js';
 import { type WebVariantTenant, webVariantTenantForRoomId } from './variant-tenant/registry.js';
+import { buildHomeVideoCards } from './videos.js';
 
 // Adaptive hero-pool refresh. Poll faster while games are being played (they
 // unlock on completion, soon), slower when idle. Pool is capped. These three are
@@ -653,6 +654,13 @@ function buildLandingStage(
   const articleCards = buildHomeArticleCards(8, locale);
   articleCards?.classList.add('landing-articles-row');
 
+  // ── Band 4 (grid-area: videos): a parallel video strip beneath the blog row —
+  // the same carousel, filled with curated English-first xiangqi videos (YouTube
+  // for now; Mistboard/partner only in the future). Photographic thumbnails plus
+  // a play glyph read as "video" beside the blog strip's board diagrams. ──
+  const videoCards = buildHomeVideoCards(8, locale);
+  videoCards?.classList.add('landing-videos-row');
+
   // ── Puzzle column (grid-area: puzzle, band 2 left): the daily puzzle. ──
   const puzzleColumn = document.createElement('div');
   puzzleColumn.className = 'landing-puzzle-column';
@@ -686,9 +694,11 @@ function buildLandingStage(
 
   // Grid placement (see landing.css): band 1 = [banners+viewer · lobby panel ·
   // play button+activity+chat], band 2 = [puzzle · forum · top players], band 3
-  // = the full-width blog row. Append order is irrelevant (grid-area governs).
+  // = the blog row, band 4 = the video row. Append order is irrelevant (grid-area
+  // governs).
   section.append(leftColumn, lobbyPanel, playColumn, puzzleColumn, forumColumn, playersColumn);
   if (articleCards) section.append(articleCards);
+  if (videoCards) section.append(videoCards);
 
   // Center tenant (SVG) showcase boards within the square box so a non-square
   // (portrait xiangqi) board pillarboxes symmetrically rather than jamming against

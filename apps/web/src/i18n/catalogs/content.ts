@@ -35,6 +35,8 @@ export const EN_CONTENT = {
   'videos.sort.newest': 'Newest',
   'videos.sort.longest': 'Longest',
   'videos.sort.shortest': 'Shortest',
+  'videos.previousVideos': 'Previous videos',
+  'videos.moreVideos': 'More videos',
   'articles.heading': 'Articles',
   'articles.read': 'Read',
   'articles.intro': 'Essays, rules notes, and engine work for original strategy games.',
