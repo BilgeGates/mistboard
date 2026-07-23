@@ -26,14 +26,17 @@
 import assert from 'node:assert/strict';
 import type { IncomingMessage } from 'node:http';
 import test from 'node:test';
-import { JIEQI_SPEC_ID, STANDARD_JIEQI_DEAL } from '@mistboard/game';
+import { JIEQI_SPEC_ID, STANDARD_JIEQI_DEAL, XIANGQI_SPEC_ID } from '@mistboard/game';
 import type { WebSocket } from 'ws';
 import type { JieqiEvent, JieqiRuntimeRoom } from '../jieqi-runtime.js';
 import { jieqiTenant } from '../jieqi-tenant.js';
+import type { XiangqiEvent } from '../xiangqi-runtime.js';
+import { xiangqiTenant } from '../xiangqi-tenant.js';
 import { createTenantRuntimeRoomFromEvents, tenantSnapshotPayload } from './runtime.js';
 import { createTenantWsRuntime } from './ws.js';
 
 process.env.MISTBOARD_JIEQI_ENABLED = 'true';
+process.env.MISTBOARD_XIANGQI_ENABLED = 'true';
 
 const jieqiWs = createTenantWsRuntime(jieqiTenant);
 
@@ -113,6 +116,48 @@ function withEnv(key: string, value: string | undefined, fn: () => Promise<void>
     else process.env[key] = prior;
   });
 }
+
+const xiangqiWs = createTenantWsRuntime(xiangqiTenant);
+type XiangqiLiveRoom = Parameters<typeof xiangqiWs.handleConnection>[3];
+
+// A full, still-LIVE xiangqi room: both seats taken, no moves needed.
+function fullXiangqiRoom(roomId: string): XiangqiLiveRoom {
+  const events: XiangqiEvent[] = [
+    { type: 'room-created', at: 1_000, roomId, gameSpecId: XIANGQI_SPEC_ID },
+    { type: 'seat-assigned', at: 2_000, roomId, clientId: 'client-red', seat: 'red' },
+    { type: 'seat-assigned', at: 3_000, roomId, clientId: 'client-black', seat: 'black' },
+  ];
+  const created = createTenantRuntimeRoomFromEvents(xiangqiTenant, events);
+  assert.ok(created.ok, 'fixture event log must hydrate');
+  return created.room as unknown as XiangqiLiveRoom;
+}
+
+test('an OPEN spec admits a live spectator in production with no admin token', async () => {
+  // The room gate now consults liveObservePolicy, the same predicate Mistboard TV
+  // uses. Xiangqi hides nothing, so watching a live game from its room URL needs
+  // no token and no dev runtime — previously this closed 1008 for everyone.
+  await withEnv('NODE_ENV', 'production', () =>
+    withEnv('MISTBOARD_ADMIN_DEBUG_TOKEN', undefined, async () => {
+      const room = fullXiangqiRoom('xq_spectator_prod');
+      const socket = new FakeSocket();
+      await xiangqiWs.handleConnection(
+        WS_CTX,
+        socket.asWebSocket(),
+        fakeRequest('prod-visitor-open'),
+        room,
+      );
+
+      assert.deepEqual(socket.closes, [], 'an open-spec live room does not close a spectator');
+      assert.equal(room.clients.size, 1, 'the spectator joined');
+      assert.equal(socket.sent.length > 0, true, 'the spectator received a hello frame');
+      assert.equal(
+        room.events.filter((event) => event.type === 'seat-assigned').length,
+        2,
+        'admitting a spectator appends no seat-assigned event',
+      );
+    }),
+  );
+});
 
 test('spectator fallback stays fail-closed in production without an admin token', async () => {
   await withEnv('NODE_ENV', 'production', () =>

@@ -128,7 +128,7 @@ test('live replay API returns 403 for every mode (PvP, PvE, EvE)', () => {
   }
 });
 
-test('canObserveLiveRoom returns false for every live mode and true only when finished', () => {
+test('canObserveLiveRoom keeps a LIVE fog room closed for every mode, and opens it when finished', () => {
   const roomCreated: GameEvent = {
     type: 'room-created',
     at: 1,
@@ -138,7 +138,7 @@ test('canObserveLiveRoom returns false for every live mode and true only when fi
   };
 
   // Live PvP: no observation.
-  assert.equal(canObserveLiveRoom(replayGameEvents([roomCreated])), false);
+  assert.equal(canObserveLiveRoom(replayGameEvents([roomCreated]), 'dark-chess'), false);
   // Live PvE: no observation (changed — was true under the per-mode rule).
   assert.equal(
     canObserveLiveRoom(
@@ -159,6 +159,7 @@ test('canObserveLiveRoom returns false for every live mode and true only when fi
           seat: 'black',
         },
       ]),
+      'dark-chess',
     ),
     false,
   );
@@ -182,6 +183,7 @@ test('canObserveLiveRoom returns false for every live mode and true only when fi
           seat: 'black',
         },
       ]),
+      'dark-chess',
     ),
     false,
   );
@@ -194,9 +196,35 @@ test('canObserveLiveRoom returns false for every live mode and true only when fi
         roomCreated,
         { type: 'clock-expired', at: 2, roomId: 'policy-room', color: 'white', clock },
       ]),
+      'dark-chess',
     ),
     true,
   );
+});
+
+test('canObserveLiveRoom admits a live room iff the spec hides nothing', () => {
+  // The room URL now asks the same question Mistboard TV asks before broadcasting
+  // (liveObservePolicy), instead of being blanket-closed to every live game.
+  const live = (gameSpecId: string): boolean =>
+    canObserveLiveRoom(
+      replayGameEvents([
+        { type: 'room-created', at: 1, roomId: 'policy-room', variant: 'dark-chess', offer: [] },
+      ]),
+      gameSpecId,
+    );
+
+  // 'open': nothing hidden, so a live board is servable to anyone.
+  assert.equal(live('xiangqi'), true);
+  assert.equal(live('jungle'), true);
+  assert.equal(live('fortress-xiangqi'), true);
+  // 'masked': hidden-identity is symmetric, but the redacted spectator views are
+  // not built yet, so it stays closed while live (it opens at completion).
+  assert.equal(live('jungle-flip'), false);
+  assert.equal(live('banqi'), false);
+  // 'sealed': fog leaks on any pre-completion release.
+  assert.equal(live('dark-xiangqi'), false);
+  // Fail-closed on an id the spec registry cannot resolve.
+  assert.equal(live('not-a-real-variant'), false);
 });
 
 test('finished persisted events are public replay data', () => {

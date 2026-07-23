@@ -45,23 +45,25 @@ test('Crossroads Chess WebSocket handler assigns white and red seats with hello 
   });
 });
 
-test('Crossroads Chess WebSocket handler rejects a third live client (production)', async () => {
+test('Crossroads Chess WebSocket handler admits a third live client as a spectator', async () => {
   await withFlag(async () => {
     const room = liveRoom('dchess_full');
     await connect(room, new FakeSocket(), 'white-client');
     await connect(room, new FakeSocket(), 'red-client');
     const third = new FakeSocket();
 
-    // The debug-authorized spectator fallback (variant-tenant/ws.ts) admits a
-    // tokenless visitor to a full room ONLY in a non-production runtime (or with
-    // an admin debug token). Pin the production fail-closed path here: a real
-    // third user still gets closed 1008. Dev spectator admission is covered by
-    // variant-tenant/ws-spectator.test.ts.
+    // Crossroads Chess is an 'open' spec: nothing is hidden, so a live board is
+    // servable to anyone and the room admits a READ-ONLY spectator even in
+    // production with no admin token. This supersedes the previous blanket
+    // fail-closed expectation — the room URL now answers the same question
+    // Mistboard TV does (liveObservePolicy) instead of refusing every live
+    // observer regardless of variant. Fog and hidden-identity specs still close
+    // 1008 while live; see variant-tenant/ws-spectator.test.ts.
     await withProductionRuntime(() => connect(room, third, 'third-client'));
 
-    assert.equal(third.closedCode, 1008);
-    assert.equal(third.closedReason, 'private room');
-    assert.equal(third.messages.length, 0);
+    assert.equal(third.closedCode, undefined);
+    assert.equal(third.closedReason, undefined);
+    assert.ok(third.messages.length > 0, 'the spectator received a hello frame');
     clearCrossroadsChessRuntimeTimers(room);
   });
 });

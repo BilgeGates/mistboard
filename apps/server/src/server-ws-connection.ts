@@ -162,7 +162,7 @@ export async function handleWebSocketConnection(
     socket.close(1008, 'rated requires account');
     return;
   }
-  if (seat === 'spectator' && !solo && !canObserveLiveRoom(room.projection)) {
+  if (seat === 'spectator' && !solo && !canObserveLiveRoom(room.projection, room.gameSpecId)) {
     socket.close(1008, 'private room');
     return;
   }

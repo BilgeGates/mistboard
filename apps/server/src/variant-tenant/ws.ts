@@ -21,6 +21,7 @@ import { currentAccountUser } from '../account-session.js';
 import { logger, wsCounters } from '../obs.js';
 import {
   adminDebugTokenFromProtocolHeader,
+  canObserveRoom,
   isAdminDebugToken,
   isProductionLikeRuntime,
   recordMessageTimestamp,
@@ -187,13 +188,20 @@ export function createTenantWsRuntime<
     const seatToken = seatTokenFromProtocolHeader(request.headers['sec-websocket-protocol']);
     const assignment = assignTenantSeat(tenant, room, clientId, seatToken, accountUser);
     if (!assignment.ok) {
-      // Debug-authorized spectator fallback: a full private room (both seats
-      // taken) admits a read-only spectator when the runtime is non-production
-      // or the request carries an admin debug token. Same rule as
-      // isDebugViewAuthorized in server-ws-connection.ts. Every other rejection
-      // reason (rated/correspondence account gates) still closes fail-closed,
-      // and production without the token stays fail-closed for 'private room'.
-      if (assignment.reason === 'private room' && isDebugViewAuthorized(request)) {
+      // Spectator admission on a full room, via two independent routes:
+      //  - canObserveRoom: the spec hides nothing while live, or the game has
+      //    finished, so anyone may watch. This is the same predicate Mistboard TV
+      //    consults before broadcasting a live board, so the room URL and TV now
+      //    agree instead of the room being blanket-closed. Fog and hidden-identity
+      //    are refused here while live and open at completion.
+      //  - isDebugViewAuthorized: dev runtime or an admin token, which also reaches
+      //    rooms the policy refuses (dev /game-sheet spectates seeded corpus rooms).
+      // Every other rejection reason (rated/correspondence account gates) still
+      // closes fail-closed.
+      const observable =
+        canObserveRoom(room.projection.state.status.type === 'finished', tenant.gameSpecId) ||
+        isDebugViewAuthorized(request);
+      if (assignment.reason === 'private room' && observable) {
         joinAsSpectator(ctx, socket, room, clientId, accountUser?.id ?? null);
         return;
       }

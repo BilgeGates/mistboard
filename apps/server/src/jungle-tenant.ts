@@ -70,37 +70,27 @@ function isJungleMove(value: unknown): value is JungleMove {
   return isJungleSquare(move.from) && isJungleSquare(move.to);
 }
 
-// Perfect information: positions + moves are public to both seats, so wire events
-// pass through unchanged (just stamping move-played with its ply). Spectators get
-// no events for now (/room/ never reveals).
+// Perfect information: positions + moves are public, so wire events pass through
+// unchanged for EVERY seat including spectators (just stamping move-played with
+// its ply). Jungle hides nothing, so a spectator has nothing to leak — this
+// matches xiangqi, the open-info reference tenant.
 export function jungleClientEventFor(
   event: TenantRoomEvent<JungleColor, JungleMove, typeof JUNGLE_SPEC_ID>,
-  seat: TenantSeat<JungleColor>,
+  _seat: TenantSeat<JungleColor>,
   ply: number,
 ): TenantClientEvent<JungleColor, JungleMove, typeof JUNGLE_SPEC_ID> | null {
-  if (seat === 'spectator') return null;
   if (event.type === 'move-played') return { ...event, ply };
   return event;
 }
 
-function emptyJungleView(state: JungleGameState): JunglePlayerView {
-  return {
-    id: state.id,
-    perspective: 'red',
-    board: {},
-    visibleSquares: [],
-    legalMoves: [],
-    status: state.status,
-    moveNumber: state.moveNumber,
-    lastMove: undefined,
-  };
-}
-
+// Open info: the full truth board for the seat's perspective. Spectators get red's
+// perspective, which is safe by construction — it is exactly what a seated player
+// already sees, and jungle has no per-seat hidden state to differ on.
 export function getJungleClientView(
   state: JungleGameState,
   client: TenantSnapshotClient<JungleColor>,
 ): JunglePlayerView {
-  if (client.seat === 'spectator') return emptyJungleView(state);
+  if (client.seat === 'spectator') return getJunglePlayerView(state, 'red');
   return getJunglePlayerView(state, client.seat);
 }
 

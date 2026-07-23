@@ -8,9 +8,10 @@ import {
   type VisibilityRulesId,
 } from '@mistboard/game';
 
-// Visibility rule: live games are visible only to seated players; finished
-// games are public via replay endpoints. This is enforced at two layers —
-// connection accept (canObserveLiveRoom) and replay HTTP (eventReplayResponse).
+// Visibility rule: a finished game is public via replay endpoints; a LIVE game
+// is observable only when its spec hides nothing (liveObservePolicy === 'open').
+// Enforced at two layers — connection accept (canObserveLiveRoom) and replay
+// HTTP (eventReplayResponse).
 
 export type GameAccessMode = 'pvp' | 'pve' | 'eve' | 'imported' | 'manual';
 
@@ -70,8 +71,26 @@ export function isServerEngineClient(clientId: string | undefined): boolean {
   );
 }
 
-export function canObserveLiveRoom(projection: GameProjection): boolean {
-  return projection.state.status.type === 'finished';
+// May a non-seated client join this room's socket? A finished game is public for
+// every spec (the replay/review surfaces already serve it). An IN-PROGRESS game
+// is observable only when the spec hides nothing, which is the same question
+// Mistboard TV asks before broadcasting a live board — so the room URL and TV now
+// agree instead of the room being blanket-closed. Fog and hidden-identity stay
+// closed while live; they open at completion, via this same finished branch.
+//
+// Defined below canServeLiveBoard's policy table on purpose: that switch is
+// exhaustive over VisibilityRulesId, so a new visibility class fails the build
+// rather than silently defaulting to observable here.
+export function canObserveRoom(isFinished: boolean, gameSpecId: string): boolean {
+  if (isFinished) return true;
+  return canServeLiveBoard(gameSpecId);
+}
+
+// GameProjection-shaped wrapper for the legacy chess room path. Variant-tenant
+// rooms carry their own projection type and call canObserveRoom directly, so both
+// socket paths decide admission with the same predicate.
+export function canObserveLiveRoom(projection: GameProjection, gameSpecId: string): boolean {
+  return canObserveRoom(projection.state.status.type === 'finished', gameSpecId);
 }
 
 // Per-visibility-class live-observation policy for Mistboard TV. This is the
