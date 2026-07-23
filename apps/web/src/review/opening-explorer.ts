@@ -43,9 +43,18 @@ export type OpeningExplorer = {
   el: HTMLElement;
   /** Point the panel at a position; null clears it. Safe to call on every navigation. */
   setState(state: XiangqiGameState | null): void;
+  /**
+   * Whether the panel is on screen. It starts INACTIVE and queries nothing until
+   * told otherwise: the underboard opens on Computer analysis, so a reader who
+   * never opens this tab would otherwise spend one request per ply scrubbed on a
+   * panel they never see. Activating catches up to the current position.
+   */
+  setActive(active: boolean): void;
 };
 
 const MAX_ROWS = 12;
+/** Below this many decided games the result bar is shown, but de-emphasized. */
+const MIN_DECIDED_FOR_BAR = 5;
 
 export function createOpeningExplorer(): OpeningExplorer {
   const el = document.createElement('div');
@@ -69,8 +78,33 @@ export function createOpeningExplorer(): OpeningExplorer {
   let currentKey: string | null = null;
   let currentState: XiangqiGameState | null = null;
   let inFlight: AbortController | null = null;
+  let active = false;
+  // The position we would be showing if we were on screen. While inactive the
+  // panel keeps tracking the board but does no work; activating renders this.
+  let pendingState: XiangqiGameState | null = null;
+
+  function setActive(next: boolean): void {
+    if (active === next) return;
+    active = next;
+    if (!active) {
+      // Nothing in flight can matter to a panel nobody is looking at.
+      inFlight?.abort();
+      return;
+    }
+    const state = pendingState;
+    pendingState = null;
+    if (state) show(state);
+  }
 
   function setState(state: XiangqiGameState | null): void {
+    if (!active) {
+      pendingState = state;
+      return;
+    }
+    show(state);
+  }
+
+  function show(state: XiangqiGameState | null): void {
     currentState = state;
     if (!state) {
       currentKey = null;
@@ -129,7 +163,7 @@ export function createOpeningExplorer(): OpeningExplorer {
     });
   }
 
-  return { el, setState };
+  return { el, setState, setActive };
 }
 
 function moveRow(
@@ -155,6 +189,13 @@ function moveRow(
   // Decided games only: an unknown result says nothing about who was better,
   // so it must not be silently drawn as a draw.
   const decided = row.redWins + row.blackWins + row.draws;
+  // A full-width bar off two games looks exactly like one off four hundred. Past
+  // the first few plies most positions are this thin, so de-emphasize the bar
+  // below the threshold rather than letting a 100% block read as a result.
+  if (decided > 0 && decided < MIN_DECIDED_FOR_BAR) {
+    bar.classList.add('opening-explorer__bar--thin');
+    bar.title = `Only ${decided} decided ${decided === 1 ? 'game' : 'games'}: too few to read as a score`;
+  }
   if (decided > 0) {
     for (const [kind, value] of [
       ['red', row.redWins],

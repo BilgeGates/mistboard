@@ -286,7 +286,12 @@ export type TreeReviewConfig<Move, Truth = never> = {
   /** Opening-explorer panel for surfaces with a game corpus behind them. Kept
    *  fully opaque here (an element plus a per-node setter) so this controller
    *  stays variant-neutral: the caller owns the variant types and the lookup. */
-  explorer?: { el: HTMLElement; setTruth(truth: Truth): void };
+  explorer?: {
+    el: HTMLElement;
+    setTruth(truth: Truth): void;
+    /** Called with whether the explorer's underboard tab is the visible one. */
+    setActive(active: boolean): void;
+  };
   /** Game result appended to the move list as a terminal block (lichess: "0-1"
    *  over the termination line). Postgame surfaces supply it; the analysis board
    *  (no finished game) omits it. */
@@ -653,6 +658,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     hasAnalysis: Boolean(config.analysis),
     provenance: config.provenance,
     explorer: config.explorer?.el,
+    onTabChange: (id) => config.explorer?.setActive(id === 'explorer'),
     moveTimes: config.moveTimes,
     seatColors: config.seatColors,
     players: config.showCrosstable ? (config.players ?? {}) : undefined,

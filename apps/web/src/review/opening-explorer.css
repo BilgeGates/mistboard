@@ -80,3 +80,9 @@
     gap: 8px;
   }
 }
+
+/* Too few decided games to read as a score: keep the shape, drop the weight, so
+   a 100%-red bar off two games cannot be mistaken for a verdict. */
+.opening-explorer__bar--thin {
+  opacity: 0.3;
+}

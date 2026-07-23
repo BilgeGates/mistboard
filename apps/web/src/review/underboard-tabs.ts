@@ -31,6 +31,11 @@ export type UnderboardOptions = {
   /** Live move-export textarea, refreshed by the caller on every navigation. */
   shareMovesInput: HTMLTextAreaElement;
   gameUrl: string;
+  /** Fired with the newly shown tab id, including the initial one. Lets a tab
+   *  body defer work until it is actually on screen — the explorer only queries
+   *  its corpus while visible, instead of on every navigation for every reader
+   *  who never opens it. */
+  onTabChange?(id: string): void;
 };
 
 type UnderboardTab = { id: string; label: string; body: HTMLElement };
@@ -76,6 +81,7 @@ export function underboardPanel(analysisBody: HTMLElement, opts: UnderboardOptio
       def.body.hidden = !active;
       buttons.get(def.id)?.classList.toggle('review-underboard-tab--active', active);
     }
+    opts.onTabChange?.(id);
   };
   for (const def of tabDefs) {
     const button = document.createElement('button');

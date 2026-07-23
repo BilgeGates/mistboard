@@ -20,6 +20,7 @@ describe('opening explorer', () => {
 
     const explorer = createOpeningExplorer();
     document.body.append(explorer.el);
+    explorer.setActive(true);
     explorer.setState(createInitialXiangqiState('t'));
     await flushPromises();
 
@@ -39,6 +40,7 @@ describe('opening explorer', () => {
 
     const explorer = createOpeningExplorer();
     document.body.append(explorer.el);
+    explorer.setActive(true);
     explorer.setState(createInitialXiangqiState('t'));
     await flushPromises();
 
@@ -59,6 +61,7 @@ describe('opening explorer', () => {
 
     const explorer = createOpeningExplorer();
     document.body.append(explorer.el);
+    explorer.setActive(true);
     explorer.setState(createInitialXiangqiState('t'));
     await flushPromises();
 
@@ -76,6 +79,7 @@ describe('opening explorer', () => {
 
     const explorer = createOpeningExplorer();
     document.body.append(explorer.el);
+    explorer.setActive(true);
     explorer.setState(createInitialXiangqiState('t'));
     await flushPromises();
 
@@ -89,6 +93,7 @@ describe('opening explorer', () => {
 
     const explorer = createOpeningExplorer();
     document.body.append(explorer.el);
+    explorer.setActive(true);
     const start = createInitialXiangqiState('t');
     explorer.setState(start);
     await flushPromises();
@@ -109,6 +114,7 @@ describe('opening explorer', () => {
 
     const explorer = createOpeningExplorer();
     document.body.append(explorer.el);
+    explorer.setActive(true);
     const start = createInitialXiangqiState('t');
     explorer.setState(start);
     await flushPromises();
@@ -117,6 +123,65 @@ describe('opening explorer', () => {
 
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(String(fetchSpy.mock.calls[1]?.[0])).not.toContain(encodeURIComponent(START_KEY));
+  });
+
+  it('queries nothing until its tab is on screen', async () => {
+    const fetchSpy = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse(payload()),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const explorer = createOpeningExplorer();
+    document.body.append(explorer.el);
+    // The underboard opens on Computer analysis, so this is the common case:
+    // a reader scrubs a whole game and never opens the explorer.
+    const start = createInitialXiangqiState('t');
+    explorer.setState(start);
+    explorer.setState(applyStandardXiangqiMove(start, { from: 'h3', to: 'e3' } as XiangqiMove));
+    await flushPromises();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    // Opening the tab catches up to wherever the board now is, in one request.
+    explorer.setActive(true);
+    await flushPromises();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(String(fetchSpy.mock.calls[0]?.[0])).not.toContain(encodeURIComponent(START_KEY));
+  });
+
+  it('de-emphasizes a result bar backed by too few decided games', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({
+          position: START_KEY,
+          total: 2,
+          moves: [
+            {
+              from: 'h3',
+              to: 'e3',
+              games: 2,
+              redWins: 2,
+              blackWins: 0,
+              draws: 0,
+              unknowns: 0,
+              sampleGameIds: [],
+            },
+          ],
+          build: null,
+        }),
+      ),
+    );
+
+    const explorer = createOpeningExplorer();
+    document.body.append(explorer.el);
+    explorer.setActive(true);
+    explorer.setState(createInitialXiangqiState('t'));
+    await flushPromises();
+
+    // 2 decided games would otherwise render an unqualified 100% red bar.
+    const bar = explorer.el.querySelector('.opening-explorer__bar');
+    expect(bar?.classList.contains('opening-explorer__bar--thin')).toBe(true);
   });
 });
 
