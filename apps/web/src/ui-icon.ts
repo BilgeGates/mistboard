@@ -18,6 +18,7 @@ import {
   Store,
   Swords,
   Trophy,
+  User,
   Users,
 } from 'lucide';
 import './ui-icon.css';
@@ -35,6 +36,7 @@ export type UiIconName =
   | 'notification'
   | 'play-engine'
   | 'play-game'
+  | 'player-human'
   | 'store'
   | 'support';
 
@@ -52,6 +54,7 @@ const UI_ICON_NODES: Record<UiIconName, IconNode> = {
   notification: Bell,
   'play-engine': Bot,
   'play-game': Swords,
+  'player-human': User,
   store: Store,
   support: Heart,
 };

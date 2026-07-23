@@ -1,5 +1,6 @@
 import {
   BANQI_SPEC_ID,
+  CORRESPONDENCE_ELIGIBLE_SPEC_IDS,
   CROSSROADS_CHESS_SPEC_ID,
   canonicalVariantOrderIndex,
   DARK_CHESS_SPEC_ID,
@@ -60,6 +61,10 @@ type LandingPlayChoice = {
   // picked mode, carrying the variant selection and engine roster over.
   modeSwitcher?: boolean;
   ratedDisabled?: boolean;
+  // Open on the correspondence (days-per-move) side of the time-control toggle
+  // instead of real time. The Correspondence tab's own CTA uses it so the dialog
+  // it opens matches the tab the player clicked from.
+  initialTimeMode?: 'realtime' | 'correspondence';
   title: string;
 };
 type LandingPlayMode = 'lobby' | 'pvp' | 'pve';
@@ -528,6 +533,38 @@ function landingEngineSeeds(locale: Locale, now: Date = new Date()): LandingEngi
   }));
 }
 
+/** Opponent cell shared by every hook row: kind glyph, name, variant, and an
+ *  explicit Bot/Human tag. Bots and humans sit in one list (humans first), so
+ *  each row has to say what it is on its own rather than lean on a section
+ *  heading above it. */
+function lobbyPlayerCell(opts: {
+  kind: 'bot' | 'human';
+  name: string;
+  variantLabel: string;
+  locale: Locale;
+}): HTMLElement {
+  const player = document.createElement('span');
+  player.className = 'landing-lobby-seed-player';
+
+  const opponent = document.createElement('span');
+  opponent.className = 'landing-lobby-seed-opponent';
+  opponent.append(
+    buildUiIcon(opts.kind === 'bot' ? 'play-engine' : 'player-human', 'landing-lobby-seed-boticon'),
+    document.createTextNode(opts.name),
+  );
+
+  const variant = document.createElement('span');
+  variant.className = 'landing-lobby-seed-variant';
+  variant.textContent = opts.variantLabel;
+
+  const tag = document.createElement('span');
+  tag.className = `landing-lobby-kind landing-lobby-kind-${opts.kind}`;
+  tag.textContent = t(opts.kind === 'bot' ? 'lobby.tagBot' : 'lobby.tagHuman', {}, opts.locale);
+
+  player.append(opponent, variant, tag);
+  return player;
+}
+
 function engineSeedRow(seed: LandingEngineSeed, locale: Locale): HTMLElement {
   const row = document.createElement('button');
   row.type = 'button';
@@ -550,20 +587,12 @@ function engineSeedRow(seed: LandingEngineSeed, locale: Locale): HTMLElement {
     });
   }
 
-  // Player cell: bot icon (the honesty signal) + bot name, then the variant in
-  // muted text on the same line for lichess-hook density.
-  const player = document.createElement('span');
-  player.className = 'landing-lobby-seed-player';
-  const opponent = document.createElement('span');
-  opponent.className = 'landing-lobby-seed-opponent';
-  opponent.append(
-    buildUiIcon('play-engine', 'landing-lobby-seed-boticon'),
-    document.createTextNode(seed.botName),
-  );
-  const variant = document.createElement('span');
-  variant.className = 'landing-lobby-seed-variant';
-  variant.textContent = seed.variantLabel;
-  player.append(opponent, variant);
+  const player = lobbyPlayerCell({
+    kind: 'bot',
+    name: seed.botName,
+    variantLabel: seed.variantLabel,
+    locale,
+  });
 
   const rating = document.createElement('span');
   rating.className = 'landing-lobby-seed-rating';
@@ -573,12 +602,18 @@ function engineSeedRow(seed: LandingEngineSeed, locale: Locale): HTMLElement {
   time.className = 'landing-lobby-seed-time';
   time.textContent = timeControl ? timeControl.label.replace(/\s+/g, '') : '';
 
-  const cta = document.createElement('span');
-  cta.className = 'landing-lobby-seed-cta';
-  cta.setAttribute('aria-hidden', 'true');
-  cta.textContent = '▸';
+  // Mode cell (lichess's speed glyph + Casual/Rated). Bot games are always
+  // casual, and this cell doubles as the row's status slot: the one-click start
+  // swaps its contents for "Starting" / "Could not start".
+  const mode = document.createElement('span');
+  mode.className = 'landing-lobby-seed-cta landing-lobby-td-mode';
+  const idleMode = (): Node[] => [
+    ...(timeControl ? [buildSpeedIcon(timeControl.timeClass)] : []),
+    document.createTextNode(t('play.casual', {}, locale)),
+  ];
+  mode.append(...idleMode());
 
-  row.append(thumb, player, rating, time, cta);
+  row.append(thumb, player, rating, time, mode);
   bindBotPlayControl(
     row,
     () => ({
@@ -593,9 +628,9 @@ function engineSeedRow(seed: LandingEngineSeed, locale: Locale): HTMLElement {
     }),
     {
       onStateChange: (state) => {
-        if (state === 'pending') cta.textContent = t('lobby.botStarting', {}, locale);
-        else if (state === 'error') cta.textContent = t('lobby.botStartFailed', {}, locale);
-        else cta.textContent = '▸';
+        if (state === 'pending') mode.textContent = t('lobby.botStarting', {}, locale);
+        else if (state === 'error') mode.textContent = t('lobby.botStartFailed', {}, locale);
+        else mode.replaceChildren(...idleMode());
       },
     },
   );
@@ -636,6 +671,200 @@ function fillSeedRatings(seedsBlock: HTMLElement, bots: LandingBotRosterEntry[])
     if (!rating) continue;
     cell.textContent = `${Math.round(rating.rating)}${rating.provisional ? '?' : ''}`;
   }
+}
+
+// ── Quick pairing: promoted pools that START, not pickers that open a dialog ──
+// One row per flagship variant, one chip per time control it offers. A chip
+// click posts the open seek immediately (real pairing, waiting inline) and the
+// trailing Computer chip creates the bot room outright. Nothing here opens the
+// setup dialog: the whole point of the tab is to remove that step, so every
+// choice the dialog would ask for is baked into the cell you clicked (casual,
+// random color, standard start).
+const QUICK_PAIR_COLUMN_IDS: TimeControlId[] = ['1m1', '3m2', '5m5'];
+// How many variants get a promoted pool row. Order is the canonical product
+// order (xiangqi first since the 2026-07 pivot), so this promotes the top of the
+// catalog rather than a second hand-maintained ranking.
+const QUICK_PAIR_ROW_COUNT = 6;
+
+/** Which bot answers the row's Computer chip. The ladder rung for fortress
+ *  matches what the lobby seeds offer; everything else uses its house bot. */
+function quickPairBotId(gameSpecId: LandingGameSpecId): string | null {
+  if (!landingVariantSupportsPve(gameSpecId)) return null;
+  if (gameSpecId === XIANGQI_SPEC_ID || gameSpecId === JIEQI_SPEC_ID) return 'pikafish';
+  if (gameSpecId === FORTRESS_XIANGQI_SPEC_ID) return 'fairy-stockfish-level-3';
+  return 'misty';
+}
+
+function buildQuickPairPools(locale: Locale): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'landing-quickpair-pools';
+
+  const status = document.createElement('p');
+  status.className = 'landing-quickpair-status';
+  status.hidden = true;
+
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.className = 'landing-quickpair-cancel';
+  cancel.textContent = t('setup.cancel', {}, locale);
+  cancel.hidden = true;
+
+  // Only one seek at a time: starting a second pool cancels the first (and
+  // deletes its ticket) rather than queueing the player into two pools.
+  let cancelPending: (() => void) | null = null;
+  const chipResets: (() => void)[] = [];
+  const clearPending = (): void => {
+    cancelPending?.();
+    cancelPending = null;
+    for (const reset of chipResets) reset();
+    status.hidden = true;
+    status.textContent = '';
+    cancel.hidden = true;
+  };
+  cancel.addEventListener('click', clearPending);
+
+  const head = document.createElement('div');
+  head.className = 'landing-quickpair-row landing-quickpair-head';
+  const columns = QUICK_PAIR_COLUMN_IDS.map((id) =>
+    TIME_CONTROLS.find((spec) => spec.id === id),
+  ).filter((spec): spec is (typeof TIME_CONTROLS)[number] => Boolean(spec));
+  head.append(headCell(''), headCell(''));
+  for (const column of columns) head.append(headCell(column.label.replace(/\s+/g, '')));
+  head.append(headCell(t('play.opponentEngine', {}, locale)));
+  wrap.append(head);
+
+  for (const { gameSpecId, label } of enabledLandingVariantGameSpecs('pvp', locale).slice(
+    0,
+    QUICK_PAIR_ROW_COUNT,
+  )) {
+    const row = document.createElement('div');
+    row.className = 'landing-quickpair-row';
+    row.dataset.gameSpec = gameSpecId;
+
+    const thumb = document.createElement('span');
+    thumb.className = 'landing-lobby-seed-thumb';
+    thumb.setAttribute('aria-hidden', 'true');
+    const miniId = variantMiniIdForGameSpec(gameSpecId);
+    if (miniId) {
+      thumb.innerHTML = renderVariantMarker(miniId, { size: 100, label: `${label} marker` });
+    }
+    const name = document.createElement('span');
+    name.className = 'landing-quickpair-variant';
+    name.textContent = label;
+    row.append(thumb, name);
+
+    const allowed = allowedTimePresetIds(gameSpecId, false);
+    for (const column of columns) {
+      if (!allowed.has(column.id)) {
+        const gap = document.createElement('span');
+        gap.className = 'landing-quickpair-gap';
+        row.append(gap);
+        continue;
+      }
+      const chipLabel = column.label.replace(/\s+/g, '');
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'landing-quickpair-chip';
+      chip.dataset.timeControl = column.id;
+      chip.setAttribute('aria-label', `${label} ${chipLabel}`);
+      // The chip keeps showing its time control while waiting (the status line
+      // below and the highlighted chip carry the state). joinLobbyFromPlay
+      // writes its "Waiting" / "Try again" text into the first
+      // `.landing-play-action-label` it finds, so that node is a visually
+      // hidden live label rather than the chip's own text — otherwise the chip
+      // would resize and wrap mid-pool.
+      const chipText = document.createElement('span');
+      chipText.className = 'landing-quickpair-chip-text';
+      chipText.textContent = chipLabel;
+      const chipState = document.createElement('span');
+      chipState.className = 'landing-play-action-label landing-quickpair-chip-state';
+      chipState.textContent = chipLabel;
+      chip.append(chipText, chipState);
+      chipResets.push(() => {
+        chip.disabled = false;
+        chip.removeAttribute('aria-busy');
+        chip.classList.remove('is-waiting');
+        chipState.textContent = chipLabel;
+      });
+      chip.addEventListener('click', () => {
+        clearPending();
+        chip.classList.add('is-waiting');
+        status.hidden = false;
+        cancel.hidden = false;
+        // Quick pairing posts casual seeks: rated pairing still lives in the
+        // setup dialog, where the rated gate and its sign-in check are wired.
+        cancelPending = joinLobbyFromPlay(
+          chip,
+          {
+            gameSpecId,
+            startFormat: 'standard',
+            rated: false,
+            timeControl: { initialMs: column.initialMs, incrementMs: column.incrementMs },
+            preferredColor: 'random',
+          },
+          status,
+          locale,
+        );
+      });
+      row.append(chip);
+    }
+
+    const botId = quickPairBotId(gameSpecId);
+    if (botId) {
+      // Pick the pace the bot plays at: the row's blitz pool when it has one,
+      // otherwise its first offered control.
+      const botControl =
+        columns.find((column) => column.id === '3m2' && allowed.has(column.id)) ??
+        columns.find((column) => allowed.has(column.id));
+      const botChip = document.createElement('button');
+      botChip.type = 'button';
+      botChip.className = 'landing-quickpair-chip landing-quickpair-bot';
+      botChip.setAttribute('aria-label', `${t('play.playEngine', {}, locale)}: ${label}`);
+      botChip.append(
+        buildUiIcon('play-engine', 'landing-lobby-seed-boticon'),
+        document.createTextNode(botControl ? botControl.label.replace(/\s+/g, '') : ''),
+      );
+      bindBotPlayControl(
+        botChip,
+        () => ({
+          botId,
+          gameSpecId,
+          ...(botControl
+            ? {
+                timeControl: {
+                  initialMs: botControl.initialMs,
+                  incrementMs: botControl.incrementMs,
+                },
+              }
+            : {}),
+          preferredColor: 'random',
+        }),
+        {
+          pendingLabel: t('lobby.botStarting', {}, locale),
+          errorLabel: t('lobby.botStartFailed', {}, locale),
+        },
+      );
+      row.append(botChip);
+    } else {
+      const gap = document.createElement('span');
+      gap.className = 'landing-quickpair-gap';
+      row.append(gap);
+    }
+
+    wrap.append(row);
+  }
+
+  const statusRow = document.createElement('div');
+  statusRow.className = 'landing-quickpair-statusrow';
+  statusRow.append(status, cancel);
+  wrap.append(statusRow);
+  return wrap;
+}
+
+function headCell(label: string): HTMLElement {
+  const cell = document.createElement('span');
+  cell.textContent = label;
+  return cell;
 }
 
 // The homepage lobby board (lichess / PlayStrategy-shaped): three tabs over a
@@ -686,165 +915,66 @@ export function buildLobbyPanel(
     tabBar.append(button);
   }
 
-  // Lobby tab: our open seeks are anonymous on the wire (no player/rating), so the
-  // columns adapt to Game / Time / Mode rather than lichess's Player / Rating.
+  // Lobby tab: one lichess-shaped hook table. A single header sits at the top of
+  // the panel and every row below it (bots and humans alike) shares the same
+  // five-column grammar — marker / opponent / rating / time / mode — so the
+  // columns line up straight down the panel. Bots and humans share ONE list with
+  // human seeks on top; each row carries its own Bot/Human tag instead of
+  // sitting under a section heading. The first two header cells stay blank
+  // (lichess labels only the right-hand columns).
   const lobbyPanelEl = document.createElement('div');
-  lobbyPanelEl.className = 'landing-lobby-tabpanel';
+  lobbyPanelEl.className = 'landing-lobby-tabpanel landing-lobby-flush';
   lobbyPanelEl.setAttribute('role', 'tabpanel');
   const lobbyHead = document.createElement('div');
   lobbyHead.className = 'landing-lobby-thead';
   for (const label of [
-    t('lobby.colGame', {}, locale),
+    '',
+    '',
+    t('lobby.colRating', {}, locale),
     t('lobby.colTime', {}, locale),
     t('lobby.colMode', {}, locale),
-    '',
   ]) {
     const cell = document.createElement('span');
     cell.textContent = label;
     lobbyHead.append(cell);
   }
+  // Human seeks lead the list; the bot block below them keeps the surface
+  // populated at zero human liquidity. Two containers, one visual list: the
+  // human half re-renders on every poll while the bot half is built once (and
+  // decorated with ratings later), so they stay separate elements.
   const lobbyRows = document.createElement('div');
   lobbyRows.className = 'landing-lobby-tbody';
-  const lobbyPlaceholder = document.createElement('p');
-  lobbyPlaceholder.className = 'landing-lobby-empty';
-  lobbyPlaceholder.textContent = ' ';
-  lobbyRows.append(lobbyPlaceholder);
 
-  // Rotating bot-seek table: always-available computer opponents so the seeks
-  // tab is never empty. Sits above the (usually empty) human-seek table under a
-  // "Bots" divider strip so a bot offer is never mistaken for a human seek.
   const seeds = landingEngineSeeds(locale);
   const seedsBlock = document.createElement('div');
   seedsBlock.className = 'landing-lobby-seeds';
-  if (seeds.length > 0) {
-    const divider = document.createElement('div');
-    divider.className = 'landing-lobby-seeds-divider';
-    const dividerLabel = document.createElement('span');
-    dividerLabel.textContent = t('lobby.botsDivider', {}, locale);
-    divider.append(dividerLabel);
-    seedsBlock.append(divider);
-    for (const seed of seeds) seedsBlock.append(engineSeedRow(seed, locale));
-  }
+  for (const seed of seeds) seedsBlock.append(engineSeedRow(seed, locale));
 
-  lobbyPanelEl.append(seedsBlock, lobbyHead, lobbyRows);
+  lobbyPanelEl.append(lobbyHead, lobbyRows, seedsBlock);
+  // No human seeks simply means no human rows: the bot rows below carry the
+  // list, so an empty-state line would only add noise above them.
   const renderLobby = (requests: OpenLobbyRequest[]): void => {
-    lobbyRows.replaceChildren();
-    if (requests.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'landing-lobby-empty';
-      empty.textContent =
-        'No open challenges from other players yet. Play a bot above, or start your own.';
-      lobbyRows.append(empty);
-      return;
-    }
-    for (const request of requests) lobbyRows.append(lobbyTableRow(request, locale));
+    lobbyRows.replaceChildren(...requests.map((request) => lobbyTableRow(request, locale)));
   };
 
-  // Quick pairing tab: a variant quick-play grid. Pick the opponent kind
-  // (Computer / Friend) with the toggle, then a variant card opens the vetted
-  // setup dialog pre-set to that variant + mode (which owns time control, engine
-  // resolution, and color). This replaces three time-preset tiles that floated in
-  // a mostly-empty panel; leading with the variant catalog fills the space with
-  // the differentiated, always-populated surface, and time selection stays in the
-  // dialog where the per-tenant allowlist is authoritative.
+  // Quick pairing tab: the variant catalog, filling the panel edge to edge (no
+  // inset card inside the card). A variant opens the vetted setup dialog, which
+  // owns the opponent choice via its own Computer / A friend / Anyone switcher,
+  // plus time control, engine resolution, and color. The tab used to carry its
+  // own Computer/Friend toggle at the bottom; that duplicated the dialog's
+  // switcher, so the card just opens the dialog on the mode the variant can
+  // actually serve (engine when it has one, otherwise a friend challenge).
   const quickPanelEl = document.createElement('div');
-  quickPanelEl.className = 'landing-lobby-tabpanel landing-lobby-quickpair';
+  quickPanelEl.className = 'landing-lobby-tabpanel landing-lobby-flush landing-lobby-quickpair';
   quickPanelEl.setAttribute('role', 'tabpanel');
   quickPanelEl.hidden = true;
 
-  let quickMode: 'pve' | 'pvp' = 'pve';
-  const quickModeButtons = new Map<'pve' | 'pvp', HTMLButtonElement>();
-  const quickVariantCards: {
-    gameSpecId: LandingGameSpecId;
-    card: HTMLButtonElement;
-    badge: HTMLElement;
-  }[] = [];
-
-  const syncQuickPlay = (): void => {
-    for (const [mode, button] of quickModeButtons) {
-      const on = mode === quickMode;
-      button.classList.toggle('selected', on);
-      button.setAttribute('aria-checked', on ? 'true' : 'false');
-    }
-    // Computer mode greys variants with no engine yet (same rule as the dialog's
-    // own variant grid); Friend mode enables every playable variant.
-    for (const { gameSpecId, card, badge } of quickVariantCards) {
-      const disabled = quickMode === 'pve' && !landingVariantSupportsPve(gameSpecId);
-      card.disabled = disabled;
-      card.classList.toggle('landing-variant-card-disabled', disabled);
-      card.setAttribute('aria-disabled', disabled ? 'true' : 'false');
-      badge.hidden = !disabled;
-    }
-  };
-
-  const quickGrid = document.createElement('div');
-  quickGrid.className = 'landing-variant-grid landing-quickplay-grid';
-  quickGrid.setAttribute('aria-label', t('setup.variant', {}, locale));
-  for (const { gameSpecId, label } of enabledLandingVariantGameSpecs('pve', locale)) {
-    const card = document.createElement('button');
-    card.type = 'button';
-    card.className = 'landing-variant-card';
-    card.dataset.gameSpec = gameSpecId;
-    const miniId = variantMiniIdForGameSpec(gameSpecId);
-    if (miniId) {
-      const thumb = document.createElement('span');
-      thumb.className = 'landing-variant-card-thumb';
-      thumb.innerHTML = renderVariantMarker(miniId, { size: 100, label: `${label} marker` });
-      card.append(thumb);
-    }
-    const name = document.createElement('span');
-    name.className = 'landing-variant-card-name';
-    name.textContent = label;
-    const badge = document.createElement('span');
-    badge.className = 'landing-variant-card-badge';
-    badge.textContent = t('setup.soon', {}, locale);
-    badge.hidden = true;
-    card.append(name, badge);
-    card.addEventListener('click', () => {
-      if (card.disabled) return;
-      openLandingSetupDialog({
-        locale,
-        mode: quickMode,
-        modeSwitcher: true,
-        initialGameSpecId: gameSpecId,
-        title:
-          quickMode === 'pve'
-            ? t('play.playEngine', {}, locale)
-            : t('play.challengeFriend', {}, locale),
-      });
-    });
-    quickVariantCards.push({ gameSpecId, card, badge });
-    quickGrid.append(card);
-  }
-
-  const quickModeToggle = document.createElement('div');
-  quickModeToggle.className = 'landing-start-options landing-quickplay-mode';
-  quickModeToggle.setAttribute('role', 'radiogroup');
-  quickModeToggle.setAttribute('aria-label', t('setup.gameType', {}, locale));
-  for (const [mode, optionLabel] of [
-    ['pve', t('play.playEngine', {}, locale)],
-    ['pvp', t('play.challengeFriend', {}, locale)],
-  ] as const) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'landing-start-option';
-    button.setAttribute('role', 'radio');
-    button.textContent = optionLabel;
-    button.addEventListener('click', () => {
-      quickMode = mode;
-      syncQuickPlay();
-    });
-    quickModeButtons.set(mode, button);
-    quickModeToggle.append(button);
-  }
-
-  syncQuickPlay();
-  quickPanelEl.append(quickGrid, quickModeToggle);
+  quickPanelEl.append(buildQuickPairPools(locale));
 
   // Correspondence tab: open days-per-move seeks (they carry a creator name). A row
   // links to the challenge/accept page.
   const corrPanelEl = document.createElement('div');
-  corrPanelEl.className = 'landing-lobby-tabpanel';
+  corrPanelEl.className = 'landing-lobby-tabpanel landing-lobby-flush';
   corrPanelEl.setAttribute('role', 'tabpanel');
   corrPanelEl.hidden = true;
   const corrRows = document.createElement('div');
@@ -874,10 +1004,15 @@ export function buildLobbyPanel(
   panels.set('lobby', lobbyPanelEl);
   panels.set('quick', quickPanelEl);
   panels.set('correspondence', corrPanelEl);
+  // The tab strip sits ABOVE the framed card (lichess anatomy), so the card
+  // holds only the active panel and the tabs read as page chrome.
   const bodyWrap = document.createElement('div');
   bodyWrap.className = 'landing-lobby-body';
   bodyWrap.append(lobbyPanelEl, quickPanelEl, corrPanelEl);
-  board.append(tabBar, bodyWrap);
+  const card = document.createElement('div');
+  card.className = 'landing-lobby-card';
+  card.append(bodyWrap);
+  board.append(tabBar, card);
   selectTab('lobby');
 
   if (options.hydrate !== false) {
@@ -943,9 +1078,25 @@ function buildSpeedIcon(timeClass: 'bullet' | 'blitz' | 'rapid' | 'classical'): 
   return icon;
 }
 
+/** The correspondence-eligible variant to open the tab's own CTA on: the first
+ *  member of the shared allowlist that is actually offered in the play menu,
+ *  in canonical (product) order. Without this the dialog opened on whatever
+ *  variant was last played and showed real-time clocks only. */
+function defaultCorrespondenceGameSpecId(locale: Locale): LandingGameSpecId {
+  const offered = new Set(
+    enabledLandingVariantGameSpecs('lobby', locale).map((option) => option.gameSpecId),
+  );
+  const eligible = (CORRESPONDENCE_ELIGIBLE_SPEC_IDS as readonly string[])
+    .filter((id): id is LandingGameSpecId => offered.has(id as LandingGameSpecId))
+    .sort((a, b) => canonicalVariantOrderIndex(a) - canonicalVariantOrderIndex(b));
+  return eligible[0] ?? DARK_CHESS_SPEC_ID;
+}
+
 // Centered empty state for the correspondence tab: the "no open games" line plus
-// a primary CTA that opens the Find-opponent setup dialog (posting an open seek
-// there is what populates this very tab).
+// a primary CTA that opens the Find-opponent setup dialog ON THE CORRESPONDENCE
+// segment (posting an open seek there is what populates this very tab). It used
+// to open the plain real-time dialog, so the tab offered 1+1 / 3+2 / 5+5 clocks
+// and no days-per-move option at all.
 function correspondenceEmptyState(locale: Locale): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'landing-lobby-empty-cta';
@@ -961,7 +1112,10 @@ function correspondenceEmptyState(locale: Locale): HTMLElement {
       locale,
       mode: 'lobby',
       title: t('play.findOpponent', {}, locale),
-      ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
+      initialGameSpecId: defaultCorrespondenceGameSpecId(locale),
+      initialTimeMode: 'correspondence',
+      // Correspondence is casual-only, so the rated toggle never applies here.
+      ratedDisabled: true,
     });
   });
   wrap.append(message, create);
@@ -969,7 +1123,12 @@ function correspondenceEmptyState(locale: Locale): HTMLElement {
 }
 
 function lobbyTableRow(request: OpenLobbyRequest, locale: Locale): HTMLElement {
-  const row = document.createElement('div');
+  // The whole row is the join control (lichess hooks have no per-row button):
+  // clicking anywhere on it enters the pairing pool. The mode cell carries a
+  // `landing-play-action-label` span so setButtonLabel writes the waiting /
+  // retry text into that one cell instead of wiping the row's columns.
+  const row = document.createElement('button');
+  row.type = 'button';
   row.className = 'landing-lobby-trow';
   const specId = parseLandingGameSpecId(request.gameSpecId ?? DARK_CHESS_SPEC_ID);
   const gameLabel =
@@ -978,30 +1137,49 @@ function lobbyTableRow(request: OpenLobbyRequest, locale: Locale): HTMLElement {
         ? t('setup.darkDraft960', {}, locale)
         : t('play.standard', {}, locale)
       : variantLabelForGameSpec(specId, locale);
-  const game = document.createElement('span');
-  game.className = 'landing-lobby-td landing-lobby-td-game';
-  game.textContent = gameLabel;
+  const thumb = document.createElement('span');
+  thumb.className = 'landing-lobby-seed-thumb';
+  thumb.setAttribute('aria-hidden', 'true');
+  const miniId = variantMiniIdForGameSpec(specId);
+  if (miniId) {
+    thumb.innerHTML = renderVariantMarker(miniId, { size: 100, label: `${gameLabel} marker` });
+  }
+  // Open seeks are anonymous on the wire, so the opponent reads "Anonymous" with
+  // the same cell grammar (and an explicit Human tag) the bot rows use.
+  const game = lobbyPlayerCell({
+    kind: 'human',
+    name: t('lobby.anonymous', {}, locale),
+    variantLabel: gameLabel,
+    locale,
+  });
+  // Open seeks are anonymous on the wire (no creator, no rating), so the rating
+  // column holds the same em dash the unrated bot rows use.
+  const rating = document.createElement('span');
+  rating.className = 'landing-lobby-td landing-lobby-seed-rating';
+  rating.textContent = '—';
   const time = document.createElement('span');
-  time.className = 'landing-lobby-td landing-lobby-td-time';
+  time.className = 'landing-lobby-td landing-lobby-seed-time';
   const timeClass = classifyTimeControl(
     request.timeControl.initialMs,
     request.timeControl.incrementMs,
   );
-  time.append(
-    buildSpeedIcon(timeClass),
-    document.createTextNode(formatTimeControl(request.timeControl)),
-  );
+  // Same tight "3+2" shape the bot rows use, so the column reads as one list.
+  time.textContent = formatTimeControl(request.timeControl).replace(/\s+/g, '');
   const mode = document.createElement('span');
-  mode.className = 'landing-lobby-td';
-  mode.textContent =
+  mode.className = 'landing-lobby-td landing-lobby-td-mode';
+  const modeLabel = document.createElement('span');
+  modeLabel.className = 'landing-play-action-label';
+  modeLabel.textContent =
     request.rated === false ? t('play.casual', {}, locale) : t('play.rated', {}, locale);
-  const join = document.createElement('button');
-  join.type = 'button';
-  join.className = 'landing-lobby-join';
-  join.textContent = t('play.join', {}, locale);
+  mode.append(buildSpeedIcon(timeClass), modeLabel);
+  row.setAttribute(
+    'aria-label',
+    `${t('play.join', {}, locale)}: ${gameLabel} ${formatTimeControl(request.timeControl)}`,
+  );
+  const join = row;
   join.addEventListener('click', () => {
     join.disabled = true;
-    join.textContent = t('play.joining', {}, locale);
+    modeLabel.textContent = t('play.joining', {}, locale);
     const status = document.createElement('span');
     const setup: LandingRoomSetup = {
       gameSpecId: specId,
@@ -1015,15 +1193,16 @@ function lobbyTableRow(request: OpenLobbyRequest, locale: Locale): HTMLElement {
     // queueing invisibly.
     joinLobbyFromPlay(join, setup, status, locale, undefined, {
       onNoInstantMatch: () => {
-        join.textContent = t('play.offerTaken', {}, locale);
+        modeLabel.textContent = t('play.offerTaken', {}, locale);
         window.setTimeout(() => {
           join.disabled = false;
-          join.textContent = t('play.join', {}, locale);
+          modeLabel.textContent =
+            request.rated === false ? t('play.casual', {}, locale) : t('play.rated', {}, locale);
         }, 2000);
       },
     });
   });
-  row.append(game, time, mode, join);
+  row.append(thumb, game, rating, time, mode);
   return row;
 }
 
@@ -1043,8 +1222,11 @@ async function fetchCorrespondenceSeeks(): Promise<LobbyCorrespondenceSeek[]> {
 }
 
 function corrSeekRow(seek: LobbyCorrespondenceSeek, locale: Locale): HTMLElement {
+  // Correspondence seeks carry a creator name and no rating, so they keep their
+  // own four-column grammar (player / game / pace / action) rather than the
+  // real-time table's five.
   const row = document.createElement('div');
-  row.className = 'landing-lobby-trow';
+  row.className = 'landing-lobby-trow landing-lobby-trow-corr';
   const who = document.createElement('span');
   who.className = 'landing-lobby-td landing-lobby-td-game';
   who.textContent = seek.creatorName ?? t('lobby.anonymous', {}, locale);
@@ -1242,9 +1424,13 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   existing?.remove();
 
   const storedPreference = loadSetupPreference(choice.mode);
+  const wantsCorrespondence = choice.initialTimeMode === 'correspondence';
   let startFormat: LandingStartFormat = storedPreference.startFormat ?? 'standard';
+  // Correspondence is casual-only, so opening on that segment implies casual.
   let rated =
-    choice.mode === 'pve' || choice.ratedDisabled ? false : (storedPreference.rated ?? true);
+    choice.mode === 'pve' || choice.ratedDisabled || wantsCorrespondence
+      ? false
+      : (storedPreference.rated ?? true);
   let selectedGameSpecId: LandingGameSpecId =
     choice.initialGameSpecId ?? storedPreference.gameSpecId ?? DARK_CHESS_SPEC_ID;
   const publicVariantOptions = enabledLandingVariantGameSpecs(choice.mode, locale);
@@ -1273,11 +1459,15 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   // Non-null when a correspondence (days-per-move) option is chosen — it takes
   // over from the real-time preset above. Only offered for Challenge-a-friend
   // and Find opponent on casual dark chess.
-  let selectedCorrespondenceDays: number | null = null;
+  let selectedCorrespondenceDays: number | null = wantsCorrespondence
+    ? DEFAULT_CORRESPONDENCE_DAYS
+    : null;
   // Which side of the time-control segmented toggle is active. Drives whether the
   // real-time presets or the correspondence day-chips show; only ever flips to
   // 'correspondence' when that segment is actually offered (correspondenceAvailable).
-  let selectedTimeMode: 'realtime' | 'correspondence' = 'realtime';
+  let selectedTimeMode: 'realtime' | 'correspondence' = wantsCorrespondence
+    ? 'correspondence'
+    : 'realtime';
   // Engine choice is remembered per variant rather than sharing one slot across
   // all PvE variants. Seed from the stored per-variant map; migrate the legacy
   // single engineId onto the variant the dialog opens on (the last one played) so
@@ -1561,9 +1751,14 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     return { button, option };
   });
 
+  // Which variants may be played by correspondence is a shared product list in
+  // @mistboard/game (the server's fail-closed allowlist reads the same array).
+  // This used to hard-code dark chess, which silently drifted when xiangqi
+  // joined the list on 2026-07-04: the Correspondence tab's own "Create a game"
+  // opened on a non-eligible variant and offered nothing but real-time clocks.
   const correspondenceAvailable = () =>
     (choice.mode === 'pvp' || choice.mode === 'lobby') &&
-    selectedGameSpecId === DARK_CHESS_SPEC_ID &&
+    (CORRESPONDENCE_ELIGIBLE_SPEC_IDS as readonly string[]).includes(selectedGameSpecId) &&
     !rated &&
     correspondenceEnabled();
 

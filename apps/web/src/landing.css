@@ -299,6 +299,11 @@
 }
 
 .landing-lobby-board {
+  /* Shared hook-table geometry: header, bot seeds, and human seeks all lay out
+     on these columns (marker / opponent / rating / time / mode). */
+  --landing-hook-columns: 24px minmax(0, 1fr) 52px 54px 84px;
+  --landing-hook-pad: 14px;
+
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -306,6 +311,15 @@
      is the tallest element in the band, so its height sets that boundary (nav +
      stage padding make up the rest). */
   min-height: clamp(460px, 60vh, 680px);
+}
+
+/* The framed card holds only the active panel; the tab strip above it is page
+   chrome sitting on the stage background (lichess anatomy). */
+.landing-lobby-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
   border: 1px solid var(--site-border-soft);
   border-radius: var(--site-radius);
   background: var(--site-panel);
@@ -316,21 +330,19 @@
    just muted labels with an accent underline bar under the active tab. */
 .landing-lobby-tabs {
   display: flex;
-  border-bottom: 1px solid var(--site-border-soft);
+  padding: 0 2px 6px;
 }
 
 .landing-lobby-tab {
   flex: 1;
-  padding: 14px 10px 12px;
+  padding: 4px 10px 8px;
   border: 0;
-  /* Overlap the tab strip's bottom border so the active underline sits on it. */
   border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
   background: none;
   color: var(--site-muted);
   font: inherit;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: color 0.15s ease;
 }
@@ -342,6 +354,7 @@
 .landing-lobby-tab.is-active {
   color: var(--site-accent-strong);
   border-bottom-color: var(--site-accent-strong);
+  font-weight: 600;
 }
 
 .landing-lobby-body {
@@ -363,73 +376,65 @@
   display: none;
 }
 
-/* Rotating bot-seek table at the top of the Lobby tab: always-available bot
-   opponents at lichess-hook density so the seeks surface is never empty. A
-   centered "Bots" divider strip plus a hairline below keep a bot offer from
-   ever reading as a human seek. */
+/* Panels that fill the card edge to edge (all three tabs): their content owns
+   its own padding, so row hairlines and variant cells span the full width. */
+.landing-lobby-flush {
+  gap: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+/* Bot rows: the rotating always-available computer opponents, listed under the
+   live human seeks in the same table (each row carries its own Bot/Human tag). */
 .landing-lobby-seeds {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--site-border-soft);
 }
 
 .landing-lobby-seeds:empty {
   display: none;
 }
 
-/* Lichess's "— VARIANT —" divider shape: a small centered label between two
-   rule lines. The lines are borders, never literal dashes in copy. */
-.landing-lobby-seeds-divider {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 4px 4px;
-  color: var(--site-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.landing-lobby-seeds-divider::before,
-.landing-lobby-seeds-divider::after {
-  flex: 1;
-  border-top: 1px solid var(--site-border-soft);
-  content: "";
-}
-
-.landing-lobby-seed {
+/* One column grammar for every hook row (bot seeds, human seeks) and the header
+   above them, so the rating / time / mode columns line up straight down the
+   panel. Rows are full-bleed and separated by hairlines, not gaps or stripes. */
+.landing-lobby-thead,
+.landing-lobby-seed,
+.landing-lobby-trow {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto auto auto;
+  grid-template-columns: var(--landing-hook-columns);
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 7px 4px;
+  padding: 0 var(--landing-hook-pad);
   border: 0;
-  border-radius: var(--site-radius-sm, 6px);
+  border-bottom: 1px solid var(--site-border-soft);
+  border-radius: 0;
   background: transparent;
   color: var(--site-text);
-  cursor: pointer;
   font: inherit;
   text-align: left;
 }
 
-.landing-lobby-seed:nth-of-type(even) {
-  background: var(--site-zebra);
+.landing-lobby-seed,
+.landing-lobby-trow {
+  min-height: 38px;
+  cursor: pointer;
+  transition: background 0.12s ease;
 }
 
 .landing-lobby-seed:hover,
-.landing-lobby-seed:focus-visible {
+.landing-lobby-seed:focus-visible,
+.landing-lobby-trow:hover,
+.landing-lobby-trow:focus-visible {
   background: var(--site-stage-bg);
   outline: none;
 }
 
 .landing-lobby-seed-thumb {
   display: block;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
 }
 
 .landing-lobby-seed-thumb svg,
@@ -476,29 +481,58 @@
   height: 15px;
 }
 
+/* Explicit Bot/Human tag: bots and humans share one list, so every row states
+   which it is instead of relying on a section heading. */
+.landing-lobby-kind {
+  flex: none;
+  /* Pushed to the end of the opponent cell so the tags stack in one column
+     instead of ragging along each row's name length. */
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--site-zebra);
+  color: var(--site-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.landing-lobby-kind-human {
+  background: var(--site-accent-soft);
+  color: var(--site-accent-strong);
+}
+
 .landing-lobby-seed-rating {
-  min-width: 42px;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
 .landing-lobby-seed-time {
-  min-width: 34px;
   color: var(--site-muted);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
+/* Mode cell: speed glyph + Casual/Rated (and, on a bot row, the one-click
+   start's "Starting" / "Could not start" swap). */
+.landing-lobby-td-mode,
 .landing-lobby-seed-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--site-muted);
-  font-size: 15px;
-  line-height: 1;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .landing-lobby-seed:hover .landing-lobby-seed-cta,
-.landing-lobby-seed:focus-visible .landing-lobby-seed-cta {
+.landing-lobby-seed:focus-visible .landing-lobby-seed-cta,
+.landing-lobby-trow:hover .landing-lobby-td-mode,
+.landing-lobby-trow:focus-visible .landing-lobby-td-mode {
   color: var(--site-accent-strong);
 }
 
@@ -518,45 +552,69 @@
   color: var(--site-danger, #c0392b);
 }
 
-.landing-lobby-thead,
-.landing-lobby-trow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
-  align-items: center;
-  gap: 10px;
-}
-
+/* lichess labels only the right-hand columns, in plain sentence case (not the
+   uppercase small-caps strip this used to be). */
 .landing-lobby-thead {
-  padding: 0 4px 8px;
-  border-bottom: 1px solid var(--site-border-soft);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-height: 34px;
+  background: var(--site-panel);
   color: var(--site-muted);
   font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 500;
 }
 
+/* Rating and Time label over right-aligned numeric cells. */
+.landing-lobby-thead > span:nth-child(3),
+.landing-lobby-thead > span:nth-child(4) {
+  text-align: right;
+}
+
+/* Human seeks: the top half of the single list (the panel does the scrolling,
+   so this block sizes to its rows). */
 .landing-lobby-tbody {
   display: flex;
-  flex: 1;
+  flex: 0 0 auto;
   flex-direction: column;
-  gap: 2px;
-  overflow: auto;
 }
 
-.landing-lobby-trow {
-  padding: 8px 4px;
-  border-radius: var(--site-radius-sm, 6px);
+/* Correspondence has no second block, so its list keeps the old grow behaviour
+   (the centered "Create a game" empty state relies on the spare height). */
+.landing-lobby-tabpanel > .landing-lobby-tbody:only-child {
+  flex: 1 1 auto;
 }
 
-/* Zebra striping so a populated hooks table is easy to scan row-to-row; hover
-   (defined after) still wins over the stripe. */
-.landing-lobby-trow:nth-of-type(even) {
-  background: var(--site-zebra);
+/* Narrow panels drop the rating column (bots and anonymous seeks both render an
+   em dash there) so the opponent name keeps enough room to survive. */
+@media (max-width: 720px) {
+  .landing-lobby-board {
+    --landing-hook-columns: 24px minmax(0, 1fr) 48px 78px;
+    --landing-hook-pad: 10px;
+  }
+
+  .landing-lobby-thead > span:nth-child(3),
+  .landing-lobby-seed-rating {
+    display: none;
+  }
+
+  /* Too narrow for the Bot/Human chip next to the variant name: the row's
+     opponent glyph (bot vs person) and its aria-label carry the distinction,
+     and the variant name is what a player is actually scanning for. */
+  .landing-lobby-kind {
+    display: none;
+  }
 }
 
-.landing-lobby-trow:hover {
-  background: var(--site-stage-bg);
+/* Correspondence seeks keep their own four-column shape (player / game / pace /
+   action) and their Join button. */
+.landing-lobby-trow-corr {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+  cursor: default;
+}
+
+.landing-lobby-trow-corr:hover {
+  background: transparent;
 }
 
 .landing-lobby-td {
@@ -564,13 +622,6 @@
   color: var(--site-text);
   font-size: 13px;
   overflow-wrap: anywhere;
-}
-
-.landing-lobby-td-time {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
 }
 
 .landing-speed-icon {
@@ -586,7 +637,11 @@
 }
 
 .landing-lobby-td-game {
+  overflow: hidden;
+  font-size: 13px;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .landing-lobby-join {
@@ -614,9 +669,10 @@
 }
 
 .landing-lobby-empty {
-  margin: 12px 4px;
+  margin: 18px 14px;
   color: var(--site-muted);
   font-size: 13px;
+  text-align: center;
 }
 
 /* Centered "Create a game" state for the correspondence tab. margin:auto 0
@@ -660,18 +716,132 @@
   gap: 12px;
 }
 
-/* The variant grid grows to fill the tall panel. Three columns (the panel is
-   narrower than the setup dialog) give chunkier cards and more rows, and the
-   rows stretch to fill the height so the grid never floats over an empty void
-   (the old three-pool problem). */
-.landing-quickplay-grid {
+/* Quick pairing: promoted pools, one row per flagship variant, filling the card
+   edge to edge (no inset panel inside the panel). Every chip STARTS something —
+   a real seek, or a bot game — so the rows read like the hook table above them
+   rather than like a picker. */
+.landing-quickpair-pools {
+  display: flex;
   flex: 1 1 auto;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-content: stretch;
+  flex-direction: column;
 }
 
-.landing-quickplay-mode {
-  flex: 0 0 auto;
+.landing-quickpair-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) repeat(4, 62px);
+  align-items: center;
+  gap: 8px;
+  padding: 8px var(--landing-hook-pad);
+  border-bottom: 1px solid var(--site-border-soft);
+}
+
+.landing-quickpair-head {
+  padding-top: 10px;
+  padding-bottom: 8px;
+  color: var(--site-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.landing-quickpair-variant {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.landing-quickpair-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm, 6px);
+  background: var(--site-panel);
+  color: var(--site-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+/* Visually hidden live label: the pairing flow writes its state text here so the
+   chip's own label (and width) never changes. */
+.landing-quickpair-chip-state {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.landing-quickpair-chip:hover:not(:disabled) {
+  border-color: var(--site-accent-strong);
+  color: var(--site-accent-strong);
+}
+
+.landing-quickpair-chip:disabled {
+  cursor: default;
+}
+
+/* The pool this player is waiting in. */
+.landing-quickpair-chip.is-waiting {
+  border-color: var(--site-accent-strong);
+  background: var(--site-accent-soft);
+  color: var(--site-accent-strong);
+}
+
+.landing-quickpair-bot {
+  color: var(--site-muted);
+}
+
+.landing-quickpair-bot .ui-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.landing-quickpair-statusrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px var(--landing-hook-pad);
+}
+
+.landing-quickpair-status {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.landing-quickpair-cancel {
+  padding: 4px 12px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm, 6px);
+  background: var(--site-panel);
+  color: var(--site-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 720px) {
+  .landing-quickpair-row {
+    grid-template-columns: 24px minmax(0, 1fr) repeat(4, 54px);
+    gap: 6px;
+  }
 }
 
 .landing-board-column {

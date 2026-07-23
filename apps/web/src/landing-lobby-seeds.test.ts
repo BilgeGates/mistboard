@@ -24,6 +24,7 @@ describe('landing lobby bot seeks', () => {
     window.history.replaceState(null, '', '/');
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it('renders at most six rows led by the three daily anchors', () => {
@@ -61,15 +62,20 @@ describe('landing lobby bot seeks', () => {
     }
   });
 
-  it('keeps bot seeks out of the human seek table, under their own divider', () => {
+  it('tags every bot row as a bot and keeps it out of the human seek block', () => {
     const panel = buildLobbyPanel('en', { hydrate: false });
     const seedsBlock = panel.querySelector('.landing-lobby-seeds');
     expect(seedsBlock).not.toBeNull();
     expect(panel.querySelector('.landing-lobby-thead')).not.toBeNull();
     // Seeds are their own row grammar; they must not masquerade as
-    // .landing-lobby-trow human seek rows (which carry the Join action).
+    // .landing-lobby-trow human seek rows (which carry the join action).
     expect(seedsBlock?.querySelector('.landing-lobby-trow')).toBeNull();
-    expect(seedsBlock?.querySelector('.landing-lobby-seeds-divider')?.textContent).toBe('Bots');
+    // Bots and humans share one list, so the honesty signal is per-row: an
+    // explicit Bot tag on every seed, never a section heading above them.
+    expect(panel.querySelector('.landing-lobby-seeds-divider')).toBeNull();
+    for (const seed of seedsBlock?.querySelectorAll('.landing-lobby-seed') ?? []) {
+      expect(seed.querySelector('.landing-lobby-kind')?.textContent).toBe('Bot');
+    }
   });
 
   it('creates and joins the bot game on a single row click', async () => {
@@ -153,6 +159,110 @@ describe('landing lobby bot seeks', () => {
       '.landing-lobby-seed[data-bot-id="fairy-stockfish-level-6"] .landing-lobby-seed-rating',
     );
     expect(ladder?.textContent).toBe('—');
+  });
+
+  it('lists human seeks above the bots in one table with the same column grammar', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/api/lobby') {
+        return jsonResponse({
+          requests: [
+            {
+              id: 'seek_1',
+              gameSpecId: 'xiangqi',
+              rated: false,
+              timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+              waitingMs: 4_000,
+            },
+          ],
+        });
+      }
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLobbyPanel('en');
+    document.body.append(panel);
+    await flushPromises();
+
+    // The header is the panel's first child: one header for the whole table,
+    // never a second one wedged between the bot and human blocks.
+    const lobbyTab = panel.querySelector('.landing-lobby-tabpanel');
+    expect(lobbyTab?.firstElementChild?.classList.contains('landing-lobby-thead')).toBe(true);
+    expect(panel.querySelectorAll('.landing-lobby-thead').length).toBe(1);
+
+    // Rows on both sides of the Players divider carry the same five cells, so
+    // the rating/time/mode columns line up down the panel.
+    const seedCells = panel.querySelector('.landing-lobby-seed')?.children.length;
+    const row = panel.querySelector<HTMLButtonElement>('.landing-lobby-trow');
+    expect(row?.children.length).toBe(seedCells);
+    // The whole row is the join control (no per-row Join button).
+    expect(row?.tagName).toBe('BUTTON');
+    expect(row?.querySelector('.landing-lobby-join')).toBeNull();
+    expect(row?.querySelector('.landing-lobby-seed-variant')?.textContent).toBe('Xiangqi');
+    expect(row?.querySelector('.landing-lobby-seed-time')?.textContent).toBe('3+2');
+    expect(row?.querySelector('.landing-lobby-td-mode')?.textContent).toBe('Casual');
+    // Human seeks are tagged as such and sit ABOVE the bot block in the DOM.
+    expect(row?.querySelector('.landing-lobby-kind')?.textContent).toBe('Human');
+    const blocks = [...(lobbyTab?.children ?? [])].map((child) => child.className);
+    expect(blocks).toEqual(['landing-lobby-thead', 'landing-lobby-tbody', 'landing-lobby-seeds']);
+  });
+
+  it('starts the pairing straight from a quick-pairing chip, with no setup dialog', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/lobby') return jsonResponse({ ticketId: 'ticket_1' });
+      return jsonResponse({ requests: [] });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLobbyPanel('en', { hydrate: false });
+    document.body.append(panel);
+
+    const chip = panel.querySelector<HTMLButtonElement>(
+      '.landing-quickpair-row[data-game-spec="xiangqi"] .landing-quickpair-chip[data-time-control="3m2"]',
+    );
+    expect(chip).not.toBeNull();
+    chip!.click();
+    await flushPromises();
+
+    // The click posts the seek itself: no modal, and the chip shows it is live.
+    expect(document.querySelector('.landing-setup-overlay')).toBeNull();
+    const post = fetchSpy.mock.calls.find(
+      ([input, init]) =>
+        String(input) === '/api/lobby' && (init as RequestInit | undefined)?.method === 'POST',
+    );
+    expect(post).toBeDefined();
+    expect(JSON.parse(String((post![1] as RequestInit).body))).toMatchObject({
+      gameSpecId: 'xiangqi',
+      rated: false,
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    });
+    expect(chip?.classList.contains('is-waiting')).toBe(true);
+    // The visible chip label never changes (the waiting text goes to the hidden
+    // live label), so the pool row cannot reflow mid-wait.
+    expect(chip?.querySelector('.landing-quickpair-chip-text')?.textContent).toBe('3+2');
+  });
+
+  it('opens the correspondence CTA on days-per-move, not real-time clocks', () => {
+    vi.stubEnv('VITE_CORRESPONDENCE_ENABLED', 'true');
+    const panel = buildLobbyPanel('en', { hydrate: false });
+    document.body.append(panel);
+
+    const create = panel.querySelector<HTMLButtonElement>('.landing-lobby-create');
+    expect(create).not.toBeNull();
+    create!.click();
+
+    const overlay = document.querySelector('.landing-setup-overlay');
+    expect(overlay).not.toBeNull();
+    // The Correspondence segment is live and a day option is pre-picked; the
+    // real-time preset chips are hidden. Before the eligibility fix this opened
+    // on whatever variant was stored, where correspondence is never offered.
+    const corrGroup = overlay?.querySelector('.landing-correspondence-presets');
+    expect((corrGroup as HTMLElement | null)?.hidden).toBe(false);
+    expect(corrGroup?.querySelector('.selected')).not.toBeNull();
+    const presets = overlay?.querySelector(
+      '.landing-time-presets:not(.landing-correspondence-presets)',
+    );
+    expect((presets as HTMLElement | null)?.hidden).toBe(true);
+
+    overlay?.remove();
   });
 
   it('renders the same seed list for two builds on the same day', () => {
