@@ -1,14 +1,14 @@
-/* Lila-style lower News feed: a shared site-box header ("News" + "All updates »")
-   over a boxed vertical timeline with compact narrative entries. The header is
-   pinned; only the timeline body scrolls. */
+/* Lila-style lower News feed: a shared site-box header over an open vertical
+   timeline with compact narrative entries. The header is pinned; only the
+   timeline body scrolls. */
 .landing-announcements {
   --landing-feed-accent: var(--site-accent);
-  --landing-feed-content-x: 68px;
+  --landing-feed-content-x: 86px;
   --landing-feed-line-half: 1px;
   --landing-feed-line-width: 2px;
-  --landing-feed-marker-half: 20px;
-  --landing-feed-marker-size: 40px;
-  --landing-feed-rail-x: 34px;
+  --landing-feed-marker-half: 24px;
+  --landing-feed-marker-size: 48px;
+  --landing-feed-rail-x: 44px;
 
   box-sizing: border-box;
   display: flex;
@@ -24,7 +24,7 @@
 .landing-news-scroll {
   flex: 1 1 auto;
   box-sizing: border-box;
-  padding: 16px 16px 16px 0;
+  padding: 18px 22px 18px 0;
   overflow: hidden auto;
   scrollbar-color: transparent transparent;
   scrollbar-width: thin;
@@ -61,10 +61,10 @@
 .landing-news-updates::before {
   position: absolute;
   top: calc(var(--landing-feed-marker-half) - 2px);
-  bottom: 0;
+  bottom: var(--landing-feed-marker-half);
   left: calc(var(--landing-feed-rail-x) - var(--landing-feed-line-half));
   width: var(--landing-feed-line-width);
-  background: color-mix(in srgb, var(--landing-feed-accent) 64%, var(--site-border-soft));
+  background: var(--landing-feed-accent);
   content: "";
 }
 
@@ -73,7 +73,7 @@
   grid-template-columns: var(--landing-feed-content-x) minmax(0, 1fr);
   column-gap: 0;
   padding-inline-start: 0;
-  margin-top: 14px;
+  margin-top: 24px;
 }
 
 .landing-news-update:first-child {
@@ -93,16 +93,11 @@
   height: var(--landing-feed-marker-size);
   margin-top: -3px;
   margin-inline-start: calc(var(--landing-feed-rail-x) - var(--landing-feed-marker-half));
-  border: 2px solid color-mix(in srgb, var(--landing-feed-accent) 76%, var(--site-panel));
+  border: 3px solid var(--landing-feed-accent);
   border-radius: 50%;
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--landing-feed-accent) 16%, var(--site-panel)),
-    var(--site-panel) 68%
-  );
-  box-shadow: 0 3px 10px color-mix(in srgb, var(--site-shadow) 52%, transparent);
+  background: var(--site-panel);
   color: var(--landing-feed-accent);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   line-height: 1;
 }
@@ -120,35 +115,21 @@
 }
 
 .landing-news-marker-dobutsu .ui-icon {
-  width: 19px;
-  height: 19px;
+  width: 22px;
+  height: 22px;
 }
 
 .landing-news-content {
   grid-column: 2;
   min-width: 0;
-  padding: 9px 12px 10px;
-  border: 1px solid color-mix(in srgb, var(--site-border-soft) 72%, transparent);
-  border-radius: var(--site-radius-sm);
-  background: color-mix(in srgb, var(--site-panel) 94%, var(--landing-feed-accent));
-  transition:
-    border-color 140ms ease,
-    box-shadow 140ms ease,
-    transform 140ms ease;
-}
-
-.landing-news-update:hover .landing-news-content {
-  border-color: color-mix(in srgb, var(--landing-feed-accent) 42%, var(--site-border-soft));
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--site-shadow) 32%, transparent);
-  transform: translateY(-1px);
 }
 
 .landing-news-date {
   display: inline;
   color: var(--landing-feed-accent);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
-  line-height: 1.2;
+  line-height: 1.25;
   text-decoration: none;
 }
 
@@ -159,23 +140,10 @@
 }
 
 .landing-news-body {
-  margin: 5px 0 0;
-  color: var(--site-muted);
-  font-size: 13px;
-  line-height: 1.42;
-}
-
-.landing-news-headline {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--site-heading);
+  margin: 7px 0 0;
+  color: var(--site-text);
   font-size: 14px;
-  font-weight: 750;
-  line-height: 1.32;
-}
-
-.landing-news-summary {
-  color: var(--site-muted);
+  line-height: 1.45;
 }
 
 .landing-news-link {
@@ -183,13 +151,40 @@
   margin-top: 0;
   color: var(--site-link);
   font-size: inherit;
-  font-weight: 700;
   text-decoration: none;
-  white-space: nowrap;
 }
 
 .landing-news-link:hover,
 .landing-news-link:focus-visible {
   text-decoration: underline;
   outline: none;
+}
+
+.landing-news-all-updates {
+  align-items: center;
+  color: var(--landing-feed-accent);
+  text-decoration: none;
+}
+
+.landing-news-marker-all {
+  margin-top: 0;
+  border-color: var(--landing-feed-accent);
+  background: var(--landing-feed-accent);
+  color: var(--site-panel);
+  font-size: 30px;
+  font-weight: 500;
+}
+
+.landing-news-all-label {
+  grid-column: 2;
+  align-self: center;
+  color: var(--landing-feed-accent);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.landing-news-all-updates:hover .landing-news-all-label,
+.landing-news-all-updates:focus-visible .landing-news-all-label {
+  text-decoration: underline;
 }
