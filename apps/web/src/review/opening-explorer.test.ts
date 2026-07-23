@@ -57,7 +57,14 @@ describe('opening explorer', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        jsonResponse({ position: START_KEY, total: 0, moves: [], topGames: [], build: null }),
+        jsonResponse({
+          position: START_KEY,
+          opening: null,
+          total: 0,
+          moves: [],
+          topGames: [],
+          build: null,
+        }),
       ),
     );
 
@@ -157,6 +164,7 @@ describe('opening explorer', () => {
       vi.fn(async () =>
         jsonResponse({
           position: START_KEY,
+          opening: null,
           total: 2,
           moves: [
             {
@@ -224,11 +232,56 @@ describe('opening explorer', () => {
     );
     expect(shares).toEqual(['70%', '30%']);
   });
+
+  it('names the current position in a header, lichess style', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(payload())),
+    );
+
+    const explorer = createOpeningExplorer();
+    document.body.append(explorer.el);
+    explorer.setActive(true);
+    explorer.setState(createInitialXiangqiState('t'));
+    await flushPromises();
+
+    const header = explorer.el.querySelector<HTMLElement>('.opening-explorer__opening');
+    expect(header?.hidden).toBe(false);
+    expect(header?.querySelector('.opening-explorer__opening-en')?.textContent).toBe(
+      'Central Cannon',
+    );
+    expect(header?.querySelector('.opening-explorer__opening-zh')?.textContent).toBe('中炮');
+  });
+
+  it('hides the header on an unnamed position', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        jsonResponse({
+          position: START_KEY,
+          opening: null,
+          total: 0,
+          moves: [],
+          topGames: [],
+          build: null,
+        }),
+      ),
+    );
+
+    const explorer = createOpeningExplorer();
+    document.body.append(explorer.el);
+    explorer.setActive(true);
+    explorer.setState(createInitialXiangqiState('t'));
+    await flushPromises();
+
+    expect(explorer.el.querySelector<HTMLElement>('.opening-explorer__opening')?.hidden).toBe(true);
+  });
 });
 
 function payload() {
   return {
     position: START_KEY,
+    opening: { en: 'Central Cannon', zh: '中炮' },
     total: 10,
     moves: [
       {

@@ -221,3 +221,24 @@
     gap: 6px;
   }
 }
+
+/* Named header: the opening the current position IS (lichess anatomy). Reads as
+   a labeled band, the accent carrying the name so it doesn't compete with the
+   move rows below. */
+.opening-explorer__opening {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--site-border-soft);
+  background: var(--site-accent-soft, var(--site-zebra));
+}
+.opening-explorer__opening-en {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--site-accent-strong, var(--site-text));
+}
+.opening-explorer__opening-zh {
+  font-size: 12px;
+  color: var(--site-muted);
+}
