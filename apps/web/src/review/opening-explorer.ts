@@ -182,7 +182,10 @@ function moveRow(
   const count = document.createElement('span');
   count.className = 'opening-explorer__count';
   count.textContent = formatGames(row.games);
-  count.title = `${row.games} of ${total} games from this position`;
+  // `total` is the sum of the move counts, which is the right denominator for a
+  // move's share but is NOT a distinct-game count: a game that returns to this
+  // position and varies appears under both moves. Word it as what it is.
+  count.title = `${row.games} games played this move, of ${total} recorded from this position`;
 
   const bar = document.createElement('span');
   bar.className = 'opening-explorer__bar';
