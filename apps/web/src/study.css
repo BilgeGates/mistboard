@@ -20,6 +20,21 @@
   display: block;
   overflow: visible;
 }
+
+/* The left rail is a fixed-height column beside the board, but its children
+ * default to min-height:auto and so refuse to shrink: expanding the description
+ * grew the info card, pushed the chat past the rail, and clipped it at the
+ * viewport bottom with no way to scroll to it. Letting the card shrink and
+ * scroll inside itself keeps the chat on screen at its own min-height, and
+ * keeps ONE scroll region in the rail rather than nesting them. */
+.study-review .review-rail-group {
+  min-height: 0;
+}
+.study-review .review-rail-group > .review-info-card {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
 .study-summary__toggle {
   align-self: flex-start;
   margin: -2px 0 0;
@@ -74,9 +89,10 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  /* ~8 rows before scrolling: compressed like lichess so the chat below keeps
-     most of the rail. */
-  max-height: 12rem;
+  /* Compressed like lichess so the chat below keeps most of the rail. Rows are
+     one or two lines depending on title length, so this is a height budget
+     rather than a row count. */
+  max-height: 14rem;
   overflow-y: auto;
   scrollbar-width: thin;
 }
@@ -94,7 +110,9 @@
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
-  align-items: baseline;
+  /* Top-aligned so the row number sits on the name's FIRST line once a long
+     name wraps (baseline alignment dropped it to the last line). */
+  align-items: flex-start;
   gap: 0.45rem;
   padding: 0.26rem 14px;
   font-size: 0.8rem;
@@ -118,14 +136,21 @@
   color: var(--site-muted, inherit);
   opacity: 0.8;
   font-size: 0.72rem;
+  line-height: 1.45;
   font-variant-numeric: tabular-nums;
 }
 
+/* Chapter names are the only place a chapter's own metadata shows, and a
+ * curated title can carry both a native title and a translated gloss, so a
+ * single ellipsized line cut most of it. Wrap to at most two lines: short names
+ * still occupy one, long ones stay bounded. */
 .study-chapters__name {
   min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 /* The study's variant, named once in the chapters header (a study is
