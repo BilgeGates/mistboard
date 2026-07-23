@@ -92,6 +92,14 @@ const xiangqiPresentation: TreePresentation<
     kind: 'circle',
     className: `xq-shape--${s.brush}`,
   }),
+  // The badge rides the square the piece landed on, so it reads as a verdict on
+  // the move just played rather than on the point it came from.
+  moveGlyphMarker: (move: XiangqiMove, glyph): XiangqiBoardMarker => ({
+    square: move.to,
+    kind: 'glyph',
+    text: glyph.text,
+    className: `xq-marker--${glyph.tone}`,
+  }),
   // Opening/Middlegame/Endgame segmentation for the chart dividers + per-phase
   // accuracy (heuristic; see xiangqi-phases.ts).
   gamePhases: xiangqiGamePhases,
