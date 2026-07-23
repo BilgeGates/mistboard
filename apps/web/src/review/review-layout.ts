@@ -247,11 +247,21 @@ export function createReviewScaffold(
       (el): el is HTMLElement => el != null,
     ),
   );
+  // The rail panel (opening explorer) OVERLAYS the moves region rather than
+  // pushing it: a positioned wrapper holds railMain, and the panel absolutely
+  // fills it when open, scrolling on its own. Navigation stays a sibling below,
+  // so the scrub controls remain usable with the explorer open.
+  const railMainWrap = document.createElement('div');
+  railMainWrap.className = 'review-rail-mainwrap';
+  railMainWrap.append(railMain);
+  if (config.railPanel) {
+    config.railPanel.classList.add('review-rail-overlay');
+    railMainWrap.append(config.railPanel);
+  }
   const right = railGroup(
     [
       materialTop,
-      railMain,
-      config.railPanel,
+      railMainWrap,
       config.navigation,
       config.analysisSummary,
       materialBottom,

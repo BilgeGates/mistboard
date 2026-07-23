@@ -33,6 +33,10 @@ export interface MoveTreeAnnotation {
   commentMarker?: boolean;
   /** Colour hook for the comment row → .move-tree__comment--<class>. */
   commentClass?: string;
+  /** Positional-assessment glyph (=, ⩲, ±, +−, …) closing a server-analysis
+   *  variation, shown on the LAST move of the grafted line like an opening book
+   *  ends a line with its verdict. */
+  assessment?: string;
 }
 
 export interface MoveTree {
@@ -154,7 +158,9 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
     luckEl.className = 'review-move-list__luck';
     const evalEl = document.createElement('span');
     evalEl.className = 'review-move-list__eval';
-    button.append(san, suffixEl, luckEl, evalEl);
+    const assessEl = document.createElement('span');
+    assessEl.className = 'review-move-list__assessment';
+    button.append(san, suffixEl, luckEl, assessEl, evalEl);
     const ann = annotations.get(key);
     if (ann?.suffix) {
       suffixEl.textContent = ann.suffix;
@@ -171,6 +177,7 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
     // the position you got, not a counterfactual. (Keying this off luck-badge presence instead made
     // eval visibility track auth state, since the decomposition only runs for signed-in viewers.)
     if (ann?.eval) evalEl.textContent = ann.eval;
+    if (ann?.assessment) assessEl.textContent = ann.assessment;
     // Authored-comment marker: a small bubble; the text itself lives in the
     // under-board comment panel for the node the cursor is on.
     if (ann?.commentMarker) {

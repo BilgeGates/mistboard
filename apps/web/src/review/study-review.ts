@@ -24,7 +24,10 @@ import type { TreeReviewConfig, TreeReviewHandle } from './tree-review.js';
  *  corrupt tree blob. */
 export type StudyReviewConfig = Omit<
   TreeReviewConfig<never>,
-  'moves' | 'root' | 'analysis' | 'decisions'
+  // `explorer` is variant-typed (its handlers carry the concrete Move/Arrow); a
+  // never/unknown-typed one from this generic-erased config would not assign to
+  // a concrete variant's mount. Studies never use it, so drop it here.
+  'moves' | 'root' | 'analysis' | 'decisions' | 'explorer'
 > & {
   /** SerializedTree.rootFen — the chapter's hand-set start, if it has one. */
   rootFen?: string;

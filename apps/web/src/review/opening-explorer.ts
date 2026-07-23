@@ -66,6 +66,9 @@ export type OpeningExplorer = {
   setActive(active: boolean): void;
   /** Play a move the reader clicked in the table. */
   onPlayMove(handler: (move: XiangqiMove) => void): void;
+  /** Fires as the reader hovers a move row (the move, or null on leave), so the
+   *  board can preview it. */
+  onHoverMove(handler: (move: XiangqiMove | null) => void): void;
 };
 
 const MAX_ROWS = 12;
@@ -127,6 +130,7 @@ export function createOpeningExplorer(): OpeningExplorer {
   let active = false;
   let pendingState: XiangqiGameState | null = null;
   let playMove: ((move: XiangqiMove) => void) | null = null;
+  let hoverMove: ((move: XiangqiMove | null) => void) | null = null;
 
   function setActive(next: boolean): void {
     if (active === next) return;
@@ -134,6 +138,7 @@ export function createOpeningExplorer(): OpeningExplorer {
     el.hidden = !active;
     if (!active) {
       inFlight?.abort();
+      hoverMove?.(null); // closing the book must not strand a hover arrow
       return;
     }
     const state = pendingState;
@@ -201,7 +206,12 @@ export function createOpeningExplorer(): OpeningExplorer {
     status.hidden = true;
     const style = currentXiangqiNotationStyle();
     for (const row of data.moves.slice(0, MAX_ROWS)) {
-      table.append(moveRow(row, data.total, currentState, style, (move) => playMove?.(move)));
+      table.append(
+        moveRow(row, data.total, currentState, style, {
+          play: (move) => playMove?.(move),
+          hover: (move) => hoverMove?.(move),
+        }),
+      );
     }
     if (data.topGames.length > 0) topGames.append(topGamesBlock(data.topGames));
   }
@@ -221,6 +231,9 @@ export function createOpeningExplorer(): OpeningExplorer {
     onPlayMove(handler) {
       playMove = handler;
     },
+    onHoverMove(handler) {
+      hoverMove = handler;
+    },
   };
 }
 
@@ -229,7 +242,7 @@ function moveRow(
   total: number,
   state: XiangqiGameState | null,
   style: ReturnType<typeof currentXiangqiNotationStyle>,
-  play: (move: XiangqiMove) => void,
+  handlers: { play: (move: XiangqiMove) => void; hover: (move: XiangqiMove | null) => void },
 ): HTMLElement {
   const move = { from: row.from, to: row.to } as XiangqiMove;
   const el = document.createElement('button');
@@ -280,7 +293,9 @@ function moveRow(
   }
 
   el.append(label, count, bar);
-  el.addEventListener('click', () => play(move));
+  el.addEventListener('click', () => handlers.play(move));
+  el.addEventListener('mouseenter', () => handlers.hover(move));
+  el.addEventListener('mouseleave', () => handlers.hover(null));
   return el;
 }
 

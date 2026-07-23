@@ -48,6 +48,11 @@ export interface EnginePanelOptions {
   showArrows?: boolean;
   /** Fires when the toggle changes, by click or via setShowArrows(). */
   onShowArrowsChange?: (enabled: boolean) => void;
+  /** Fires when the local engine is switched on or off. The review surface pairs
+   *  its whole-game analysis arrow WITH the local engine: the server's best-move
+   *  arrow shows only while the engine is on, so a board with the engine off
+   *  carries no derived ink at all. */
+  onToggle?: (on: boolean) => void;
 }
 
 type Side = 'red' | 'black';
@@ -249,6 +254,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   function turnOn(): void {
     if (!handle) handle = createCeval(opts.variant);
     on = true;
+    opts.onToggle?.(true);
     syncToggle();
     if (!currentSearchable) {
       clearOutput();
@@ -270,6 +276,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
 
   function turnOff(): void {
     on = false;
+    opts.onToggle?.(false);
     syncToggle();
     handle?.stop();
     clearOutput();

@@ -7,6 +7,7 @@
 // Every control here is live. Placeholder affordances were removed 2026-07-23
 // (two disabled toolbar buttons + four muted menu rows); the bar advertises only
 // what it can do, and a new entry arrives together with its implementation.
+import { BookOpenText, createElement } from 'lucide';
 import './review-controls.css';
 
 export type ReviewMenuItem = {
@@ -41,9 +42,27 @@ const ICONS = {
   next: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 5v14l9-7z"/></svg>',
   last: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 5h2v14h-2zM5 5v14l9-7z"/></svg>',
   menu: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
-  // Book: the opening database, the same metaphor lichess uses for the explorer.
-  book: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h5v18H6a2 2 0 0 0-2 2z"/><path d="M20 5a2 2 0 0 0-2-2h-5v18h5a2 2 0 0 1 2 2z"/></svg>',
 } as const;
+
+// A control-bar button carrying a Lucide glyph (designer-drawn, MIT), for tools
+// that deserve a real icon rather than an inline path. Same shell as iconButton.
+function lucideButton(
+  icon: Parameters<typeof createElement>[0],
+  label: string,
+  className: string,
+): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = className;
+  button.setAttribute('aria-label', label);
+  button.title = label;
+  const svg = createElement(icon);
+  svg.setAttribute('width', '18');
+  svg.setAttribute('height', '18');
+  svg.setAttribute('aria-hidden', 'true');
+  button.append(svg);
+  return button;
+}
 
 function iconButton(icon: string, label: string, className: string): HTMLButtonElement {
   const button = document.createElement('button');
@@ -85,7 +104,7 @@ export function createReviewControls(opts: ReviewControlsOptions): ReviewControl
   const left = document.createElement('div');
   left.className = 'review-controls__group review-controls__group--tools';
   if (opts.onToggleExplorer) {
-    const explorerButton = iconButton(ICONS.book, 'Opening explorer', 'review-controls__tool');
+    const explorerButton = lucideButton(BookOpenText, 'Opening explorer', 'review-controls__tool');
     explorerButton.setAttribute('aria-pressed', 'false');
     explorerButton.addEventListener('click', () => {
       const open = explorerButton.getAttribute('aria-pressed') !== 'true';
