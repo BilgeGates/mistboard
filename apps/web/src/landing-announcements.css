@@ -1,6 +1,6 @@
-/* Lila-style lower News feed: a shared site-box header ("News" + "All updates »")
-   over a boxed vertical timeline with compact narrative entries. The header is
-   pinned; only the timeline body scrolls. */
+/* Lila-style lower News feed: a shared site-box header over an open vertical
+   timeline with compact narrative entries. The header is pinned; only the
+   timeline body scrolls. */
 .landing-announcements {
   --landing-feed-accent: var(--site-accent);
   --landing-feed-content-x: 86px;
@@ -61,7 +61,7 @@
 .landing-news-updates::before {
   position: absolute;
   top: calc(var(--landing-feed-marker-half) - 2px);
-  bottom: 0;
+  bottom: var(--landing-feed-marker-half);
   left: calc(var(--landing-feed-rail-x) - var(--landing-feed-line-half));
   width: var(--landing-feed-line-width);
   background: var(--landing-feed-accent);
@@ -133,6 +133,12 @@
   text-decoration: none;
 }
 
+.landing-news-date:hover,
+.landing-news-date:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
 .landing-news-body {
   margin: 7px 0 0;
   color: var(--site-text);
@@ -152,4 +158,33 @@
 .landing-news-link:focus-visible {
   text-decoration: underline;
   outline: none;
+}
+
+.landing-news-all-updates {
+  align-items: center;
+  color: var(--landing-feed-accent);
+  text-decoration: none;
+}
+
+.landing-news-marker-all {
+  margin-top: 0;
+  border-color: var(--landing-feed-accent);
+  background: var(--landing-feed-accent);
+  color: var(--site-panel);
+  font-size: 30px;
+  font-weight: 500;
+}
+
+.landing-news-all-label {
+  grid-column: 2;
+  align-self: center;
+  color: var(--landing-feed-accent);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.landing-news-all-updates:hover .landing-news-all-label,
+.landing-news-all-updates:focus-visible .landing-news-all-label {
+  text-decoration: underline;
 }

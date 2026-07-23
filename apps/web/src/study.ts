@@ -10,6 +10,7 @@
 
 import './game-shell.css';
 import { t } from './i18n/catalog.js';
+import { localizedHref } from './i18n/locale.js';
 import { localizedStudyDescription, localizedStudyName } from './study-i18n.js';
 import './live-xiangqi.css';
 import './xiangqi-postgame.css';
@@ -292,6 +293,9 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
       details: buildStudyChat(study.id),
       gamebookEditing: gamebookable && chapter.gamebook && study.isOwner,
       annotationEditing: study.isOwner,
+      // A study is read forward. Landing on the final position of a 60-ply
+      // annotated game means rewinding before you can start.
+      initialPosition: 'start',
       initialTree: chapter.root,
       // A composition chapter (SerializedTree.rootFen) roots the board at its
       // hand-set position; an invalid FEN degrades to the standard start, same
@@ -386,7 +390,35 @@ function buildActions(
     wrap.append(status);
   }
   if (study.visibility === 'public') wrap.append(likeButton(study));
+  // Errata invitation, public studies only: a private draft has no audience to
+  // report to, and the owner is already the person who would fix it.
+  if (study.visibility === 'public' && !study.isOwner) wrap.append(errataNote());
   return wrap;
+}
+
+/** Invite corrections. Several studies here are transcriptions of woodblock
+ *  prints, where a misread glyph is a genuine possibility; claiming otherwise
+ *  would be the untrustworthy move. Saying so plainly and routing readers to
+ *  /contact costs a few lines and is the honest posture. */
+function errataNote(): HTMLElement {
+  const note = document.createElement('aside');
+  note.className = 'study-errata';
+
+  const title = document.createElement('p');
+  title.className = 'study-errata__title';
+  title.textContent = t('study.errataTitle');
+
+  const body = document.createElement('p');
+  body.className = 'study-errata__body';
+  body.textContent = t('study.errataBody');
+
+  const link = document.createElement('a');
+  link.className = 'study-errata__link';
+  link.href = localizedHref('/contact');
+  link.textContent = t('study.errataAction');
+
+  note.append(title, body, link);
+  return note;
 }
 
 function likeButton(study: StudyDto): HTMLButtonElement {

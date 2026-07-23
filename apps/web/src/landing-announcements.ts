@@ -40,19 +40,14 @@ export function buildLandingAnnouncements(locale: Locale = currentLocale()): HTM
   const entries = announcements();
   if (entries.length === 0) return panel;
 
-  // Shared site-box header ("News" + "All updates »") so the News box matches
-  // the forum/players boxes beside it in the lower strip. The header's more-link
-  // replaces the old trailing "☆ All updates" timeline row, which was redundant.
-  const top = document.createElement('a');
+  // Keep the shared site-box title, but put the archive link at the end of the
+  // timeline itself, matching the Lichess feed's terminal star row.
+  const top = document.createElement('div');
   top.className = 'site-box-top';
-  top.href = localizedHref('/feed', locale);
   const title = document.createElement('h2');
   title.className = 'site-box-title';
   title.textContent = t('news.heading', {}, locale);
-  const more = document.createElement('span');
-  more.className = 'site-box-more';
-  more.textContent = t('news.allUpdates', {}, locale);
-  top.append(title, more);
+  top.append(title);
 
   const ordered = entries
     .filter((entry) => rulesHrefPublicSurfaceEnabled(entry.href))
@@ -62,6 +57,7 @@ export function buildLandingAnnouncements(locale: Locale = currentLocale()): HTM
   for (const entry of ordered.slice(0, MAX_FEED_ROWS)) {
     updates.append(renderFeedEntry(entry, locale));
   }
+  updates.append(renderAllUpdates(locale));
 
   // The timeline scrolls independently below the pinned header.
   const scroll = document.createElement('div');
@@ -90,11 +86,16 @@ function renderFeedEntry(entry: Announcement, locale: Locale): HTMLElement {
   const content = document.createElement('div');
   content.className = 'landing-news-content';
 
+  // Match the Lichess lobby feed: the relative date is a link to the full
+  // archive, while hovering it exposes the exact calendar date.
+  const dateLink = document.createElement('a');
+  dateLink.className = 'landing-news-date';
+  dateLink.href = localizedHref('/feed', locale);
+  dateLink.title = formatAnnouncementDate(entry.date, true, locale);
   const date = document.createElement('time');
-  date.className = 'landing-news-date';
   date.dateTime = entry.date;
   date.textContent = formatAnnouncementRelativeDate(entry.date, locale);
-  date.title = formatAnnouncementDate(entry.date, true, locale);
+  dateLink.append(date);
 
   const body = document.createElement('p');
   body.className = 'landing-news-body';
@@ -102,7 +103,7 @@ function renderFeedEntry(entry: Announcement, locale: Locale): HTMLElement {
   if (entry.body) {
     body.append(document.createTextNode(` ${entry.body}`));
   }
-  content.append(date, body);
+  content.append(dateLink, body);
   if (entry.href) {
     const cta = document.createElement('a');
     cta.className = 'landing-news-link';
@@ -116,6 +117,24 @@ function renderFeedEntry(entry: Announcement, locale: Locale): HTMLElement {
   }
 
   row.append(marker, content);
+  return row;
+}
+
+function renderAllUpdates(locale: Locale): HTMLAnchorElement {
+  const row = document.createElement('a');
+  row.className = 'landing-news-update landing-news-all-updates';
+  row.href = localizedHref('/feed', locale);
+
+  const marker = document.createElement('span');
+  marker.className = 'landing-news-marker landing-news-marker-all';
+  marker.setAttribute('aria-hidden', 'true');
+  marker.textContent = '☆';
+
+  const label = document.createElement('span');
+  label.className = 'landing-news-all-label';
+  label.textContent = t('news.allUpdates', {}, locale);
+
+  row.append(marker, label);
   return row;
 }
 

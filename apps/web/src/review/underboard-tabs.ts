@@ -16,6 +16,9 @@ export type UnderboardOptions = {
   hasAnalysis?: boolean;
   /** Prebuilt provenance panel → a "Game info" tab. */
   provenance?: HTMLElement;
+  /** Prebuilt opening-explorer panel → an "Opening explorer" tab. Present only
+   *  on surfaces with a corpus behind them (standard xiangqi today). */
+  explorer?: HTMLElement;
   /** Per-ply elapsed milliseconds (index 0 = ply 1). Present + non-empty → a
    *  "Move times" tab renders a per-move bar chart. */
   moveTimes?: number[];
@@ -28,6 +31,11 @@ export type UnderboardOptions = {
   /** Live move-export textarea, refreshed by the caller on every navigation. */
   shareMovesInput: HTMLTextAreaElement;
   gameUrl: string;
+  /** Fired with the newly shown tab id, including the initial one. Lets a tab
+   *  body defer work until it is actually on screen — the explorer only queries
+   *  its corpus while visible, instead of on every navigation for every reader
+   *  who never opens it. */
+  onTabChange?(id: string): void;
 };
 
 type UnderboardTab = { id: string; label: string; body: HTMLElement };
@@ -36,6 +44,9 @@ export function underboardPanel(analysisBody: HTMLElement, opts: UnderboardOptio
   const tabDefs: UnderboardTab[] = [];
   if (opts.hasAnalysis) {
     tabDefs.push({ id: 'analysis', label: 'Computer analysis', body: analysisBody });
+  }
+  if (opts.explorer) {
+    tabDefs.push({ id: 'explorer', label: 'Opening explorer', body: opts.explorer });
   }
   if (opts.provenance) {
     tabDefs.push({ id: 'info', label: 'Game info', body: opts.provenance });
@@ -70,6 +81,7 @@ export function underboardPanel(analysisBody: HTMLElement, opts: UnderboardOptio
       def.body.hidden = !active;
       buttons.get(def.id)?.classList.toggle('review-underboard-tab--active', active);
     }
+    opts.onTabChange?.(id);
   };
   for (const def of tabDefs) {
     const button = document.createElement('button');

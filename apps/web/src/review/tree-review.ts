@@ -255,6 +255,12 @@ export type TreeReviewConfig<Move, Truth = never> = {
   /** Load a persisted study tree (with its annotations + variations) instead of
    *  seeding from `moves`. When set, the tree is rebuilt from this blob by replay. */
   initialTree?: SerializedTree;
+  /** Where the board sits on mount. 'end' (default) suits a game you just
+   *  finished or imported: the result is the thing you came for. 'start' suits a
+   *  study, which is a document meant to be read forward. Opening a 60-ply
+   *  annotated game on its final position asks the reader to rewind before they
+   *  can begin. */
+  initialPosition?: 'start' | 'end';
   /** Fired after any tree mutation (move, annotation, promote, delete). The study
    *  page uses it to autosave; the analysis/postgame pages ignore it. */
   onChange?: () => void;
@@ -286,6 +292,15 @@ export type TreeReviewConfig<Move, Truth = never> = {
    *  "Game info" underboard tab renders it. The historical-library caller supplies
    *  it; played/analysis surfaces leave it undefined. */
   provenance?: HTMLElement;
+  /** Opening-explorer panel for surfaces with a game corpus behind them. Kept
+   *  fully opaque here (an element plus a per-node setter) so this controller
+   *  stays variant-neutral: the caller owns the variant types and the lookup. */
+  explorer?: {
+    el: HTMLElement;
+    setTruth(truth: Truth): void;
+    /** Called with whether the explorer's underboard tab is the visible one. */
+    setActive(active: boolean): void;
+  };
   /** Game result appended to the move list as a terminal block (lichess: "0-1"
    *  over the termination line). Postgame surfaces supply it; the analysis board
    *  (no finished game) omits it. */
@@ -341,7 +356,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   const mainlineLen = tree.mainlinePath().length;
   const notifyChange = (): void => config.onChange?.();
 
-  let currentPath: TreePath = tree.last();
+  let currentPath: TreePath = config.initialPosition === 'start' ? [] : tree.last();
   let flipped = false;
 
   const currentNode = (): Node => tree.nodeAt(currentPath) ?? tree.root;
@@ -727,6 +742,8 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   const underboardEl = underboardPanel(underboardBody, {
     hasAnalysis: Boolean(config.analysis),
     provenance: config.provenance,
+    explorer: config.explorer?.el,
+    onTabChange: (id) => config.explorer?.setActive(id === 'explorer'),
     moveTimes: config.moveTimes,
     seatColors: config.seatColors,
     players: config.showCrosstable ? (config.players ?? {}) : undefined,
@@ -832,7 +849,9 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     boardMaxPx: presentation.boardMaxPx,
     underboard: composeUnderboard(
       commentPanelEl,
-      config.analysis || config.provenance || config.showCrosstable ? underboardEl : undefined,
+      config.analysis || config.provenance || config.showCrosstable || config.explorer
+        ? underboardEl
+        : undefined,
       importPanel?.el,
     ),
     underboardOverflows: true,
@@ -1009,6 +1028,8 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     commentPanelEl.classList.toggle('review-comment-panel--empty', !authoredComment);
     moveTree.setCurrent(currentPath);
     controls.setBounds({ atStart: currentPath.length === 0, atEnd: node.children.length === 0 });
+    // Opening statistics follow the board like every other per-node panel.
+    config.explorer?.setTruth(node.truth);
     // Live-refresh the Share tab's FEN + move export for the current node/line.
     if (presentation.engine) shareFenInput.value = presentation.engine.fen(node.truth);
     shareMovesInput.value = uciTo(node).join(' ');

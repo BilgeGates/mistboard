@@ -546,6 +546,55 @@ export async function getHistoricalXiangqiGame(id: string): Promise<HistoricalXi
   return rows[0] ? gameFromRow(rows[0]) : null;
 }
 
+export type AggregatableXiangqiGame = {
+  id: string;
+  sourceSlug: string;
+  result: HistoricalXiangqiResult;
+  moves: XiangqiMove[];
+};
+
+/**
+ * Games the opening explorer is allowed to aggregate, ascending by id, one page
+ * at a time (the corpus is far larger than any single response should be).
+ *
+ * The license gate is the point of this function and it is FAIL-CLOSED: only
+ * sources explicitly marked `license_status = 'cleared'` qualify. A corpus we
+ * merely possess (a scraped test corpus, an unlabelled import) is excluded, and
+ * a NEW source stays excluded until someone records its clearance. Publishing
+ * aggregates derived from a corpus republishes that corpus in statistical form,
+ * so this is the same decision as publishing the games themselves.
+ *
+ * `visibility = 'private'` is excluded on top of that, so marking one game
+ * private drops it from the explorer without touching its source.
+ */
+export async function listAggregatableXiangqiGames(opts: {
+  limit: number;
+  afterId?: string | null;
+}): Promise<AggregatableXiangqiGame[]> {
+  const { rows } = await getPool().query<{
+    id: string;
+    slug: string;
+    result: HistoricalXiangqiResult;
+    moves: XiangqiMove[];
+  }>(
+    `SELECT games.id, sources.slug, games.result, games.moves
+     FROM historical_xiangqi_games games
+     JOIN historical_xiangqi_sources sources ON sources.id = games.source_id
+     WHERE sources.license_status = 'cleared'
+       AND games.visibility <> 'private'
+       AND games.id > $1
+     ORDER BY games.id ASC
+     LIMIT $2`,
+    [opts.afterId ?? '', opts.limit],
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    sourceSlug: row.slug,
+    result: row.result,
+    moves: row.moves,
+  }));
+}
+
 export async function queryHistoricalXiangqiGames(
   filters: HistoricalXiangqiGameQueryFilters,
 ): Promise<HistoricalXiangqiGameQueryPage> {

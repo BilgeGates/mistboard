@@ -28,6 +28,7 @@ import {
 import { xiangqiNotationChangedEvent } from '../xiangqi-notation.js';
 import { bestMoveArrow, engineArrowsFromLines } from './engine/engine-arrows.js';
 import type { NodeShape } from './game-tree.js';
+import { createOpeningExplorer } from './opening-explorer.js';
 import {
   mountTreeReview,
   type TreePresentation,
@@ -41,7 +42,10 @@ import { xiangqiTreeAdapter } from './xiangqi-tree-adapter.js';
 export type { AnalysisSource as XiangqiAnalysisSource } from './tree-review.js';
 
 /** Config for a standard-xiangqi review mount. */
-export type XiangqiReviewConfig = TreeReviewConfig<XiangqiMove, XiangqiGameState>;
+export type XiangqiReviewConfig = TreeReviewConfig<XiangqiMove, XiangqiGameState> & {
+  /** Attach the opening-explorer underboard tab. Defaults to true. */
+  openingExplorer?: boolean;
+};
 
 /** Handle returned by mountXiangqiReview: snapshot the current tree to persist it. */
 export type XiangqiReviewHandle = TreeReviewHandle;
@@ -101,7 +105,24 @@ export function mountXiangqiReview(
   root: HTMLElement,
   config: XiangqiReviewConfig,
 ): XiangqiReviewHandle {
-  return mountTreeReview(root, xiangqiPresentation, config);
+  // Standard-xiangqi review surfaces get the opening explorer by default: the
+  // corpus is keyed by position, so it is as useful on a played game as on the
+  // analysis board. Default-on rather than opt-in so a NEW surface inherits it
+  // instead of quietly missing it. Set `openingExplorer: false` to decline (the
+  // study board does, to leave its hand-specced layout alone).
+  const explorer =
+    config.openingExplorer === false ? undefined : (config.explorer ?? xiangqiOpeningExplorer());
+  return mountTreeReview(root, xiangqiPresentation, { ...config, explorer });
+}
+
+/** The shared explorer panel, typed to the xiangqi kernel state. */
+function xiangqiOpeningExplorer(): NonNullable<XiangqiReviewConfig['explorer']> {
+  const explorer = createOpeningExplorer();
+  return {
+    el: explorer.el,
+    setTruth: (truth) => explorer.setState(truth),
+    setActive: (isActive) => explorer.setActive(isActive),
+  };
 }
 
 // Fairy-Stockfish xiangqi UCI back to our `from-to` notation for readable PV
