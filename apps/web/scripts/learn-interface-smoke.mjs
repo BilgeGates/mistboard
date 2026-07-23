@@ -42,7 +42,7 @@ async function smokeLearnInterface() {
     await page.goto(`${baseUrl}/learn`, { waitUntil: 'networkidle' });
     await page.waitForSelector('.learn-home-shell');
 
-    await assertVisible(page, '.site-nav-brand img.site-nav-logo[src="/logo.svg"]');
+    await assertVisible(page, '.site-nav-brand img.site-nav-logo[src="/logo-mark.png"]');
     assert.equal(await page.locator('.site-nav-brand-name').textContent(), 'mistboard.com');
 
     assert.equal(await page.locator('.learn-home .learn-heading').textContent(), 'Learn to play');
