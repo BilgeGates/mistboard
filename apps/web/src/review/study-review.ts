@@ -47,6 +47,10 @@ export async function mountStudyReview(
       const parsed = rootFen ? parseStandardXiangqiFen(rootFen) : null;
       return mountXiangqiReview(root, {
         ...base,
+        // No opening explorer here: the study board's underboard would otherwise
+        // appear on a surface that deliberately has none, changing a layout that
+        // was specced without it. Worth revisiting as its own decision.
+        openingExplorer: false,
         root: parsed?.ok
           ? { truth: parsed.state, fen: standardXiangqiFen(parsed.state) }
           : undefined,
