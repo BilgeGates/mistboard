@@ -198,13 +198,36 @@ export function requirePersistence(response: ServerResponse): boolean {
   return false;
 }
 
-export async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
+/** Default cap for small JSON bodies (settings, auth, lobby actions). */
+export const DEFAULT_JSON_BODY_LIMIT = 16_384;
+
+/**
+ * Cap for routes that carry an authored move tree. A study chapter is a whole
+ * annotated variation tree, so it is legitimately far larger than a settings
+ * payload: a 40-variation classical game runs past 25 KB of UTF-8, and Chinese
+ * comment text costs 3 bytes per character. 256 KiB leaves ~10x headroom over
+ * the largest real chapter while still bounding what one row can grow to.
+ */
+export const TREE_JSON_BODY_LIMIT = 262_144;
+
+/** Thrown past the cap so callers can answer 413 instead of a generic 500. */
+export class RequestBodyTooLargeError extends Error {
+  constructor(readonly limit: number) {
+    super('request_body_too_large');
+    this.name = 'RequestBodyTooLargeError';
+  }
+}
+
+export async function readJsonBody(
+  request: IncomingMessage,
+  maxBytes: number = DEFAULT_JSON_BODY_LIMIT,
+): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
   let total = 0;
   for await (const chunk of request) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     total += buffer.byteLength;
-    if (total > 16_384) throw new Error('request_body_too_large');
+    if (total > maxBytes) throw new RequestBodyTooLargeError(maxBytes);
     chunks.push(buffer);
   }
   if (chunks.length === 0) return {};

@@ -16,7 +16,13 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { isStudyEligibleSpecId } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
 import * as persistence from './../persistence.js';
-import { readJsonBody, requireMethod, requirePersistence, writeJson } from './lib.js';
+import {
+  readJsonBody,
+  requireMethod,
+  requirePersistence,
+  TREE_JSON_BODY_LIMIT,
+  writeJson,
+} from './lib.js';
 
 const ID = '[A-Za-z0-9]+';
 const STUDY_PATH = new RegExp(`^/api/studies/(${ID})$`);
@@ -210,7 +216,8 @@ async function createStudy(
   response: ServerResponse,
   ownerId: string,
 ): Promise<boolean> {
-  const body = await readJsonBody(request);
+  // Carries the first chapter's whole annotated tree.
+  const body = await readJsonBody(request, TREE_JSON_BODY_LIMIT);
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (!name) {
     writeJson(response, 400, { error: 'invalid_name' });
@@ -291,7 +298,7 @@ async function addChapter(
   studyId: string,
   ownerId: string,
 ): Promise<boolean> {
-  const body = await readJsonBody(request);
+  const body = await readJsonBody(request, TREE_JSON_BODY_LIMIT);
   // A study is single-variant: the variant is fixed at create time and every
   // later chapter inherits it. The column stays per-chapter (it is what the board
   // dispatch reads), but the API is the enforcement point — a request may omit
@@ -340,7 +347,7 @@ async function patchChapter(
   chapterId: string,
   ownerId: string,
 ): Promise<boolean> {
-  const body = await readJsonBody(request);
+  const body = await readJsonBody(request, TREE_JSON_BODY_LIMIT);
   if ('root' in body) {
     if (!isSerializedTree(body.root)) {
       writeJson(response, 400, { error: 'invalid_tree' });

@@ -4,6 +4,7 @@ import serveHandler from 'serve-handler';
 import { type HttpApiContext, handleApiRequest } from './http-api.js';
 import { serveArticleOgImage, serveGameOgImage } from './og-image.js';
 import * as persistence from './persistence.js';
+import { RequestBodyTooLargeError } from './routes/lib.js';
 import type { DrainController } from './server-drain.js';
 import { isClientRoute, isReviewShellRoute } from './server-policy.js';
 import {
@@ -127,18 +128,26 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
 
     if (url.startsWith('/api/')) {
       void handleApiRequest(buildApiContext(options), request, response).catch((err) => {
-        console.error(
-          JSON.stringify({
-            level: 'error',
-            kind: 'api_handler_failure',
-            url,
-            error: (err as Error).message,
-            at: Date.now(),
-          }),
-        );
+        // An oversized body is a client error, not a server fault: answering 500
+        // sends the caller hunting a nonexistent bug (it cost a real debugging
+        // session on the studies API), so map it to 413 and skip the error log.
+        const tooLarge = err instanceof RequestBodyTooLargeError;
+        if (!tooLarge) {
+          console.error(
+            JSON.stringify({
+              level: 'error',
+              kind: 'api_handler_failure',
+              url,
+              error: (err as Error).message,
+              at: Date.now(),
+            }),
+          );
+        }
         if (!response.headersSent) {
-          response.writeHead(500, { 'content-type': 'application/json' });
-          response.end(JSON.stringify({ error: 'internal_error' }));
+          response.writeHead(tooLarge ? 413 : 500, { 'content-type': 'application/json' });
+          response.end(
+            JSON.stringify({ error: tooLarge ? 'request_body_too_large' : 'internal_error' }),
+          );
         }
       });
       return;
