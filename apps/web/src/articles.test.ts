@@ -268,6 +268,13 @@ describe('article public listing gates', () => {
     expect(cards?.querySelector('.landing-announcement-card[href="/leaderboard"]')).toBeNull();
   });
 
+  it('keeps the Secret in the Tangerine announcement out of the homepage article row', () => {
+    const cards = buildHomeArticleCards(50);
+
+    expect(cards?.textContent).not.toContain('Secret in the Tangerine, both game volumes.');
+    expect(cards?.querySelector('.landing-announcement-card[href="/study/Dfi3NpRE"]')).toBeNull();
+  });
+
   it('does not show the Drop Mini Xiangqi launch announcement in the homepage article widget', () => {
     vi.stubEnv('DEV', false);
 

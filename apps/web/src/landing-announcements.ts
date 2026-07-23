@@ -90,19 +90,30 @@ function renderFeedEntry(entry: Announcement, locale: Locale): HTMLElement {
   const content = document.createElement('div');
   content.className = 'landing-news-content';
 
+  // Match the Lichess lobby feed: the relative date is a link to the full
+  // archive, while hovering it exposes the exact calendar date.
+  const dateLink = document.createElement('a');
+  dateLink.className = 'landing-news-date';
+  dateLink.href = localizedHref('/feed', locale);
+  dateLink.title = formatAnnouncementDate(entry.date, true, locale);
   const date = document.createElement('time');
-  date.className = 'landing-news-date';
   date.dateTime = entry.date;
   date.textContent = formatAnnouncementRelativeDate(entry.date, locale);
-  date.title = formatAnnouncementDate(entry.date, true, locale);
+  dateLink.append(date);
 
   const body = document.createElement('p');
   body.className = 'landing-news-body';
-  body.append(document.createTextNode(entry.headline));
+  const headline = document.createElement('strong');
+  headline.className = 'landing-news-headline';
+  headline.textContent = entry.headline;
+  body.append(headline);
   if (entry.body) {
-    body.append(document.createTextNode(` ${entry.body}`));
+    const summary = document.createElement('span');
+    summary.className = 'landing-news-summary';
+    summary.textContent = entry.body;
+    body.append(summary);
   }
-  content.append(date, body);
+  content.append(dateLink, body);
   if (entry.href) {
     const cta = document.createElement('a');
     cta.className = 'landing-news-link';
