@@ -84,16 +84,41 @@ describe('engineArrowsFromLines', () => {
     expect(arrows.at(-1)).toMatchObject({ from: 'h3', to: 'e3' });
   });
 
-  it('ignores unsorted input and caps at three lines', () => {
+  it('ignores unsorted input and puts the best line on top', () => {
     const arrows = engineArrowsFromLines([
-      line(4, ['a1a2'], 30),
-      line(2, ['b3e3'], 30),
-      line(1, ['h3e3'], 30),
       line(3, ['b1c3'], 30),
+      line(1, ['h3e3'], 30),
+      line(2, ['b3e3'], 30),
     ]);
     expect(arrows).toHaveLength(3);
     expect(arrows.at(-1)).toMatchObject({ className: 'xq-arrow--pv1', from: 'h3', to: 'e3' });
-    expect(arrows.some((a) => a.from === 'a1')).toBe(false);
+  });
+
+  it('draws every near-equal line, so the count tracks the MultiPV setting', () => {
+    // Five moves within a couple of centipawns is five playable moves. A rank cap
+    // here would have shown three and implied the other two were unplayable.
+    const arrows = engineArrowsFromLines([
+      line(1, ['h3e3'], 30),
+      line(2, ['b3e3'], 29),
+      line(3, ['b1c3'], 28),
+      line(4, ['a1a2'], 27),
+      line(5, ['i1i2'], 26),
+    ]);
+    expect(arrows).toHaveLength(5);
+    expect(arrows.filter((a) => a.className === 'xq-arrow--alt')).toHaveLength(4);
+    expect(arrows.at(-1)).toMatchObject({ className: 'xq-arrow--pv1' });
+  });
+
+  it('still lets the cutoff thin a large MultiPV down to the playable moves', () => {
+    const arrows = engineArrowsFromLines([
+      line(1, ['h3e3'], 400),
+      line(2, ['b3e3'], 380),
+      line(3, ['b1c3'], -400),
+      line(4, ['a1a2'], -600),
+      line(5, ['i1i2'], -900),
+    ]);
+    // Only PV2 stays within the gap; the three losing lines are dropped.
+    expect(arrows.map((a) => a.className)).toEqual(['xq-arrow--alt', 'xq-arrow--pv1']);
   });
 
   it('skips lines whose first PV move does not parse', () => {
