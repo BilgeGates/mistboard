@@ -133,11 +133,12 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
   const onlySpec = params.get('only');
   // ?demo=<sampleId> forces a specific bundled game to open first.
   const requested = params.get('demo');
-  // The bundled Misty self-play demos are a local-testing aid, never a production
-  // surface: an engine demo on the live homepage reads as "nobody plays here". In
-  // prod a race loss or thin pool keeps the skeleton until real games arrive.
-  // ?demo stays as an explicit escape hatch for debugging a prod build.
-  const allowBundledDemos = import.meta.env.DEV || requested !== null;
+  // The bundled Misty self-play demos are an explicit visual-testing aid, never
+  // the default homepage in any environment. Local mode follows production:
+  // a race loss or empty pool keeps the skeleton until real games arrive, so
+  // developers exercise the same cross-variant renderer and clock UI users see.
+  // ?demo stays as an escape hatch for opening a bundled sample deliberately.
+  const allowBundledDemos = shouldUseBundledShowcaseDemos(window.location.search);
   // With demos available they hold the slot until the real pool is worth cycling
   // (3+); without them any real game beats an empty skeleton.
   const minShowcasePool = allowBundledDemos ? 3 : 1;
@@ -398,6 +399,10 @@ async function fetchShowcaseGames(): Promise<FeaturedGame[]> {
   if (!resp.ok) throw new Error(`failed to load showcase games: ${resp.status}`);
   const data = (await resp.json()) as { games: FeaturedGame[] };
   return data.games;
+}
+
+export function shouldUseBundledShowcaseDemos(search: string): boolean {
+  return new URLSearchParams(search).has('demo');
 }
 
 export async function mountGame(root: HTMLElement, roomId: string): Promise<void> {

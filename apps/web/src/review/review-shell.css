@@ -64,6 +64,31 @@
   align-items: flex-start;
 }
 
+/* Standalone analysis boards share one perimeter: gently rounded on the page
+   edge, sharp on the tools edge. The sharp right edge is ready to sit flush
+   against the eval gauge even for fog variants that do not mount one yet.
+   Scope this to .analysis-route so completed-game review boards keep their
+   existing presentation. */
+.analysis-route {
+  --analysis-board-left-radius: 10px;
+}
+
+.analysis-route .review-stage__slot--primary > :first-child,
+.analysis-route .review-stage__slot--primary > :first-child > svg {
+  border-radius: var(--analysis-board-left-radius) 0 0 var(--analysis-board-left-radius);
+  overflow: hidden;
+}
+
+/* Some SVG renderers round their painted background internally. Remove that
+   inner four-corner clip on analysis pages and let the shared outer perimeter
+   above supply the left-only rounding. */
+.analysis-route .review-stage__slot--primary
+  > :first-child
+  > svg
+  :is(clipPath[id$="-clip"] > rect, .banqi-board-bg, .jieqi-board-bg) {
+  rx: 0;
+}
+
 /* col1: one stacked column, board first. */
 .review-shell__cluster {
   --uni-board-h-budget: calc(
@@ -657,6 +682,29 @@
     min-height: 0;
     max-height: none;
   }
+}
+
+/* Standalone analysis: the analyse table itself, not the table plus playback
+   controls, occupies exactly the board height. Keep the rail's grid footprint
+   board-sized while allowing the controls to flow below it. */
+@media (min-width: 800px) {
+  .analysis-route .review-shell__right {
+    align-self: start;
+    height: calc(var(--uni-board-width) / var(--uni-board-aspect, 1));
+    overflow: visible;
+  }
+
+  .analysis-route .review-shell__right .review-rail-group {
+    flex: none;
+  }
+
+  .analysis-route .review-shell__right .review-rail-mainwrap {
+    flex: none;
+  }
+}
+
+.review-analysis-summary-slot:empty {
+  display: none;
 }
 
 /* col3: the left rail's group also ends at the board bottom, so its last panel

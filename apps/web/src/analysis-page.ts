@@ -35,6 +35,9 @@ export async function mountAnalysisPage(
   root: HTMLElement,
   variant: AnalysisVariantId,
 ): Promise<void> {
+  // Shared visual contract for every standalone analysis board. Review/postgame
+  // pages use the same scaffold but keep their own board perimeter treatment.
+  root.classList.add('analysis-route');
   const mount = await LOADERS[variant]();
   await mount(root, buildVariantPicker(variant));
 }

@@ -101,10 +101,11 @@ describe('createMoveTree', () => {
     document.querySelector('.move-tree__menu')?.remove();
   });
 
-  it('shows an empty state for a bare tree', () => {
+  it('leaves a bare analysis tree visually empty', () => {
     const tree = createGameTree(xiangqiTreeAdapter);
     const moveTree = createMoveTree(tree, { onJump: () => {} });
-    expect(moveTree.el.querySelector('.review-move-list__empty')).not.toBeNull();
+    expect(moveTree.el.querySelector('.review-move-list__rows')?.childElementCount).toBe(0);
+    expect(moveTree.el.textContent).not.toContain('No moves');
   });
 
   it('keeps the eval on a chance ply that also carries a luck badge', () => {

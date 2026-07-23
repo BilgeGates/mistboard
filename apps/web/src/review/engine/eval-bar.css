@@ -25,10 +25,12 @@
   width: 100%;
   height: 100%;
 }
-/* Engine off: the bar stays in the layout (no board reflow) but dims to read
-   as inactive rather than as a live "0.0" evaluation. */
+/* Engine off: the bar stays in the layout (no board reflow) and remains
+   recognizably inactive, but retains enough pigment to distinguish the Jungle
+   family's blue track from the Xiangqi family's black track. At 0.25 both
+   palettes washed into nearly the same gray against the page background. */
 .review-eval-bar--idle {
-  opacity: 0.25;
+  opacity: 0.62;
 }
 
 /* Per-pawn gradations (±1..±6), faint so they read as a ruler behind the fill. */

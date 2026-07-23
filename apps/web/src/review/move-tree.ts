@@ -326,10 +326,6 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
     rows.replaceChildren();
     const main = tree.root.children[0];
     if (!main) {
-      const empty = document.createElement('li');
-      empty.className = 'review-move-list__empty';
-      empty.textContent = 'No moves';
-      rows.append(empty);
       return;
     }
     // Pass the root so alternative first moves interleave at move 1 (renderMainline

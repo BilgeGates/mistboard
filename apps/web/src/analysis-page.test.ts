@@ -26,6 +26,9 @@ describe('analysis page', () => {
 
         // The tree review mounted: a move list ready for branching.
         expect(root.querySelector('.review-move-list'), 'move list').not.toBeNull();
+        // All analysis variants share one board-perimeter contract, including
+        // fog variants that do not yet mount an eval gauge.
+        expect(root.classList.contains('analysis-route')).toBe(true);
         // Lichess minimalism: the dropdown IS the left rail — no meta card.
         expect(root.querySelector('.game-meta-card')).toBeNull();
       } finally {

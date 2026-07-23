@@ -841,6 +841,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   commentPanelEl.className = 'review-comment-panel review-comment-panel--empty';
   commentPanelEl.setAttribute('aria-live', 'polite');
   const analysisSummaryEl = document.createElement('div');
+  analysisSummaryEl.className = 'review-analysis-summary-slot';
   // Chance-variant (jieqi) caption slot under the accuracy summary: a "Grading reveals…" placeholder
   // until the decomposition loads, then a one-line luck caption. Kept as a persistent child so
   // applyAnalysis/applyDecisions can re-attach it without re-creating the node.

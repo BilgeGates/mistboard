@@ -4,6 +4,7 @@ import {
   landingRoomClientKindForUrl,
   loadPlayableEnginesWithRetry,
   renderLandingShellForPrerender,
+  shouldUseBundledShowcaseDemos,
 } from './landing.js';
 
 const ROSTER = [
@@ -92,6 +93,12 @@ describe('playable engines loading', () => {
 });
 
 describe('landing shell', () => {
+  it('uses bundled showcase games only when a demo is explicitly requested', () => {
+    expect(shouldUseBundledShowcaseDemos('')).toBe(false);
+    expect(shouldUseBundledShowcaseDemos('?only=xiangqi')).toBe(false);
+    expect(shouldUseBundledShowcaseDemos('?demo=engine-v2-g0000')).toBe(true);
+  });
+
   it('keeps the grid-area hooks the homepage band CSS keys on', () => {
     // landing.css places the bands via these class names (grid-areas
     // left/panel/play, puzzle/forum/chat, news/blogs+videos/studies); renaming

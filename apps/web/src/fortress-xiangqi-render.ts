@@ -66,7 +66,7 @@ export function renderFortressXiangqiBoardSvg(
   const targets = options.targets ?? [];
   return `
     <svg class="fxq-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Storm the Fortress board">
-      <rect class="fxq-board-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="10"/>
+      <rect class="fxq-board-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}"/>
       ${riverBand(perspective)}
       ${palaceBands(perspective)}
       <g class="fxq-grid">${gridLines()}${palaceCrosses(perspective)}</g>
@@ -513,6 +513,7 @@ export function installFortressXiangqiBoardStyles(): void {
       width: 100%;
       min-height: 0;
       border-radius: 10px;
+      overflow: hidden;
       box-shadow: 0 18px 50px rgba(37, 31, 24, 0.16);
     }
     .fortress-xiangqi-live-board--disabled {

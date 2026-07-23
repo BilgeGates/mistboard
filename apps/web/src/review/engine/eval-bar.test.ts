@@ -33,6 +33,14 @@ describe('eval bar gridlines', () => {
 });
 
 describe('eval bar fill', () => {
+  it('marks the gauge idle without removing it from the layout', () => {
+    const bar = createEvalBar();
+    bar.setIdle(true);
+    expect(bar.el.classList.contains('review-eval-bar--idle')).toBe(true);
+    bar.setIdle(false);
+    expect(bar.el.classList.contains('review-eval-bar--idle')).toBe(false);
+  });
+
   it('sits at half height for an even position', () => {
     const bar = createEvalBar();
     bar.setEval(0, null);
