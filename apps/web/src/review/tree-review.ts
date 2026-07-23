@@ -44,6 +44,7 @@ import {
   type VariantTreeAdapter,
 } from './game-tree.js';
 import { ADVICE_LABEL, defaultFormatBestMove } from './move-advice.js';
+import { type MoveGlyphTone, moveGlyphTone } from './move-glyph.js';
 import { createMoveTree, type MoveTree, type MoveTreeAnnotation, pathKey } from './move-tree.js';
 import { createReviewControls, REVIEW_MENU_ICONS, type ReviewMenuItem } from './review-controls.js';
 import { createReviewScaffold, installReviewKeyboard } from './review-layout.js';
@@ -161,6 +162,12 @@ export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
   shapeToArrow(shape: NodeShape): Arrow;
   /** A user-drawn annotation circle shape → board marker. */
   shapeToMarker(shape: NodeShape): Marker;
+  /** Badge for the move-annotation glyph on `move`'s destination point (the
+   *  '??' / '?' / '?!' the move list shows for the same move, plus user NAGs).
+   *  The variant owns this because only it can turn its Move into a square.
+   *  Return null when the move has no drawable destination; OMIT the hook
+   *  entirely for variants that show no on-board glyphs. */
+  moveGlyphMarker?(move: Move, glyph: { text: string; tone: MoveGlyphTone }): Marker | null;
   /** Game-phase segmentation over the mainline truths (index 0 = start position):
    *  drives the advantage chart's Opening/Middlegame/Endgame dividers and the
    *  summary's per-phase accuracy. Omit for variants without a phase heuristic —
@@ -562,15 +569,37 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     }
     return [];
   }
+  // The move-list annotation map (glyph suffix / eval / advice per node), kept so
+  // the board badge can read the SAME entry the list renders instead of deriving
+  // its own judgment. Rebuilt by refreshMoveTreeAnnotations.
+  let annotationByPathKey = new Map<string, MoveTreeAnnotation>();
+
+  /** Badge for the glyph on the move that LED to the current node (so it sits on
+   *  the piece that just moved). Empty at the root, for variants without the
+   *  hook, and for glyphs whose symbol we have no tone for. */
+  function glyphMarkers(): Marker[] {
+    const build = presentation.moveGlyphMarker;
+    const node = currentNode();
+    if (!build || !node.move) return [];
+    const entry = annotationByPathKey.get(pathKey(currentPath));
+    const tone = moveGlyphTone(entry?.suffix, entry?.suffixClass);
+    if (!entry?.suffix || !tone) return [];
+    const marker = build(node.move, { text: entry.suffix, tone });
+    return marker ? [marker] : [];
+  }
+
   // Paint BOTH the derived engine arrows and the node's user-drawn shapes. User
   // arrows layer over engine arrows; user circles ride the marker overlay.
   function paintOverlays(): void {
     const shapes = currentNode().annotations?.shapes ?? [];
     const userArrows = shapes.filter((s) => s.kind === 'arrow').map(presentation.shapeToArrow);
     interactive.setArrows([...engineArrows(), ...userArrows]);
-    interactive.setMarkers(
-      shapes.filter((s) => s.kind === 'circle').map(presentation.shapeToMarker),
-    );
+    // Glyph first so a user's own circle on the same point draws over it: the
+    // annotation they just made should not be hidden by a derived badge.
+    interactive.setMarkers([
+      ...glyphMarkers(),
+      ...shapes.filter((s) => s.kind === 'circle').map(presentation.shapeToMarker),
+    ]);
   }
 
   const enginePanel =
@@ -1203,7 +1232,11 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       }
     }
     applyUserAnnotations(tree.root, byPathKey);
+    annotationByPathKey = byPathKey;
     moveTree.annotate(byPathKey);
+    // The board badge reads this map, so it has to repaint when the map changes
+    // (analysis landing, or the user authoring a glyph) and not only on a ply move.
+    paintOverlays();
   }
 
   function applyUserAnnotations(node: Node, map: Map<string, MoveTreeAnnotation>): void {

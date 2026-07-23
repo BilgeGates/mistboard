@@ -12,6 +12,7 @@ import {
   renderXiangqiBoardSvg as renderSharedXiangqiBoardSvg,
   type XiangqiBoardArrow,
   xiangqiArrowSvg,
+  xiangqiMarkerSvg,
 } from './xiangqi-board.js';
 
 // This happy-dom build ships no window.localStorage; back it with memory (same
@@ -301,6 +302,53 @@ describe('xiangqiArrowSvg', () => {
   });
 });
 
+describe('judgment glyph markers', () => {
+  it('pins the badge to the top-right of the point so it clears the piece', () => {
+    // Red perspective: b3 -> (96, 456); the badge offsets +21 / -21 from there.
+    const svg = xiangqiMarkerSvg({ square: 'b3', kind: 'glyph', text: '??' }, 'red');
+    expect(svg).toContain('class="xq-marker xq-marker--glyph"');
+    expect(svg).toContain('<circle class="xq-marker__disc" cx="117" cy="435" r="13"/>');
+    expect(svg).toContain('>??</text>');
+  });
+
+  it('offsets in SCREEN space, so the badge keeps its corner when the board flips', () => {
+    // Black perspective puts rank 3 at y = 156; the badge is still up-and-right.
+    const svg = xiangqiMarkerSvg({ square: 'b3', kind: 'glyph', text: '?' }, 'black');
+    expect(svg).toContain('cx="117" cy="135"');
+  });
+
+  it('keeps a corner badge inside the board edge (offset + radius <= margin)', () => {
+    // i10 is the far corner in red perspective: x = 516, y = 36. The disc spans
+    // 516+21±13 = [524, 550] and 36-21±13 = [2, 28], inside the 552x612 box.
+    const svg = xiangqiMarkerSvg({ square: 'i10', kind: 'glyph', text: '?!' }, 'red');
+    expect(svg).toContain('cx="537" cy="15" r="13"');
+  });
+
+  it('carries the tone class so the board palette matches the move list', () => {
+    const svg = xiangqiMarkerSvg(
+      { square: 'e3', kind: 'glyph', text: '?', className: 'xq-marker--mistake' },
+      'red',
+    );
+    expect(svg).toContain('class="xq-marker xq-marker--mistake xq-marker--glyph"');
+  });
+
+  it('escapes the label rather than injecting it as markup', () => {
+    const svg = xiangqiMarkerSvg({ square: 'e3', kind: 'glyph', text: '<b>&' }, 'red');
+    expect(svg).not.toContain('<b>');
+    expect(svg).toContain('&lt;b&gt;&amp;');
+  });
+
+  it('draws nothing for a glyph with no label, rather than a blank disc', () => {
+    expect(xiangqiMarkerSvg({ square: 'e3', kind: 'glyph' }, 'red')).toBe('');
+    expect(xiangqiMarkerSvg({ square: 'e3', kind: 'glyph', text: '' }, 'red')).toBe('');
+  });
+
+  it('leaves the existing circle and star kinds alone', () => {
+    expect(xiangqiMarkerSvg({ square: 'b3', kind: 'circle' }, 'red')).toContain('cx="96" cy="456"');
+    expect(xiangqiMarkerSvg({ square: 'b3', kind: 'star' }, 'red')).toContain('xq-marker--star');
+  });
+});
+
 describe('interactive board arrow overlay', () => {
   function mountBoard() {
     const host = document.createElement('div');
@@ -344,6 +392,26 @@ describe('interactive board arrow overlay', () => {
     board.setArrows([]);
     expect(host.querySelectorAll('.xq-live-arrows .xq-arrow')).toHaveLength(0);
     host.remove();
+  });
+
+  it('puts judgment badges in a band ABOVE the arrows, ringed markers below', () => {
+    const { host, board } = mountBoard();
+    try {
+      board.setArrows([{ from: 'b3', to: 'e3' }]);
+      board.setMarkers([
+        { square: 'e3', kind: 'glyph', text: '??' },
+        { square: 'b3', kind: 'circle' },
+      ]);
+      const html = host.innerHTML;
+      expect(host.querySelector('.xq-live-markers')?.innerHTML).toContain('xq-marker--circle');
+      expect(host.querySelector('.xq-live-markers')?.innerHTML).not.toContain('xq-marker--glyph');
+      expect(host.querySelector('.xq-live-glyphs')?.innerHTML).toContain('xq-marker--glyph');
+      // Document order is paint order: an arrowhead landing on the annotated
+      // point must not cover the verdict.
+      expect(html.indexOf('xq-live-arrows')).toBeLessThan(html.indexOf('xq-live-glyphs'));
+    } finally {
+      host.remove();
+    }
   });
 
   it('patches streamed arrows and markers using the mounted square-grid geometry', () => {

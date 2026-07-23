@@ -20,6 +20,7 @@ import { drawMarkerOnArrival, glideSvgPiece, pieceAnimationDurationMs } from './
 import { tokenPieceSize } from './board-metrics.js';
 import { installBoardDrag, installBoardDraw } from './variant-tenant/board-drag.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
+import { escapeHtml } from './web-utils.js';
 import {
   readStoredXiangqiBoardLayout,
   type XiangqiBoardLayout,
@@ -85,11 +86,15 @@ export interface XiangqiBoardSvgState {
 }
 
 /** A decoration pinned to one intersection: 'star' = a collectible item
- *  (xiangqi learn apples), 'circle' = an annotation ring. Styling hooks via
- *  className; geometry flips with the board perspective like everything else. */
+ *  (xiangqi learn apples), 'circle' = an annotation ring, 'glyph' = a small
+ *  labelled disc riding the top-right corner of the point (the review board's
+ *  ?? / ? / ?! move annotations). Styling hooks via className; geometry flips
+ *  with the board perspective like everything else. */
 export interface XiangqiBoardMarker {
   square: XiangqiSquare;
-  kind: 'star' | 'circle';
+  kind: 'star' | 'circle' | 'glyph';
+  /** Disc label for kind 'glyph' (e.g. '??'). Ignored by the other kinds. */
+  text?: string;
   className?: string;
 }
 
@@ -131,8 +136,9 @@ export function xiangqiBoardSvg(
       <g class="xq-live-selection">${selectionLayer(state.selectedSquare, perspective, layout)}</g>
       <g class="xq-live-hints">${state.interactive ? '' : hintLayer(view, perspective, state.selectedSquare, layout)}</g>
       <g class="xq-live-pieces">${pieceLayer(view, perspective, state.draggingFrom, layout)}</g>
-      <g class="xq-live-markers" aria-hidden="true" pointer-events="none">${markerLayer(state.markers ?? [], perspective, layout)}</g>
+      <g class="xq-live-markers" aria-hidden="true" pointer-events="none">${markerLayer(state.markers ?? [], perspective, layout, 'point')}</g>
       <g class="xq-live-arrows" aria-hidden="true" pointer-events="none">${arrowLayer(state.arrows ?? [], perspective, layout)}</g>
+      <g class="xq-live-glyphs" aria-hidden="true" pointer-events="none">${markerLayer(state.markers ?? [], perspective, layout, 'glyph')}</g>
       <g class="xq-live-clicks">${state.interactive ? clickLayer(view, perspective, state.selectedSquare, layout) : ''}</g>
     </svg>
   `;
@@ -362,6 +368,17 @@ const STAR_OUTER_RADIUS = 22;
 const STAR_INNER_RADIUS = 9;
 const MARKER_RING_RADIUS = 29;
 
+// Judgment-glyph disc, pinned to the top-right of the point so it clears the
+// piece token instead of covering it (lila puts the same badge on the corner of
+// the destination square). Sized to read as an annotation ON the position, not
+// as another piece: well under the 27-unit piece radius, and pushed far enough
+// out that it bites the token's corner rather than sitting on its face.
+// OFFSET + RADIUS <= MARGIN keeps a last-file/rank glyph inside the board edge,
+// so it never needs clamping.
+const GLYPH_RADIUS = 13;
+const GLYPH_OFFSET = 21;
+const GLYPH_FONT_SIZE = 15;
+
 function starPoints(cx: number, cy: number): string {
   const points: string[] = [];
   for (let k = 0; k < 10; k += 1) {
@@ -381,18 +398,40 @@ export function xiangqiMarkerSvg(
   const coord = coordOf(marker.square);
   const center = intersection(coord.file, coord.rank, perspective, layout);
   const className = marker.className ? `xq-marker ${marker.className}` : 'xq-marker';
+  if (marker.kind === 'glyph') {
+    // Offsets are in SCREEN space (intersection() has already applied the
+    // perspective flip), so the badge sits in the same corner whichever way the
+    // board faces. Empty text draws nothing rather than an unlabelled disc.
+    if (!marker.text) return '';
+    const cx = center.x + GLYPH_OFFSET;
+    const cy = center.y - GLYPH_OFFSET;
+    return (
+      `<g class="${className} xq-marker--glyph">` +
+      `<circle class="xq-marker__disc" cx="${cx}" cy="${cy}" r="${GLYPH_RADIUS}"/>` +
+      `<text class="xq-marker__label" x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="${GLYPH_FONT_SIZE}">${escapeHtml(marker.text)}</text>` +
+      `</g>`
+    );
+  }
   if (marker.kind === 'circle') {
     return `<circle class="${className} xq-marker--circle" cx="${center.x}" cy="${center.y}" r="${MARKER_RING_RADIUS}" fill="none" stroke-width="5"/>`;
   }
   return `<polygon class="${className} xq-marker--star" points="${starPoints(center.x, center.y)}"/>`;
 }
 
+// Markers split across TWO layers: point decorations (stars / annotation rings)
+// sit under the arrows as they always have, and judgment badges sit OVER them.
+// An arrow lands on the same point the badge annotates, so in one layer the
+// arrowhead would cover the verdict it is competing with for attention.
 function markerLayer(
   markers: readonly XiangqiBoardMarker[],
   perspective: XiangqiColor,
   layout: XiangqiBoardLayout,
+  band: 'point' | 'glyph',
 ): string {
-  return markers.map((marker) => xiangqiMarkerSvg(marker, perspective, layout)).join('');
+  return markers
+    .filter((marker) => (marker.kind === 'glyph') === (band === 'glyph'))
+    .map((marker) => xiangqiMarkerSvg(marker, perspective, layout))
+    .join('');
 }
 
 function selectionLayer(
@@ -664,12 +703,15 @@ export function createXiangqiInteractiveBoard(
 
   function setMarkers(next: readonly XiangqiBoardMarker[]): void {
     markers = next;
-    const layer = opts.board.querySelector('.xq-live-markers');
-    if (layer) {
-      const layout = mountedXiangqiBoardLayout(opts.board);
-      layer.innerHTML = markers
-        .map((m) => xiangqiMarkerSvg(m, opts.getPerspective(), layout))
-        .join('');
+    const layout = mountedXiangqiBoardLayout(opts.board);
+    // Two bands, patched together — same split the full render does, so a
+    // streamed update and a fresh render agree on what sits above the arrows.
+    for (const [selector, band] of [
+      ['.xq-live-markers', 'point'],
+      ['.xq-live-glyphs', 'glyph'],
+    ] as const) {
+      const layer = opts.board.querySelector(selector);
+      if (layer) layer.innerHTML = markerLayer(markers, opts.getPerspective(), layout, band);
     }
   }
 
