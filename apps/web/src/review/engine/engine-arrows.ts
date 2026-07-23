@@ -23,7 +23,12 @@ import type { CevalLine } from './ceval.js';
  *  arrow read as noise next to the ranked candidate arrows. */
 export const SHOW_PV1_REPLY_SEGMENT = false;
 
-const MAX_ARROW_LINES = 3;
+// There is deliberately NO cap on the number of arrows: the MultiPV setting says
+// how many lines to draw and ALT_CUTOFF_SHIFT decides which of them earn ink. A
+// rank cap was a second, cruder filter in front of the real one — with the
+// slider at 5 it silently drew 3, so moving the control did nothing, and five
+// moves within 20cp were shown as three playable and two not. Bounded in
+// practice by the slider's max and by the cutoff.
 
 /** The best line: fixed weight, always drawn. */
 const BEST_STYLE = { opacity: 0.4, width: 14 } as const;
@@ -52,12 +57,14 @@ function lineWinPercent(line: CevalLine): number {
   return winPercent(line.scoreCp, line.mate);
 }
 
-/** Arrows for the first move of each MultiPV line (up to 3), weakest first so
- *  the strongest renders on top. Alternates that concede too much are dropped
- *  entirely. When enabled, PV1's reply move is prepended as a faint dashed
- *  segment (bottom of the stack). */
+/** Arrows for the first move of every MultiPV line, weakest first so the
+ *  strongest renders on top. Alternates that concede too much are dropped
+ *  entirely, so the count tracks the MultiPV setting AND the position: five
+ *  near-equal moves draw five arrows, a forcing position draws one. When
+ *  enabled, PV1's reply move is prepended as a faint dashed segment (bottom of
+ *  the stack). */
 export function engineArrowsFromLines(lines: readonly CevalLine[]): XiangqiBoardArrow[] {
-  const ranked = [...lines].sort((a, b) => a.multipv - b.multipv).slice(0, MAX_ARROW_LINES);
+  const ranked = [...lines].sort((a, b) => a.multipv - b.multipv);
   const best = ranked[0];
   if (!best) return [];
   const bestWin = lineWinPercent(best);
