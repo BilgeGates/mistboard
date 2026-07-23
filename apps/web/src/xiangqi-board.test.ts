@@ -249,23 +249,23 @@ describe('keyed piece slots + animateXiangqiBoardMove', () => {
 describe('xiangqiArrowSvg', () => {
   it('draws shaft + head between intersection centers, inset at both ends', () => {
     // Red perspective: b3 -> (96, 456), e3 -> (276, 456); horizontal arrow.
-    // Start inset 12 -> x=108. Tip inset 24 -> tip x=252; head length 20 -> the
-    // shaft ends at the head base (x=232); head half-width 11.
+    // Start inset 12 -> x=108. Tip lands AT the destination centre (x=276); head
+    // length 20 -> the shaft ends at the head base (x=256); head half-width 11.
     const svg = xiangqiArrowSvg({ from: 'b3', to: 'e3' }, 'red');
     expect(svg).toContain('class="xq-arrow"');
     expect(svg).toContain('opacity="0.9"');
     expect(svg).toContain(
-      '<line x1="108" y1="456" x2="232" y2="456" stroke-width="9" stroke-linecap="round"/>',
+      '<line x1="108" y1="456" x2="256" y2="456" stroke-width="9" stroke-linecap="round"/>',
     );
-    expect(svg).toContain('<polygon points="252,456 232,467 232,445" stroke="none"/>');
+    expect(svg).toContain('<polygon points="276,456 256,467 256,445" stroke="none"/>');
     expect(svg).toContain('pointer-events="none"');
   });
 
   it('flips with the board perspective (same transform as the pieces)', () => {
     // Black perspective flips ranks only: rank 3 lands at y = 36 + 2*60 = 156.
     const svg = xiangqiArrowSvg({ from: 'b3', to: 'e3' }, 'black');
-    expect(svg).toContain('<line x1="108" y1="156" x2="232" y2="156"');
-    expect(svg).toContain('<polygon points="252,156 232,167 232,145"');
+    expect(svg).toContain('<line x1="108" y1="156" x2="256" y2="156"');
+    expect(svg).toContain('<polygon points="276,156 256,167 256,145"');
   });
 
   it('honours per-arrow class, opacity, width, and dash', () => {
@@ -282,10 +282,10 @@ describe('xiangqiArrowSvg', () => {
   it('scales the head with the shaft so a thin arrow is not a lollipop', () => {
     // Engine candidate arrows encode strength as width; a fixed head would leave
     // a hairline shaft carrying a full-size spearhead. Half the width at 4.5 =>
-    // head length 10 (shaft base x=242) and half-width 5.5.
+    // head length 10 (shaft base x=266) and half-width 5.5.
     const svg = xiangqiArrowSvg({ from: 'b3', to: 'e3', width: 4.5 }, 'red');
-    expect(svg).toContain('<line x1="108" y1="456" x2="242" y2="456" stroke-width="4.5"');
-    expect(svg).toContain('<polygon points="252,456 242,461.5 242,450.5" stroke="none"/>');
+    expect(svg).toContain('<line x1="108" y1="456" x2="266" y2="456" stroke-width="4.5"');
+    expect(svg).toContain('<polygon points="276,456 266,461.5 266,450.5" stroke="none"/>');
   });
 
   it('clamps a wide head to the span so a one-step arrow never reverses', () => {
@@ -422,8 +422,8 @@ describe('interactive board arrow overlay', () => {
       board.setMarkers([{ square: 'b3', kind: 'circle' }]);
 
       const arrow = host.querySelector('.xq-live-arrows')?.innerHTML ?? '';
-      expect(arrow).toContain('<line x1="96" y1="456" x2="96" y2="260"');
-      expect(arrow).toContain('<polygon points="96,240 107,260 85,260"');
+      expect(arrow).toContain('<line x1="96" y1="456" x2="96" y2="236"');
+      expect(arrow).toContain('<polygon points="96,216 107,236 85,236"');
       expect(host.querySelector('.xq-live-markers')?.innerHTML).toContain('cx="96" cy="468"');
     } finally {
       host.remove();

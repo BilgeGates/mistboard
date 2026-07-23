@@ -127,3 +127,18 @@
 .move-tree__subvar .review-move-list__eval {
   display: none;
 }
+
+/* Assessment glyph (=, ⩲, ±, +−) closing a grafted analysis variation. Unlike
+   the numeric eval (hidden inside variations), this IS shown there — it is the
+   whole point of the line, its verdict — and reads in the muted ink so it sits
+   beside the moves without shouting. */
+.review-move-list__assessment {
+  flex: none;
+  margin-left: 4px;
+  color: var(--site-muted, #777);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.review-move-list__assessment:empty {
+  display: none;
+}

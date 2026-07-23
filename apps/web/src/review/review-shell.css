@@ -952,3 +952,31 @@
   font-size: 12px;
   color: var(--site-muted);
 }
+
+/* Rail-main wrapper: the positioning context for the opening-explorer overlay.
+   It is transparent to layout — it takes railMain's flex role so the moves box
+   sizes exactly as before — and only earns its keep when the overlay opens. */
+.review-rail-mainwrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+.review-rail-mainwrap > .review-rail-main {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* The overlay fills the moves region (which tracks the board height on desktop)
+   and scrolls on its own, so opening the book covers the move list without
+   resizing the board or the rail. Its own top border is the seam against the
+   engine head above; navigation stays visible below the wrapper. */
+.review-rail-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  max-height: none;
+  border-radius: 6px;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
+}

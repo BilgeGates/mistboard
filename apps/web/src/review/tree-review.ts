@@ -27,7 +27,7 @@ import type { CevalLine, CevalVariant } from './engine/ceval.js';
 import { readEngineArrowsEnabled, writeEngineArrowsEnabled } from './engine/engine-arrow-pref.js';
 import { createEnginePanel } from './engine/engine-panel.js';
 import { createEvalBar } from './engine/eval-bar.js';
-import { formatEval } from './engine/eval-format.js';
+import { advantageSymbol, formatEval } from './engine/eval-format.js';
 import {
   type GameAnalysis,
   type GamePhases,
@@ -241,7 +241,7 @@ export type DecisionSource = {
   run(): Promise<DecisionOverlay>;
 };
 
-export type TreeReviewConfig<Move, Truth = never> = {
+export type TreeReviewConfig<Move, Truth = never, Arrow = unknown> = {
   /** Root the tree at a hand-set position (a FEN-seeded composition) instead of
    *  the variant's standard start. `truth` seeds the tree root; `fen` is the
    *  canonical FEN persisted with a serialized tree (SerializedTree.rootFen).
@@ -314,6 +314,10 @@ export type TreeReviewConfig<Move, Truth = never> = {
     setActive(active: boolean): void;
     /** Register the handler that plays a move the reader clicked in the table. */
     onPlayMove(handler: (move: Move) => void): void;
+    /** Register the handler for hovering a move in the table: it hands back a
+     *  ready-built board arrow (or null on leave). The caller owns the arrow's
+     *  look so it reads as distinct from the engine's blue. */
+    onHoverMove(handler: (arrow: Arrow | null) => void): void;
   };
   /** Game result appended to the move list as a terminal block (lichess: "0-1"
    *  over the termination line). Postgame surfaces supply it; the analysis board
@@ -354,7 +358,7 @@ let keyboardAbort: AbortController | null = null;
 export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   root: HTMLElement,
   presentation: TreePresentation<Move, Truth, View, Color, Arrow, Marker>,
-  config: TreeReviewConfig<Move, Truth>,
+  config: TreeReviewConfig<Move, Truth, Arrow>,
 ): TreeReviewHandle {
   type Node = GameTreeNode<Move, Truth>;
   type Tree = GameTree<Move, Truth, View>;
@@ -408,6 +412,12 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // Clicking a move in the opening explorer plays it, same as playing it on the
   // board: the explorer is a navigation surface, not a readout.
   config.explorer?.onPlayMove(handleMove);
+  // Hovering a move previews it as a distinct arrow (the caller built its look).
+  let explorerHoverArrow: Arrow | null = null;
+  config.explorer?.onHoverMove((arrow) => {
+    explorerHoverArrow = arrow;
+    paintOverlays();
+  });
 
   // Right-drag draws an annotation shape on the CURRENT node (toggle: re-drawing
   // the same shape removes it). Green by default, red with a modifier held.
@@ -551,6 +561,11 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // list) + a per-move luck readout (the advice line) + a two-number summary block.
   let decisionOverlay: DecisionOverlay | null = null;
   let engineLines: CevalLine[] | null = null;
+  // Whether the local engine is switched on. The whole-game analysis best-move
+  // arrow is PAIRED with it: the server already judged the game, but its arrow is
+  // engine ink, so it shows only while the reader has the local engine on — an
+  // engine-off board carries no derived arrows, only what the reader drew.
+  let engineOn = false;
   // "Best move arrows" (engine gear popover / `a`). Gates BOTH arrow sources
   // below, so turning it off means no engine ink on the board at all; the user's
   // own drawn shapes are unaffected (they are appended in paintOverlays).
@@ -560,7 +575,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     const engine = presentation.engine;
     if (!engine || !showEngineArrows) return [];
     if (engineLines?.length) return engine.engineArrowsFromLines(engineLines);
-    if (SHOW_ANALYSIS_BEST_ARROW && gameAnalysis) {
+    if (SHOW_ANALYSIS_BEST_ARROW && engineOn && gameAnalysis) {
       const node = currentNode();
       if (mainlineNodes()[node.ply] === node) {
         const best = gameAnalysis.evals.find((entry) => entry.ply === node.ply)?.best;
@@ -593,7 +608,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   function paintOverlays(): void {
     const shapes = currentNode().annotations?.shapes ?? [];
     const userArrows = shapes.filter((s) => s.kind === 'arrow').map(presentation.shapeToArrow);
-    interactive.setArrows([...engineArrows(), ...userArrows]);
+    // Explorer-hover hint on top: it points at a candidate the reader is
+    // considering, so it sits over engine ink and the user's own shapes.
+    const hover = explorerHoverArrow ? [explorerHoverArrow] : [];
+    interactive.setArrows([...engineArrows(), ...userArrows, ...hover]);
     // Glyph first so a user's own circle on the same point draws over it: the
     // annotation they just made should not be hidden by a derived badge.
     interactive.setMarkers([
@@ -610,6 +628,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
           evalBar,
           onLines: (lines) => {
             engineLines = lines?.length ? lines : null;
+            paintOverlays();
+          },
+          onToggle: (on) => {
+            engineOn = on;
             paintOverlays();
           },
           showArrows: showEngineArrows,
@@ -648,6 +670,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // move. They are real, clickable tree branches, but ephemeral: excluded from a
   // serialized study unless the user explicitly promotes (adopts) the line.
   const compKeys = new Set<string>();
+  // Assessment glyph closing each grafted variation, keyed by its terminal node.
+  // The best line's value is the eval BEFORE the played move (that eval IS what
+  // best play reaches), so the whole line resolves to one verdict at its end.
+  const compAssessmentByKey = new Map<string, string>();
   const MAX_INJECTED_PV_PLIES = 10;
 
   function injectBestLines(analysis: GameAnalysis): void {
@@ -670,6 +696,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       // the move actually played there is nothing to graft.
       if (pv.length === 0 || pv[0] === nodes[move.ply]?.id) continue;
       let path = tree.pathTo(parent);
+      let grafted = false;
       for (const uci of pv.slice(0, MAX_INJECTED_PV_PLIES)) {
         const at = tree.nodeAt(path);
         if (!at) break;
@@ -681,8 +708,13 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
         if (isNew) {
           compKeys.add(pathKey(next));
           injected = true;
+          grafted = true;
         }
         path = next;
+      }
+      // The verdict rides the last move of the line, book-style.
+      if (grafted) {
+        compAssessmentByKey.set(pathKey(path), advantageSymbol(before.cp, before.mate));
       }
     }
     if (injected) moveTree.rebuild();
@@ -746,6 +778,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     if (tree.root.children.length === 0) return;
     while (tree.root.children[0]) tree.deleteAt(tree.pathTo(tree.root.children[0]));
     compKeys.clear();
+    compAssessmentByKey.clear();
     moveTree.rebuild();
     go(ROOT_PATH);
     notifyChange();
@@ -1230,6 +1263,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
           });
         }
       }
+    }
+    // Verdict glyph on each grafted refutation line's terminal move.
+    for (const [key, assessment] of compAssessmentByKey) {
+      byPathKey.set(key, { ...byPathKey.get(key), assessment });
     }
     applyUserAnnotations(tree.root, byPathKey);
     annotationByPathKey = byPathKey;

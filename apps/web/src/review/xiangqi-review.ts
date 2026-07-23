@@ -42,7 +42,11 @@ import { xiangqiTreeAdapter } from './xiangqi-tree-adapter.js';
 export type { AnalysisSource as XiangqiAnalysisSource } from './tree-review.js';
 
 /** Config for a standard-xiangqi review mount. */
-export type XiangqiReviewConfig = TreeReviewConfig<XiangqiMove, XiangqiGameState> & {
+export type XiangqiReviewConfig = TreeReviewConfig<
+  XiangqiMove,
+  XiangqiGameState,
+  XiangqiBoardArrow
+> & {
   /** Attach the opening-explorer underboard tab. Defaults to true. */
   openingExplorer?: boolean;
 };
@@ -133,6 +137,23 @@ function xiangqiOpeningExplorer(): NonNullable<XiangqiReviewConfig['explorer']> 
     setTruth: (truth) => explorer.setState(truth),
     setActive: (isActive) => explorer.setActive(isActive),
     onPlayMove: (handler) => explorer.onPlayMove(handler),
+    // Hover hint in a distinct ink (teal, dashed) so it never reads as an engine
+    // suggestion — it is "the move under your cursor", not "the best move".
+    onHoverMove: (handler) =>
+      explorer.onHoverMove((move) =>
+        handler(
+          move
+            ? {
+                from: move.from,
+                to: move.to,
+                className: 'xq-arrow--explorer',
+                color: '#8a63d2',
+                dashed: true,
+                opacity: 0.85,
+              }
+            : null,
+        ),
+      ),
   };
 }
 

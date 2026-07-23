@@ -112,6 +112,9 @@ export interface XiangqiBoardArrow {
   width?: number;
   /** Dashed shaft (used for the subtle PV reply segment). */
   dashed?: boolean;
+  /** Shaft/head fill; defaults to the engine blue. Lets a non-engine arrow (the
+   *  opening-explorer hover hint) read as a different thing on the board. */
+  color?: string;
 }
 
 /** Full board SVG with interaction state. The live room (live-xiangqi.ts) calls
@@ -294,7 +297,11 @@ function lastMoveLayer(
 // attributes (lowest CSS precedence) so a stylesheet can still retheme them.
 const ARROW_COLOR = '#2b6cb8';
 const ARROW_START_INSET = 12; // start just off the origin piece center
-const ARROW_TIP_INSET = 24; // tip stops inside the destination piece edge (r=27)
+// Tip lands AT the destination intersection centre (lichess anatomy) rather than
+// stopping at the piece edge (was 24, ~r=27). The head is drawn back from the
+// tip by its own length, so the point sits on the centre without the whole head
+// burying the piece it lands on.
+const ARROW_TIP_INSET = 0;
 // Head geometry scales with the shaft, the way an SVG marker with the default
 // markerUnits="strokeWidth" would. Engine candidate arrows encode strength as
 // width (see review/engine/engine-arrows.ts); a fixed head on a hairline shaft
@@ -340,6 +347,7 @@ export function xiangqiArrowSvg(
   const px = -uy;
   const py = ux;
   const opacity = arrow.opacity ?? 0.9;
+  const color = arrow.color ?? ARROW_COLOR;
   const className = arrow.className ? `xq-arrow ${arrow.className}` : 'xq-arrow';
   const dash = arrow.dashed ? ' stroke-dasharray="10 8"' : '';
   const head =
@@ -347,7 +355,7 @@ export function xiangqiArrowSvg(
     `${fmt(baseX + px * headHalfWidth)},${fmt(baseY + py * headHalfWidth)} ` +
     `${fmt(baseX - px * headHalfWidth)},${fmt(baseY - py * headHalfWidth)}`;
   return (
-    `<g class="${className}" opacity="${opacity}" fill="${ARROW_COLOR}" stroke="${ARROW_COLOR}" pointer-events="none">` +
+    `<g class="${className}" opacity="${opacity}" fill="${color}" stroke="${color}" pointer-events="none">` +
     `<line x1="${fmt(startX)}" y1="${fmt(startY)}" x2="${fmt(baseX)}" y2="${fmt(baseY)}" stroke-width="${width}" stroke-linecap="round"${dash}/>` +
     `<polygon points="${head}" stroke="none"/>` +
     `</g>`
