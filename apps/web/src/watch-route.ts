@@ -130,6 +130,25 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   root.replaceChildren(buildNav(), watch.el);
   document.title = 'Mistboard TV · Mistboard';
 
+  const syncBoardHeight = (): void => {
+    const height = watch.boardBox.getBoundingClientRect().height;
+    if (height > 0) {
+      watch.el.style.setProperty('--watch-board-height', `${height}px`);
+    }
+  };
+  let boardResizeObserver: ResizeObserver | null = null;
+  if (typeof ResizeObserver !== 'undefined') {
+    boardResizeObserver = new ResizeObserver(() => {
+      if (!watch.el.isConnected) {
+        boardResizeObserver?.disconnect();
+        return;
+      }
+      syncBoardHeight();
+    });
+    boardResizeObserver.observe(watch.boardBox);
+  }
+  syncBoardHeight();
+
   let activeRoomId: string | null = null;
   let replayHandle: ReplayHandle | null = null;
   // Which renderer the live handle is: chess (chessground) vs xiangqi (native
@@ -275,8 +294,8 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   // The rail clocks for the ply on the board: the times the players actually had there,
   // so scrubbing rewinds the clocks with the moves (lichess TV's anatomy — clock above the
   // top seat, clock below the bottom one). Seating matches renderWatchPlayers: second
-  // mover on top, first mover below. An untimed game (every EvE game today) or a path
-  // without clockAtPly leaves both slots empty rather than showing a fake 0:00.
+  // mover on top, first mover below. An untimed game or a replay path without
+  // clockAtPly leaves both slots empty rather than showing a fake 0:00.
   const clearClocks = (): void => {
     watch.clockTop.replaceChildren();
     watch.clockBottom.replaceChildren();
@@ -1124,6 +1143,7 @@ type WatchSection = {
   clockBottom: HTMLElement;
   movesRoot: HTMLElement;
   replayControlsRoot: HTMLElement;
+  boardBox: HTMLElement;
 };
 
 // The /watch page rides the SHARED review-shell (left info rail | center board |
@@ -1200,6 +1220,7 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
     clockBottom: gameTable.refs.clockBottom,
     movesRoot: gameTable.refs.movesRoot,
     replayControlsRoot: gameTable.refs.replayControlsRoot,
+    boardBox,
   };
 }
 

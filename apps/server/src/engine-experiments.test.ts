@@ -369,7 +369,7 @@ if (!TEST_DATABASE_URL) {
     assert.deepEqual(jobs, [{ status: 'completed', failed_games: 1 }]);
   });
 
-  test('max-ply truncation completes the task as a draw', async () => {
+  test('timed max-ply truncation persists the clock and completes the task as a draw', async () => {
     const job = await createExperimentJob(getPool(), {
       id: 'job-truncated-draw-test',
       purpose: 'smoke',
@@ -380,7 +380,7 @@ if (!TEST_DATABASE_URL) {
       jobId: job.id,
       gameIndex: 0,
       seed: 300,
-      timeControl: { kind: 'none' },
+      timeControl: { kind: 'standard', initial_seconds: 30, increment_seconds: 2 },
       config: { variant: 'dark-chess', max_plies: 1 },
     });
     const worker = await registerWorkerRun(getPool(), {
@@ -410,15 +410,22 @@ if (!TEST_DATABASE_URL) {
       result: string | null;
       termination: string | null;
       ply_count: number;
-    }>('SELECT status, result, termination, ply_count FROM games WHERE room_id = $1', [
-      result.gameId,
-    ]);
+      initial_ms: number | null;
+      increment_ms: number | null;
+    }>(
+      `SELECT status, result, termination, ply_count, initial_ms, increment_ms
+       FROM games
+       WHERE room_id = $1`,
+      [result.gameId],
+    );
     assert.deepEqual(games, [
       {
         status: 'completed',
         result: 'draw',
         termination: 'truncated',
         ply_count: 1,
+        initial_ms: 30_000,
+        increment_ms: 2_000,
       },
     ]);
 

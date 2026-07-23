@@ -982,7 +982,7 @@ export async function mountTenantWatchReplay<
     // The clocks the players actually had, reconstructed from the move timestamps. Under
     // autoplay the mover's clock is the LIVE drained value, so polling this on a short
     // interval ticks it down; the ply snapshots stay the anchor. Null (no clock) for an
-    // untimed game — which every EvE game is today.
+    // untimed game.
     clockAtPly: () => {
       if (!clockSeries) return null;
       const at = clockSeries[Math.min(currentPly, clockSeries.length - 1)];

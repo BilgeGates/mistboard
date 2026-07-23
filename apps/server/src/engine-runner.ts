@@ -454,16 +454,25 @@ async function createRunningGame(
   whiteEngine: EngineDefinition,
   blackEngine: EngineDefinition,
 ): Promise<void> {
+  const roomTimeControl = roomTimeControlFromEngine(normalizeEngineTimeControl(task.timeControl));
   await pool.query(
     `INSERT INTO games
        (room_id, variant, result, termination, ply_count, started_at, ended_at,
         white_client, black_client, white_name, black_name, corpus_id,
-        mode, status, review_status)
+        mode, status, review_status, initial_ms, increment_ms)
      VALUES ($1, $2, NULL, NULL, 0, $3, NULL,
         'engine:white', 'engine:black', $4, $5, NULL,
-        'eve', 'running', 'unreviewed')
+        'eve', 'running', 'unreviewed', $6, $7)
      ON CONFLICT (room_id) DO NOTHING`,
-    [gameId, variant, startedAt, whiteEngine.id, blackEngine.id],
+    [
+      gameId,
+      variant,
+      startedAt,
+      whiteEngine.id,
+      blackEngine.id,
+      roomTimeControl?.initialMs ?? null,
+      roomTimeControl?.incrementMs ?? null,
+    ],
   );
 
   await upsertEngineGameParticipants(pool, gameId, whiteEngine, blackEngine);
@@ -522,15 +531,25 @@ async function createRunningXiangqiGame(
   redEngine: EngineDefinition,
   blackEngine: EngineDefinition,
 ): Promise<void> {
+  const roomTimeControl = roomTimeControlFromEngine(normalizeEngineTimeControl(task.timeControl));
   await pool.query(
     `INSERT INTO games
        (room_id, variant, result, termination, ply_count, started_at, ended_at,
         white_client, black_client, white_name, black_name, corpus_id,
-        mode, status, review_status)
+        mode, status, review_status, initial_ms, increment_ms)
      VALUES ($1, 'xiangqi', NULL, NULL, 0, $2, NULL,
-        $3, $4, $5, $6, NULL, 'eve', 'running', 'unreviewed')
+        $3, $4, $5, $6, NULL, 'eve', 'running', 'unreviewed', $7, $8)
      ON CONFLICT (room_id) DO NOTHING`,
-    [gameId, startedAt, redEngine.id, blackEngine.id, redEngine.name, blackEngine.name],
+    [
+      gameId,
+      startedAt,
+      redEngine.id,
+      blackEngine.id,
+      redEngine.name,
+      blackEngine.name,
+      roomTimeControl?.initialMs ?? null,
+      roomTimeControl?.incrementMs ?? null,
+    ],
   );
   await upsertEngineGameParticipants(pool, gameId, redEngine, blackEngine, ['red', 'black']);
   await pool.query(`UPDATE engine_game_tasks SET game_id = $2 WHERE id = $1 AND game_id IS NULL`, [
