@@ -35,6 +35,8 @@ export type ReviewRenderContext = {
   primaryKey: string;
 };
 
+export type ReviewSurface = 'analysis' | 'game' | 'study';
+
 export type ReviewLayoutAdapter = {
   /** Root <main> class hook (e.g. 'dark-xiangqi-review'). */
   pageClassName?: string;
@@ -117,6 +119,9 @@ type SizingInput = {
 };
 
 export type ReviewScaffoldConfig = SizingInput & {
+  /** Product surface using the shared scaffold. Analysis and game reviews share
+   *  the same board/rail alignment contract; studies keep their document UI. */
+  reviewSurface: ReviewSurface;
   ariaLabel: string;
   pageClassName?: string;
   /** Info-card eyebrow when no metaCard ('Game review' / 'Analysis'). */
@@ -272,7 +277,9 @@ export function createReviewScaffold(
 
   const shell = createReviewShell({
     ariaLabel: config.ariaLabel,
-    pageClassName: config.pageClassName,
+    pageClassName: [config.pageClassName, `review-shell--${config.reviewSurface}`]
+      .filter(Boolean)
+      .join(' '),
     left,
     center,
     right,
@@ -373,6 +380,7 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
     menuItems: [{ label: 'Flip board', icon: REVIEW_MENU_ICONS.flip, onClick: () => flip() }],
   });
   const scaffold = createReviewScaffold(root, {
+    reviewSurface: 'game',
     ariaLabel: adapter.ariaLabel,
     pageClassName: adapter.pageClassName,
     eyebrow: 'Game review',

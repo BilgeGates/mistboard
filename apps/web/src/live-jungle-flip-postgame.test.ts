@@ -76,6 +76,8 @@ describe('Flip Jungle postgame page', () => {
     expect(root.textContent).toContain('Flip Jungle');
     expect(root.textContent).toContain('Blue is victorious');
     expect(root.querySelectorAll('.jungle-flip-postgame-board')).toHaveLength(1);
+    expect(root.querySelector('.review-shell--game')).not.toBeNull();
+    expect(root.querySelector('.review-shell--analysis')).toBeNull();
     expect(root.querySelector('.review-stage')?.classList).toContain('review-stage--board-only');
     expect(root.querySelector('.review-shell__right .captures-strip')).toBeNull();
 

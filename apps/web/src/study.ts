@@ -310,6 +310,7 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     // switched chapters while the chunk loaded) is dropped on arrival.
     const mountToken = ++mountSeq;
     void mountStudyReview(variant, root, {
+      reviewSurface: 'study',
       pageClassName: `${variant}-review study-review`,
       ariaLabel: 'Study',
       // Empty eyebrow: the info card leads with the study name itself.

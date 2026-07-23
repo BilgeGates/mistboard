@@ -85,6 +85,7 @@ export function mountXiangqiAnalysis(
 
   root.replaceChildren(buildNav());
   mountXiangqiReview(root, {
+    reviewSurface: 'analysis',
     pageClassName: 'xiangqi-review',
     ariaLabel: 'Xiangqi analysis',
     eyebrow: 'Analysis',

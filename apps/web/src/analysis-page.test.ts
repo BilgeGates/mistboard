@@ -29,6 +29,8 @@ describe('analysis page', () => {
         // All analysis variants share one board-perimeter contract, including
         // fog variants that do not yet mount an eval gauge.
         expect(root.classList.contains('analysis-route')).toBe(true);
+        expect(root.querySelector('.review-shell--analysis')).not.toBeNull();
+        expect(root.querySelector('.review-shell--game')).toBeNull();
         // Lichess minimalism: the dropdown IS the left rail — no meta card.
         expect(root.querySelector('.game-meta-card')).toBeNull();
       } finally {

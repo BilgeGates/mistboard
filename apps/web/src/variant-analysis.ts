@@ -35,6 +35,7 @@ export async function mountVariantAnalysisPage(
   root.replaceChildren(buildNav());
 
   const config = {
+    reviewSurface: 'analysis' as const,
     pageClassName: `${id}-review`,
     ariaLabel: `${label} analysis`,
     title: `${label} analysis`,

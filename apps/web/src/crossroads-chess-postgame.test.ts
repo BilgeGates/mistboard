@@ -61,6 +61,7 @@ describe('Crossroads Chess postgame page', () => {
       root.querySelector<HTMLButtonElement>(`.review-controls__nav[aria-label="${label}"]`);
     expect(nav('Next move')?.disabled).toBe(true);
     expect(root.querySelectorAll('.crossroads-live-svg')).toHaveLength(1);
+    expect(root.querySelector('.review-shell--game')).not.toBeNull();
     expect(root.querySelector('.crossroads-postgame-board .crossroads-live-svg')).not.toBeNull();
     // The shared review layout sizes the board slot; the SVG fills it (the
     // sizedCrossroadsBoardSvg inline style pins width:100%/height:auto).

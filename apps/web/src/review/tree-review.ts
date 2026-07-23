@@ -47,7 +47,11 @@ import { ADVICE_LABEL, defaultFormatBestMove } from './move-advice.js';
 import { type MoveGlyphTone, moveGlyphTone } from './move-glyph.js';
 import { createMoveTree, type MoveTree, type MoveTreeAnnotation, pathKey } from './move-tree.js';
 import { createReviewControls, REVIEW_MENU_ICONS, type ReviewMenuItem } from './review-controls.js';
-import { createReviewScaffold, installReviewKeyboard } from './review-layout.js';
+import {
+  createReviewScaffold,
+  installReviewKeyboard,
+  type ReviewSurface,
+} from './review-layout.js';
 import type { ReviewSeatColors } from './review-seat-colors.js';
 import { createStudyFromTree, studyExportMessage } from './study-export.js';
 import { deserializeTree, type SerializedTree, serializeTree } from './tree-serialize.js';
@@ -242,6 +246,9 @@ export type DecisionSource = {
 };
 
 export type TreeReviewConfig<Move, Truth = never, Arrow = unknown> = {
+  /** Shared scaffold role. Postgame is the default; standalone analysis and
+   *  studies opt into their distinct roles at their route-level mount. */
+  reviewSurface?: ReviewSurface;
   /** Root the tree at a hand-set position (a FEN-seeded composition) instead of
    *  the variant's standard start. `truth` seeds the tree root; `fen` is the
    *  canonical FEN persisted with a serialized tree (SerializedTree.rootFen).
@@ -912,6 +919,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   }
 
   const scaffold = createReviewScaffold(root, {
+    reviewSurface: config.reviewSurface ?? 'game',
     ariaLabel: config.ariaLabel,
     pageClassName: config.pageClassName,
     eyebrow: config.eyebrow ?? 'Analysis',
