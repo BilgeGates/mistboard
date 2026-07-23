@@ -69,8 +69,15 @@ export function accumulateGame(
 ): boolean {
   const folded = replayOpening(game.moves, options.maxPly);
   if (!folded) return false;
+  // Count each game ONCE per (position, move). A game can revisit a position it
+  // already played from — a horse out and back, or any repetition, and xiangqi
+  // middlegames shuffle constantly — and counting both visits would inflate the
+  // popular line rather than the game count the column claims to report.
+  const counted = new Set<string>();
   for (const { positionKey, move } of folded) {
     const moveKey = `${move.from}${move.to}`;
+    if (counted.has(`${positionKey}|${moveKey}`)) continue;
+    counted.add(`${positionKey}|${moveKey}`);
     let moves = accumulator.get(positionKey);
     if (!moves) {
       moves = new Map();
