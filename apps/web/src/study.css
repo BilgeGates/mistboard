@@ -406,3 +406,32 @@
     min-height: 0;
   }
 }
+
+/* Underboard "About" tab: study description + favorite + errata, moved off the
+ * left rail so the rail is just the chapter list and chat (no more double
+ * scroll). Reuses the review underboard panel's tab chrome. */
+.study-about {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 4px 2px;
+}
+.study-about__description {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--site-text, inherit);
+  white-space: pre-wrap;
+}
+.study-about__row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.study-about__row:empty {
+  display: none;
+}
+/* The errata card is already styled; inside About it needs no top margin. */
+.study-about .study-errata {
+  margin-top: 0;
+}

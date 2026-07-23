@@ -98,7 +98,37 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     // re-render and detach the tab label before its dblclick-to-rename fires.
     if (id === activeId) return;
     activeId = id;
+    // renderActive() rebuilds the whole page and the board mounts async, so the
+    // document briefly shrinks and the browser yanks the scroll to the top. Pin
+    // it: hold the current scroll while the new chapter mounts.
+    preserveScroll();
     renderActive();
+  };
+
+  // Keep the page from jumping to the top on a chapter switch. Capture the
+  // scroll now and restore it across the re-render + async board mount, until a
+  // real user scroll releases the pin.
+  const preserveScroll = (): void => {
+    const y = window.scrollY;
+    let released = false;
+    const release = () => {
+      released = true;
+      window.removeEventListener('wheel', release);
+      window.removeEventListener('touchmove', release);
+      window.removeEventListener('keydown', release);
+    };
+    window.addEventListener('wheel', release, { passive: true, once: true });
+    window.addEventListener('touchmove', release, { passive: true, once: true });
+    window.addEventListener('keydown', release, { once: true });
+    let frames = 0;
+    const pin = () => {
+      if (released) return;
+      if (Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+      // Re-pin for a few frames — the board chunk lands async and reflows once.
+      if (frames++ < 30) requestAnimationFrame(pin);
+      else release();
+    };
+    requestAnimationFrame(pin);
   };
 
   // A study is single-variant: chapters inherit the variant chosen at create
@@ -285,11 +315,12 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
       // Empty eyebrow: the info card leads with the study name itself.
       eyebrow: '',
       title: localizedStudyName(study.name, study.i18n),
-      summary:
-        localizedStudyDescription(study.description, study.i18n) ||
-        (study.isOwner ? 'Draw, comment, and branch. Edits autosave.' : ''),
+      // The full description now lives in the underboard "About" tab, not the
+      // rail info card; owners keep a one-line authoring hint there.
+      summary: study.isOwner ? 'Draw, comment, and branch. Edits autosave.' : '',
       boardAriaLabel: `${studyVariantLabel(variant)} board`,
       actions: buildActions(study, chapters, activeId, status, chapterActions, owner),
+      aboutTab: { label: t('study.aboutTab'), body: aboutPanel(study) },
       details: buildStudyChat(study.id),
       gamebookEditing: gamebookable && chapter.gamebook && study.isOwner,
       annotationEditing: study.isOwner,
@@ -366,6 +397,32 @@ function statusSpan(): HTMLElement {
   return status;
 }
 
+/** The underboard "About" tab: the study's own description, plus the favorite and
+ *  errata affordances. Pulling these out of the left rail leaves it as just the
+ *  chapter list and chat, which was the source of the double-scroll clutter. */
+function aboutPanel(study: StudyDto): HTMLElement {
+  const panel = document.createElement('div');
+  panel.className = 'study-about';
+
+  const desc = localizedStudyDescription(study.description, study.i18n);
+  if (desc) {
+    const p = document.createElement('p');
+    p.className = 'study-about__description';
+    p.textContent = desc;
+    panel.append(p);
+  }
+
+  const row = document.createElement('div');
+  row.className = 'study-about__row';
+  if (study.visibility === 'public') row.append(likeButton(study));
+  panel.append(row);
+
+  // Errata invitation, public studies only (a private draft has no audience, and
+  // the owner is the one who would fix it).
+  if (study.visibility === 'public' && !study.isOwner) panel.append(errataNote());
+  return panel;
+}
+
 function buildActions(
   study: StudyDto,
   chapters: ChapterDto[],
@@ -379,6 +436,10 @@ function buildActions(
 
   wrap.append(chapterPanel(study, chapters, activeId, chapterActions));
 
+  // Owner authoring controls stay in the rail beside the chapter list (they
+  // belong to editing, not reading). Reader-facing metadata — description,
+  // favorite, errata — moves to the underboard "About" tab (see aboutPanel), so
+  // the rail is just chapters + chat and no longer double-scrolls.
   if (owner) {
     wrap.append(studyNameControl(study, owner.onRenameStudy));
     const active = chapters.find((entry) => entry.id === activeId);
@@ -389,10 +450,6 @@ function buildActions(
     wrap.append(visibilityControl(study));
     wrap.append(status);
   }
-  if (study.visibility === 'public') wrap.append(likeButton(study));
-  // Errata invitation, public studies only: a private draft has no audience to
-  // report to, and the owner is already the person who would fix it.
-  if (study.visibility === 'public' && !study.isOwner) wrap.append(errataNote());
   return wrap;
 }
 
@@ -519,15 +576,6 @@ function chapterPanel(
     chapters.length === 1
       ? t('study.chapterCountOne')
       : t('study.chapterCount', { count: chapters.length });
-  // The variant is a study-level fact now, so it is named once here rather than
-  // repeated per chapter row.
-  const first = chapters[0];
-  if (first && isStudyVariantId(first.variant)) {
-    const variant = document.createElement('span');
-    variant.className = 'study-chapters__variant';
-    variant.textContent = studyVariantLabel(first.variant);
-    head.append(variant);
-  }
   panel.append(head);
 
   const list = document.createElement('ol');

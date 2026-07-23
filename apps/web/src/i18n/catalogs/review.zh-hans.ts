@@ -43,6 +43,7 @@ export const ZH_HANS_REVIEW = {
   'study.chatRoom': '聊天室',
   'study.chatSignIn': '登录后可聊天',
   'study.chatPlaceholder': '聊天请保持友善！',
+  'study.aboutTab': '简介',
   'study.errataTitle': '发现错误？',
   'study.errataBody':
     '部分棋谱抄录自历史文献，着法、名称或注释都可能有误。若发现问题，请告诉我们，我们会对照原本核查。',

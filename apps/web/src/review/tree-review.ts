@@ -304,6 +304,10 @@ export type TreeReviewConfig<Move, Truth = never, Arrow = unknown> = {
    *  "Game info" underboard tab renders it. The historical-library caller supplies
    *  it; played/analysis surfaces leave it undefined. */
   provenance?: HTMLElement;
+  /** A caller-labelled info panel rendered as the FIRST underboard tab. The study
+   *  surface uses it for the study's own description + favorite + errata, so those
+   *  live under the board instead of crowding the left rail. */
+  aboutTab?: { label: string; body: HTMLElement };
   /** Opening-explorer panel for surfaces with a game corpus behind them. Kept
    *  fully opaque here (an element plus a per-node setter) so this controller
    *  stays variant-neutral: the caller owns the variant types and the lookup. */
@@ -818,6 +822,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   const shareMovesInput = document.createElement('textarea');
   const underboardEl = underboardPanel(underboardBody, {
     hasAnalysis: Boolean(config.analysis),
+    about: config.aboutTab,
     provenance: config.provenance,
     moveTimes: config.moveTimes,
     seatColors: config.seatColors,
@@ -924,7 +929,9 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     boardMaxPx: presentation.boardMaxPx,
     underboard: composeUnderboard(
       commentPanelEl,
-      config.analysis || config.provenance || config.showCrosstable ? underboardEl : undefined,
+      config.analysis || config.provenance || config.showCrosstable || config.aboutTab
+        ? underboardEl
+        : undefined,
       importPanel?.el,
     ),
     underboardOverflows: true,
