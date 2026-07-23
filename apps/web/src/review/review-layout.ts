@@ -135,6 +135,10 @@ export type ReviewScaffoldConfig = SizingInput & {
   annotations?: HTMLElement;
   /** The right-rail navigation element: a linear scrubber or a tree nav bar. */
   navigation: HTMLElement;
+  /** Panel that opens over the rail from a control-bar tool (the opening
+   *  explorer). Sits directly above navigation, so the tool that toggles it is
+   *  adjacent to what it opens. */
+  railPanel?: HTMLElement;
   analysisSummary?: HTMLElement;
   /** Controls pinned to the bottom of the right rail (e.g. a Reveal toggle). */
   railFooter?: HTMLElement;
@@ -247,6 +251,7 @@ export function createReviewScaffold(
     [
       materialTop,
       railMain,
+      config.railPanel,
       config.navigation,
       config.analysisSummary,
       materialBottom,

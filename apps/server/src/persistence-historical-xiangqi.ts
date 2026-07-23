@@ -551,6 +551,9 @@ export type AggregatableXiangqiGame = {
   sourceSlug: string;
   result: HistoricalXiangqiResult;
   moves: XiangqiMove[];
+  /** Average pre-game rating when the source recorded one, else null. */
+  rating: number | null;
+  playedOn: string | null;
 };
 
 /**
@@ -576,8 +579,10 @@ export async function listAggregatableXiangqiGames(opts: {
     slug: string;
     result: HistoricalXiangqiResult;
     moves: XiangqiMove[];
+    tags: Record<string, unknown>;
+    played_on: Date | string | null;
   }>(
-    `SELECT games.id, sources.slug, games.result, games.moves
+    `SELECT games.id, sources.slug, games.result, games.moves, games.tags, games.played_on
      FROM historical_xiangqi_games games
      JOIN historical_xiangqi_sources sources ON sources.id = games.source_id
      WHERE sources.license_status = 'cleared'
@@ -592,6 +597,8 @@ export async function listAggregatableXiangqiGames(opts: {
     sourceSlug: row.slug,
     result: row.result,
     moves: row.moves,
+    rating: averageRatingFromTags(row.tags),
+    playedOn: dateOnlyFromRow(row.played_on),
   }));
 }
 
@@ -629,4 +636,18 @@ export async function queryHistoricalXiangqiGames(
     pageValues,
   );
   return { games: rows.map(gameListItemFromRow), total };
+}
+
+/**
+ * Pre-game average rating from a source's tags. ElephantChess records
+ * red/blackEloBefore; a source that records nothing yields null and its games
+ * simply never lead the "Top games" list. Kept here rather than in the
+ * aggregator so the aggregator stays free of any source's tag vocabulary.
+ */
+function averageRatingFromTags(tags: Record<string, unknown> | null): number | null {
+  if (!tags) return null;
+  const red = Number(tags.redEloBefore);
+  const black = Number(tags.blackEloBefore);
+  if (!Number.isFinite(red) || !Number.isFinite(black)) return null;
+  return Math.round((red + black) / 2);
 }

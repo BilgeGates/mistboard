@@ -22,6 +22,9 @@ export type ReviewControlsOptions = {
   onLast(): void;
   /** Menu overlay rows (2-col grid). Flip lives here on the review surface. */
   menuItems: ReviewMenuItem[];
+  /** Opening-explorer toggle in the left tools cluster. Omitted on surfaces with
+   *  no corpus behind them, which is why the button is not a permanent fixture. */
+  onToggleExplorer?(open: boolean): void;
 };
 
 export type ReviewControls = {
@@ -38,6 +41,8 @@ const ICONS = {
   next: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M9 5v14l9-7z"/></svg>',
   last: '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 5h2v14h-2zM5 5v14l9-7z"/></svg>',
   menu: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+  // Book: the opening database, the same metaphor lichess uses for the explorer.
+  book: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h5v18H6a2 2 0 0 0-2 2z"/><path d="M20 5a2 2 0 0 0-2-2h-5v18h5a2 2 0 0 1 2 2z"/></svg>',
 } as const;
 
 function iconButton(icon: string, label: string, className: string): HTMLButtonElement {
@@ -57,7 +62,9 @@ export function createReviewControls(opts: ReviewControlsOptions): ReviewControl
   // The left cluster held two permanently-disabled placeholders (opening
   // explorer, practice with computer). Cut 2026-07-23 with the menu's muted
   // entries: neither had a surface behind it, and a control bar of dead buttons
-  // costs trust on every visit. Restore each WITH its implementation.
+  // costs trust on every visit. The explorer is restored below WITH its
+  // implementation, and only on surfaces that pass a handler; practice with
+  // computer stays cut until it has one too.
 
   // Center cluster: ply navigation.
   const first = iconButton(ICONS.first, 'First move', 'review-controls__nav');
@@ -73,10 +80,21 @@ export function createReviewControls(opts: ReviewControlsOptions): ReviewControl
   const menuButton = iconButton(ICONS.menu, 'Menu', 'review-controls__menu-button');
   menuButton.setAttribute('aria-expanded', 'false');
 
-  // Kept (empty) so the three-column bar still centres the nav cluster against
-  // the menu button on the right.
+  // Left: tools. Empty when a surface offers none, which still centres the nav
+  // cluster against the menu button on the right.
   const left = document.createElement('div');
   left.className = 'review-controls__group review-controls__group--tools';
+  if (opts.onToggleExplorer) {
+    const explorerButton = iconButton(ICONS.book, 'Opening explorer', 'review-controls__tool');
+    explorerButton.setAttribute('aria-pressed', 'false');
+    explorerButton.addEventListener('click', () => {
+      const open = explorerButton.getAttribute('aria-pressed') !== 'true';
+      explorerButton.setAttribute('aria-pressed', String(open));
+      explorerButton.classList.toggle('review-controls__tool--on', open);
+      opts.onToggleExplorer?.(open);
+    });
+    left.append(explorerButton);
+  }
   const center = document.createElement('div');
   center.className = 'review-controls__group review-controls__group--nav';
   center.append(first, previous, next, last);

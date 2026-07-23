@@ -21,6 +21,7 @@ import {
   type XiangqiMove,
 } from '@mistboard/game';
 import type { XiangqiOpeningMoveAccumulator } from './persistence-xiangqi-explorer.js';
+import { canonicalPositionMove } from './xiangqi-opening-mirror.js';
 
 /** '1-0' = red wins; '*' = no recorded result (counted, never guessed). */
 export type AggregateResult = '1-0' | '0-1' | '1/2-1/2' | '*';
@@ -29,6 +30,11 @@ export type AggregateGameInput = {
   id: string;
   result: AggregateResult;
   moves: readonly XiangqiMove[];
+  /** Average player rating, when the source records one. Drives "Top games";
+   *  a source without ratings simply never appears at the head of that list. */
+  rating?: number | null;
+  /** ISO date (YYYY-MM-DD) for display beside a top game. */
+  playedOn?: string | null;
 };
 
 export type AggregateOptions = {
@@ -39,7 +45,7 @@ export type AggregateOptions = {
    * theory still has shared ground.
    */
   maxPly: number;
-  /** Example game ids retained per (position, move). */
+  /** Example games retained per (position, move), highest-rated first. */
   sampleLimit: number;
 };
 
@@ -74,8 +80,12 @@ export function accumulateGame(
   // middlegames shuffle constantly — and counting both visits would inflate the
   // popular line rather than the game count the column claims to report.
   const counted = new Set<string>();
-  for (const { positionKey, move } of folded) {
-    const moveKey = `${move.from}${move.to}`;
+  for (const entry of folded) {
+    // Store under the mirror-canonical (position, move), so an opening and its
+    // mirror image are one row rather than two half-strength ones.
+    const canonical = canonicalPositionMove(entry.positionKey, entry.move);
+    const positionKey = canonical.key;
+    const moveKey = `${canonical.move.from}${canonical.move.to}`;
     if (counted.has(`${positionKey}|${moveKey}`)) continue;
     counted.add(`${positionKey}|${moveKey}`);
     let moves = accumulator.get(positionKey);
@@ -85,7 +95,7 @@ export function accumulateGame(
     }
     let stats = moves.get(moveKey);
     if (!stats) {
-      stats = { games: 0, redWins: 0, blackWins: 0, draws: 0, unknowns: 0, sampleGameIds: [] };
+      stats = { games: 0, redWins: 0, blackWins: 0, draws: 0, unknowns: 0, sampleGames: [] };
       moves.set(moveKey, stats);
     }
     stats.games += 1;
@@ -93,7 +103,7 @@ export function accumulateGame(
     else if (game.result === '0-1') stats.blackWins += 1;
     else if (game.result === '1/2-1/2') stats.draws += 1;
     else stats.unknowns += 1;
-    if (stats.sampleGameIds.length < options.sampleLimit) stats.sampleGameIds.push(game.id);
+    retainSample(stats.sampleGames, game, options.sampleLimit);
   }
   return true;
 }
@@ -138,4 +148,31 @@ function replayOpening(
 
 export function accumulatorPositionCount(accumulator: XiangqiOpeningMoveAccumulator): number {
   return accumulator.size;
+}
+
+/**
+ * Keep the highest-rated examples. Insertion-sorted into a list capped at the
+ * sample limit: the union of these per-move lists is what the API turns into
+ * "Top games", so keeping the best few per move is what makes the position-level
+ * list exact rather than a sample of a sample.
+ */
+function retainSample(
+  samples: Array<{ id: string; rating: number | null; result: string; playedOn: string | null }>,
+  game: AggregateGameInput,
+  limit: number,
+): void {
+  const rating = typeof game.rating === 'number' ? game.rating : null;
+  const entry = {
+    id: game.id,
+    rating,
+    result: game.result,
+    playedOn: game.playedOn ?? null,
+  };
+  // An unrated game sorts last, so it only fills space nothing better wants.
+  const score = (value: number | null): number => value ?? -1;
+  let index = samples.findIndex((sample) => score(sample.rating) < score(rating));
+  if (index < 0) index = samples.length;
+  if (index >= limit) return;
+  samples.splice(index, 0, entry);
+  if (samples.length > limit) samples.length = limit;
 }

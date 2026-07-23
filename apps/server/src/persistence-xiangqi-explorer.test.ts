@@ -157,7 +157,9 @@ definePersistenceTests('xiangqi opening explorer', () => {
     const start = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR r';
     const afterFirst = await lookupXiangqiOpeningMoves(start);
     assert.equal(afterFirst.length, 1);
-    assert.deepEqual(afterFirst[0]?.move, MOVES[0]);
+    // Stored mirror-canonically: h3e3 is written as its mirror b3e3, which is
+    // the same opening. The route un-mirrors for the caller.
+    assert.deepEqual(afterFirst[0]?.move, { from: 'b3', to: 'e3' });
     assert.equal(afterFirst[0]?.games, 1);
     assert.equal(afterFirst[0]?.redWins, 1);
 

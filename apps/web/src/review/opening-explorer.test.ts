@@ -46,17 +46,19 @@ describe('opening explorer', () => {
 
     const rows = [...explorer.el.querySelectorAll('.opening-explorer__row')];
     expect(rows).toHaveLength(2);
-    expect(rows[0]?.querySelector('.opening-explorer__count')?.textContent).toBe('7');
+    expect(rows[0]?.querySelector('.opening-explorer__count-games')?.textContent).toBe('7');
     // 6 red wins + 1 black win = 7 decided, so red takes 85.7% of the bar.
     const redPart = rows[0]?.querySelector<HTMLElement>('.opening-explorer__bar-part--red');
     expect(redPart?.style.width).toBe('85.7%');
-    expect(explorer.el.textContent).toContain('10 corpus games');
+    expect(explorer.el.textContent).toContain('10 games');
   });
 
   it('says a position is unplayed instead of rendering an empty table', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(async () => jsonResponse({ position: START_KEY, total: 0, moves: [], build: null })),
+      vi.fn(async () =>
+        jsonResponse({ position: START_KEY, total: 0, moves: [], topGames: [], build: null }),
+      ),
     );
 
     const explorer = createOpeningExplorer();
@@ -165,7 +167,6 @@ describe('opening explorer', () => {
               blackWins: 0,
               draws: 0,
               unknowns: 0,
-              sampleGameIds: [],
             },
           ],
           build: null,
@@ -183,6 +184,46 @@ describe('opening explorer', () => {
     const bar = explorer.el.querySelector('.opening-explorer__bar');
     expect(bar?.classList.contains('opening-explorer__bar--thin')).toBe(true);
   });
+  it('lists top games by rating and plays a clicked move', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(payload())),
+    );
+    const played: XiangqiMove[] = [];
+
+    const explorer = createOpeningExplorer();
+    explorer.onPlayMove((move) => played.push(move));
+    document.body.append(explorer.el);
+    explorer.setActive(true);
+    explorer.setState(createInitialXiangqiState('t'));
+    await flushPromises();
+
+    const top = [...explorer.el.querySelectorAll('.opening-explorer__top-row')];
+    expect(top).toHaveLength(2);
+    expect(top[0]?.textContent).toContain('2400');
+
+    // The explorer is a navigation surface: a row click plays its move.
+    explorer.el.querySelector<HTMLButtonElement>('.opening-explorer__row')?.click();
+    expect(played).toEqual([{ from: 'h3', to: 'e3' }]);
+  });
+
+  it('shows the share of games each move took', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(payload())),
+    );
+
+    const explorer = createOpeningExplorer();
+    document.body.append(explorer.el);
+    explorer.setActive(true);
+    explorer.setState(createInitialXiangqiState('t'));
+    await flushPromises();
+
+    const shares = [...explorer.el.querySelectorAll('.opening-explorer__count-share')].map(
+      (el) => el.textContent,
+    );
+    expect(shares).toEqual(['70%', '30%']);
+  });
 });
 
 function payload() {
@@ -198,7 +239,6 @@ function payload() {
         blackWins: 1,
         draws: 0,
         unknowns: 0,
-        sampleGameIds: [],
       },
       {
         from: 'b3',
@@ -208,8 +248,11 @@ function payload() {
         blackWins: 0,
         draws: 0,
         unknowns: 3,
-        sampleGameIds: [],
       },
+    ],
+    topGames: [
+      { id: 'hxq_top', rating: 2400, result: '1-0', playedOn: '2026-03-06' },
+      { id: 'hxq_next', rating: 1200, result: '0-1', playedOn: '2026-02-01' },
     ],
     build: {
       gameCount: 10,

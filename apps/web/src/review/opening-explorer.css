@@ -1,42 +1,81 @@
-/* Opening explorer underboard tab. See review/opening-explorer.ts. Row grammar:
-   [move] [games] [result bar], one grid so every row's columns line up. */
+/* Opening explorer, opened over the right rail from the control bar's book tool.
+   See review/opening-explorer.ts. Row grammar: [move] [games + share] [result
+   bar], one grid shared with the header row so the columns line up. */
 .opening-explorer {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 4px 0;
+  min-height: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  border-top: 1px solid var(--site-border-soft);
+  background: var(--site-panel);
 }
 
-.opening-explorer__status,
-.opening-explorer__corpus {
-  margin: 0;
-  padding: 6px 10px;
-  color: var(--site-muted);
-  font-size: 12px;
-}
-
-.opening-explorer__corpus {
-  padding-top: 8px;
-  font-size: 11px;
-}
-
-.opening-explorer__table {
+.opening-explorer__head {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px 4px;
+}
+
+.opening-explorer__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--site-text);
+}
+
+.opening-explorer__corpus {
+  font-size: 11px;
+  color: var(--site-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.opening-explorer__columns,
+.opening-explorer__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 68px minmax(0, 1.6fr);
+  gap: 8px;
+  align-items: center;
+  padding: 3px 10px;
+}
+
+.opening-explorer__columns {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--site-panel);
+  border-bottom: 1px solid var(--site-border-soft);
+  color: var(--site-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.opening-explorer__col--count {
+  text-align: right;
 }
 
 .opening-explorer__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 52px minmax(0, 2fr);
-  gap: 10px;
-  align-items: center;
-  padding: 4px 10px;
+  width: 100%;
+  border: 0;
   border-bottom: 1px solid var(--site-border-soft);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.opening-explorer__row:hover,
+.opening-explorer__row:focus-visible {
+  background: var(--site-zebra);
 }
 
 .opening-explorer__move {
-  font-weight: 600;
   font-size: 13px;
+  font-weight: 600;
   color: var(--site-text);
   white-space: nowrap;
   overflow: hidden;
@@ -44,45 +83,141 @@
 }
 
 .opening-explorer__count {
-  color: var(--site-muted);
-  font-size: 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 5px;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+}
+
+.opening-explorer__count-games {
+  font-size: 12px;
+  color: var(--site-text);
+}
+
+.opening-explorer__count-share {
+  font-size: 10px;
+  color: var(--site-muted);
 }
 
 .opening-explorer__bar {
   display: flex;
-  height: 12px;
+  height: 14px;
   overflow: hidden;
   border-radius: 2px;
   background: var(--site-zebra);
+}
+
+.opening-explorer__bar-part {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 /* Same red/black inks the eval bar and advantage chart use, so a reader is not
    asked to learn a third colour language for "who won". */
 .opening-explorer__bar-part--red {
   background: color-mix(in srgb, #c0563f 72%, var(--site-panel, #fff));
+  color: #3a1d16;
 }
 .opening-explorer__bar-part--draw {
   background: var(--site-border-soft);
+  color: var(--site-muted);
 }
 .opening-explorer__bar-part--black {
   background: color-mix(in srgb, #34302e 85%, var(--site-panel, #fff));
-}
-
-.opening-explorer__bar--unknown {
-  opacity: 0.4;
-}
-
-@media (max-width: 720px) {
-  .opening-explorer__row {
-    grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
-    gap: 8px;
-  }
+  color: #efeae2;
 }
 
 /* Too few decided games to read as a score: keep the shape, drop the weight, so
    a 100%-red bar off two games cannot be mistaken for a verdict. */
 .opening-explorer__bar--thin {
   opacity: 0.3;
+}
+
+.opening-explorer__bar--unknown {
+  opacity: 0.4;
+}
+
+.opening-explorer__status {
+  margin: 0;
+  padding: 10px;
+  color: var(--site-muted);
+  font-size: 12px;
+}
+
+.opening-explorer__top-inner {
+  padding: 6px 10px 10px;
+  border-top: 1px solid var(--site-border-soft);
+}
+
+.opening-explorer__top-heading {
+  margin: 0 0 4px;
+  color: var(--site-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.opening-explorer__top-row {
+  display: grid;
+  grid-template-columns: 58px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 2px 0;
+  color: var(--site-text);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.opening-explorer__top-row:hover {
+  text-decoration: underline;
+}
+
+.opening-explorer__top-rating {
+  color: var(--site-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.opening-explorer__top-date {
+  color: var(--site-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The control bar's tool cluster: the book toggle that opens this panel. */
+.review-controls__tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--site-muted);
+  cursor: pointer;
+}
+
+.review-controls__tool:hover {
+  color: var(--site-text);
+  background: var(--site-zebra);
+}
+
+.review-controls__tool--on {
+  color: var(--site-accent-strong, var(--site-text));
+  background: var(--site-accent-soft, var(--site-zebra));
+}
+
+@media (max-width: 720px) {
+  .opening-explorer__columns,
+  .opening-explorer__row {
+    grid-template-columns: minmax(0, 1fr) 58px minmax(0, 1.2fr);
+    gap: 6px;
+  }
 }

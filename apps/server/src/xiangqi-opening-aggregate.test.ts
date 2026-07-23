@@ -14,6 +14,19 @@ import {
   createAccumulator,
   DEFAULT_AGGREGATE_OPTIONS,
 } from './xiangqi-opening-aggregate.js';
+import { canonicalPositionMove } from './xiangqi-opening-mirror.js';
+
+// Rows are stored mirror-canonically, so a test that names a move by its played
+// spelling has to look it up the same way the storage wrote it.
+function statsFor(
+  acc: ReturnType<typeof createAccumulator>,
+  positionKey: string,
+  playedMove: string,
+) {
+  const [move] = moves(playedMove);
+  const canonical = canonicalPositionMove(positionKey, move!);
+  return acc.get(canonical.key)?.get(`${canonical.move.from}${canonical.move.to}`);
+}
 
 const START = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR r';
 
@@ -34,16 +47,14 @@ test('folds a game into per-position move counts split by result', () => {
   const ok = accumulateGame(acc, { id: 'g1', result: '1-0', moves: moves('h3e3', 'h10g8') });
 
   assert.equal(ok, true);
-  const opening = acc.get(START);
-  assert.ok(opening);
-  const stats = opening.get('h3e3');
+  const stats = statsFor(acc, START, 'h3e3');
   assert.deepEqual(stats, {
     games: 1,
     redWins: 1,
     blackWins: 0,
     draws: 0,
     unknowns: 0,
-    sampleGameIds: ['g1'],
+    sampleGames: [{ id: 'g1', rating: null, result: '1-0', playedOn: null }],
   });
 });
 
@@ -51,7 +62,7 @@ test('an unknown result is counted, never guessed', () => {
   const acc = createAccumulator();
   accumulateGame(acc, { id: 'g1', result: '*', moves: moves('h3e3') });
 
-  const stats = acc.get(START)?.get('h3e3');
+  const stats = statsFor(acc, START, 'h3e3');
   assert.equal(stats?.games, 1);
   assert.equal(stats?.unknowns, 1);
   assert.equal(stats?.redWins + stats?.blackWins + stats?.draws, 0);
@@ -78,7 +89,10 @@ test('different move orders reaching one position share its statistics', () => {
   const stats = transposed[0]?.[1].get('h1g3');
   assert.equal(stats?.redWins, 1);
   assert.equal(stats?.blackWins, 1);
-  assert.deepEqual(stats?.sampleGameIds, ['g1', 'g2']);
+  assert.deepEqual(
+    stats?.sampleGames.map((sample) => sample.id),
+    ['g1', 'g2'],
+  );
 });
 
 test('an illegal move list contributes nothing, not a valid prefix', () => {
@@ -111,9 +125,13 @@ test('caps retained sample game ids', () => {
     );
   }
 
-  const stats = acc.get(START)?.get('h3e3');
+  const stats = statsFor(acc, START, 'h3e3');
   assert.equal(stats?.games, 5, 'every game still counts');
-  assert.deepEqual(stats?.sampleGameIds, ['g0', 'g1'], 'only the cap is retained');
+  assert.deepEqual(
+    stats?.sampleGames.map((sample) => sample.id),
+    ['g0', 'g1'],
+    'only the cap is retained',
+  );
 });
 
 test('a game that revisits a position counts once, not once per visit', () => {
@@ -128,7 +146,50 @@ test('a game that revisits a position counts once, not once per visit', () => {
   });
 
   assert.equal(ok, true);
-  const stats = acc.get(START)?.get('h1g3');
+  const stats = statsFor(acc, START, 'h1g3');
   assert.equal(stats?.games, 1, 'one game is one game, however many times it passes through');
-  assert.deepEqual(stats?.sampleGameIds, ['shuffle']);
+  assert.deepEqual(
+    stats?.sampleGames.map((sample) => sample.id),
+    ['shuffle'],
+  );
+});
+
+test('mirror-image openings fold into one row', () => {
+  // 炮二平五 and 炮八平五 are one opening played from either side. Splitting them
+  // halves the apparent popularity of the most common opening in the game.
+  const acc = createAccumulator();
+  accumulateGame(acc, { id: 'right', result: '1-0', moves: moves('h3e3') });
+  accumulateGame(acc, { id: 'left', result: '0-1', moves: moves('b3e3') });
+
+  assert.equal(acc.size, 1, 'one position');
+  const rows = [...acc.values()][0]!;
+  assert.equal(rows.size, 1, 'and one move, not two mirrored halves');
+  const stats = [...rows.values()][0]!;
+  assert.equal(stats.games, 2);
+  assert.equal(stats.redWins, 1);
+  assert.equal(stats.blackWins, 1);
+});
+
+test('keeps the highest-rated example games first', () => {
+  const acc = createAccumulator();
+  for (const [id, rating] of [
+    ['low', 1000],
+    ['high', 2400],
+    ['mid', 1800],
+    ['none', null],
+  ] as const) {
+    accumulateGame(
+      acc,
+      { id, result: '1-0', moves: moves('h3e3'), rating },
+      { ...DEFAULT_AGGREGATE_OPTIONS, sampleLimit: 3 },
+    );
+  }
+
+  const stats = [...[...acc.values()][0]!.values()][0]!;
+  assert.equal(stats.games, 4, 'every game still counts');
+  assert.deepEqual(
+    stats.sampleGames.map((sample) => sample.id),
+    ['high', 'mid', 'low'],
+    'samples are the best three, unrated games last',
+  );
 });
