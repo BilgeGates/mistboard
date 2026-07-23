@@ -11,59 +11,40 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .news-page-entry {
   display: grid;
   grid-template-columns: 92px minmax(0, 1fr);
   gap: 14px;
-  padding: 16px;
-  border: 1px solid var(--site-border-soft);
+  padding: 14px 12px;
   border-radius: var(--site-radius-sm);
-  background: var(--site-panel);
-  transition:
-    border-color 140ms ease,
-    box-shadow 140ms ease,
-    transform 140ms ease;
 }
 
-.news-page-entry:hover {
-  border-color: color-mix(in srgb, var(--site-accent) 38%, var(--site-border-soft));
-  box-shadow: 0 5px 18px color-mix(in srgb, var(--site-shadow) 28%, transparent);
-  transform: translateY(-1px);
+.news-page-entry:nth-child(even) {
+  background: var(--site-zebra);
 }
 
 .news-page-date {
-  align-self: start;
-  width: fit-content;
-  padding: 3px 7px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--site-accent) 10%, var(--site-panel));
   color: var(--site-muted);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
-  line-height: 1.5;
-  white-space: nowrap;
 }
 
 .news-page-headline {
   display: block;
   margin: 0;
   color: var(--site-heading);
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1.4;
 }
 
 .news-page-text {
-  margin: 4px 0 0;
-  color: var(--site-muted);
+  margin: 2px 0 0;
+  color: var(--site-text);
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 /* Small inline link worked into the body line, not a linked headline. */
