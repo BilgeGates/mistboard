@@ -292,6 +292,10 @@ export type TreeReviewConfig<Move, Truth = never> = {
    *  "Game info" underboard tab renders it. The historical-library caller supplies
    *  it; played/analysis surfaces leave it undefined. */
   provenance?: HTMLElement;
+  /** Opening-explorer panel for surfaces with a game corpus behind them. Kept
+   *  fully opaque here (an element plus a per-node setter) so this controller
+   *  stays variant-neutral: the caller owns the variant types and the lookup. */
+  explorer?: { el: HTMLElement; setTruth(truth: Truth): void };
   /** Game result appended to the move list as a terminal block (lichess: "0-1"
    *  over the termination line). Postgame surfaces supply it; the analysis board
    *  (no finished game) omits it. */
@@ -733,6 +737,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   const underboardEl = underboardPanel(underboardBody, {
     hasAnalysis: Boolean(config.analysis),
     provenance: config.provenance,
+    explorer: config.explorer?.el,
     moveTimes: config.moveTimes,
     seatColors: config.seatColors,
     players: config.showCrosstable ? (config.players ?? {}) : undefined,
@@ -838,7 +843,9 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     boardMaxPx: presentation.boardMaxPx,
     underboard: composeUnderboard(
       commentPanelEl,
-      config.analysis || config.provenance || config.showCrosstable ? underboardEl : undefined,
+      config.analysis || config.provenance || config.showCrosstable || config.explorer
+        ? underboardEl
+        : undefined,
       importPanel?.el,
     ),
     underboardOverflows: true,
@@ -1015,6 +1022,8 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     commentPanelEl.classList.toggle('review-comment-panel--empty', !authoredComment);
     moveTree.setCurrent(currentPath);
     controls.setBounds({ atStart: currentPath.length === 0, atEnd: node.children.length === 0 });
+    // Opening statistics follow the board like every other per-node panel.
+    config.explorer?.setTruth(node.truth);
     // Live-refresh the Share tab's FEN + move export for the current node/line.
     if (presentation.engine) shareFenInput.value = presentation.engine.fen(node.truth);
     shareMovesInput.value = uciTo(node).join(' ');

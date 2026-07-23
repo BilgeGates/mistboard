@@ -1,0 +1,169 @@
+import {
+  applyStandardXiangqiMove,
+  createInitialXiangqiState,
+  type XiangqiMove,
+} from '@mistboard/game';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createOpeningExplorer } from './opening-explorer.js';
+
+const START_KEY = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR r';
+
+describe('opening explorer', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+    vi.unstubAllGlobals();
+  });
+
+  it('looks up the position key, not an engine-dialect FEN', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse(payload()));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const explorer = createOpeningExplorer();
+    document.body.append(explorer.el);
+    explorer.setState(createInitialXiangqiState('t'));
+    await flushPromises();
+
+    // The stored key spells red as 'r'. Passing the engine's 'w' dialect would
+    // miss every row silently, so this pin is the contract with the API.
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `/api/xiangqi/explorer?fen=${encodeURIComponent(START_KEY)}`,
+      expect.anything(),
+    );
+  });
+
+  it('renders each move with its share of decided games', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(payload())),
+    );
+
+    const explorer = createOpeningExplorer();
+    document.body.append(explorer.el);
+    explorer.setState(createInitialXiangqiState('t'));
+    await flushPromises();
+
+    const rows = [...explorer.el.querySelectorAll('.opening-explorer__row')];
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.querySelector('.opening-explorer__count')?.textContent).toBe('7');
+    // 6 red wins + 1 black win = 7 decided, so red takes 85.7% of the bar.
+    const redPart = rows[0]?.querySelector<HTMLElement>('.opening-explorer__bar-part--red');
+    expect(redPart?.style.width).toBe('85.7%');
+    expect(explorer.el.textContent).toContain('10 corpus games');
+  });
+
+  it('says a position is unplayed instead of rendering an empty table', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ position: START_KEY, total: 0, moves: [], build: null })),
+    );
+
+    const explorer = createOpeningExplorer();
+    document.body.append(explorer.el);
+    explorer.setState(createInitialXiangqiState('t'));
+    await flushPromises();
+
+    expect(explorer.el.textContent).toContain('No corpus games reached this position');
+    expect(explorer.el.querySelectorAll('.opening-explorer__row')).toHaveLength(0);
+  });
+
+  it('treats a 200 that is not an explorer payload as unavailable', async () => {
+    // A proxy or edge error page can answer 200 with anything. Reading it
+    // optimistically used to throw inside render and take the panel down.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ lines: [], canPost: true })),
+    );
+
+    const explorer = createOpeningExplorer();
+    document.body.append(explorer.el);
+    explorer.setState(createInitialXiangqiState('t'));
+    await flushPromises();
+
+    expect(explorer.el.textContent).toContain('Opening statistics are unavailable');
+    expect(explorer.el.querySelectorAll('.opening-explorer__row')).toHaveLength(0);
+  });
+
+  it('does not refetch a position it is already showing', async () => {
+    const fetchSpy = vi.fn(async () => jsonResponse(payload()));
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const explorer = createOpeningExplorer();
+    document.body.append(explorer.el);
+    const start = createInitialXiangqiState('t');
+    explorer.setState(start);
+    await flushPromises();
+    // Scrubbing back and forth revisits positions constantly; each revisit must
+    // be free, not another request.
+    explorer.setState(start);
+    explorer.setState(start);
+    await flushPromises();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('follows the board to a new position', async () => {
+    const fetchSpy = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      jsonResponse(payload()),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const explorer = createOpeningExplorer();
+    document.body.append(explorer.el);
+    const start = createInitialXiangqiState('t');
+    explorer.setState(start);
+    await flushPromises();
+    explorer.setState(applyStandardXiangqiMove(start, { from: 'h3', to: 'e3' } as XiangqiMove));
+    await flushPromises();
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(String(fetchSpy.mock.calls[1]?.[0])).not.toContain(encodeURIComponent(START_KEY));
+  });
+});
+
+function payload() {
+  return {
+    position: START_KEY,
+    total: 10,
+    moves: [
+      {
+        from: 'h3',
+        to: 'e3',
+        games: 7,
+        redWins: 6,
+        blackWins: 1,
+        draws: 0,
+        unknowns: 0,
+        sampleGameIds: [],
+      },
+      {
+        from: 'b3',
+        to: 'e3',
+        games: 3,
+        redWins: 0,
+        blackWins: 0,
+        draws: 0,
+        unknowns: 3,
+        sampleGameIds: [],
+      },
+    ],
+    build: {
+      gameCount: 10,
+      maxPly: 24,
+      sources: ['elephantchess-pvp'],
+      builtAt: '2026-07-23T00:00:00.000Z',
+    },
+  };
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    headers: { 'content-type': 'application/json' },
+    status,
+  });
+}
+
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}

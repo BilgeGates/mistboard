@@ -28,6 +28,7 @@ import {
 import { xiangqiNotationChangedEvent } from '../xiangqi-notation.js';
 import { bestMoveArrow, engineArrowsFromLines } from './engine/engine-arrows.js';
 import type { NodeShape } from './game-tree.js';
+import { createOpeningExplorer } from './opening-explorer.js';
 import {
   mountTreeReview,
   type TreePresentation,
@@ -101,7 +102,17 @@ export function mountXiangqiReview(
   root: HTMLElement,
   config: XiangqiReviewConfig,
 ): XiangqiReviewHandle {
-  return mountTreeReview(root, xiangqiPresentation, config);
+  // Every standard-xiangqi review surface gets the opening explorer: the corpus
+  // is keyed by position, so it is just as useful on a played game as on the
+  // analysis board. A caller may pass its own to opt out or override.
+  const explorer = config.explorer ?? xiangqiOpeningExplorer();
+  return mountTreeReview(root, xiangqiPresentation, { ...config, explorer });
+}
+
+/** The shared explorer panel, typed to the xiangqi kernel state. */
+function xiangqiOpeningExplorer(): NonNullable<XiangqiReviewConfig['explorer']> {
+  const explorer = createOpeningExplorer();
+  return { el: explorer.el, setTruth: (truth) => explorer.setState(truth) };
 }
 
 // Fairy-Stockfish xiangqi UCI back to our `from-to` notation for readable PV

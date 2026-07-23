@@ -257,6 +257,7 @@ export {
   setGameFavorite,
 } from './persistence-games.js';
 export type {
+  AggregatableXiangqiGame,
   HistoricalXiangqiGame,
   HistoricalXiangqiGameInput,
   HistoricalXiangqiGameListItem,
@@ -278,6 +279,7 @@ export {
   finishHistoricalXiangqiImportBatch,
   getHistoricalXiangqiGame,
   insertHistoricalXiangqiGame,
+  listAggregatableXiangqiGames,
   normalizeHistoricalXiangqiPlayerName,
   queryHistoricalXiangqiGames,
   upsertHistoricalXiangqiPlayer,
@@ -455,6 +457,16 @@ export {
   recordXiangqiBroadcastSyncLog,
   setXiangqiBroadcastTourSchedule,
 } from './persistence-xiangqi-broadcasts.js';
+export type {
+  XiangqiOpeningBuildInfo,
+  XiangqiOpeningMoveAccumulator,
+  XiangqiOpeningMoveRow,
+} from './persistence-xiangqi-explorer.js';
+export {
+  lookupXiangqiOpeningMoves,
+  readXiangqiOpeningBuild,
+  replaceXiangqiOpeningMoves,
+} from './persistence-xiangqi-explorer.js';
 export type {
   XiangqiPuzzleEditorialCandidate,
   XiangqiPuzzleEditorialReason,
