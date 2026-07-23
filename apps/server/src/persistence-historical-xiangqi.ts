@@ -551,8 +551,11 @@ export type AggregatableXiangqiGame = {
   sourceSlug: string;
   result: HistoricalXiangqiResult;
   moves: XiangqiMove[];
-  /** Average pre-game rating when the source recorded one, else null. */
+  /** Average pre-game rating (sorts "Top games"), else null. */
   rating: number | null;
+  /** Per-side pre-game ratings for display ("1008 vs 992"), else null. */
+  redRating: number | null;
+  blackRating: number | null;
   playedOn: string | null;
 };
 
@@ -592,14 +595,19 @@ export async function listAggregatableXiangqiGames(opts: {
      LIMIT $2`,
     [opts.afterId ?? '', opts.limit],
   );
-  return rows.map((row) => ({
-    id: row.id,
-    sourceSlug: row.slug,
-    result: row.result,
-    moves: row.moves,
-    rating: averageRatingFromTags(row.tags),
-    playedOn: dateOnlyFromRow(row.played_on),
-  }));
+  return rows.map((row) => {
+    const ratings = ratingsFromTags(row.tags);
+    return {
+      id: row.id,
+      sourceSlug: row.slug,
+      result: row.result,
+      moves: row.moves,
+      rating: ratings.avg,
+      redRating: ratings.red,
+      blackRating: ratings.black,
+      playedOn: dateOnlyFromRow(row.played_on),
+    };
+  });
 }
 
 export async function queryHistoricalXiangqiGames(
@@ -644,10 +652,16 @@ export async function queryHistoricalXiangqiGames(
  * simply never lead the "Top games" list. Kept here rather than in the
  * aggregator so the aggregator stays free of any source's tag vocabulary.
  */
-function averageRatingFromTags(tags: Record<string, unknown> | null): number | null {
-  if (!tags) return null;
+function ratingsFromTags(tags: Record<string, unknown> | null): {
+  red: number | null;
+  black: number | null;
+  avg: number | null;
+} {
+  if (!tags) return { red: null, black: null, avg: null };
   const red = Number(tags.redEloBefore);
   const black = Number(tags.blackEloBefore);
-  if (!Number.isFinite(red) || !Number.isFinite(black)) return null;
-  return Math.round((red + black) / 2);
+  if (!Number.isFinite(red) || !Number.isFinite(black)) {
+    return { red: null, black: null, avg: null };
+  }
+  return { red, black, avg: Math.round((red + black) / 2) };
 }

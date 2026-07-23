@@ -174,28 +174,51 @@
 
 .opening-explorer__top-row {
   display: grid;
-  grid-template-columns: 58px 1fr auto;
-  gap: 8px;
+  grid-template-columns: minmax(96px, auto) 1fr auto;
+  gap: 10px;
   align-items: center;
-  padding: 2px 0;
+  padding: 4px 4px;
+  margin: 0 -4px;
+  border-radius: 4px;
   color: var(--site-text);
   font-size: 12px;
   text-decoration: none;
 }
 
 .opening-explorer__top-row:hover {
-  text-decoration: underline;
+  background: var(--site-zebra);
 }
 
+.opening-explorer__top-matchup {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
 .opening-explorer__top-rating {
   color: var(--site-muted);
-  font-variant-numeric: tabular-nums;
+}
+/* The winning side's rating carries the row's weight, so a glance reads who
+   won without parsing the result column. */
+.opening-explorer__top-rating--won {
+  color: var(--site-text);
+  font-weight: 700;
+}
+.opening-explorer__top-vs {
+  color: var(--site-faint, var(--site-muted));
+  font-size: 10px;
+}
+
+.opening-explorer__top-result {
+  color: var(--site-muted);
+  font-size: 11px;
 }
 
 .opening-explorer__top-date {
   color: var(--site-muted);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 /* The control bar's tool cluster: the book toggle that opens this panel. */

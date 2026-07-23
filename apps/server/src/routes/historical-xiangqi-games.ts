@@ -52,7 +52,11 @@ export async function tryHandle(
     if (!requireMethod(request, response, 'GET')) return true;
     if (!requirePersistence(response)) return true;
     const game = await persistence.getHistoricalXiangqiGame(decodeURIComponent(detailMatch[1]!));
-    if (game?.visibility !== 'public') {
+    // Direct-id access serves unlisted games too: an unlisted corpus is absent
+    // from the browsable list (the search route below still gates on public) but
+    // its individual games ARE linked — the opening explorer's "Top games" point
+    // straight here. Only 'private' stays hidden by id.
+    if (!game || game.visibility === 'private') {
       writeJson(response, 404, { error: 'not_found' });
       return true;
     }

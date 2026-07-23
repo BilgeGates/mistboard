@@ -39,6 +39,8 @@ type ExplorerMove = {
 type ExplorerSample = {
   id: string;
   rating: number | null;
+  redRating: number | null;
+  blackRating: number | null;
   result: string;
   playedOn: string | null;
 };
@@ -299,6 +301,24 @@ function moveRow(
   return el;
 }
 
+// A single side's rating, marked as the winner when its result matches. An
+// unrated corpus shows a dash rather than a blank so the "vs" still reads.
+function ratingSpan(rating: number | null, won: boolean): HTMLElement {
+  const el = document.createElement('span');
+  el.className = won
+    ? 'opening-explorer__top-rating opening-explorer__top-rating--won'
+    : 'opening-explorer__top-rating';
+  el.textContent = rating === null ? '–' : String(rating);
+  return el;
+}
+
+function resultLabel(result: string): string {
+  if (result === '1-0') return 'Red won';
+  if (result === '0-1') return 'Black won';
+  if (result === '1/2-1/2') return 'Draw';
+  return '–';
+}
+
 function topGamesBlock(samples: ExplorerSample[]): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'opening-explorer__top-inner';
@@ -310,19 +330,30 @@ function topGamesBlock(samples: ExplorerSample[]): HTMLElement {
   for (const sample of samples.slice(0, TOP_GAMES_SHOWN)) {
     const row = document.createElement('a');
     row.className = 'opening-explorer__top-row';
-    row.href = `/xiangqi/game/${encodeURIComponent(sample.id)}`;
-    const rating = document.createElement('span');
-    rating.className = 'opening-explorer__top-rating';
-    // The corpus is anonymized, so the rating IS the identity on offer. Saying
-    // "unrated" beats printing a blank where a player name would be.
-    rating.textContent = sample.rating === null ? 'unrated' : String(sample.rating);
+    // Corpus games live at the historical review route; the live /xiangqi/game/
+    // route is for rooms and 404s these ids. Unlisted corpus games are viewable
+    // by direct id (the server serves anything not private here).
+    row.href = `/historical-xiangqi/game/${encodeURIComponent(sample.id)}`;
+
+    // The corpus is anonymized, so the two RATINGS are the identity on offer —
+    // "1008 vs 992" says far more than a lone averaged number. The winning side
+    // is emphasised so the row reads as a game, not two loose figures.
+    const matchup = document.createElement('span');
+    matchup.className = 'opening-explorer__top-matchup';
+    const redRating = ratingSpan(sample.redRating, sample.result === '1-0');
+    const black = ratingSpan(sample.blackRating, sample.result === '0-1');
+    const vs = document.createElement('span');
+    vs.className = 'opening-explorer__top-vs';
+    vs.textContent = 'vs';
+    matchup.append(redRating, vs, black);
+
     const result = document.createElement('span');
     result.className = 'opening-explorer__top-result';
-    result.textContent = sample.result;
+    result.textContent = resultLabel(sample.result);
     const played = document.createElement('span');
     played.className = 'opening-explorer__top-date';
     played.textContent = sample.playedOn ? sample.playedOn.slice(0, 7) : '';
-    row.append(rating, result, played);
+    row.append(matchup, result, played);
     wrap.append(row);
   }
   return wrap;

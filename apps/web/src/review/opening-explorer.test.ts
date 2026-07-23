@@ -208,7 +208,10 @@ describe('opening explorer', () => {
 
     const top = [...explorer.el.querySelectorAll('.opening-explorer__top-row')];
     expect(top).toHaveLength(2);
-    expect(top[0]?.textContent).toContain('2400');
+    expect(top[0]?.textContent).toContain('2450');
+    expect(top[0]?.textContent).toContain('2350');
+    // Corpus games open at the historical review route, not the live /xiangqi one.
+    expect(top[0]?.getAttribute('href')).toBe('/historical-xiangqi/game/hxq_top');
 
     // The explorer is a navigation surface: a row click plays its move.
     explorer.el.querySelector<HTMLButtonElement>('.opening-explorer__row')?.click();
@@ -304,8 +307,22 @@ function payload() {
       },
     ],
     topGames: [
-      { id: 'hxq_top', rating: 2400, result: '1-0', playedOn: '2026-03-06' },
-      { id: 'hxq_next', rating: 1200, result: '0-1', playedOn: '2026-02-01' },
+      {
+        id: 'hxq_top',
+        rating: 2400,
+        redRating: 2450,
+        blackRating: 2350,
+        result: '1-0',
+        playedOn: '2026-03-06',
+      },
+      {
+        id: 'hxq_next',
+        rating: 1200,
+        redRating: 1180,
+        blackRating: 1220,
+        result: '0-1',
+        playedOn: '2026-02-01',
+      },
     ],
     build: {
       gameCount: 10,
