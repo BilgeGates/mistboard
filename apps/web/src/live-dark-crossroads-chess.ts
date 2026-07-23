@@ -71,6 +71,7 @@ let draggingFrom: CrossroadsChessSquare | null = null;
 
 const darkCrossroadsChessWebTenant: WebVariantTenant<CrossroadsChessColor> = {
   displayName: 'Dark Crossroads Chess',
+  metaMarkerId: 'dark-crossroads',
   metaGlyph: '♔',
   colors: ['white', 'red'],
   isColor: isCrossroadsChessColor,

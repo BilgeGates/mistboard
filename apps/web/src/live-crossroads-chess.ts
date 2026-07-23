@@ -92,6 +92,7 @@ const lifecycleTracker = createGameLifecycleTracker();
 
 const crossroadsChessWebTenant: WebVariantTenant<CrossroadsChessColor> = {
   displayName: 'Crossroads Chess',
+  metaMarkerId: 'crossroads',
   metaGlyph: '♔',
   colors: ['white', 'red'],
   isColor: isCrossroadsChessColor,

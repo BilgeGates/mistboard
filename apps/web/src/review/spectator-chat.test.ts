@@ -7,7 +7,7 @@ describe('live room chat', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders the persistent game room with quick chat controls', async () => {
+  it('talks in the seat-gated player room, not the spectator room', async () => {
     const fetchSpy = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       if (!init?.method) {
         return jsonResponse({
@@ -38,7 +38,7 @@ describe('live room chat', () => {
 
     expect(panel.getAttribute('aria-label')).toBe('Game chat');
     expect(panel.textContent).toContain('Chat room');
-    expect(fetchSpy).toHaveBeenCalledWith('/api/chat/game/room%20with%20spaces');
+    expect(fetchSpy).toHaveBeenCalledWith('/api/chat/player/room%20with%20spaces');
     expect(
       Array.from(panel.querySelectorAll<HTMLButtonElement>('.review-spectator-chat__quick-button'))
         .map((button) => button.textContent)
@@ -48,13 +48,52 @@ describe('live room chat', () => {
     panel.querySelector<HTMLButtonElement>('.review-spectator-chat__quick-button')?.click();
     await flushPromises();
 
-    expect(fetchSpy).toHaveBeenLastCalledWith('/api/chat/game/room%20with%20spaces', {
+    // The player line posts to the player room. If this ever posts to
+    // /api/chat/game/ the two players' conversation leaks into the spectator
+    // room the review page serves — the exact bug this split exists to fix.
+    expect(fetchSpy).toHaveBeenLastCalledWith('/api/chat/player/room%20with%20spaces', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ text: 'GG' }),
     });
     expect(panel.textContent).toContain('misty');
     expect(panel.textContent).toContain('GG');
+  });
+
+  it('demotes a viewer the seat gate refuses to the spectator room', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith('/api/chat/player/')) {
+        return jsonResponse({ error: 'not_a_player' }, 403);
+      }
+      return jsonResponse({
+        lines: [
+          {
+            id: 'chln_spec_1',
+            handle: 'watcher',
+            text: 'nice game',
+            createdAt: '2026-07-14T12:00:00.000Z',
+          },
+        ],
+        canPost: true,
+        canReport: true,
+        viewerHandle: 'watcher',
+      });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const panel = buildLiveRoomChat('bq_1');
+    document.body.append(panel);
+    await flushPromises();
+
+    expect(fetchSpy.mock.calls.map((call) => String(call[0]))).toEqual([
+      '/api/chat/player/bq_1',
+      '/api/chat/game/bq_1',
+    ]);
+    expect(panel.textContent).toContain('Spectator room');
+    expect(panel.textContent).toContain('nice game');
+    // Quick chat is a player affordance; a demoted spectator does not get it.
+    expect(panel.querySelector('.review-spectator-chat__quick-button')).toBeNull();
   });
 });
 

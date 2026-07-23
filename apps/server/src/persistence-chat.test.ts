@@ -9,10 +9,12 @@ import {
   createChatTimeout,
   createUser,
   hideChatLine,
+  isRoomSeatUser,
   listChatLines,
   listChatReports,
   pruneChatLines,
   resolveChatReport,
+  upsertRoomSeatToken,
 } from './persistence.js';
 import { assert, definePersistenceTests, test } from './persistence-test-support.js';
 import { tryHandle as tryHandleChatRoute } from './routes/chat.js';
@@ -350,6 +352,61 @@ definePersistenceTests('chat', () => {
       ['study room line'],
     );
     assert.equal(payload.canPost, false);
+  });
+
+  test('player chat room is seat-gated and never bleeds into the spectator room', async () => {
+    delete process.env.MISTBOARD_LOBBY_CHAT_ENABLED;
+    const now = new Date('2026-07-02T12:00:00Z');
+    await makeUser('chat_user_seat', 'chatseat', now);
+    await makeUser('chat_user_watch', 'chatwatch', now);
+    await upsertRoomSeatToken('bq_seat_room', {
+      seat: 'red',
+      clientId: 'client_seat',
+      tokenHash: 'a'.repeat(64),
+      userId: 'chat_user_seat',
+      userHandle: 'chatseat',
+      userDisplayName: 'chatseat',
+      issuedAt: now,
+      lastSeenAt: now,
+    });
+    await addChatLine({
+      id: 'chln_player_room_1',
+      room: 'player:bq_seat_room',
+      authorId: 'chat_user_seat',
+      bodyText: 'good luck',
+      now,
+    });
+
+    // The seated account is a member; a spectator account is not.
+    assert.equal(await isRoomSeatUser('bq_seat_room', 'chat_user_seat'), true);
+    assert.equal(await isRoomSeatUser('bq_seat_room', 'chat_user_watch'), false);
+
+    // Anonymous read of the player room is refused outright — the gate is
+    // fail-closed, so a refusal returns no lines at all.
+    const refused = captureResponse();
+    const handled = await tryHandleChatRoute(
+      {},
+      { method: 'GET', headers: {} } as unknown as IncomingMessage,
+      refused,
+      '/api/chat/player/bq_seat_room',
+      new URL('http://test.local/api/chat/player/bq_seat_room'),
+    );
+    assert.equal(handled, true);
+    assert.equal(refused.status, 401);
+    assert.equal(JSON.parse(refused.body).error, 'not_signed_in');
+
+    // The spectator room for the same game (what the review page reads) does not
+    // carry the players' line.
+    const spectator = captureResponse();
+    await tryHandleChatRoute(
+      {},
+      { method: 'GET', headers: {} } as unknown as IncomingMessage,
+      spectator,
+      '/api/chat/game/bq_seat_room',
+      new URL('http://test.local/api/chat/game/bq_seat_room'),
+    );
+    assert.equal(spectator.status, 200);
+    assert.deepEqual(JSON.parse(spectator.body).lines, []);
   });
 });
 

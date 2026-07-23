@@ -28,6 +28,7 @@ import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
 import { rematchControls } from './rematch-controls.js';
 import { setBoardFamily, xiangqiAppearanceChangedEvent } from './theme.js';
+import type { VariantMiniId } from './variant-mini-boards.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { syncMoveListScroll } from './variant-tenant/chrome-dom.js';
 import { createTenantReplayController } from './variant-tenant/replay-controller.js';
@@ -85,6 +86,9 @@ const replay = createTenantReplayController<MiniXiangqiPlayerView>();
 const darkMiniXiangqiWebTenant: WebVariantTenant<MiniXiangqiColor> = {
   get displayName() {
     return isOpenMiniXiangqiLiveRoom() ? 'Mini Xiangqi' : 'Dark Mini Xiangqi';
+  },
+  get metaMarkerId(): VariantMiniId {
+    return isOpenMiniXiangqiLiveRoom() ? 'mini-xiangqi' : 'dark-mini-xiangqi';
   },
   metaGlyph: '象',
   colors: ['red', 'black'],

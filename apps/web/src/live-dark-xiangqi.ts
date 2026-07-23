@@ -94,6 +94,7 @@ let draggingFrom: XiangqiSquare | null = null;
 
 const darkXiangqiWebTenant: WebVariantTenant<XiangqiColor> = {
   displayName: 'Fog Xiangqi',
+  metaMarkerId: 'dark-xiangqi',
   metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isXiangqiColor,

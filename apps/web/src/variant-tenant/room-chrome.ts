@@ -19,6 +19,7 @@ import { openConfirmDialog } from '../confirm-dialog.js';
 import { maybePlayLowTimeSound } from '../live-sound.js';
 import type { LiveRefs } from '../live-state.js';
 import { createGameMetaCard } from '../review/game-meta-card.js';
+import type { VariantMiniId } from '../variant-mini-boards.js';
 import { formatClock } from '../web-utils.js';
 import { capitalize, noticeBody, noticeTitle, presenceDot, roomLink } from './chrome-dom.js';
 
@@ -46,8 +47,14 @@ export type TenantWebClock<C extends string> = {
 
 export type WebVariantTenant<C extends string> = {
   displayName: string;
-  // Meta-card icon glyph, family-canonical (象 xiangqi, 虎 jungle, ☗ shogi,
-  // ♔ chess) to match the landing play groups. Omitting renders no icon box.
+  // Meta-card icon: the finalized variant marker, the same icon language the
+  // picker, watch rail, puzzles, profile, and the review page's meta card use.
+  // Set it on every tenant — the room is the one surface where a game's identity
+  // matters most, and a family glyph reads as "some xiangqi" where the marker
+  // reads as the exact variant.
+  metaMarkerId?: VariantMiniId;
+  // Fallback icon glyph, family-canonical (象 xiangqi, 虎 jungle, ☗ shogi,
+  // ♔ chess), for tenants with no marker. Omitting both renders no icon box.
   metaGlyph?: string;
   // Move order: [first mover, second mover]; also the board's default
   // top-to-bottom reading for a colors[0] viewer.
@@ -368,6 +375,7 @@ export function createTenantRoomChrome<C extends string>(
     }
 
     const card = createGameMetaCard({
+      markerId: tenant.metaMarkerId,
       glyph: tenant.metaGlyph,
       headline: [tcLabel, 'Casual'],
       variantName: detail ? `${tenant.displayName} · ${detail}` : tenant.displayName,

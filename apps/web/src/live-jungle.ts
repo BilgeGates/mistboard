@@ -70,6 +70,7 @@ function oppositeColor(color: JungleColor): JungleColor {
 
 const jungleWebTenant: WebVariantTenant<JungleColor> = {
   displayName: 'Jungle Chess',
+  metaMarkerId: 'jungle',
   metaGlyph: '虎',
   colors: ['red', 'black'],
   isColor: isJungleColor,

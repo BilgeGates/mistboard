@@ -82,6 +82,7 @@ let bounce: Square | null = null;
 
 const darkCrazyhouseWebTenant: WebVariantTenant<Color> = {
   displayName: 'Dark Crazyhouse',
+  metaMarkerId: 'dark-crazyhouse',
   metaGlyph: '♔',
   colors: ['white', 'black'],
   isColor,

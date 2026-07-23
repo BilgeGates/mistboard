@@ -114,18 +114,34 @@
   opacity: 0.6;
 }
 
-/* Xiangqi: Red vs Black. Match the computer-analysis chart's leading-side colors
-   exactly — its areas are #c0563f @72% (red) and #34302e @85% (black) composited
-   over the white panel, so mixing the same ratios over --site-panel gives an eval
-   bar whose two shades read identically to the graph (clear, not muddy). The
-   red-ahead label then reads dark on the lighter fill (the default), so no
-   per-variant label override is needed. */
+/* Xiangqi family: Red vs Black. Match the computer-analysis chart's leading-side
+   colors exactly — its areas are #c0563f @72% (red) and #34302e @85% (black)
+   composited over the white panel, so mixing the same ratios over --site-panel
+   gives an eval bar whose two shades read identically to the graph (clear, not
+   muddy). The red-ahead label then reads dark on the lighter fill (the default),
+   so no per-variant label override is needed.
+
+   Every xiangqi-kernel review surface belongs here, flip variants included: the
+   default light/near-black gauge is a CHESS presentation, and a variant whose
+   pieces are red and black reading as white and black is a straight mismatch. */
 .xiangqi-review .review-eval-bar,
-.fortress-xiangqi-review .review-eval-bar {
+.fortress-xiangqi-review .review-eval-bar,
+.dark-xiangqi-review .review-eval-bar,
+.jieqi-review .review-eval-bar,
+.banqi-review .review-eval-bar,
+.mini-xiangqi-review .review-eval-bar,
+.drop-mini-xiangqi-review .review-eval-bar,
+.dark-mini-xiangqi-review .review-eval-bar {
   background: color-mix(in srgb, #34302e 85%, var(--site-panel, #fff));
 }
 .xiangqi-review .review-eval-bar__fill,
-.fortress-xiangqi-review .review-eval-bar__fill {
+.fortress-xiangqi-review .review-eval-bar__fill,
+.dark-xiangqi-review .review-eval-bar__fill,
+.jieqi-review .review-eval-bar__fill,
+.banqi-review .review-eval-bar__fill,
+.mini-xiangqi-review .review-eval-bar__fill,
+.drop-mini-xiangqi-review .review-eval-bar__fill,
+.dark-mini-xiangqi-review .review-eval-bar__fill {
   background: color-mix(in srgb, #c0563f 72%, var(--site-panel, #fff));
 }
 

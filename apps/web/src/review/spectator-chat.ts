@@ -15,6 +15,8 @@ const LIVE_POLL_MS = 2000;
 const VISIBLE_LINES = 80;
 const TOKEN_PATTERN = /(@[a-z0-9_-]+|(?:https?:\/\/)?(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/\S*)?)/gi;
 const QUICK_CHAT_MESSAGES = ['GG', 'WP', 'TY', 'GTG', 'BYE'] as const;
+/** Poll ticks a demoted panel keeps re-probing its gated room before settling. */
+const PROMOTE_ATTEMPTS = 5;
 
 type GameChatOptions = {
   ariaLabel: string;
@@ -23,7 +25,20 @@ type GameChatOptions = {
   title: string;
   /** Chat API base for this room. Defaults to the per-game endpoint. */
   apiUrl?: string;
+  /**
+   * Where to land when the primary room refuses this viewer (401/403). The live
+   * room asks for the players' private room first; a spectator (or a signed-out
+   * player) is turned away by the seat gate and reads the spectator room
+   * instead. Falling back is a demotion, so quick chat goes with it.
+   */
+  fallback?: { apiUrl: string; title: string };
 };
+
+/** Mutable per-panel resolution: which room this panel actually ended up in. */
+type ChatSession = { apiUrl: string; live: boolean; demoted: boolean };
+
+/** The three regions a room's state renders into. */
+type ChatPanelUi = { tab: HTMLElement; feed: HTMLElement; footer: HTMLElement };
 
 export function buildSpectatorChat(roomId: string): HTMLElement {
   return buildGameChat(roomId, {
@@ -34,12 +49,21 @@ export function buildSpectatorChat(roomId: string): HTMLElement {
   });
 }
 
+/**
+ * The live room's chat panel. Players talk in the seat-gated player room; that
+ * conversation is theirs, and never shows up in the spectator room the review
+ * page serves. Anyone without a seat is demoted to the spectator room, which is
+ * the same room the review page reads, so spectators see one continuous
+ * conversation across the live game and its review.
+ */
 export function buildLiveRoomChat(roomId: string): HTMLElement {
   return buildGameChat(roomId, {
     ariaLabel: 'Game chat',
     live: true,
     pollMs: LIVE_POLL_MS,
     title: t('study.chatRoom'),
+    apiUrl: playerChatApiUrl(roomId),
+    fallback: { apiUrl: gameChatApiUrl(roomId), title: 'Spectator room' },
   });
 }
 
@@ -76,10 +100,15 @@ function buildGameChat(roomId: string, options: GameChatOptions): HTMLElement {
 
   panel.append(header, feed, footer);
 
-  const apiUrl = options.apiUrl ?? gameChatApiUrl(roomId);
+  const session: ChatSession = {
+    apiUrl: options.apiUrl ?? gameChatApiUrl(roomId),
+    live: options.live,
+    demoted: false,
+  };
   const known = new Set<string>();
-  void hydrateGameChat(apiUrl, feed, footer, known, options);
-  if (import.meta.env.MODE !== 'test') startPolling(apiUrl, panel, feed, known, options.pollMs);
+  const ui: ChatPanelUi = { tab, feed, footer };
+  void hydrateGameChat(session, ui, known, options);
+  if (import.meta.env.MODE !== 'test') startPolling(session, panel, ui, known, options);
 
   return panel;
 }
@@ -88,59 +117,96 @@ export function gameChatApiUrl(roomId: string): string {
   return `/api/chat/game/${encodeURIComponent(roomId)}`;
 }
 
+export function playerChatApiUrl(roomId: string): string {
+  return `/api/chat/player/${encodeURIComponent(roomId)}`;
+}
+
 export function studyChatApiUrl(studyId: string): string {
   return `/api/chat/study/${encodeURIComponent(studyId)}`;
 }
 
 async function hydrateGameChat(
-  apiUrl: string,
-  feed: HTMLElement,
-  footer: HTMLElement,
+  session: ChatSession,
+  ui: ChatPanelUi,
   known: Set<string>,
   options: GameChatOptions,
 ): Promise<void> {
-  const state = await fetchGameChat(apiUrl);
-  if (!state || !Array.isArray(state.lines)) {
-    renderStatus(footer, 'Chat is unavailable.');
+  let result = await fetchGameChat(session.apiUrl);
+  if (!result.state && options.fallback && (result.status === 401 || result.status === 403)) {
+    session.apiUrl = options.fallback.apiUrl;
+    session.live = false;
+    session.demoted = true;
+    ui.tab.textContent = options.fallback.title;
+    result = await fetchGameChat(session.apiUrl);
+  }
+  if (!result.state || !Array.isArray(result.state.lines)) {
+    renderStatus(ui.footer, 'Chat is unavailable.');
     return;
   }
-  feed.replaceChildren();
+  renderRoom(session, ui, known, result.state);
+}
+
+/** Replace the panel's contents with a room's state (first load, or a promotion). */
+function renderRoom(
+  session: ChatSession,
+  ui: ChatPanelUi,
+  known: Set<string>,
+  state: ChatState,
+): void {
+  ui.feed.replaceChildren();
   known.clear();
-  appendLines(feed, state.lines.slice(-VISIBLE_LINES), known, state, apiUrl);
-  renderFooter(footer, state, apiUrl, feed, known, options);
+  appendLines(ui.feed, state.lines.slice(-VISIBLE_LINES), known, state, session.apiUrl);
+  renderFooter(ui.footer, state, session, ui.feed, known);
 }
 
 function startPolling(
-  apiUrl: string,
+  session: ChatSession,
   panel: HTMLElement,
-  feed: HTMLElement,
+  ui: ChatPanelUi,
   known: Set<string>,
-  pollMs: number,
+  options: GameChatOptions,
 ): void {
+  // A player who opens a brand-new room can beat their own seat token into the
+  // database, so the first player-room probe 403s and the panel demotes. Re-probe
+  // for a bounded window afterwards and promote once the seat lands, rather than
+  // stranding a player in the spectator room until they reload. A genuine
+  // spectator burns the budget once and then polls one room like everyone else.
+  let promoteAttemptsLeft = options.fallback ? PROMOTE_ATTEMPTS : 0;
   const timer = window.setInterval(async () => {
     if (!panel.isConnected) {
       window.clearInterval(timer);
       return;
     }
     if (document.visibilityState !== 'visible') return;
-    const state = await fetchGameChat(apiUrl);
+    if (session.demoted && promoteAttemptsLeft > 0 && options.apiUrl) {
+      promoteAttemptsLeft -= 1;
+      const promoted = await fetchGameChat(options.apiUrl);
+      if (promoted.state) {
+        session.apiUrl = options.apiUrl;
+        session.live = options.live;
+        session.demoted = false;
+        ui.tab.textContent = options.title;
+        renderRoom(session, ui, known, promoted.state);
+        return;
+      }
+    }
+    const { state } = await fetchGameChat(session.apiUrl);
     if (!state) return;
     const incoming = state.lines.filter((line) => !known.has(line.id)).slice(-VISIBLE_LINES);
-    appendLines(feed, incoming, known, state, apiUrl);
-  }, pollMs);
+    appendLines(ui.feed, incoming, known, state, session.apiUrl);
+  }, options.pollMs);
 }
 
 function renderFooter(
   footer: HTMLElement,
   state: ChatState,
-  apiUrl: string,
+  session: ChatSession,
   feed: HTMLElement,
   known: Set<string>,
-  options: GameChatOptions,
 ): void {
   footer.replaceChildren();
   if (state.canPost) {
-    footer.append(buildComposer(apiUrl, feed, known, state, options.live));
+    footer.append(buildComposer(session.apiUrl, feed, known, state, session.live));
     return;
   }
   if (state.timeoutUntil) {
@@ -310,13 +376,15 @@ function appendChatText(container: HTMLElement, text: string): void {
   if (cursor < text.length) container.append(document.createTextNode(text.slice(cursor)));
 }
 
-async function fetchGameChat(apiUrl: string): Promise<ChatState | null> {
+/** Status comes back with the state so a refusal (401/403) can be told apart from
+ *  a network failure — only the former should demote the panel to its fallback. */
+async function fetchGameChat(apiUrl: string): Promise<{ state: ChatState | null; status: number }> {
   try {
     const response = await fetch(apiUrl);
-    if (!response.ok) return null;
-    return (await response.json()) as ChatState;
+    if (!response.ok) return { state: null, status: response.status };
+    return { state: (await response.json()) as ChatState, status: response.status };
   } catch {
-    return null;
+    return { state: null, status: 0 };
   }
 }
 
