@@ -378,3 +378,31 @@
   padding-bottom: 4px;
   line-height: 1.55;
 }
+
+/* Right rail ends at the board line (study surface).
+ *
+ * Removing the imbalance material rows took away the rail's bottom element, and
+ * the analyse box's own height calc drifts a few px from the board, so the right
+ * column ran past the board bottom with a dead dark band below the short move
+ * list. A study has no analysis-summary under its table (that is where the
+ * global shell lets the rail exceed the board), so here the fix is exact: pin
+ * the rail GROUP to the board's height and let the analyse box flex and scroll
+ * inside it. The group tracks the board on resize because the height is the same
+ * board-driven variable the board uses. Scoped to .study-review so the
+ * postgame/analysis surfaces, which do carry a summary below the board, keep it.
+ */
+@media (min-width: 800px) {
+  .study-review .review-shell__right .review-rail-group {
+    flex: 0 0 auto;
+    height: calc(var(--uni-board-width) / var(--uni-board-aspect, 1));
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .study-review .review-shell__right .review-rail-main {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+  }
+}
