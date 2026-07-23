@@ -582,6 +582,8 @@ function formatArticleDate(iso: string, locale: Locale): string {
 // carousel leaves the DOM, matching the other landing pollers.
 // Wires every `.landing-carousel` on the page (the blog strip and, since band 4,
 // the video strip) so each auto-rotates and drives its own arrows independently.
+const LANDING_CAROUSEL_ROTATION_MS = 10_000;
+
 export function initLandingCarousel(root: HTMLElement): void {
   for (const carousel of root.querySelectorAll<HTMLElement>('.landing-carousel')) {
     initSingleCarousel(carousel);
@@ -650,7 +652,7 @@ function initSingleCarousel(carousel: HTMLElement): void {
         return;
       }
       tick();
-    }, 5000);
+    }, LANDING_CAROUSEL_ROTATION_MS);
   };
 
   const nudge = (delta: number) => {
