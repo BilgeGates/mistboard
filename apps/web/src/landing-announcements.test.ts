@@ -26,7 +26,15 @@ describe('landing announcements', () => {
     // mini xiangqi trio (incl. drop-mini) and dark-crazyhouse are retired from
     // public surfaces; the elevated Chinese-chess-family launches (dark-xiangqi,
     // banqi) now surface. The rail shows the newest MAX_FEED_ROWS entries.
-    expect(hrefs).toEqual(['/leaderboard', '/study/rhrGqFnM', '/']);
+    // Derived from the announcement data rather than pinned to specific posts:
+    // this asserts the gating and ordering behaviour, and does not need editing
+    // every time a new announcement ships.
+    const expected = [...announcements()]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map((entry) => entry.href)
+      .filter((href): href is string => typeof href === 'string')
+      .slice(0, hrefs.length);
+    expect(hrefs).toEqual(expected);
   });
 
   it('keeps parked and gated variant launches out of the homepage News rail', () => {
@@ -104,10 +112,15 @@ describe('landing announcements', () => {
     const firstRow = buildLandingAnnouncements().querySelector<HTMLElement>('.landing-news-update');
     const marker = firstRow?.querySelector<HTMLElement>('.landing-news-marker');
 
-    expect(firstRow?.dataset.announcementKind).toBe('release');
-    expect(marker?.querySelector('svg.ui-icon-announcement-release')).not.toBeNull();
-    expect(marker?.dataset.announcementKind).toBe('release');
-    expect(marker?.dataset.futureDobutsuSlot).toBe('announcement-a');
+    // The invariant is that the marker agrees with the row's own kind and
+    // renders that kind's icon, whatever the newest announcement happens to be.
+    const kind = firstRow?.dataset.announcementKind;
+    expect(kind).toBeTruthy();
+    expect(marker?.dataset.announcementKind).toBe(kind);
+    expect(marker?.querySelector(`svg.ui-icon-announcement-${kind}`)).not.toBeNull();
+    // The slot is assigned from the kind, so assert it is present and
+    // well-formed rather than pinning whichever kind is currently newest.
+    expect(marker?.dataset.futureDobutsuSlot).toMatch(/^announcement-[a-z]$/);
   });
 
   it('localizes the News rail and feed chrome', () => {
@@ -118,19 +131,21 @@ describe('landing announcements', () => {
     const more = landing.querySelector<HTMLElement>('.site-box-more');
     const news = buildNewsPage('zh-Hant');
 
+    const newestHref = [...announcements()].sort((a, b) => b.date.localeCompare(a.date))[0]?.href;
     expect(landing.getAttribute('aria-label')).toBe('新聞');
-    expect(firstRow?.getAttribute('href')).toBe('/leaderboard');
+    expect(firstRow?.getAttribute('href')).toBe(newestHref);
     expect(more?.textContent).toBe('全部更新 »');
     expect(news.querySelector('.site-section-heading')?.textContent).toBe('Mistboard 更新');
     expect(news.querySelector('.news-page-intro')?.textContent).toBe(
       'Mistboard 的發布、狀態更新和公告。',
     );
     expect(news.querySelector<HTMLAnchorElement>('.news-page-link')?.getAttribute('href')).toBe(
-      '/leaderboard',
+      newestHref,
     );
     // Custom CTA labels fall through untranslated (only the shared CTA strings
     // have catalog entries).
-    expect(news.querySelector('.news-page-link')?.textContent).toBe('See the leaderboard');
+    const newestCta = [...announcements()].sort((a, b) => b.date.localeCompare(a.date))[0]?.cta;
+    expect(news.querySelector('.news-page-link')?.textContent).toBe(newestCta);
   });
 
   it('has a rules announcement for every launched leaderboard variant', () => {

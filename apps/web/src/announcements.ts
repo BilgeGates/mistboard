@@ -3,6 +3,12 @@
 // Workflow: when shipping a user-facing change, append a new entry with
 // today's date. Newest first (both surfaces sort by date descending). Skip
 // for internal-only changes (engine internals, infra, CI, refactors).
+//
+// STUDIES: do not post per published study, and never count them ("two new
+// studies"): the count is wrong the next time one ships, and the homepage
+// already lists them live from the API. Post when a WORK is finished (a manual,
+// not a volume) or at a milestone worth a reader's attention. Individual
+// publications reach people through the studies widget and /study on their own.
 
 export type AnnouncementKind = 'status' | 'article' | 'release' | 'update';
 
@@ -27,13 +33,22 @@ const baseAnnouncements: Announcement[] = [
     showInHomeArticleWidget: false,
   },
   {
+    date: '2026-07-23',
+    kind: 'article',
+    headline: 'Secret in the Tangerine, both game volumes.',
+    body: "橘中秘 (1632) is the manual every later xiangqi book argues with. Both of its game volumes are now readable move by move, 33 games with the full variation trees the woodblock prints, in English, 繁體, and 简体. Every line was replayed through the rules kernel and checked against the book's own capture notes.",
+    href: '/study/Dfi3NpRE',
+    cta: 'Open volume one',
+    showInHomeArticleWidget: true,
+  },
+  {
     date: '2026-07-21',
     kind: 'article',
-    headline: 'Two classical xiangqi studies, published.',
-    body: 'Seven Stars Gather (七星聚會) and the 18 compositions of Secrets of the Golden Roc (金鵬秘訣), transcribed from the original woodblock editions with every printed line replayed and engine-verified.',
-    href: '/study/rhrGqFnM',
-    cta: 'Open the Golden Roc study',
-    showInHomeArticleWidget: true,
+    headline: 'A library of classical xiangqi, from the original woodblocks.',
+    body: 'Ming and Qing manuals, keyed leaf by leaf from the earliest printings rather than any modern edition. Every printed line is replayed through the rules kernel, and a misprint is corrected only where exactly one legal reading survives. Each correction says so on the board.',
+    href: '/study',
+    cta: 'Browse the studies',
+    showInHomeArticleWidget: false,
   },
   {
     date: '2026-07-17',
