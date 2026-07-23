@@ -92,6 +92,7 @@ let lastSoundedMoveCount = 0;
 
 const kriegspielWebTenant: WebVariantTenant<Color> = {
   displayName: 'Kriegspiel',
+  metaMarkerId: 'kriegspiel',
   metaGlyph: '♔',
   colors: ['white', 'black'],
   isColor,

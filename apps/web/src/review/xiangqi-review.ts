@@ -16,8 +16,6 @@ import {
   type XiangqiColor,
   type XiangqiGameState,
   type XiangqiMove,
-  type XiangqiPiece,
-  type XiangqiPieceRole,
   type XiangqiSquare,
 } from '@mistboard/game';
 import { readStoredXiangqiBoardLayout, xiangqiAppearanceChangedEvent } from '../theme.js';
@@ -26,13 +24,8 @@ import {
   createXiangqiInteractiveBoard,
   type XiangqiBoardArrow,
   type XiangqiBoardMarker,
-  xiangqiPieceGhostSvg,
 } from '../xiangqi-board.js';
 import { xiangqiNotationChangedEvent } from '../xiangqi-notation.js';
-import { capturedByDiff } from './captured-diff.js';
-// The material rows reuse .review-capture-piece sizing from the captured-pool
-// stylesheet, which otherwise only loads with captured-pool.ts.
-import './captured-pool.css';
 import { bestMoveArrow, engineArrowsFromLines } from './engine/engine-arrows.js';
 import type { NodeShape } from './game-tree.js';
 import {
@@ -98,21 +91,10 @@ const xiangqiPresentation: TreePresentation<
   // Opening/Middlegame/Endgame segmentation for the chart dividers + per-phase
   // accuracy (heuristic; see xiangqi-phases.ts).
   gamePhases: xiangqiGamePhases,
-  // Right-rail material rows: lichess-style IMBALANCE (net pieces won + point
-  // lead), not a full capture ledger — the common balanced case renders
-  // nothing, and the rows reserve their footprint so first blood never
-  // reflows the rail (see #166).
-  material: ({ top, bottom }) => {
-    top.classList.add('review-material-row--reserved');
-    bottom.classList.add('review-material-row--reserved');
-    return (truth, rootTruth, flipped) => {
-      const imbalance = xiangqiMaterialImbalance(rootTruth, truth);
-      const bottomSide: XiangqiColor = flipped ? 'black' : 'red';
-      const topSide: XiangqiColor = flipped ? 'red' : 'black';
-      renderXiangqiMaterialRow(top, imbalance, topSide);
-      renderXiangqiMaterialRow(bottom, imbalance, bottomSide);
-    };
-  },
+  // No right-rail material rows for now: the reserved mat-top/mat-bot bands
+  // offset the rail against the board and eval bar. The imbalance renderer
+  // (net pieces won + point lead) lived here until 2026-07-23 and returns with
+  // a layout that keeps the three columns aligned (#166).
 };
 
 export function mountXiangqiReview(
@@ -127,94 +109,4 @@ export function mountXiangqiReview(
 function formatXiangqiEngineMove(uci: string): string {
   const squares = fsfUciToXiangqiSquares(uci);
   return squares ? `${squares.from}-${squares.to}` : uci;
-}
-
-// ── Material imbalance (right-rail mat rows) ────────────────────────────────
-
-// Conventional display values (chariot 9, cannon 5, horse 4, guards 2, pawn 1).
-// Only drives the "+N" lead hint, nothing rules-facing.
-const XIANGQI_PIECE_POINTS: Record<XiangqiPieceRole, number> = {
-  general: 0,
-  chariot: 9,
-  cannon: 5,
-  horse: 4,
-  elephant: 2,
-  advisor: 2,
-  soldier: 1,
-};
-
-const MATERIAL_ROLE_ORDER: XiangqiPieceRole[] = [
-  'chariot',
-  'cannon',
-  'horse',
-  'elephant',
-  'advisor',
-  'soldier',
-];
-
-type XiangqiMaterialImbalance = {
-  /** Net enemy pieces held per side, heaviest role first. */
-  net: Record<XiangqiColor, { role: XiangqiPieceRole; count: number }[]>;
-  /** Point lead per side (leader positive, the other side <= 0). */
-  points: Record<XiangqiColor, number>;
-};
-
-function boardPieces(state: XiangqiGameState): XiangqiPiece[] {
-  return Object.values(state.board).filter((piece): piece is XiangqiPiece => Boolean(piece));
-}
-
-function xiangqiMaterialImbalance(
-  rootTruth: XiangqiGameState,
-  truth: XiangqiGameState,
-): XiangqiMaterialImbalance {
-  const captured = capturedByDiff(boardPieces(rootTruth), boardPieces(truth));
-  const lost: Record<XiangqiColor, Map<XiangqiPieceRole, number>> = {
-    red: new Map(),
-    black: new Map(),
-  };
-  for (const entry of captured) {
-    lost[entry.owner].set(entry.role, (lost[entry.owner].get(entry.role) ?? 0) + 1);
-  }
-  const netFor = (side: XiangqiColor) => {
-    const enemy: XiangqiColor = side === 'red' ? 'black' : 'red';
-    const out: { role: XiangqiPieceRole; count: number }[] = [];
-    for (const role of MATERIAL_ROLE_ORDER) {
-      const count = (lost[enemy].get(role) ?? 0) - (lost[side].get(role) ?? 0);
-      if (count > 0) out.push({ role, count });
-    }
-    return out;
-  };
-  const redPoints = MATERIAL_ROLE_ORDER.reduce(
-    (sum, role) =>
-      sum + XIANGQI_PIECE_POINTS[role] * ((lost.black.get(role) ?? 0) - (lost.red.get(role) ?? 0)),
-    0,
-  );
-  return {
-    net: { red: netFor('red'), black: netFor('black') },
-    points: { red: redPoints, black: -redPoints },
-  };
-}
-
-function renderXiangqiMaterialRow(
-  host: HTMLElement,
-  imbalance: XiangqiMaterialImbalance,
-  side: XiangqiColor,
-): void {
-  host.replaceChildren();
-  const enemy: XiangqiColor = side === 'red' ? 'black' : 'red';
-  for (const { role, count } of imbalance.net[side]) {
-    for (let i = 0; i < count; i += 1) {
-      const span = document.createElement('span');
-      span.className = 'review-capture-piece';
-      span.setAttribute('aria-label', `${enemy} ${role} won`);
-      span.innerHTML = xiangqiPieceGhostSvg({ color: enemy, role });
-      host.append(span);
-    }
-  }
-  if (imbalance.points[side] > 0) {
-    const lead = document.createElement('span');
-    lead.className = 'review-material-points';
-    lead.textContent = `+${imbalance.points[side]}`;
-    host.append(lead);
-  }
 }

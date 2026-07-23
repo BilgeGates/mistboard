@@ -1167,7 +1167,6 @@
   font-size: 10px;
   font-weight: 400;
   line-height: 1.1;
-  backdrop-filter: blur(6px);
 }
 
 .landing-article-card-star {
@@ -1186,6 +1185,27 @@
   font-size: 15px;
   font-weight: 700;
   line-height: 1;
+}
+
+/* The blur sits on a pseudo-element, not on the badge itself. A backdrop-filter
+   element is composited into its own layer, and that layer's rounded clip can
+   land up to a pixel off the card's at fractional device-pixel offsets, which
+   is where the card's right edge lands (left edges hit integer device pixels,
+   which is why only the star corner leaked). With the background painted in the
+   main layer the misregistration is invisible; with background and blur
+   together on the badge it drew a crescent of raw thumbnail around the outer
+   corner. z-index: -1 keeps the pseudo above the badge's own background but
+   below its text; the badge's z-index: 1 already makes it a stacking context.
+   Do not reach for isolation: isolate here, which forms a backdrop root and
+   would limit the blur to the badge's own background in spec-following
+   engines. */
+.landing-article-card-date::before,
+.landing-article-card-star::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
   backdrop-filter: blur(6px);
 }
 

@@ -86,6 +86,7 @@ let pveEngineId: string | null = null;
 
 const jieqiWebTenant: WebVariantTenant<JieqiColor> = {
   displayName: 'Reveal Xiangqi',
+  metaMarkerId: 'jieqi',
   metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isJieqiColor,

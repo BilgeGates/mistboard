@@ -210,6 +210,17 @@ describe('tenant room chrome player names', () => {
     expect(refs.playerBottom.textContent).toContain('White');
   });
 
+  it('gives the meta card the variant marker, not a family glyph', () => {
+    const markerTenant: WebVariantTenant<Color> = { ...tenant, metaMarkerId: 'jungle-flip' };
+    const { chrome, refs } = chromeHarness({}, markerTenant);
+    chrome.renderMeta();
+    const icon = refs.gameInfo.querySelector('.game-meta-card__icon');
+    // The room is where a game's identity matters most; it reads the same icon
+    // language as the picker, watch rail, and review page rather than a CJK
+    // glyph shared by every variant in the family.
+    expect(icon?.querySelector('[data-variant-marker-id="jungle-flip"]')).not.toBeNull();
+  });
+
   it('uses server names in the meta card player rows', () => {
     const { chrome, refs } = chromeHarness({
       seatDisplayNames: { white: 'brian', red: 'Misty DMX' },

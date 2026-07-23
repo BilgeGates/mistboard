@@ -65,8 +65,10 @@ import {
 } from './live-status.js';
 import { currentCaptures, currentProjection, currentView } from './live-view.js';
 import { createGameMetaCard } from './review/game-meta-card.js';
+import type { VariantMiniId } from './variant-mini-boards.js';
 import { activeLiveShellTenant, liveShellTenants } from './variant-tenant/live-shell.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
+import { variantMiniIdForRawVariant } from './variants.js';
 import { escapeHtml, isColor } from './web-utils.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -584,6 +586,9 @@ function renderGameInfo(view: PlayerView | null): void {
   }
 
   const card = createGameMetaCard({
+    // Same finalized marker the picker/watch/review surfaces use; the ♔ glyph
+    // stays only as the fallback for a variant string we can't map.
+    markerId: metaMarkerId(view) ?? undefined,
     glyph: '♔',
     headline: [timeLabel, modeEntry ? modeEntry[1] : 'Casual'],
     variantName: fmt,
@@ -612,6 +617,16 @@ function renderGameInfo(view: PlayerView | null): void {
       refs.gameInfo.append(wrap);
     }
   }
+}
+
+// Marker for the meta card's icon box. Mirrors formatLabel's variant resolution
+// (view → snapshot → requested), so a Draft960 room shows the Draft960 marker
+// even though its live variant string is plain dark chess.
+function metaMarkerId(view: PlayerView | null): VariantMiniId | null {
+  const variant = view?.variant ?? liveState.state?.variant ?? liveState.variantRequested;
+  const requested = liveState.variantRequested;
+  if (requested === 'fog-draft960' || requested === 'dark-draft960') return 'draft960';
+  return variantMiniIdForRawVariant(variant ?? 'dark-chess');
 }
 
 function formatLabel(view: PlayerView | null): string {

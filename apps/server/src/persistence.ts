@@ -366,6 +366,7 @@ export {
 } from './persistence-room-deadlines.js';
 export type { RoomSeatTokenRecord, RoomSeatTokenSeat } from './persistence-seat-tokens.js';
 export {
+  isRoomSeatUser,
   loadRoomSeatTokens,
   replaceRoomSeatTokens,
   touchRoomSeatToken,

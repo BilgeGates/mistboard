@@ -56,6 +56,26 @@ export async function loadRoomSeatTokens<TSeat extends RoomSeatTokenSeat = Color
   return tokens;
 }
 
+/**
+ * Does this account hold (or still hold) a seat in this room? The seat-token
+ * table is the same attribution source game finishing uses, and rows survive the
+ * game, so this answers "was a player here" for a finished room too. Guest seats
+ * carry a null user_id and are never a match: the private player chat is an
+ * account surface.
+ */
+export async function isRoomSeatUser(roomId: string, userId: string): Promise<boolean> {
+  const { rowCount } = await getPool().query(
+    `SELECT 1
+     FROM room_seat_tokens
+     WHERE room_id = $1
+       AND user_id = $2
+       AND revoked_at IS NULL
+     LIMIT 1`,
+    [roomId, userId],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
 export async function upsertRoomSeatToken(
   roomId: string,
   token: Omit<RoomSeatTokenRecord<RoomSeatTokenSeat>, 'issuedAt' | 'lastSeenAt' | 'revokedAt'> & {

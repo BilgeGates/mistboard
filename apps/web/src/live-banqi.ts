@@ -111,6 +111,7 @@ function banqiLiveSeatInk(seat: BanqiSeat): BanqiColor | null {
 
 const banqiWebTenant: WebVariantTenant<BanqiSeat> = {
   displayName: 'Flip Xiangqi',
+  metaMarkerId: 'banqi',
   metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isBanqiSeat,

@@ -4,6 +4,8 @@
 //   POST /api/chat/lobby          post a line { text } (signed-in)
 //   GET  /api/chat/game/:roomId   per-game spectator chat
 //   POST /api/chat/game/:roomId   post a line to that game's spectator chat
+//   GET  /api/chat/player/:roomId the two players' private room (seat-gated)
+//   POST /api/chat/player/:roomId post a line to that private player room
 //   GET  /api/chat/study/:studyId per-study chat room
 //   POST /api/chat/study/:studyId post a line to that study's chat room
 //   GET  /api/chat/lobby/reports  admin: open chat report queue
@@ -14,8 +16,16 @@
 //   POST /api/chat/{room}/hide    admin: { lineId, reason? } hide one line
 //
 // Lobby chat remains behind MISTBOARD_LOBBY_CHAT_ENABLED. Per-game spectator
-// rooms and per-study rooms are scoped in the same bounded chat_lines table and
-// use the same posting, moderation, report, timeout, and retention rules.
+// rooms, per-study rooms, and per-game player rooms are scoped in the same
+// bounded chat_lines table and use the same posting, moderation, report,
+// timeout, and retention rules.
+//
+// game: and player: are DIFFERENT rooms for the same game (lichess anatomy).
+// The player room is what the two seats talk in from the live room page; the
+// spectator room is what everyone else, and the post-game review page, sees.
+// A player line must never appear in the spectator room, so the gate is
+// fail-closed: reading or posting to a player room requires a signed-in account
+// that holds a seat in that room, verified against room_seat_tokens.
 //
 // Post guards, in order: room gate (lobby only), signed in, active timeout,
 // flood budget (10 lines/min, DB-counted), link denial for accounts under
@@ -41,8 +51,10 @@ const LINK_PATTERN = /https?:\/\/|www\./i;
 type ChatRoomAction = 'room' | 'report' | 'timeout' | 'hide';
 
 type ChatRoomTarget = {
-  kind: 'lobby' | 'game' | 'study';
+  kind: 'lobby' | 'game' | 'study' | 'player';
   room: string;
+  /** Bare id inside the room key (the room id / study id); null for the lobby. */
+  scopeId: string | null;
   action: ChatRoomAction;
 };
 
@@ -64,6 +76,21 @@ export async function tryHandle(
     return true;
   }
   if (!requirePersistence(response)) return true;
+
+  // Player rooms are private to the seats. Admin moderation actions keep their
+  // own admin gate below; everything a viewer can do (read, post, report) needs
+  // a seat here.
+  if (target?.kind === 'player' && target.action !== 'timeout' && target.action !== 'hide') {
+    const viewer = await currentAccountUser(request);
+    if (!viewer) {
+      writeJson(response, 401, { error: 'not_signed_in' });
+      return true;
+    }
+    if (!(await persistence.isRoomSeatUser(target.scopeId ?? '', viewer.id))) {
+      writeJson(response, 403, { error: 'not_a_player' });
+      return true;
+    }
+  }
 
   if (pathname === '/api/chat/lobby/reports') {
     if (!requireMethod(request, response, 'GET')) return true;
@@ -288,27 +315,29 @@ export async function tryHandle(
 
 function chatRoomTarget(pathname: string): ChatRoomTarget | null {
   if (pathname === '/api/chat/lobby') {
-    return { kind: 'lobby', room: persistence.CHAT_ROOM_LOBBY, action: 'room' };
+    return { kind: 'lobby', room: persistence.CHAT_ROOM_LOBBY, scopeId: null, action: 'room' };
   }
   const lobbyAction = pathname.match(/^\/api\/chat\/lobby\/(report|timeout|hide)$/);
   if (lobbyAction) {
     return {
       kind: 'lobby',
       room: persistence.CHAT_ROOM_LOBBY,
+      scopeId: null,
       action: lobbyAction[1] as ChatRoomAction,
     };
   }
 
   const scopedMatch = pathname.match(
-    /^\/api\/chat\/(game|study)\/([^/]+)(?:\/(report|timeout|hide))?$/,
+    /^\/api\/chat\/(game|study|player)\/([^/]+)(?:\/(report|timeout|hide))?$/,
   );
   if (!scopedMatch) return null;
-  const kind = scopedMatch[1] as 'game' | 'study';
+  const kind = scopedMatch[1] as 'game' | 'study' | 'player';
   const roomId = decodeChatRoomSegment(scopedMatch[2] ?? '');
   if (!roomId) return null;
   return {
     kind,
     room: `${kind}:${roomId}`,
+    scopeId: roomId,
     action: (scopedMatch[3] as ChatRoomAction | undefined) ?? 'room',
   };
 }

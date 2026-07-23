@@ -64,6 +64,7 @@ let lastStatusType: string | null = null;
 
 const fortressWebTenant: WebVariantTenant<FortressXiangqiColor> = {
   displayName: 'Fortress Xiangqi',
+  metaMarkerId: 'fortress-xiangqi',
   metaGlyph: '象',
   colors: ['red', 'black'],
   isColor: isFortressColor,
