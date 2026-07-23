@@ -230,7 +230,11 @@ const analysisVariant = analysisVariantFromPath(path);
 const wantsHistoricalXiangqiSearch =
   path === '/historical-xiangqi' || path === '/historical-xiangqi/games';
 const historicalXiangqiGameId = historicalXiangqiGameIdFromPath(path);
-const studyId = /^\/study\/([A-Za-z0-9]+)$/.exec(path)?.[1] ?? null;
+// Accepts the locale-prefixed permalink too (/zh-hans/study/:id). The locale
+// itself is already picked up from the URL by initializeLocaleFromCurrentUrl;
+// without this pattern the localized URL fell through to the 404 shell even
+// though the server happily served it with localized meta.
+const studyId = /^(?:\/(?:zh-hans|zh-hant))?\/study\/([A-Za-z0-9]+)$/.exec(path)?.[1] ?? null;
 const wantsStudyIndex = path === '/study';
 // Hidden DEV-only spike: FoW Xiangqi Phase A. No nav entry, no landing link.
 const wantsXiangqiSpike = import.meta.env.DEV && path === '/xiangqi-spike';

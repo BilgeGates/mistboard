@@ -381,7 +381,11 @@ test('isClientRoute covers every literal route declared in main.ts', () => {
 const PARAMETRIC_ROUTE_SAMPLES: Record<string, readonly string[]> = {
   '^\\/inbox(?:\\/([^/]+))?$': ['/inbox', '/inbox/somehandle'],
   '^\\/coach(?:\\/([^/]+))?$': ['/coach', '/coach/somehandle'],
-  '^\\/study\\/([A-Za-z0-9]+)$': ['/study/Ab12cd'],
+  '^(?:\\/(?:zh-hans|zh-hant))?\\/study\\/([A-Za-z0-9]+)$': [
+    '/study/Ab12cd',
+    '/zh-hans/study/Ab12cd',
+    '/zh-hant/study/Ab12cd',
+  ],
 };
 
 test('isClientRoute covers every parametric route matcher declared in main.ts', () => {
