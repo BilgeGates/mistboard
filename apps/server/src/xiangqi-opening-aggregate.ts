@@ -33,6 +33,9 @@ export type AggregateGameInput = {
   /** Average player rating, when the source records one. Drives "Top games";
    *  a source without ratings simply never appears at the head of that list. */
   rating?: number | null;
+  /** Per-side ratings for the "Top games" row ("1008 vs 992"). */
+  redRating?: number | null;
+  blackRating?: number | null;
   /** ISO date (YYYY-MM-DD) for display beside a top game. */
   playedOn?: string | null;
 };
@@ -157,7 +160,14 @@ export function accumulatorPositionCount(accumulator: XiangqiOpeningMoveAccumula
  * list exact rather than a sample of a sample.
  */
 function retainSample(
-  samples: Array<{ id: string; rating: number | null; result: string; playedOn: string | null }>,
+  samples: Array<{
+    id: string;
+    rating: number | null;
+    redRating: number | null;
+    blackRating: number | null;
+    result: string;
+    playedOn: string | null;
+  }>,
   game: AggregateGameInput,
   limit: number,
 ): void {
@@ -165,6 +175,8 @@ function retainSample(
   const entry = {
     id: game.id,
     rating,
+    redRating: game.redRating ?? null,
+    blackRating: game.blackRating ?? null,
     result: game.result,
     playedOn: game.playedOn ?? null,
   };

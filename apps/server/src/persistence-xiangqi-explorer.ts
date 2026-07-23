@@ -16,6 +16,8 @@ import { getPool, withTransaction } from './persistence-db.js';
 export type XiangqiOpeningSample = {
   id: string;
   rating: number | null;
+  redRating: number | null;
+  blackRating: number | null;
   result: string;
   playedOn: string | null;
 };

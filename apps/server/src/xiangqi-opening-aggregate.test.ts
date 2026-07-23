@@ -54,7 +54,9 @@ test('folds a game into per-position move counts split by result', () => {
     blackWins: 0,
     draws: 0,
     unknowns: 0,
-    sampleGames: [{ id: 'g1', rating: null, result: '1-0', playedOn: null }],
+    sampleGames: [
+      { id: 'g1', rating: null, redRating: null, blackRating: null, result: '1-0', playedOn: null },
+    ],
   });
 });
 

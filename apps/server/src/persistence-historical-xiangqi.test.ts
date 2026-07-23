@@ -1,3 +1,4 @@
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { XiangqiMove } from '@mistboard/game';
 import {
   buildHistoricalXiangqiGameQueryWhere,
@@ -8,6 +9,7 @@ import {
   upsertHistoricalXiangqiSource,
 } from './persistence.js';
 import { assert, definePersistenceTests, test } from './persistence-test-support.js';
+import { tryHandle as tryHandleHistoricalRoute } from './routes/historical-xiangqi-games.js';
 
 definePersistenceTests('historical xiangqi', () => {
   test('normalizes player names conservatively', () => {
@@ -145,4 +147,76 @@ definePersistenceTests('historical xiangqi', () => {
     assert.equal(page.games[0]?.redNameRaw, 'Hu Ronghua');
     assert.equal(page.games[0]?.blackNameRaw, 'Liu Dahua');
   });
+
+  test('detail route serves an unlisted game by id but hides a private one', async () => {
+    const source = await upsertHistoricalXiangqiSource({
+      slug: 'gate-test',
+      name: 'Gate Test',
+      sourceType: 'platform-export',
+      license: 'GPL-3.0',
+      licenseStatus: 'cleared',
+    });
+    const moves: XiangqiMove[] = [{ from: 'h3', to: 'e3' }];
+    const unlisted = await insertHistoricalXiangqiGame({
+      sourceId: source.id,
+      sourceGameId: 'gate-unlisted',
+      result: '1-0',
+      moveFormat: 'coordinate',
+      moves,
+      visibility: 'unlisted',
+    });
+    const priv = await insertHistoricalXiangqiGame({
+      sourceId: source.id,
+      sourceGameId: 'gate-private',
+      result: '1-0',
+      moveFormat: 'coordinate',
+      moves,
+      visibility: 'private',
+    });
+
+    // Unlisted is linked from the opening explorer's "Top games", so a direct id
+    // must resolve even though it never appears in the browsable list.
+    const okResp = captureResponse();
+    await tryHandleHistoricalRoute(
+      {} as never,
+      { method: 'GET', headers: {} } as unknown as IncomingMessage,
+      okResp,
+      `/api/historical-xiangqi/games/${unlisted.id}`,
+      new URL(`http://test.local/api/historical-xiangqi/games/${unlisted.id}`),
+    );
+    assert.equal(okResp.status, 200);
+    assert.equal(JSON.parse(okResp.body).game.id, unlisted.id);
+
+    // Private stays hidden by id.
+    const hiddenResp = captureResponse();
+    await tryHandleHistoricalRoute(
+      {} as never,
+      { method: 'GET', headers: {} } as unknown as IncomingMessage,
+      hiddenResp,
+      `/api/historical-xiangqi/games/${priv.id}`,
+      new URL(`http://test.local/api/historical-xiangqi/games/${priv.id}`),
+    );
+    assert.equal(hiddenResp.status, 404);
+  });
 });
+
+type ResponseCapture = { body: string; status: number | null };
+
+function captureResponse(): ServerResponse & ResponseCapture {
+  const capture = {
+    body: '',
+    status: null as number | null,
+    writeHead(status: number) {
+      capture.status = status;
+      return capture;
+    },
+    setHeader() {
+      return capture;
+    },
+    end(chunk?: string) {
+      capture.body += chunk ?? '';
+      return capture;
+    },
+  };
+  return capture as unknown as ServerResponse & ResponseCapture;
+}
