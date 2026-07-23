@@ -355,8 +355,11 @@ async function addChapter(
   return true;
 }
 
-// PATCH a chapter: a `root` body saves the tree (version-guarded); a `name`-only
-// body renames it.
+// PATCH a chapter: a `root` body saves the tree (version-guarded); `name` and/or
+// `i18n` rename or retranslate it. A body may carry BOTH: the tree save used to
+// return first and silently drop the metadata alongside it, which looked like a
+// successful write that lost half the payload. Metadata is applied first so the
+// tree save still owns the version guard and the response.
 async function patchChapter(
   request: IncomingMessage,
   response: ServerResponse,
@@ -364,6 +367,19 @@ async function patchChapter(
   ownerId: string,
 ): Promise<boolean> {
   const body = await readJsonBody(request, TREE_JSON_BODY_LIMIT);
+  if ('root' in body && (typeof body.name === 'string' || parseI18nField(body.i18n))) {
+    const combinedI18n = parseI18nField(body.i18n);
+    const combinedName = typeof body.name === 'string' ? body.name.trim() : null;
+    if (combinedName === '') {
+      writeJson(response, 400, { error: 'invalid_name' });
+      return true;
+    }
+    const meta = await persistence.renameChapter(chapterId, ownerId, combinedName, combinedI18n);
+    if (!meta.ok) {
+      writeJson(response, meta.error === 'forbidden' ? 403 : 404, { error: meta.error });
+      return true;
+    }
+  }
   if ('root' in body) {
     if (!isSerializedTree(body.root)) {
       writeJson(response, 400, { error: 'invalid_tree' });

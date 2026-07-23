@@ -348,4 +348,32 @@ definePersistenceTests('studies', () => {
     assert.deepEqual(created.i18n, {});
     assert.deepEqual(created.chapters[0]!.i18n, {});
   });
+  test('a chapter PATCH carrying both a tree and translations applies both', async () => {
+    // Regression: the route saved the tree and returned, silently dropping the
+    // i18n in the same body — a 200 that wrote half the payload.
+    const user = await makeUser('i18n-combined');
+    const created = await createStudy({
+      ownerId: user.id,
+      name: '橘中秘',
+      description: '',
+      visibility: 'private',
+      chapter: { name: '大列手砲局', variant: 'xiangqi', orientation: 'red', root: tree },
+    });
+    assert.ok(created);
+    const chapter = created.chapters[0]!;
+
+    const meta = await renameChapter(chapter.id, user.id, null, {
+      'zh-Hans': { name: '大列手炮局' },
+    });
+    assert.ok(meta.ok);
+    const newTree = { version: 1, root: { children: [{ uci: 'h3e3', children: [] }] } };
+    const saved = await updateChapterTree(chapter.id, user.id, { root: newTree });
+    assert.ok(saved.ok);
+    assert.equal(
+      (saved.chapter.i18n as { 'zh-Hans'?: { name?: string } })['zh-Hans']?.name,
+      '大列手炮局',
+      'a later tree save must not clear translations',
+    );
+    assert.deepEqual(saved.chapter.root, newTree);
+  });
 });
