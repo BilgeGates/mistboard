@@ -23,6 +23,9 @@ export interface EnginePanel {
    *  standard start position; pass `initialFen` to analyse a mid-game base
    *  position (e.g. a puzzle) with `movesUci` applied on top. */
   setPosition(movesUci: string[], initialFen?: string): void;
+  /** Drive the arrow toggle from outside the popover (the `a` shortcut), keeping
+   *  the checkbox in sync. Fires onShowArrowsChange like a click would. */
+  setShowArrows(next: boolean): void;
   dispose(): void;
 }
 
@@ -38,6 +41,12 @@ export interface EnginePanelOptions {
    *  whenever the output clears — toggle off, or a position change before new
    *  results arrive. Drives the on-board PV arrows. */
   onLines?: (lines: CevalLine[] | null) => void;
+  /** Initial state of the "Best move arrows" toggle in the settings popover.
+   *  The panel renders the control; the OWNER holds the flag and decides what it
+   *  gates (the review surface also hides its whole-game best-move arrow). */
+  showArrows?: boolean;
+  /** Fires when the toggle changes, by click or via setShowArrows(). */
+  onShowArrowsChange?: (enabled: boolean) => void;
 }
 
 type Side = 'red' | 'black';
@@ -96,13 +105,23 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   head.append(toggle, evalLabel, id, gear);
 
   // Settings dropdown (lichess ceval menu): labelled slider rows for MultiPV and
-  // search depth. Out of flow, so it overlays the PV lines / move list below the
-  // head instead of pushing them down. Retuning re-runs the current search if
-  // the engine is on.
+  // search depth, plus the on-board arrow toggle. Out of flow, so it overlays
+  // the PV lines / move list below the head instead of pushing them down.
+  // Retuning re-runs the current search if the engine is on.
+  //
+  // The arrow toggle lives HERE rather than in the board's settings menu because
+  // it is the same concern as "Multiple lines" one row above: how many lines to
+  // search, and whether to draw them. lichess splits them (ceval menu vs
+  // analysis settings dialog) only because its arrow setting also governs
+  // server-analysis and variation arrows, which we do not draw.
+  const showArrowsToggle = document.createElement('input');
   const settings = document.createElement('div');
   settings.className = 'engine-panel__settings';
   settings.hidden = true;
   settings.append(
+    checkboxRow('Best move arrows', showArrowsToggle, opts.showArrows ?? true, (enabled) => {
+      opts.onShowArrowsChange?.(enabled);
+    }),
     sliderRow(
       'Multiple lines',
       { min: 1, max: 5, step: 1, value: multiPv },
@@ -253,6 +272,11 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   return {
     el,
     setPosition,
+    setShowArrows(next: boolean) {
+      if (showArrowsToggle.checked === next) return;
+      showArrowsToggle.checked = next;
+      opts.onShowArrowsChange?.(next);
+    },
     dispose() {
       clearTimeout(debounceId);
       handle?.dispose();
@@ -263,6 +287,31 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
 // One settings row: label · range slider · live value readout. The readout
 // tracks every drag tick ('input'); the engine only retunes on commit
 // ('change') so a drag doesn't restart the search per notch.
+/** A labelled checkbox row, matching sliderRow's shape so the popover reads as
+ *  one list. The caller owns the input element so it can be driven from a
+ *  keyboard shortcut without re-querying the DOM. */
+function checkboxRow(
+  label: string,
+  input: HTMLInputElement,
+  initial: boolean,
+  onChange: (enabled: boolean) => void,
+): HTMLElement {
+  const row = document.createElement('label');
+  row.className = 'engine-panel__setting engine-panel__setting--checkbox';
+  const name = document.createElement('span');
+  name.className = 'engine-panel__setting-label';
+  name.textContent = label;
+  input.type = 'checkbox';
+  input.checked = initial;
+  input.className = 'engine-panel__setting-checkbox';
+  const shortcut = document.createElement('span');
+  shortcut.className = 'engine-panel__setting-value';
+  shortcut.textContent = 'a';
+  input.addEventListener('change', () => onChange(input.checked));
+  row.append(name, input, shortcut);
+  return row;
+}
+
 function sliderRow(
   label: string,
   range: { min: number; max: number; step: number; value: number },

@@ -28,6 +28,7 @@ import {
   xiangqiReplayViewAtPly,
 } from './review/xiangqi-review-model.js';
 import { buildNav } from './site-shell.js';
+import { DEFAULT_STUDY_VARIANT } from './study-catalog.js';
 
 function statusSummary(status: XiangqiGameStatus, plyCount: number): string {
   if (plyCount === 0) return 'Play a move';
@@ -94,6 +95,10 @@ export function mountXiangqiAnalysis(
     // Pass the raw moves so the review's tree truncates an illegal seed itself and
     // surfaces the notice (the legal prefix drives the client sweep above).
     moves,
+    // Control-bar menu actions the analysis board can actually back: save the
+    // current line as a study, and wipe the moves back to the root position.
+    studyExport: { variant: DEFAULT_STUDY_VARIANT, name: opts.title ?? 'Xiangqi analysis' },
+    allowClearMoves: true,
     // A hand-set start roots the tree + engine at the composition's position.
     root: opts.startState
       ? { truth: opts.startState, fen: standardXiangqiFen(opts.startState) }

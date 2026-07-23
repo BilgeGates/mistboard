@@ -253,6 +253,23 @@
   filter: drop-shadow(0 0 1px rgba(70, 45, 8, 0.5));
 }
 
+/* Engine candidate arrows. The renderer paints a default blue as presentation
+   attributes (lowest CSS precedence), so these class rules win. Best move keeps
+   the blue; alternates go neutral grey so "the engine's move" and "another move
+   worth a look" are two categories rather than one fading gradient. Their
+   relative strength is carried by shaft width alone (review/engine/
+   engine-arrows.ts), never by colour or opacity. */
+.xq-arrow--pv1,
+.xq-arrow--best {
+  fill: #2b6cb8;
+  stroke: #2b6cb8;
+}
+
+.xq-arrow--alt {
+  fill: #4a4a4a;
+  stroke: #4a4a4a;
+}
+
 .xq-live-selection-cell {
   fill: rgba(31, 111, 91, 0.32);
   stroke: none;

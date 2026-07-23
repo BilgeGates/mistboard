@@ -18,11 +18,13 @@
 // (play a move → it branches the tree, promote/delete variations).
 
 import type { MoveJudgment } from '@mistboard/game';
+import type { StudyVariantId } from '../study-catalog.js';
 import { displayComment } from '../study-i18n.js';
 import { type AdvantageChart, createAdvantageChart } from './advantage-chart.js';
 import { createAnalysisSummary } from './analysis-summary.js';
 import { createAnnotationEditor } from './annotations-editor.js';
 import type { CevalLine, CevalVariant } from './engine/ceval.js';
+import { readEngineArrowsEnabled, writeEngineArrowsEnabled } from './engine/engine-arrow-pref.js';
 import { createEnginePanel } from './engine/engine-panel.js';
 import { createEvalBar } from './engine/eval-bar.js';
 import { formatEval } from './engine/eval-format.js';
@@ -43,9 +45,10 @@ import {
 } from './game-tree.js';
 import { ADVICE_LABEL, defaultFormatBestMove } from './move-advice.js';
 import { createMoveTree, type MoveTree, type MoveTreeAnnotation, pathKey } from './move-tree.js';
-import { createReviewControls, REVIEW_MENU_ICONS } from './review-controls.js';
+import { createReviewControls, REVIEW_MENU_ICONS, type ReviewMenuItem } from './review-controls.js';
 import { createReviewScaffold, installReviewKeyboard } from './review-layout.js';
 import type { ReviewSeatColors } from './review-seat-colors.js';
+import { createStudyFromTree, studyExportMessage } from './study-export.js';
 import { deserializeTree, type SerializedTree, serializeTree } from './tree-serialize.js';
 import { underboardPanel } from './underboard-tabs.js';
 
@@ -299,6 +302,14 @@ export type TreeReviewConfig<Move, Truth = never> = {
      *  the box stays a read-only mirror of the current node. */
     onImportFen?(fen: string): string | null;
   };
+  /** Enable the control-bar menu's "Study" action: create a study seeded with the
+   *  current tree. Absent = the item is omitted (the study page itself omits it —
+   *  you are already in a study). */
+  studyExport?: { variant: StudyVariantId; name: string };
+  /** Enable the menu's "Clear moves" action: drop every move back to the root
+   *  position, keeping a FEN-seeded root. Only the analysis board sets it; wiping
+   *  the moves of a game that was actually played is meaningless. */
+  allowClearMoves?: boolean;
 };
 
 /** Handle returned by mountTreeReview: lets a caller snapshot the current tree
@@ -507,10 +518,14 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // list) + a per-move luck readout (the advice line) + a two-number summary block.
   let decisionOverlay: DecisionOverlay | null = null;
   let engineLines: CevalLine[] | null = null;
+  // "Best move arrows" (engine gear popover / `a`). Gates BOTH arrow sources
+  // below, so turning it off means no engine ink on the board at all; the user's
+  // own drawn shapes are unaffected (they are appended in paintOverlays).
+  let showEngineArrows = readEngineArrowsEnabled();
   // Engine PV / analysis-best arrows for the current node (transient, derived).
   function engineArrows(): Arrow[] {
     const engine = presentation.engine;
-    if (!engine) return [];
+    if (!engine || !showEngineArrows) return [];
     if (engineLines?.length) return engine.engineArrowsFromLines(engineLines);
     if (SHOW_ANALYSIS_BEST_ARROW && gameAnalysis) {
       const node = currentNode();
@@ -540,6 +555,12 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
           evalBar,
           onLines: (lines) => {
             engineLines = lines?.length ? lines : null;
+            paintOverlays();
+          },
+          showArrows: showEngineArrows,
+          onShowArrowsChange: (enabled) => {
+            showEngineArrows = enabled;
+            writeEngineArrowsEnabled(enabled);
             paintOverlays();
           },
         })
@@ -621,23 +642,81 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     }
   }
 
-  // ── Control bar (below the move box): nav + a menu overlay. Flip lives in the
-  // menu; the deferred analyse tools are muted placeholders. ──
+  // ── Control bar (below the move box): nav + a menu overlay. ──
+  // Every item here DOES something. The four permanently-muted placeholders
+  // (Board editor, Learn from your mistakes, Continue from here, Settings) were
+  // cut 2026-07-23: each needed a surface or an API that does not exist (no
+  // editor route; no create-game-from-FEN; no retro-mode controller), and a menu
+  // that is mostly greyed out reads as a broken product, not a roadmap. Re-add an
+  // item WITH its implementation, not ahead of it.
+  const menuItems: ReviewMenuItem[] = [
+    { label: 'Flip board', icon: REVIEW_MENU_ICONS.flip, onClick: () => flipBoard() },
+  ];
+  if (config.studyExport) {
+    menuItems.push({ label: 'Study', icon: REVIEW_MENU_ICONS.study, onClick: () => saveAsStudy() });
+  }
+  if (config.allowClearMoves) {
+    menuItems.push({
+      label: 'Clear moves',
+      icon: REVIEW_MENU_ICONS.clear,
+      onClick: () => clearMoves(),
+    });
+  }
   const controls = createReviewControls({
     onFirst: () => go(ROOT_PATH),
     onPrevious: () => go(tree.stepBack(currentPath)),
     onNext: () => go(tree.stepForward(currentPath)),
     onLast: () => go(lineEnd(currentPath)),
-    menuItems: [
-      { label: 'Flip board', icon: REVIEW_MENU_ICONS.flip, onClick: () => flipBoard() },
-      { label: 'Board editor', icon: REVIEW_MENU_ICONS.editor, disabled: true },
-      { label: 'Learn from your mistakes', icon: REVIEW_MENU_ICONS.learn, disabled: true },
-      { label: 'Continue from here', icon: REVIEW_MENU_ICONS.continue, disabled: true },
-      { label: 'Study', icon: REVIEW_MENU_ICONS.study, disabled: true },
-      { label: 'Clear moves', icon: REVIEW_MENU_ICONS.clear, disabled: true },
-      { label: 'Settings', icon: REVIEW_MENU_ICONS.settings, disabled: true },
-    ],
+    menuItems,
   });
+
+  // Computer-injected refutation lines stay out of the persisted blob unless the
+  // user adopted them via promote (adoptCompLine clears their flags). Shared by
+  // the returned handle (study autosave) and the menu's Study action.
+  function serializeCurrentTree(): SerializedTree {
+    return serializeTree(tree, adapter, {
+      skip: (node) => compKeys.has(pathKey(tree.pathTo(node))),
+      rootFen: config.root?.fen,
+    });
+  }
+
+  // Drop every move, keeping a FEN-seeded root position. Deleting the root's
+  // children one at a time (rather than rebuilding the controller) preserves the
+  // root truth and the mounted board.
+  function clearMoves(): void {
+    if (tree.root.children.length === 0) return;
+    while (tree.root.children[0]) tree.deleteAt(tree.pathTo(tree.root.children[0]));
+    compKeys.clear();
+    moveTree.rebuild();
+    go(ROOT_PATH);
+    notifyChange();
+  }
+
+  // One-click "save this line as a study". The study is created private and we
+  // navigate to it; naming/visibility live on the study page.
+  let studyPending = false;
+  function saveAsStudy(): void {
+    const target = config.studyExport;
+    if (!target || studyPending) return;
+    studyPending = true;
+    void createStudyFromTree({
+      variant: target.variant,
+      name: target.name,
+      tree: serializeCurrentTree(),
+    })
+      .then((result) => {
+        if (result.ok) {
+          window.location.href = `/study/${result.id}`;
+          return;
+        }
+        studyPending = false;
+        window.alert(studyExportMessage(result.reason));
+      })
+      .catch(() => {
+        studyPending = false;
+        window.alert(studyExportMessage('failed'));
+      });
+  }
 
   // ── Whole-game analysis (mainline) → underboard chart + summary + glyphs ──
   const underboardBody = document.createElement('div');
@@ -1262,19 +1341,13 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       },
       flip: () => flipBoard(),
       escape: () => closeVariationPicker(),
+      // Only meaningful where an engine panel exists to hold the checkbox.
+      toggleArrows: enginePanel ? () => enginePanel.setShowArrows(!showEngineArrows) : undefined,
     },
     keyboardAbort.signal,
   );
 
-  return {
-    // Computer-injected refutation lines stay out of the persisted blob unless
-    // the user adopted them via promote (adoptCompLine clears their flags).
-    serialize: () =>
-      serializeTree(tree, adapter, {
-        skip: (node) => compKeys.has(pathKey(tree.pathTo(node))),
-        rootFen: config.root?.fen,
-      }),
-  };
+  return { serialize: serializeCurrentTree };
 }
 
 function resolveBoardAspect(aspect: number | (() => number)): number {

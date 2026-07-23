@@ -144,6 +144,43 @@ describe('mountXiangqiAnalysisPage', () => {
     root.remove();
   });
 
+  it('offers only menu actions that are actually wired', () => {
+    // The four muted placeholders (Board editor / Learn from your mistakes /
+    // Continue from here / Settings) were cut; what is left must be live.
+    const root = freshRoot();
+    mountXiangqiAnalysis(root, [...OPENING]);
+    const items = [...root.querySelectorAll<HTMLButtonElement>('.review-menu__item')];
+    expect(items.map((b) => b.textContent?.trim())).toEqual(['Flip board', 'Study', 'Clear moves']);
+    expect(items.every((b) => !b.disabled)).toBe(true);
+    root.remove();
+  });
+
+  it('drops the permanently-disabled toolbar placeholders', () => {
+    const root = freshRoot();
+    mountXiangqiAnalysis(root, [...OPENING]);
+    expect(root.querySelectorAll('.review-controls__tool')).toHaveLength(0);
+    // The nav cluster and the menu button survive.
+    expect(root.querySelectorAll('.review-controls__nav').length).toBeGreaterThan(0);
+    expect(root.querySelector('.review-controls__menu-button')).not.toBeNull();
+    root.remove();
+  });
+
+  it('Clear moves wipes the tree back to the start position', () => {
+    const root = freshRoot();
+    mountXiangqiAnalysis(root, [...OPENING]);
+    expect(root.querySelector('.move-tree')?.textContent).toContain('h3-e3');
+    const clear = [...root.querySelectorAll<HTMLButtonElement>('.review-menu__item')].find((b) =>
+      b.textContent?.includes('Clear moves'),
+    );
+    clear?.click();
+    const moveText = root.querySelector('.move-tree')?.textContent ?? '';
+    expect(moveText).not.toContain('h3-e3');
+    expect(moveText).not.toContain('h1-g3');
+    // The board is still mounted at the root position, not torn down.
+    expect(root.querySelector('.xiangqi-live-board')).not.toBeNull();
+    root.remove();
+  });
+
   it('sizes the review shell for the square-grid river gutter', () => {
     window.history.pushState({}, '', '/analysis/xiangqi?xqLayout=cell');
     const root = freshRoot();

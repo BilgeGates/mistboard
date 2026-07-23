@@ -289,8 +289,14 @@ function lastMoveLayer(
 const ARROW_COLOR = '#2b6cb8';
 const ARROW_START_INSET = 12; // start just off the origin piece center
 const ARROW_TIP_INSET = 24; // tip stops inside the destination piece edge (r=27)
-const ARROW_HEAD_LENGTH = 20;
-const ARROW_HEAD_HALF_WIDTH = 11;
+// Head geometry scales with the shaft, the way an SVG marker with the default
+// markerUnits="strokeWidth" would. Engine candidate arrows encode strength as
+// width (see review/engine/engine-arrows.ts); a fixed head on a hairline shaft
+// reads as a lollipop instead of a weak arrow. Ratios preserve the previous
+// fixed head (20 / 11) at the default width of 9.
+const ARROW_HEAD_LENGTH_RATIO = 20 / 9;
+const ARROW_HEAD_HALF_WIDTH_RATIO = 11 / 9;
+const ARROW_DEFAULT_WIDTH = 9;
 
 const fmt = (value: number): number => Math.round(value * 10) / 10;
 
@@ -316,19 +322,24 @@ export function xiangqiArrowSvg(
   const startY = a.y + uy * ARROW_START_INSET;
   const tipX = b.x - ux * ARROW_TIP_INSET;
   const tipY = b.y - uy * ARROW_TIP_INSET;
+  const width = arrow.width ?? ARROW_DEFAULT_WIDTH;
+  // A wide head on a one-step move can be longer than the span between the two
+  // insets, which would flip the shaft backwards; clamp it to what is there.
+  const span = dist - ARROW_START_INSET - ARROW_TIP_INSET;
+  const headLength = Math.min(width * ARROW_HEAD_LENGTH_RATIO, Math.max(span, 0));
+  const headHalfWidth = width * ARROW_HEAD_HALF_WIDTH_RATIO;
   // Shaft ends at the head base so a round cap never pokes past the head sides.
-  const baseX = tipX - ux * ARROW_HEAD_LENGTH;
-  const baseY = tipY - uy * ARROW_HEAD_LENGTH;
+  const baseX = tipX - ux * headLength;
+  const baseY = tipY - uy * headLength;
   const px = -uy;
   const py = ux;
-  const width = arrow.width ?? 9;
   const opacity = arrow.opacity ?? 0.9;
   const className = arrow.className ? `xq-arrow ${arrow.className}` : 'xq-arrow';
   const dash = arrow.dashed ? ' stroke-dasharray="10 8"' : '';
   const head =
     `${fmt(tipX)},${fmt(tipY)} ` +
-    `${fmt(baseX + px * ARROW_HEAD_HALF_WIDTH)},${fmt(baseY + py * ARROW_HEAD_HALF_WIDTH)} ` +
-    `${fmt(baseX - px * ARROW_HEAD_HALF_WIDTH)},${fmt(baseY - py * ARROW_HEAD_HALF_WIDTH)}`;
+    `${fmt(baseX + px * headHalfWidth)},${fmt(baseY + py * headHalfWidth)} ` +
+    `${fmt(baseX - px * headHalfWidth)},${fmt(baseY - py * headHalfWidth)}`;
   return (
     `<g class="${className}" opacity="${opacity}" fill="${ARROW_COLOR}" stroke="${ARROW_COLOR}" pointer-events="none">` +
     `<line x1="${fmt(startX)}" y1="${fmt(startY)}" x2="${fmt(baseX)}" y2="${fmt(baseY)}" stroke-width="${width}" stroke-linecap="round"${dash}/>` +

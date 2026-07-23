@@ -346,22 +346,16 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
 
   // Shared lichess control bar (nav + menu overlay), the SAME component the
   // xiangqi tree surface uses — so every /game review page carries identical
-  // chrome. Playback stays integer-ply over server snapshots; only the chrome
-  // is standardized. Flip lives in the menu; the deferred analyse tools stay
-  // muted placeholders (parity with the tree surface).
+  // chrome. Playback stays integer-ply over server snapshots; only the chrome is
+  // standardized. The muted placeholders were cut 2026-07-23 (see tree-review.ts
+  // for the reasoning); this controller replays server snapshots and owns no
+  // tree, so it cannot offer Study or Clear moves either. Flip is what it has.
   const controls = createReviewControls({
     onFirst: () => go(0),
     onPrevious: () => go(ply - 1),
     onNext: () => go(ply + 1),
     onLast: () => go(adapter.maxPly),
-    menuItems: [
-      { label: 'Flip board', icon: REVIEW_MENU_ICONS.flip, onClick: () => flip() },
-      { label: 'Board editor', icon: REVIEW_MENU_ICONS.editor, disabled: true },
-      { label: 'Learn from your mistakes', icon: REVIEW_MENU_ICONS.learn, disabled: true },
-      { label: 'Continue from here', icon: REVIEW_MENU_ICONS.continue, disabled: true },
-      { label: 'Study', icon: REVIEW_MENU_ICONS.study, disabled: true },
-      { label: 'Settings', icon: REVIEW_MENU_ICONS.settings, disabled: true },
-    ],
+    menuItems: [{ label: 'Flip board', icon: REVIEW_MENU_ICONS.flip, onClick: () => flip() }],
   });
   const scaffold = createReviewScaffold(root, {
     ariaLabel: adapter.ariaLabel,
@@ -431,6 +425,9 @@ export function installReviewKeyboard(
     flip(): void;
     /** Optional: dismiss a transient chooser (the tree surface's variation picker). */
     escape?(): void;
+    /** Optional: `a` toggles the engine's on-board arrows (lichess parity). Only
+     *  the tree surface draws them, so the linear controller omits this. */
+    toggleArrows?(): void;
   },
   /** Optional abort signal to remove the listener (e.g. when a surface re-mounts). */
   signal?: AbortSignal,
@@ -464,6 +461,9 @@ export function installReviewKeyboard(
       } else if (event.key === 'f' || event.key === 'F') {
         event.preventDefault();
         handlers.flip();
+      } else if ((event.key === 'a' || event.key === 'A') && handlers.toggleArrows) {
+        event.preventDefault();
+        handlers.toggleArrows();
       } else if (event.key === 'Escape' && handlers.escape) {
         event.preventDefault();
         handlers.escape();

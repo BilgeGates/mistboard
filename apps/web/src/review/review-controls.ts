@@ -1,17 +1,18 @@
 // Lichess-style playback control bar that sits BELOW the move-list box (not inside
-// it): opening-book + practice affordances on the left, the four ply-nav buttons in
-// the middle, and a hamburger that opens a menu overlay (Flip board, and deferred
-// analyse tools) over the move list. Replaces the plain in-box scrubber on the
-// xiangqi review surface; the shared linear scrubber (review-layout.ts) is untouched
-// for the other variants.
+// it): the four ply-nav buttons in the middle, and a hamburger that opens a menu
+// overlay over the move list. Replaces the plain in-box scrubber on the xiangqi
+// review surface; the shared linear scrubber (review-layout.ts) is untouched for
+// the other variants.
+//
+// Every control here is live. Placeholder affordances were removed 2026-07-23
+// (two disabled toolbar buttons + four muted menu rows); the bar advertises only
+// what it can do, and a new entry arrives together with its implementation.
 import './review-controls.css';
 
 export type ReviewMenuItem = {
   label: string;
   icon: string; // inline SVG markup
   onClick?: () => void;
-  /** Not yet built — rendered muted + non-interactive with a "Coming soon" hint. */
-  disabled?: boolean;
 };
 
 export type ReviewControlsOptions = {
@@ -30,10 +31,6 @@ export type ReviewControls = {
 
 // Minimal inline icons (currentColor). Kept tiny; the CSS sizes them.
 const ICONS = {
-  // Lucide "book-open" and "target" (MIT).
-  book: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>',
-  practice:
-    '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
   first:
     '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M6 5h2v14H6zM19 5v14l-9-7z"/></svg>',
   previous:
@@ -57,15 +54,10 @@ export function createReviewControls(opts: ReviewControlsOptions): ReviewControl
   const el = document.createElement('div');
   el.className = 'review-controls';
 
-  // Left cluster: opening book + practice (placeholders until those land).
-  const book = iconButton(ICONS.book, 'Opening explorer (coming soon)', 'review-controls__tool');
-  book.disabled = true;
-  const practice = iconButton(
-    ICONS.practice,
-    'Practice with computer (coming soon)',
-    'review-controls__tool',
-  );
-  practice.disabled = true;
+  // The left cluster held two permanently-disabled placeholders (opening
+  // explorer, practice with computer). Cut 2026-07-23 with the menu's muted
+  // entries: neither had a surface behind it, and a control bar of dead buttons
+  // costs trust on every visit. Restore each WITH its implementation.
 
   // Center cluster: ply navigation.
   const first = iconButton(ICONS.first, 'First move', 'review-controls__nav');
@@ -81,9 +73,10 @@ export function createReviewControls(opts: ReviewControlsOptions): ReviewControl
   const menuButton = iconButton(ICONS.menu, 'Menu', 'review-controls__menu-button');
   menuButton.setAttribute('aria-expanded', 'false');
 
+  // Kept (empty) so the three-column bar still centres the nav cluster against
+  // the menu button on the right.
   const left = document.createElement('div');
   left.className = 'review-controls__group review-controls__group--tools';
-  left.append(book, practice);
   const center = document.createElement('div');
   center.className = 'review-controls__group review-controls__group--nav';
   center.append(first, previous, next, last);
@@ -135,10 +128,6 @@ function buildMenuOverlay(items: ReviewMenuItem[], onAction: () => void): HTMLEl
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'review-menu__item';
-    if (item.disabled) {
-      button.disabled = true;
-      button.title = `${item.label} (coming soon)`;
-    }
     const icon = document.createElement('span');
     icon.className = 'review-menu__item-icon';
     icon.innerHTML = item.icon;
@@ -146,7 +135,7 @@ function buildMenuOverlay(items: ReviewMenuItem[], onAction: () => void): HTMLEl
     label.className = 'review-menu__item-label';
     label.textContent = item.label;
     button.append(icon, label);
-    if (!item.disabled && item.onClick) {
+    if (item.onClick) {
       button.addEventListener('click', () => {
         item.onClick?.();
         onAction();
@@ -159,19 +148,13 @@ function buildMenuOverlay(items: ReviewMenuItem[], onAction: () => void): HTMLEl
   return overlay;
 }
 
-/** Icon set for the menu items, so callers don't hand-write SVG. */
+/** Icon set for the menu items, so callers don't hand-write SVG. One entry per
+ *  item that EXISTS — the editor/learn/continue/settings icons were dropped with
+ *  their placeholder menu entries on 2026-07-23. */
 export const REVIEW_MENU_ICONS = {
   flip: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>',
-  editor:
-    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
-  learn:
-    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 3 2 6 2s6-1 6-2v-5"/></svg>',
-  continue:
-    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 4 14 8-14 8z"/></svg>',
   study:
     '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>',
   clear:
     '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M6 6v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6"/></svg>',
-  settings:
-    '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 6.8 19.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 4.6 15H4.5a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 11 4.6V4.5a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.6 1.6 0 0 0 19.4 11h.1a2 2 0 1 1 0 4z"/></svg>',
 } as const;

@@ -278,6 +278,24 @@ describe('xiangqiArrowSvg', () => {
     expect(svg).toContain('stroke-dasharray="10 8"');
   });
 
+  it('scales the head with the shaft so a thin arrow is not a lollipop', () => {
+    // Engine candidate arrows encode strength as width; a fixed head would leave
+    // a hairline shaft carrying a full-size spearhead. Half the width at 4.5 =>
+    // head length 10 (shaft base x=242) and half-width 5.5.
+    const svg = xiangqiArrowSvg({ from: 'b3', to: 'e3', width: 4.5 }, 'red');
+    expect(svg).toContain('<line x1="108" y1="456" x2="242" y2="456" stroke-width="4.5"');
+    expect(svg).toContain('<polygon points="252,456 242,461.5 242,450.5" stroke="none"/>');
+  });
+
+  it('clamps a wide head to the span so a one-step arrow never reverses', () => {
+    // b3 -> c3 spans 60 units, of which 24 survive the two insets. A width-14
+    // head would want 31 units and would push the shaft base behind its start.
+    const svg = xiangqiArrowSvg({ from: 'b3', to: 'c3', width: 14 }, 'red');
+    const shaft = svg.match(/<line x1="(\d+(?:\.\d+)?)"[^>]*x2="(\d+(?:\.\d+)?)"/);
+    expect(shaft).not.toBeNull();
+    expect(Number(shaft?.[2])).toBeGreaterThanOrEqual(Number(shaft?.[1]));
+  });
+
   it('renders nothing for a degenerate zero-length arrow', () => {
     expect(xiangqiArrowSvg({ from: 'e3', to: 'e3' }, 'red')).toBe('');
   });
@@ -345,10 +363,11 @@ describe('interactive board arrow overlay', () => {
     }
   });
 
-  it('renders posted ceval MultiPV lines as ranked arrows and clears them again', async () => {
+  it('renders posted ceval MultiPV lines as weighted arrows and clears them again', async () => {
     // The real pipeline the review glue drives: CevalLine[] -> spec builder ->
-    // setArrows. Three lines -> three PV arrows with descending opacity
-    // (plus the faint dashed PV1 reply at the bottom of the stack).
+    // setArrows. Three near-equal lines -> three arrows at one opacity, with
+    // shaft width carrying the strength (plus the faint dashed PV1 reply at the
+    // bottom of the stack when that is enabled).
     const { engineArrowsFromLines, SHOW_PV1_REPLY_SEGMENT } = await import(
       './review/engine/engine-arrows.js'
     );
@@ -360,15 +379,29 @@ describe('interactive board arrow overlay', () => {
         { multipv: 3, depth: 18, scoreCp: 4, mate: null, pvUci: ['b1c3'] },
       ]),
     );
-    const groups = [...host.querySelectorAll('.xq-live-arrows .xq-arrow')];
-    expect(groups).toHaveLength(SHOW_PV1_REPLY_SEGMENT ? 4 : 3);
-    const pvOpacities = groups
-      .filter((g) => !(g.getAttribute('class') ?? '').includes('reply'))
-      .map((g) => Number(g.getAttribute('opacity')));
-    expect(pvOpacities).toEqual([0.35, 0.55, 0.9]);
+    const groups = [...host.querySelectorAll('.xq-live-arrows .xq-arrow')].filter(
+      (g) => !(g.getAttribute('class') ?? '').includes('reply'),
+    );
+    expect(groups).toHaveLength(3);
+    expect(groups.map((g) => g.getAttribute('class')?.split(' ').at(-1))).toEqual([
+      'xq-arrow--alt',
+      'xq-arrow--alt',
+      'xq-arrow--pv1',
+    ]);
+    // Alternates share one opacity; the best move is last (on top) and widest.
+    const widthOf = (g: Element) => Number(g.querySelector('line')?.getAttribute('stroke-width'));
+    expect(groups.slice(0, 2).map((g) => Number(g.getAttribute('opacity')))).toEqual([0.35, 0.35]);
+    expect(widthOf(groups[2]!)).toBeGreaterThan(widthOf(groups[1]!));
+    // Head scales with the shaft: the thinner alternate carries the smaller head.
+    const headSpan = (g: Element) => {
+      const pts = (g.querySelector('polygon')?.getAttribute('points') ?? '').split(' ');
+      return Math.abs(Number(pts[1]?.split(',')[1]) - Number(pts[2]?.split(',')[1]));
+    };
+    expect(headSpan(groups[2]!)).toBeGreaterThan(headSpan(groups[1]!));
     // Engine toggled off / ply changed: the glue posts a clear.
     board.setArrows([]);
     expect(host.querySelectorAll('.xq-live-arrows .xq-arrow')).toHaveLength(0);
     host.remove();
+    expect(SHOW_PV1_REPLY_SEGMENT).toBe(false);
   });
 });

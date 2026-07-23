@@ -189,6 +189,27 @@
   font-variant-numeric: tabular-nums;
   color: var(--site-muted);
 }
+/* Checkbox row: the box sits in the column the slider track would fill, but
+   left-aligned so it does not stretch. The third column carries the keyboard
+   hint instead of a numeric readout. */
+.engine-panel__setting--checkbox {
+  justify-items: start;
+}
+.engine-panel__setting-checkbox {
+  margin: 0;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--site-accent, #237960);
+  cursor: pointer;
+}
+.engine-panel__setting--checkbox .engine-panel__setting-value {
+  justify-self: end;
+  min-width: 0;
+  padding: 1px 5px;
+  border: 1px solid var(--site-border);
+  border-radius: 3px;
+  font-size: 11px;
+}
 
 .engine-panel__lines {
   margin: 0;
