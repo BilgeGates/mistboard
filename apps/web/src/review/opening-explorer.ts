@@ -43,8 +43,11 @@ type ExplorerSample = {
   playedOn: string | null;
 };
 
+type ExplorerOpening = { en: string; zh: string };
+
 type ExplorerResponse = {
   position: string;
+  opening: ExplorerOpening | null;
   total: number;
   moves: ExplorerMove[];
   topGames: ExplorerSample[];
@@ -109,7 +112,13 @@ export function createOpeningExplorer(): OpeningExplorer {
   const topGames = document.createElement('div');
   topGames.className = 'opening-explorer__top';
 
-  el.append(head, columns, status, table, topGames);
+  // Named header: the opening the CURRENT position is (lichess anatomy). Hidden
+  // until a position resolves to a name; most positions have none.
+  const opening = document.createElement('div');
+  opening.className = 'opening-explorer__opening';
+  opening.hidden = true;
+
+  el.append(head, opening, columns, status, table, topGames);
 
   const cache = new Map<string, ExplorerResponse>();
   let currentKey: string | null = null;
@@ -177,8 +186,10 @@ export function createOpeningExplorer(): OpeningExplorer {
       status.hidden = false;
       status.textContent = 'Opening statistics are unavailable.';
       corpus.textContent = '';
+      renderOpening(opening, null);
       return;
     }
+    renderOpening(opening, data.opening);
     corpus.textContent = corpusLabel(data);
     if (data.moves.length === 0) {
       status.hidden = false;
@@ -302,6 +313,19 @@ function topGamesBlock(samples: ExplorerSample[]): HTMLElement {
   return wrap;
 }
 
+function renderOpening(el: HTMLElement, name: ExplorerOpening | null): void {
+  if (!name) {
+    el.hidden = true;
+    el.replaceChildren();
+    return;
+  }
+  el.hidden = false;
+  el.replaceChildren(
+    textSpan('opening-explorer__opening-en', name.en),
+    textSpan('opening-explorer__opening-zh', name.zh),
+  );
+}
+
 function textSpan(className: string, text: string): HTMLElement {
   const el = document.createElement('span');
   el.className = className;
@@ -347,6 +371,10 @@ function explorerResponse(value: unknown): ExplorerResponse | null {
   if (typeof data.total !== 'number') return null;
   return {
     position: typeof data.position === 'string' ? data.position : '',
+    opening:
+      data.opening && typeof data.opening.en === 'string' && typeof data.opening.zh === 'string'
+        ? { en: data.opening.en, zh: data.opening.zh }
+        : null,
     total: data.total,
     moves: data.moves.filter(
       (move): move is ExplorerMove =>

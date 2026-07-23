@@ -14,6 +14,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import * as persistence from './../persistence.js';
 import { canonicalPosition, mirrorMove } from './../xiangqi-opening-mirror.js';
+import { openingNameForCanonicalKey } from './../xiangqi-opening-names.js';
 import { requireMethod, requirePersistence, writeJson } from './lib.js';
 
 // Side to move is r/b, or '-' for a FINISHED position (the kernel's own key
@@ -46,6 +47,7 @@ export async function tryHandle(
   if (positionKey.endsWith(' -')) {
     writeJson(response, 200, {
       position: positionKey,
+      opening: null,
       total: 0,
       moves: [],
       topGames: [],
@@ -56,8 +58,10 @@ export async function tryHandle(
 
   // Positions are stored mirror-canonically; ask under the canonical key and
   // mirror the answer back into the caller's frame, so a client never has to
-  // know the storage convention.
+  // know the storage convention. The opening NAME hangs off the same canonical
+  // key, so a line and its mirror image resolve to one name for free.
   const canonical = canonicalPosition(positionKey);
+  const opening = openingNameForCanonicalKey(canonical.key);
   const stored = await persistence.lookupXiangqiOpeningMoves(canonical.key);
   const moves = canonical.mirrored
     ? stored.map((row) => ({ ...row, move: mirrorMove(row.move) }))
@@ -87,6 +91,7 @@ export async function tryHandle(
       draws: row.draws,
       unknowns: row.unknowns,
     })),
+    opening,
     topGames,
     build: buildBlock(build),
   });
