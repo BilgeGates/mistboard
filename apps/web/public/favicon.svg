@@ -1,29 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="frame" x1="154" y1="95" x2="870" y2="929" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#303230"/>
-      <stop offset="1" stop-color="#202321"/>
-    </linearGradient>
-    <linearGradient id="dark-square" x1="128" y1="128" x2="894" y2="891" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#414441"/>
-      <stop offset="1" stop-color="#2c302d"/>
-    </linearGradient>
     <clipPath id="fog-square">
-      <rect x="534" y="534" width="374" height="374" rx="46"/>
+      <rect x="527" y="527" width="371" height="371" rx="36"/>
     </clipPath>
   </defs>
 
-  <rect x="64" y="64" width="896" height="896" rx="142" fill="url(#frame)"/>
-  <rect x="128" y="128" width="374" height="374" rx="46" fill="url(#dark-square)" opacity="0.92"/>
-  <rect x="534" y="128" width="374" height="374" rx="46" fill="#fffdfa"/>
-  <rect x="128" y="534" width="374" height="374" rx="46" fill="#fffdfa"/>
-  <rect x="534" y="534" width="374" height="374" rx="46" fill="url(#dark-square)"/>
+  <rect x="64" y="64" width="896" height="896" rx="118" fill="#353535"/>
+  <rect x="126" y="126" width="371" height="371" rx="36" fill="#424242"/>
+  <rect x="527" y="126" width="371" height="371" rx="36" fill="#ffffff"/>
+  <rect x="126" y="527" width="371" height="371" rx="36" fill="#ffffff"/>
+  <rect x="527" y="527" width="371" height="371" rx="36" fill="#424242"/>
 
   <g clip-path="url(#fog-square)">
-    <rect x="534" y="778" width="374" height="130" fill="#fffdfa"/>
-    <circle cx="590" cy="784" r="62" fill="#fffdfa"/>
-    <circle cx="680" cy="752" r="80" fill="#fffdfa"/>
-    <circle cx="776" cy="766" r="70" fill="#fffdfa"/>
-    <circle cx="858" cy="786" r="56" fill="#fffdfa"/>
+    <rect x="586" y="818" width="312" height="120" fill="#e3e3e3"/>
+    <circle cx="642" cy="818" r="50" fill="#e3e3e3"/>
+    <circle cx="712" cy="786" r="66" fill="#e3e3e3"/>
+    <circle cx="804" cy="804" r="56" fill="#e3e3e3"/>
   </g>
 </svg>
