@@ -23,6 +23,56 @@ describe('createEnginePanel onLines', () => {
     expect(onLines).not.toHaveBeenCalled();
     panel.dispose();
   });
+
+  it('shows terminal Misty positions as game over and resumes after stepping back', async () => {
+    vi.useFakeTimers();
+    class FakeWorker extends EventTarget {
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      onerror: ((event: ErrorEvent) => void) | null = null;
+
+      postMessage(message: { type: string; id?: number }): void {
+        const data =
+          message.type === 'init'
+            ? { type: 'ready' }
+            : {
+                type: 'result',
+                id: message.id,
+                json: JSON.stringify({
+                  lines: [{ uci: 'a0a0', cp: 1000, depth: 24 }],
+                }),
+              };
+        queueMicrotask(() => {
+          const event = new MessageEvent('message', { data });
+          this.onmessage?.(event);
+          this.dispatchEvent(event);
+        });
+      }
+
+      terminate(): void {}
+    }
+    vi.stubGlobal('Worker', FakeWorker);
+
+    try {
+      const panel = createEnginePanel({ variant: 'banqi' });
+      panel.setPosition([], 'terminal w - - 0 1', false);
+      panel.el.querySelector<HTMLButtonElement>('.engine-panel__switch')?.click();
+
+      expect(panel.el.querySelector('.engine-panel__sub')?.textContent).toBe('Game over');
+      expect(panel.el.querySelector('.engine-panel__eval')?.textContent).toBe('–');
+      expect(panel.el.querySelectorAll('.engine-panel__line')).toHaveLength(0);
+
+      panel.setPosition([], 'playable w - - 0 1', true);
+      await vi.advanceTimersByTimeAsync(151);
+
+      expect(panel.el.querySelector('.engine-panel__sub')?.textContent).toBe('Depth 24');
+      expect(panel.el.querySelector('.engine-panel__eval')?.textContent).toBe('+10.0');
+      expect(panel.el.querySelectorAll('.engine-panel__line')).toHaveLength(1);
+      panel.dispose();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 describe('createEnginePanel arrow toggle', () => {

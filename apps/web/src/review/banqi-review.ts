@@ -62,6 +62,7 @@ function makeBanqiPresentation(
       panelVariant: 'banqi',
       positionMode: 'fen',
       fen: banqiStateToEngineFen,
+      canEvaluatePosition: (truth) => truth.status.type === 'playing',
       formatPvMove: formatBanqiEngineMove,
       // No board-overlay layer in the banqi renderer → no on-board engine arrows.
       engineArrowsFromLines: () => [],

@@ -2,6 +2,7 @@ import type { JieqiColor, JieqiGameStatus, JieqiMove, JieqiPlayerView } from '@m
 import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
+import { loginHrefForCurrentPage } from './auth-redirect.js';
 import { jieqiEnabled } from './feature-flags.js';
 import { installJieqiBoardStyles } from './live-jieqi-render.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
@@ -189,13 +190,9 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
       requestLabel: isLikelySignedIn()
         ? 'Request computer analysis'
         : 'Sign in to request analysis',
+      requestHref: isLikelySignedIn() ? undefined : loginHrefForCurrentPage(),
       fetchCached: () => fetchCachedGameAnalysis('jieqi', postgame.game.roomId),
-      run: isLikelySignedIn()
-        ? () => requestGameAnalysis('jieqi', postgame.game.roomId)
-        : () => {
-            window.location.assign('/account');
-            return new Promise<never>(() => {});
-          },
+      run: () => requestGameAnalysis('jieqi', postgame.game.roomId),
     },
     // Decision-vs-luck decomposition: reveal plies get a decision-quality glyph + per-move luck
     // readout + a two-number summary. Computed on top of the basic analysis (heavier, so it runs

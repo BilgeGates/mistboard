@@ -21,8 +21,9 @@ export interface EnginePanel {
   el: HTMLElement;
   /** Push the current position. Without `initialFen` the moves replay from the
    *  standard start position; pass `initialFen` to analyse a mid-game base
-   *  position (e.g. a puzzle) with `movesUci` applied on top. */
-  setPosition(movesUci: string[], initialFen?: string): void;
+   *  position (e.g. a puzzle) with `movesUci` applied on top. `searchable`
+   *  is false for a terminal position whose engine has no move to search. */
+  setPosition(movesUci: string[], initialFen?: string, searchable?: boolean): void;
   /** Drive the arrow toggle from outside the popover (the `a` shortcut), keeping
    *  the checkbox in sync. Fires onShowArrowsChange like a click would. */
   setShowArrows(next: boolean): void;
@@ -161,6 +162,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   let on = false;
   let currentMoves: string[] = [];
   let currentFen: string | undefined;
+  let currentSearchable = true;
   // Side to move at the base position: startpos is Red, but an initialFen (a
   // mid-game puzzle position) may hand the engine a Black-to-move base. Read it
   // from the FEN's turn token so the eval normalises scores to the right POV.
@@ -203,7 +205,8 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   }
 
   function evaluateNow(): void {
-    if (!on || !supported) return;
+    if (!on || !supported || !currentSearchable) return;
+    if (!handle) handle = createCeval(opts.variant);
     const moves = currentMoves;
     const side = sideToMove(moves);
     sub.textContent = 'loading…';
@@ -221,9 +224,10 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
       });
   }
 
-  function setPosition(movesUci: string[], initialFen?: string): void {
+  function setPosition(movesUci: string[], initialFen?: string, searchable: boolean = true): void {
     currentMoves = movesUci;
     currentFen = initialFen;
+    currentSearchable = searchable;
     currentBaseSide = initialFen?.split(' ')[1] === 'b' ? 'black' : 'red';
     if (!on || !supported) return;
     // The panel keeps its last PV text until fresh results stream in, but
@@ -231,6 +235,14 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     // clear them immediately and let the next update redraw.
     opts.onLines?.(null);
     clearTimeout(debounceId);
+    if (!currentSearchable) {
+      handle?.stop();
+      clearOutput();
+      opts.evalBar?.setIdle(true);
+      sub.textContent = 'Game over';
+      return;
+    }
+    opts.evalBar?.setIdle(false);
     debounceId = setTimeout(evaluateNow, DEBOUNCE_MS);
   }
 
@@ -238,6 +250,12 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     if (!handle) handle = createCeval(opts.variant);
     on = true;
     syncToggle();
+    if (!currentSearchable) {
+      clearOutput();
+      opts.evalBar?.setIdle(true);
+      sub.textContent = 'Game over';
+      return;
+    }
     opts.evalBar?.setIdle(false);
     sub.textContent = 'loading…';
     void handle

@@ -9,6 +9,7 @@ import './live-xiangqi.css';
 // Reuse the shared dxq-postgame scaffold (.dxq-postgame__*) the other variants ride.
 import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
+import { loginHrefForCurrentPage } from './auth-redirect.js';
 import { xiangqiEnabled } from './feature-flags.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
 import {
@@ -166,13 +167,9 @@ function renderPostgame(root: HTMLElement, postgame: XiangqiPostgameResponse): v
       requestLabel: isLikelySignedIn()
         ? 'Request computer analysis'
         : 'Sign in to request analysis',
+      requestHref: isLikelySignedIn() ? undefined : loginHrefForCurrentPage(),
       fetchCached: () => fetchCachedGameAnalysis('xiangqi', postgame.game.roomId),
-      run: isLikelySignedIn()
-        ? () => requestGameAnalysis('xiangqi', postgame.game.roomId)
-        : () => {
-            window.location.assign('/account');
-            return new Promise<never>(() => {});
-          },
+      run: () => requestGameAnalysis('xiangqi', postgame.game.roomId),
     },
   });
 }

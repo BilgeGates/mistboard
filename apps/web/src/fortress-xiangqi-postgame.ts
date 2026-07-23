@@ -6,6 +6,7 @@ import type {
 import './drop-mini-xiangqi.css';
 import './landing.css';
 import './game-route.css';
+import { loginHrefForCurrentPage } from './auth-redirect.js';
 import { fortressXiangqiEnabled } from './feature-flags.js';
 import { installFortressXiangqiBoardStyles } from './fortress-xiangqi-render.js';
 import { mountFortressXiangqiReview } from './review/fortress-xiangqi-review.js';
@@ -176,13 +177,9 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
       requestLabel: isLikelySignedIn()
         ? 'Request computer analysis'
         : 'Sign in to request analysis',
+      requestHref: isLikelySignedIn() ? undefined : loginHrefForCurrentPage(),
       fetchCached: () => fetchCachedGameAnalysis('fortress-xiangqi', postgame.game.roomId),
-      run: isLikelySignedIn()
-        ? () => requestGameAnalysis('fortress-xiangqi', postgame.game.roomId)
-        : () => {
-            window.location.assign('/account');
-            return new Promise<never>(() => {});
-          },
+      run: () => requestGameAnalysis('fortress-xiangqi', postgame.game.roomId),
     },
   });
 }

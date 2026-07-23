@@ -119,18 +119,15 @@ async function checkMisty(browser) {
 
     await page.locator('.engine-panel').waitFor({ state: 'attached', timeout: timeoutMs });
 
-    // The review opens at the game's final ply. If that game ended in checkmate
-    // or stalemate the terminal position has no legal moves, and the single-shot
-    // Misty wasm search never returns for a no-move position — it hangs at
-    // "thinking…" rather than erroring, timing this smoke out (product bug
-    // tracked separately). This smoke's job is to prove the engine RUNS, so step
-    // back one ply to a guaranteed-legal position (a move was played from it)
-    // before engaging the engine. The keyboard handler is a document listener
-    // (review-layout.ts) that fires from the default body focus.
-    await page.keyboard.press('ArrowLeft');
-
     await toggleEngineOn(page);
-    await waitForEvalAndLines(page);
+    const finalState = await waitForEvalOrGameOver(page);
+    // A rules-terminal final position has no root move to search. The review
+    // panel must say so instead of sending Misty's single-shot engine into a
+    // non-returning search. Step back to prove the same enabled panel resumes.
+    if (finalState === 'game-over') {
+      await page.keyboard.press('ArrowLeft');
+      await waitForEvalAndLines(page);
+    }
     const result = await readPanel(page);
 
     // Prove the Misty backend answered, not FSF: the panel names its engine.
@@ -240,6 +237,22 @@ async function waitForEvalAndLines(page) {
     },
     { timeout: timeoutMs },
   );
+}
+
+async function waitForEvalOrGameOver(page) {
+  return page
+    .waitForFunction(
+      () => {
+        const panel = document.querySelector('.engine-panel');
+        const status = panel?.querySelector('.engine-panel__sub')?.textContent?.trim();
+        if (status === 'Game over') return 'game-over';
+        const evalText = panel?.querySelector('.engine-panel__eval')?.textContent?.trim();
+        const lineCount = panel?.querySelectorAll('.engine-panel__line').length ?? 0;
+        return evalText && lineCount >= 1 ? 'evaluated' : false;
+      },
+      { timeout: timeoutMs },
+    )
+    .then((handle) => handle.jsonValue());
 }
 
 function readPanel(page) {

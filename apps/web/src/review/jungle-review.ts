@@ -56,6 +56,7 @@ const junglePresentation: TreePresentation<
     panelVariant: 'jungle',
     positionMode: 'fen',
     fen: jungleStateToEngineFen,
+    canEvaluatePosition: (truth) => truth.status.type === 'playing',
     formatPvMove: formatJungleEngineMove,
     // No board-overlay layer in the jungle renderer → no on-board engine arrows.
     engineArrowsFromLines: () => [],

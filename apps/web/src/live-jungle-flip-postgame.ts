@@ -7,6 +7,7 @@ import type {
 import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
+import { loginHrefForCurrentPage } from './auth-redirect.js';
 import { jungleFlipEnabled } from './feature-flags.js';
 import { jungleFlipResultLabel, jungleFlipSeatInk } from './jungle-flip-result-label.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
@@ -190,13 +191,9 @@ function renderPostgame(root: HTMLElement, postgame: JungleFlipPostgameResponse)
       requestLabel: isLikelySignedIn()
         ? 'Request computer analysis'
         : 'Sign in to request analysis',
+      requestHref: isLikelySignedIn() ? undefined : loginHrefForCurrentPage(),
       fetchCached: () => fetchCachedGameAnalysis('jungle-flip', postgame.game.roomId),
-      run: isLikelySignedIn()
-        ? () => requestGameAnalysis('jungle-flip', postgame.game.roomId)
-        : () => {
-            window.location.assign('/account');
-            return new Promise<never>(() => {});
-          },
+      run: () => requestGameAnalysis('jungle-flip', postgame.game.roomId),
     },
     // Decision-vs-luck decomposition: flip plies get a decision-quality glyph + per-move luck
     // readout + a two-number summary. Computed on top of the basic analysis (heavier, so it runs

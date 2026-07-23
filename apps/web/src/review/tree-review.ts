@@ -98,6 +98,9 @@ export interface EnginePresentation<Truth, Arrow> {
   /** Engine FEN for a truth state. Drives the Share tab, and — when positionMode is
    *  `'fen'` — the per-node position fed to the engine panel. */
   fen(truth: Truth): string;
+  /** Whether the local engine can search this truth. Misty engines expect at
+   *  least one legal root move, so terminal positions must be suppressed. */
+  canEvaluatePosition?(truth: Truth): boolean;
   /** Prettify a PV move (engine UCI) for the engine panel. */
   formatPvMove(uci: string): string;
   /** On-board arrows for live MultiPV lines. */
@@ -181,6 +184,8 @@ export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
 export type AnalysisSource = {
   /** Request-button label ('Request computer analysis' / 'Analyse the whole game'). */
   requestLabel: string;
+  /** When present, the request control is a link and never enters progress state. */
+  requestHref?: string;
   /** Cached result that never computes (server path). Optional. */
   fetchCached?(): Promise<GameAnalysis | null>;
   /** Compute the whole-game analysis; report progress when known. */
@@ -1013,10 +1018,11 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     // `'fen'` engines (Misty flip variants) take the per-node redacted FEN with no move
     // list; `'moves'` engines (Fairy-Stockfish) replay engine UCI from the start position.
     if (enginePanel) {
+      const searchable = presentation.engine?.canEvaluatePosition?.(node.truth) ?? true;
       if (presentation.engine?.positionMode === 'fen') {
-        enginePanel.setPosition([], presentation.engine.fen(node.truth));
+        enginePanel.setPosition([], presentation.engine.fen(node.truth), searchable);
       } else {
-        enginePanel.setPosition(uciTo(node), engineBaseFen);
+        enginePanel.setPosition(uciTo(node), engineBaseFen, searchable);
       }
     }
     paintOverlays();
@@ -1215,9 +1221,11 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       underboardBody.replaceChildren();
       return;
     }
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'xiangqi-review__analyse';
+    const control = source.requestHref
+      ? document.createElement('a')
+      : document.createElement('button');
+    if (control instanceof HTMLButtonElement) control.type = 'button';
+    control.className = 'xiangqi-review__analyse';
     // Prominent lichess-style request button: a bar-chart glyph + the label. The
     // label lives in its own span so progress updates don't clobber the icon.
     const icon = document.createElement('span');
@@ -1230,29 +1238,33 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       '<rect x="12" y="1" width="3" height="13" rx="0.6"/></svg>';
     const label = document.createElement('span');
     label.textContent = source.requestLabel;
-    button.replaceChildren(icon, label);
-    button.addEventListener('click', () => {
-      button.disabled = true;
-      label.textContent = 'Analysing the whole game…';
-      source
-        .run((done, total) => {
-          label.textContent = `Analysing… ${done}/${total}`;
-        })
-        .then((analysis) => {
-          applyAnalysis(analysis);
-          // The decomposition (jieqi) is the heavier follow-on pass; kick it off once the basic
-          // sweep is in (it depends on it). Failure leaves the eval graph standing on its own.
-          if (decisionSource) {
-            label.textContent = 'Analysing reveals…';
-            return runDecisions();
-          }
-        })
-        .catch(() => {
-          button.disabled = false;
-          label.textContent = 'Analysis failed — retry';
-        });
-    });
-    underboardBody.replaceChildren(button);
+    control.replaceChildren(icon, label);
+    if (control instanceof HTMLAnchorElement && source.requestHref) {
+      control.href = source.requestHref;
+    } else if (control instanceof HTMLButtonElement) {
+      control.addEventListener('click', () => {
+        control.disabled = true;
+        label.textContent = 'Analysing the whole game…';
+        source
+          .run((done, total) => {
+            label.textContent = `Analysing… ${done}/${total}`;
+          })
+          .then((analysis) => {
+            applyAnalysis(analysis);
+            // The decomposition (jieqi) is the heavier follow-on pass; kick it off once the basic
+            // sweep is in (it depends on it). Failure leaves the eval graph standing on its own.
+            if (decisionSource) {
+              label.textContent = 'Analysing reveals…';
+              return runDecisions();
+            }
+          })
+          .catch(() => {
+            control.disabled = false;
+            label.textContent = 'Analysis failed — retry';
+          });
+      });
+    }
+    underboardBody.replaceChildren(control);
   }
 
   const decisionSource = config.decisions ?? null;

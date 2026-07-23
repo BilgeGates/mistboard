@@ -97,9 +97,11 @@ describe('Banqi postgame page', () => {
     expect(current?.querySelector('.review-move-list__san')?.textContent).toBe('a1');
     // Server-side computer analysis underboard is wired: a signed-out visitor sees the
     // sign-in CTA (the account-gated compute button) rather than nothing.
-    const analyseButton = root.querySelector<HTMLButtonElement>('.xiangqi-review__analyse');
-    expect(analyseButton).not.toBeNull();
-    expect(analyseButton?.textContent).toContain('Sign in to request analysis');
+    const analyseLink = root.querySelector<HTMLAnchorElement>('.xiangqi-review__analyse');
+    expect(analyseLink).not.toBeNull();
+    expect(analyseLink?.tagName).toBe('A');
+    expect(analyseLink?.getAttribute('href')).toBe('/account?tab=login&referrer=%2F');
+    expect(analyseLink?.textContent).toContain('Sign in to request analysis');
   });
 
   it('steps through plies with the arrow keys', async () => {

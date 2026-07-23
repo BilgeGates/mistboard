@@ -8,6 +8,7 @@ import type {
 import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
+import { loginHrefForCurrentPage } from './auth-redirect.js';
 import { jungleEnabled } from './feature-flags.js';
 import { fetchCachedGameAnalysis, requestGameAnalysis } from './review/game-analysis.js';
 import {
@@ -162,13 +163,9 @@ function renderPostgame(root: HTMLElement, postgame: JunglePostgameResponse): vo
       requestLabel: isLikelySignedIn()
         ? 'Request computer analysis'
         : 'Sign in to request analysis',
+      requestHref: isLikelySignedIn() ? undefined : loginHrefForCurrentPage(),
       fetchCached: () => fetchCachedGameAnalysis('jungle', postgame.game.roomId),
-      run: isLikelySignedIn()
-        ? () => requestGameAnalysis('jungle', postgame.game.roomId)
-        : () => {
-            window.location.assign('/account');
-            return new Promise<never>(() => {});
-          },
+      run: () => requestGameAnalysis('jungle', postgame.game.roomId),
     },
   });
 }

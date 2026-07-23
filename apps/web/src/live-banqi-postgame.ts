@@ -2,6 +2,7 @@ import type { BanqiColor, BanqiGameStatus, BanqiMove, BanqiPlayerView } from '@m
 import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
+import { loginHrefForCurrentPage } from './auth-redirect.js';
 import { banqiResultLabel } from './banqi-result-label.js';
 import { banqiEnabled } from './feature-flags.js';
 import { installBanqiBoardStyles } from './live-banqi-render.js';
@@ -193,13 +194,9 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
       requestLabel: isLikelySignedIn()
         ? 'Request computer analysis'
         : 'Sign in to request analysis',
+      requestHref: isLikelySignedIn() ? undefined : loginHrefForCurrentPage(),
       fetchCached: () => fetchCachedGameAnalysis('banqi', postgame.game.roomId),
-      run: isLikelySignedIn()
-        ? () => requestGameAnalysis('banqi', postgame.game.roomId)
-        : () => {
-            window.location.assign('/account');
-            return new Promise<never>(() => {});
-          },
+      run: () => requestGameAnalysis('banqi', postgame.game.roomId),
     },
     // Decision-vs-luck decomposition: flip plies get a decision-quality glyph + per-move luck
     // readout + a two-number summary. Computed on top of the basic analysis (heavier, so it runs

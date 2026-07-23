@@ -67,6 +67,7 @@ function makeJungleFlipPresentation(
       panelVariant: 'jungleflip',
       positionMode: 'fen',
       fen: jungleFlipStateToEngineFen,
+      canEvaluatePosition: (truth) => truth.status.type === 'playing',
       formatPvMove: formatJungleFlipEngineMove,
       // No board-overlay layer in the jungle-flip renderer → no on-board engine arrows.
       engineArrowsFromLines: () => [],
