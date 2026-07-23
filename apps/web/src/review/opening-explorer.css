@@ -10,6 +10,13 @@
   border-top: 1px solid var(--site-border-soft);
   background: var(--site-panel);
 }
+/* `display: flex` above beats the UA `[hidden] { display: none }` rule (a class
+   selector outranks the attribute default), so the panel would stay visible when
+   toggled off. Restore hide with a matching-specificity rule; without it the book
+   button opens the explorer but can never close it. */
+.opening-explorer[hidden] {
+  display: none;
+}
 
 .opening-explorer__head {
   display: flex;
