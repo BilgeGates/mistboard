@@ -13,9 +13,17 @@
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import * as persistence from './../persistence.js';
+import { canonicalPosition, mirrorMove } from './../xiangqi-opening-mirror.js';
 import { requireMethod, requirePersistence, writeJson } from './lib.js';
 
-const POSITION_KEY = /^([a-zA-Z0-9/]+)\s+([rb])(?:\s|$)/;
+// Side to move is r/b, or '-' for a FINISHED position (the kernel's own key
+// spelling). A terminal position has no continuations, so it answers an empty
+// result rather than an error: a review page opening on the final move of a
+// checkmate would otherwise report the explorer as broken.
+const POSITION_KEY = /^([a-zA-Z0-9/]+)\s+([rb-])(?:\s|$)/;
+
+/** Example games shown under the move table, best first. */
+const TOP_GAMES = 8;
 
 export async function tryHandle(
   _ctx: unknown,
@@ -34,15 +42,38 @@ export async function tryHandle(
     return true;
   }
 
-  const [moves, build] = await Promise.all([
-    persistence.lookupXiangqiOpeningMoves(positionKey),
-    persistence.readXiangqiOpeningBuild(),
-  ]);
+  const build = await persistence.readXiangqiOpeningBuild();
+  if (positionKey.endsWith(' -')) {
+    writeJson(response, 200, {
+      position: positionKey,
+      total: 0,
+      moves: [],
+      topGames: [],
+      build: buildBlock(build),
+    });
+    return true;
+  }
+
+  // Positions are stored mirror-canonically; ask under the canonical key and
+  // mirror the answer back into the caller's frame, so a client never has to
+  // know the storage convention.
+  const canonical = canonicalPosition(positionKey);
+  const stored = await persistence.lookupXiangqiOpeningMoves(canonical.key);
+  const moves = canonical.mirrored
+    ? stored.map((row) => ({ ...row, move: mirrorMove(row.move) }))
+    : stored;
   // Sum of the per-move game counts. Each row counts a game at most once, but a
   // game that revisits this position and plays a different move counts under
   // each, so this can slightly exceed the number of distinct games that reached
   // here. It is the correct denominator for a move's share, not a game census.
   const total = moves.reduce((sum, row) => sum + row.games, 0);
+
+  // Position-level "Top games": each move keeps its own highest-rated examples,
+  // so the union's best N is exactly the position's best N.
+  const topGames = moves
+    .flatMap((row) => row.sampleGames)
+    .sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1))
+    .slice(0, TOP_GAMES);
 
   writeJson(response, 200, {
     position: positionKey,
@@ -55,18 +86,23 @@ export async function tryHandle(
       blackWins: row.blackWins,
       draws: row.draws,
       unknowns: row.unknowns,
-      sampleGameIds: row.sampleGameIds,
     })),
-    build: build
-      ? {
-          gameCount: build.gameCount,
-          maxPly: build.maxPly,
-          sources: build.sourceSlugs,
-          builtAt: build.builtAt.toISOString(),
-        }
-      : null,
+    topGames,
+    build: buildBlock(build),
   });
   return true;
+}
+
+function buildBlock(
+  build: persistence.XiangqiOpeningBuildInfo | null,
+): { gameCount: number; maxPly: number; sources: string[]; builtAt: string } | null {
+  if (!build) return null;
+  return {
+    gameCount: build.gameCount,
+    maxPly: build.maxPly,
+    sources: build.sourceSlugs,
+    builtAt: build.builtAt.toISOString(),
+  };
 }
 
 /**

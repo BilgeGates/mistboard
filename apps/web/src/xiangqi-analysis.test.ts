@@ -155,10 +155,16 @@ describe('mountXiangqiAnalysisPage', () => {
     root.remove();
   });
 
-  it('drops the permanently-disabled toolbar placeholders', () => {
+  it('carries no dead toolbar buttons', () => {
+    // The original pin was "the disabled placeholders are gone". The rule it
+    // encodes is that a control bar never shows a button with nothing behind it,
+    // so the opening explorer's toggle — added WITH its implementation — is
+    // allowed, and must be live.
     const root = freshRoot();
     mountXiangqiAnalysis(root, [...OPENING]);
-    expect(root.querySelectorAll('.review-controls__tool')).toHaveLength(0);
+    const tools = [...root.querySelectorAll<HTMLButtonElement>('.review-controls__tool')];
+    expect(tools.every((tool) => !tool.disabled)).toBe(true);
+    expect(tools.map((tool) => tool.getAttribute('aria-label'))).toEqual(['Opening explorer']);
     // The nav cluster and the menu button survive.
     expect(root.querySelectorAll('.review-controls__nav').length).toBeGreaterThan(0);
     expect(root.querySelector('.review-controls__menu-button')).not.toBeNull();
