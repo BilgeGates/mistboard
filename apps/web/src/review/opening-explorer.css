@@ -1,0 +1,82 @@
+/* Opening explorer underboard tab. See review/opening-explorer.ts. Row grammar:
+   [move] [games] [result bar], one grid so every row's columns line up. */
+.opening-explorer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.opening-explorer__status,
+.opening-explorer__corpus {
+  margin: 0;
+  padding: 6px 10px;
+  color: var(--site-muted);
+  font-size: 12px;
+}
+
+.opening-explorer__corpus {
+  padding-top: 8px;
+  font-size: 11px;
+}
+
+.opening-explorer__table {
+  display: flex;
+  flex-direction: column;
+}
+
+.opening-explorer__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px minmax(0, 2fr);
+  gap: 10px;
+  align-items: center;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--site-border-soft);
+}
+
+.opening-explorer__move {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--site-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.opening-explorer__count {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.opening-explorer__bar {
+  display: flex;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--site-zebra);
+}
+
+/* Same red/black inks the eval bar and advantage chart use, so a reader is not
+   asked to learn a third colour language for "who won". */
+.opening-explorer__bar-part--red {
+  background: color-mix(in srgb, #c0563f 72%, var(--site-panel, #fff));
+}
+.opening-explorer__bar-part--draw {
+  background: var(--site-border-soft);
+}
+.opening-explorer__bar-part--black {
+  background: color-mix(in srgb, #34302e 85%, var(--site-panel, #fff));
+}
+
+.opening-explorer__bar--unknown {
+  opacity: 0.4;
+}
+
+@media (max-width: 720px) {
+  .opening-explorer__row {
+    grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr);
+    gap: 8px;
+  }
+}

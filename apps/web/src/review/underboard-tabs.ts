@@ -16,6 +16,9 @@ export type UnderboardOptions = {
   hasAnalysis?: boolean;
   /** Prebuilt provenance panel → a "Game info" tab. */
   provenance?: HTMLElement;
+  /** Prebuilt opening-explorer panel → an "Opening explorer" tab. Present only
+   *  on surfaces with a corpus behind them (standard xiangqi today). */
+  explorer?: HTMLElement;
   /** Per-ply elapsed milliseconds (index 0 = ply 1). Present + non-empty → a
    *  "Move times" tab renders a per-move bar chart. */
   moveTimes?: number[];
@@ -36,6 +39,9 @@ export function underboardPanel(analysisBody: HTMLElement, opts: UnderboardOptio
   const tabDefs: UnderboardTab[] = [];
   if (opts.hasAnalysis) {
     tabDefs.push({ id: 'analysis', label: 'Computer analysis', body: analysisBody });
+  }
+  if (opts.explorer) {
+    tabDefs.push({ id: 'explorer', label: 'Opening explorer', body: opts.explorer });
   }
   if (opts.provenance) {
     tabDefs.push({ id: 'info', label: 'Game info', body: opts.provenance });

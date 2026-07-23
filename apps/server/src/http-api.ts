@@ -51,6 +51,7 @@ import * as studiesRoute from './routes/studies.js';
 import * as titlesRoute from './routes/titles.js';
 import * as usersRoute from './routes/users.js';
 import * as xiangqiBroadcastsRoute from './routes/xiangqi-broadcasts.js';
+import * as xiangqiExplorerRoute from './routes/xiangqi-explorer.js';
 import * as xiangqiGamesRoute from './routes/xiangqi-games.js';
 
 // Public re-exports: keep import sites in index.ts and elsewhere stable.
@@ -102,6 +103,7 @@ export const routes: RouteModule[] = [
   lobbyRoute,
   xiangqiBroadcastsRoute,
   historicalXiangqiGamesRoute,
+  xiangqiExplorerRoute,
   xiangqiGamesRoute,
   miniXiangqiGamesRoute,
   darkMiniXiangqiGamesRoute,
