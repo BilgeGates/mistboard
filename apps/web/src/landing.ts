@@ -19,6 +19,7 @@ import {
 import { t } from './i18n/catalog.js';
 import { currentLocale, localizedHref } from './i18n/locale.js';
 import { buildLandingActivity } from './landing-activity.js';
+import { buildLandingAnnouncements } from './landing-announcements.js';
 import { buildLandingChat } from './landing-chat.js';
 import { buildTopStudiesWidget } from './landing-community-widgets.js';
 import { buildLandingEventBanners } from './landing-event-banners.js';
@@ -612,8 +613,9 @@ function buildLandingStage(
   lobbyPanel.append(buildLobbyPanel(locale, { hydrate: !opts.skipLiveWidgets }));
 
   // ── Play column (grid-area: play, band 1 right): the small h1 tagline, then
-  // the single unified Play button (the setup dialog owns the opponent choice),
-  // the activity stats, and the lobby chat filling the rail beneath them. ──
+  // the single unified Play button (the setup dialog owns the opponent choice)
+  // and the activity stats. Chat left this rail for the band-2 slot, so the
+  // remaining trio centers vertically against the tall lobby panel. ──
   let playPanel = buildLandingPlayPanel(engines, { locale, showLobbyRequests: false });
   const playStack = document.createElement('div');
   playStack.className = 'landing-play-stack';
@@ -628,26 +630,22 @@ function buildLandingStage(
   const playColumn = document.createElement('div');
   playColumn.className = 'landing-play-column';
   playColumn.append(about, playStack);
-  // Lobby chat under the stats: server-driven (the empty mount paints nothing
-  // until the chat flag is confirmed), it fills the rail's otherwise-dead space
-  // beside the tall lobby panel.
-  playColumn.append(
+
+  // ── Band 2: forum topics (center) and the lobby chat (right) beside the daily
+  // puzzle. Chat took this slot from Top studies 2026-07-21, which moved down to
+  // the band-3/4 right rail; the chat box is server-driven (the empty mount
+  // paints nothing until the chat flag is confirmed). ──
+  const forumColumn = document.createElement('div');
+  forumColumn.className = 'landing-forum-column';
+  forumColumn.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
+  const chatColumn = document.createElement('div');
+  chatColumn.className = 'landing-chat-column';
+  chatColumn.append(
     buildLandingChat({
       hydrate: !opts.skipLiveWidgets,
       mode: import.meta.env.DEV ? 'mock' : 'live',
     }),
   );
-
-  // ── Band 2: forum topics (center) and top studies (right) beside the daily
-  // puzzle. Chat left the homepage in the 3-band cut; Top players gave this
-  // slot to Top studies 2026-07-21 (no rated liquidity yet — curated studies
-  // are the stronger front-door proof). ──
-  const forumColumn = document.createElement('div');
-  forumColumn.className = 'landing-forum-column';
-  forumColumn.append(buildLandingForumPreview({ hydrate: !opts.skipLiveWidgets }));
-  const playersColumn = document.createElement('div');
-  playersColumn.className = 'landing-players-column';
-  playersColumn.append(buildTopStudiesWidget({ hydrate: !opts.skipLiveWidgets }));
 
   // ── Band 3 (grid-area: blogs): the full-width blog row — compact article
   // cards (six per view), an announcement can take a slot, newest first. ──
@@ -660,6 +658,17 @@ function buildLandingStage(
   // a play glyph read as "video" beside the blog strip's board diagrams. ──
   const videoCards = buildHomeVideoCards(8, locale);
   videoCards?.classList.add('landing-videos-row');
+
+  // ── Bands 3-4 side rails: the News feed returns to the homepage on the left
+  // (its full history stays at /feed) and Top studies takes the right. Both
+  // span the blog AND video rows, so each box top-aligns with the blog row and
+  // bottom-aligns with the video row. ──
+  const newsColumn = document.createElement('div');
+  newsColumn.className = 'landing-news-column';
+  newsColumn.append(buildLandingAnnouncements(locale));
+  const studiesColumn = document.createElement('div');
+  studiesColumn.className = 'landing-studies-column';
+  studiesColumn.append(buildTopStudiesWidget({ hydrate: !opts.skipLiveWidgets }));
 
   // ── Puzzle column (grid-area: puzzle, band 2 left): the daily puzzle. ──
   const puzzleColumn = document.createElement('div');
@@ -693,10 +702,19 @@ function buildLandingStage(
   };
 
   // Grid placement (see landing.css): band 1 = [banners+viewer · lobby panel ·
-  // play button+activity+chat], band 2 = [puzzle · forum · top players], band 3
-  // = the blog row, band 4 = the video row. Append order is irrelevant (grid-area
-  // governs).
-  section.append(leftColumn, lobbyPanel, playColumn, puzzleColumn, forumColumn, playersColumn);
+  // play button+activity], band 2 = [puzzle · forum · chat], bands 3-4 = [news ·
+  // blog row then video row · top studies], with the two side rails spanning both
+  // rows. Append order is irrelevant (grid-area governs).
+  section.append(
+    leftColumn,
+    lobbyPanel,
+    playColumn,
+    puzzleColumn,
+    forumColumn,
+    chatColumn,
+    newsColumn,
+    studiesColumn,
+  );
   if (articleCards) section.append(articleCards);
   if (videoCards) section.append(videoCards);
 

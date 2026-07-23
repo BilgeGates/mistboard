@@ -28,7 +28,9 @@
      initial screen): event banners + the game viewer (left), the tall tabbed
      lobby panel (center, the focal element), the single Play button + activity
      stats (right). Band 2: daily puzzle (left), forum topics (center), top
-     players (right). Band 3: the full-width blog row, then support/store. */
+     players (right). Bands 3-4: the blog row then the video row in the center,
+     flanked by the News feed (left) and Top studies (right), each spanning both
+     rows. */
   /* lila proportions: the lobby is the dominant element (lila's app is 66% of a
      34%/1fr grid). Center takes the free space (1fr) while the side rails hold
      a tight 280-340px, so the panel reads as the focal block, not a co-equal
@@ -37,10 +39,10 @@
     minmax(280px, var(--landing-rail-width)) minmax(0, 1fr)
     minmax(280px, var(--landing-rail-width));
   grid-template-areas:
-    "left   panel play"
-    "puzzle forum players"
-    ".      blogs ."
-    ".      videos .";
+    "left   panel  play"
+    "puzzle forum  chat"
+    "news   blogs  studies"
+    "news   videos studies";
   --landing-col-gap: clamp(10px, 0.9vw, 15px);
   --landing-row-gap: clamp(14px, 1.8vw, 24px);
   column-gap: var(--landing-col-gap);
@@ -225,19 +227,17 @@
   min-width: 0;
 }
 
-/* Play column (band 1, right): tagline, the single Play button, activity stats,
-   then chat pinned to the rail's bottom edge (level with the lobby panel's). */
+/* Play column (band 1, right): tagline, the single Play button, activity stats.
+   Chat moved to the band-2 rail, so the rail still stretches to the lobby
+   panel's height but centers its (now short) contents against it. */
 .landing-play-column {
   grid-area: play;
   display: flex;
   flex-direction: column;
   align-self: stretch;
+  justify-content: center;
   gap: clamp(12px, 1.6vw, 18px);
   min-width: 0;
-}
-
-.landing-play-column > .landing-chat-mount {
-  margin-top: auto;
 }
 
 /* Puzzle column (band 2, left): the daily puzzle. The three band-2 boxes share
@@ -251,8 +251,8 @@
   min-width: 0;
 }
 
-/* Band-2 center/right widget columns: forum topics and top players share the
-   forum widget's box height so the row reads as one strip. */
+/* Band-2 center column: forum topics, sharing the band's box height with the
+   puzzle and the chat so the row reads as one strip. */
 .landing-forum-column {
   grid-area: forum;
   display: flex;
@@ -260,12 +260,33 @@
   min-width: 0;
 }
 
-.landing-players-column {
-  grid-area: players;
-  --landing-community-widget-height: var(--landing-lower-widget-height);
-
+/* Band-2 right rail: the lobby chat, stretched to the band's shared height so
+   the puzzle / forum / chat strip lines up top AND bottom. */
+.landing-chat-column {
+  grid-area: chat;
   display: flex;
   flex-direction: column;
+  align-self: stretch;
+  min-width: 0;
+}
+
+/* Bands 3-4 side rails: News (left) and Top studies (right) each span the blog
+   and video rows on desktop, so their boxes stretch from the blog row's top edge
+   to the video row's bottom edge (the stretch itself lives in the desktop block;
+   stacked, the boxes keep their own fixed height so their bodies still scroll). */
+.landing-news-column {
+  grid-area: news;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.landing-studies-column {
+  grid-area: studies;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
   min-width: 0;
 }
 
@@ -1730,6 +1751,34 @@
     aspect-ratio: auto;
   }
 
+  /* The chat box takes the same band-2 height instead of its standalone one, so
+     puzzle / forum / chat share both edges. */
+  .landing-chat-column > .landing-chat-mount:not(:empty),
+  .landing-chat-column .landing-chat {
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* ── Bands 3-4 side rails ────────────────────────────────────────────────────
+     News and Top studies span the blog + video rows and fill the spanned area:
+     top-aligned with the blog row, bottom-aligned with the video row, bodies
+     scrolling inside. The boxes are taken out of flow (absolute in the stretched
+     rail) so their long timelines contribute NOTHING to the auto row heights —
+     in flow they would inflate rows 3-4 and tear the blog row away from the
+     video row. */
+  .landing-news-column,
+  .landing-studies-column {
+    position: relative;
+  }
+
+  .landing-news-column .landing-announcements,
+  .landing-studies-column .landing-community-widget {
+    position: absolute;
+    inset: 0;
+    height: auto;
+    min-height: 0;
+  }
+
   /* ── Homepage viewer: flush box model (Stage 2) ──────────────────────────────
    Gated to the desktop band (min-width 1241px, where .landing-demo is a 3-column
    grid). Below that the band stacks and the viewer reverts to its in-flow,
@@ -1881,9 +1930,9 @@
 }
 
 @media (max-width: 1240px) {
-  /* Collapse to one column: Play button + activity + chat, the lobby panel,
-     banners + viewer, then the band-2 widgets (puzzle, forum, players), the
-     blog row, and the video row. */
+  /* Collapse to one column: Play button + activity, the lobby panel, banners +
+     viewer, then the band-2 widgets (puzzle, forum, chat), the blog row, the
+     video row, and the two side-rail boxes (studies, news). */
   .landing-demo {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
@@ -1892,19 +1941,16 @@
       "left"
       "puzzle"
       "forum"
-      "players"
+      "chat"
       "blogs"
-      "videos";
+      "videos"
+      "studies"
+      "news";
     max-width: 640px;
   }
 
   .landing-board-column {
     margin-inline: auto;
-  }
-
-  /* Chat pinning to the rail bottom is a three-column concern. */
-  .landing-play-column > .landing-chat-mount {
-    margin-top: 0;
   }
 
   .landing-play-stack {

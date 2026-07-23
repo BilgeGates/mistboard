@@ -93,9 +93,10 @@ describe('playable engines loading', () => {
 
 describe('landing shell', () => {
   it('keeps the grid-area hooks the homepage band CSS keys on', () => {
-    // landing.css places the three bands via these class names (grid-areas
-    // left/panel/play, puzzle/forum/players, blogs/support); renaming them in
-    // the DOM without updating landing.css would silently break the layout.
+    // landing.css places the bands via these class names (grid-areas
+    // left/panel/play, puzzle/forum/chat, news/blogs+videos/studies); renaming
+    // them in the DOM without updating landing.css would silently break the
+    // layout.
     const wrap = document.createElement('div');
     wrap.innerHTML = renderLandingShellForPrerender();
 
@@ -106,8 +107,11 @@ describe('landing shell', () => {
     expect(demo?.querySelector(':scope > .landing-play-column')).not.toBeNull();
     expect(demo?.querySelector(':scope > .landing-puzzle-column')).not.toBeNull();
     expect(demo?.querySelector(':scope > .landing-forum-column')).not.toBeNull();
-    expect(demo?.querySelector(':scope > .landing-players-column')).not.toBeNull();
+    expect(demo?.querySelector(':scope > .landing-chat-column')).not.toBeNull();
     expect(demo?.querySelector(':scope > .landing-articles-row')).not.toBeNull();
+    // Bands 3-4 side rails: News (left) and Top studies (right) span both rows.
+    expect(demo?.querySelector(':scope > .landing-news-column')).not.toBeNull();
+    expect(demo?.querySelector(':scope > .landing-studies-column')).not.toBeNull();
     // Band 4: the video strip sits in its own grid-area beneath the blog row.
     const videoRow = demo?.querySelector(':scope > .landing-videos-row');
     expect(videoRow).not.toBeNull();
@@ -117,7 +121,7 @@ describe('landing shell', () => {
     expect(demo?.querySelector('.landing-support-row')).toBeNull();
   });
 
-  it('leads the left rail with the event-banner slot over the viewer, with News gone', () => {
+  it('leads the left rail with the event-banner slot over the viewer, News below', () => {
     const wrap = document.createElement('div');
     wrap.innerHTML = renderLandingShellForPrerender();
 
@@ -126,10 +130,12 @@ describe('landing shell', () => {
     // the game viewer below it.
     expect(leftColumn?.firstElementChild?.classList.contains('landing-event-banners')).toBe(true);
     expect(leftColumn?.querySelector('.landing-viewer-column')).not.toBeNull();
-    // The News feed left the homepage (its history lives at /feed); chat moved
-    // to the right rail beneath the Play button + stats.
-    expect(wrap.querySelector('.landing-announcements')).toBeNull();
-    expect(wrap.querySelector('.landing-play-column .landing-chat-mount')).not.toBeNull();
+    // The News feed is back on the homepage, in the bands-3/4 left rail (not
+    // band 1); chat left the play rail for the band-2 right slot.
+    expect(wrap.querySelector('.landing-left-column .landing-announcements')).toBeNull();
+    expect(wrap.querySelector('.landing-news-column .landing-announcements')).not.toBeNull();
+    expect(wrap.querySelector('.landing-play-column .landing-chat-mount')).toBeNull();
+    expect(wrap.querySelector('.landing-chat-column .landing-chat-mount')).not.toBeNull();
   });
 
   it('mounts the band-2 widgets and the single unified Play button', () => {
@@ -137,8 +143,8 @@ describe('landing shell', () => {
     wrap.innerHTML = renderLandingShellForPrerender();
 
     expect(wrap.querySelector('.landing-forum-column .landing-forum')).not.toBeNull();
-    // Band 2 right: Top studies (took the Top players slot 2026-07-21).
-    expect(wrap.querySelector('.landing-players-column .landing-study-widget')).not.toBeNull();
+    // Top studies moved down to the bands-3/4 right rail; chat took its band-2 slot.
+    expect(wrap.querySelector('.landing-studies-column .landing-study-widget')).not.toBeNull();
     // One play action only, and it is the primary unified entry.
     const actions = wrap.querySelectorAll('.landing-play-column .landing-play-action');
     expect(actions.length).toBe(1);
