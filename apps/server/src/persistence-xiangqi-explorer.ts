@@ -13,6 +13,13 @@
 import type { XiangqiMove } from '@mistboard/game';
 import { getPool, withTransaction } from './persistence-db.js';
 
+export type XiangqiOpeningSample = {
+  id: string;
+  rating: number | null;
+  result: string;
+  playedOn: string | null;
+};
+
 export type XiangqiOpeningMoveRow = {
   move: XiangqiMove;
   games: number;
@@ -20,7 +27,7 @@ export type XiangqiOpeningMoveRow = {
   blackWins: number;
   draws: number;
   unknowns: number;
-  sampleGameIds: string[];
+  sampleGames: XiangqiOpeningSample[];
 };
 
 export type XiangqiOpeningBuildInfo = {
@@ -49,9 +56,9 @@ export async function lookupXiangqiOpeningMoves(
     black_wins: number;
     draws: number;
     unknowns: number;
-    sample_game_ids: string[];
+    sample_games: XiangqiOpeningSample[];
   }>(
-    `SELECT move, games, red_wins, black_wins, draws, unknowns, sample_game_ids
+    `SELECT move, games, red_wins, black_wins, draws, unknowns, sample_games
      FROM xiangqi_opening_moves
      WHERE position_key = $1
      ORDER BY games DESC, move ASC`,
@@ -68,7 +75,7 @@ export async function lookupXiangqiOpeningMoves(
         blackWins: row.black_wins,
         draws: row.draws,
         unknowns: row.unknowns,
-        sampleGameIds: row.sample_game_ids,
+        sampleGames: row.sample_games ?? [],
       },
     ];
   });
@@ -123,7 +130,7 @@ export async function replaceXiangqiOpeningMoves(
         .join(', ');
       await client.query(
         `INSERT INTO xiangqi_opening_moves
-           (position_key, move, games, red_wins, black_wins, draws, unknowns, sample_game_ids)
+           (position_key, move, games, red_wins, black_wins, draws, unknowns, sample_games)
          VALUES ${values}`,
         batch.flat(),
       );
@@ -139,7 +146,7 @@ export async function replaceXiangqiOpeningMoves(
           stats.blackWins,
           stats.draws,
           stats.unknowns,
-          stats.sampleGameIds,
+          JSON.stringify(stats.sampleGames),
         ]);
         if (batch.length >= BATCH) await flush();
       }

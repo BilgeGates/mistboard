@@ -1,5 +1,8 @@
 // Opening explorer: what a corpus of real games played from the position on the
-// board. Lives in the review underboard, beside Computer analysis.
+// board. Opens over the right rail from the book tool in the control bar, next
+// to the scrub buttons — it is a NAVIGATION surface (click a move to play it),
+// so it belongs beside the move list rather than in the underboard's static
+// reference tabs.
 //
 // It takes kernel state rather than a FEN string so it can derive BOTH the
 // lookup key and the move labels from one source, in the reader's chosen
@@ -9,6 +12,8 @@
 // Honesty rules, since these numbers get read as authority:
 //   - the corpus line is always shown, never implied;
 //   - games with no recorded result are counted and labelled, not dropped;
+//   - a result bar backed by too few decided games is de-emphasized, so a 100%
+//     block off two games cannot read as a verdict;
 //   - a position with no games says so plainly instead of rendering an empty
 //     table that looks like a loading failure.
 
@@ -29,13 +34,20 @@ type ExplorerMove = {
   blackWins: number;
   draws: number;
   unknowns: number;
-  sampleGameIds: string[];
+};
+
+type ExplorerSample = {
+  id: string;
+  rating: number | null;
+  result: string;
+  playedOn: string | null;
 };
 
 type ExplorerResponse = {
   position: string;
   total: number;
   moves: ExplorerMove[];
+  topGames: ExplorerSample[];
   build: { gameCount: number; maxPly: number; sources: string[]; builtAt: string } | null;
 };
 
@@ -44,21 +56,48 @@ export type OpeningExplorer = {
   /** Point the panel at a position; null clears it. Safe to call on every navigation. */
   setState(state: XiangqiGameState | null): void;
   /**
-   * Whether the panel is on screen. It starts INACTIVE and queries nothing until
-   * told otherwise: the underboard opens on Computer analysis, so a reader who
-   * never opens this tab would otherwise spend one request per ply scrubbed on a
-   * panel they never see. Activating catches up to the current position.
+   * Whether the panel is open. It starts CLOSED and queries nothing until opened:
+   * otherwise every reader scrubbing a game would spend one request per ply on a
+   * panel they never looked at. Opening catches up to the current position.
    */
   setActive(active: boolean): void;
+  /** Play a move the reader clicked in the table. */
+  onPlayMove(handler: (move: XiangqiMove) => void): void;
 };
 
 const MAX_ROWS = 12;
 /** Below this many decided games the result bar is shown, but de-emphasized. */
 const MIN_DECIDED_FOR_BAR = 5;
+const TOP_GAMES_SHOWN = 5;
+/** Narrower than this and a percentage inside a bar band is noise, not data. */
+const MIN_BAND_PERCENT_FOR_LABEL = 18;
 
 export function createOpeningExplorer(): OpeningExplorer {
-  const el = document.createElement('div');
+  const el = document.createElement('section');
   el.className = 'opening-explorer';
+  el.setAttribute('aria-label', 'Opening explorer');
+
+  const head = document.createElement('div');
+  head.className = 'opening-explorer__head';
+  const title = document.createElement('span');
+  title.className = 'opening-explorer__title';
+  title.textContent = 'Opening explorer';
+  const corpus = document.createElement('span');
+  corpus.className = 'opening-explorer__corpus';
+  head.append(title, corpus);
+
+  const columns = document.createElement('div');
+  columns.className = 'opening-explorer__columns';
+  for (const [label, className] of [
+    ['Move', 'move'],
+    ['Games', 'count'],
+    ['Red / Draw / Black', 'bar'],
+  ] as const) {
+    const cell = document.createElement('span');
+    cell.className = `opening-explorer__col opening-explorer__col--${className}`;
+    cell.textContent = label;
+    columns.append(cell);
+  }
 
   const status = document.createElement('p');
   status.className = 'opening-explorer__status';
@@ -67,27 +106,24 @@ export function createOpeningExplorer(): OpeningExplorer {
   const table = document.createElement('div');
   table.className = 'opening-explorer__table';
 
-  const corpus = document.createElement('p');
-  corpus.className = 'opening-explorer__corpus';
+  const topGames = document.createElement('div');
+  topGames.className = 'opening-explorer__top';
 
-  el.append(status, table, corpus);
+  el.append(head, columns, status, table, topGames);
 
-  // Cache by position key: scrubbing a game walks the same positions repeatedly,
-  // and the corpus only changes on a rebuild.
   const cache = new Map<string, ExplorerResponse>();
   let currentKey: string | null = null;
   let currentState: XiangqiGameState | null = null;
   let inFlight: AbortController | null = null;
   let active = false;
-  // The position we would be showing if we were on screen. While inactive the
-  // panel keeps tracking the board but does no work; activating renders this.
   let pendingState: XiangqiGameState | null = null;
+  let playMove: ((move: XiangqiMove) => void) | null = null;
 
   function setActive(next: boolean): void {
     if (active === next) return;
     active = next;
+    el.hidden = !active;
     if (!active) {
-      // Nothing in flight can matter to a panel nobody is looking at.
       inFlight?.abort();
       return;
     }
@@ -120,13 +156,13 @@ export function createOpeningExplorer(): OpeningExplorer {
       render(cached);
       return;
     }
-    // A superseded request must never paint over a newer position.
     inFlight?.abort();
     const controller = new AbortController();
     inFlight = controller;
     status.hidden = false;
     status.textContent = 'Loading opening statistics...';
     table.replaceChildren();
+    topGames.replaceChildren();
     void fetchExplorer(key, controller.signal).then((data) => {
       if (controller.signal.aborted || currentKey !== key) return;
       if (data) cache.set(key, data);
@@ -136,6 +172,7 @@ export function createOpeningExplorer(): OpeningExplorer {
 
   function render(data: ExplorerResponse | null): void {
     table.replaceChildren();
+    topGames.replaceChildren();
     if (!data) {
       status.hidden = false;
       status.textContent = 'Opening statistics are unavailable.';
@@ -145,17 +182,19 @@ export function createOpeningExplorer(): OpeningExplorer {
     corpus.textContent = corpusLabel(data);
     if (data.moves.length === 0) {
       status.hidden = false;
+      // Past the folded depth every position is unplayed, which is a fact about
+      // the corpus rather than a failure; say which it is.
       status.textContent = 'No corpus games reached this position.';
       return;
     }
     status.hidden = true;
     const style = currentXiangqiNotationStyle();
     for (const row of data.moves.slice(0, MAX_ROWS)) {
-      table.append(moveRow(row, data.total, currentState, style));
+      table.append(moveRow(row, data.total, currentState, style, (move) => playMove?.(move)));
     }
+    if (data.topGames.length > 0) topGames.append(topGamesBlock(data.topGames));
   }
 
-  // Notation is a reader preference that can change while the panel is open.
   if (typeof window !== 'undefined') {
     window.addEventListener(xiangqiNotationChangedEvent, () => {
       const cached = currentKey ? cache.get(currentKey) : null;
@@ -163,7 +202,15 @@ export function createOpeningExplorer(): OpeningExplorer {
     });
   }
 
-  return { el, setState, setActive };
+  el.hidden = true;
+  return {
+    el,
+    setState,
+    setActive,
+    onPlayMove(handler) {
+      playMove = handler;
+    },
+  };
 }
 
 function moveRow(
@@ -171,30 +218,32 @@ function moveRow(
   total: number,
   state: XiangqiGameState | null,
   style: ReturnType<typeof currentXiangqiNotationStyle>,
+  play: (move: XiangqiMove) => void,
 ): HTMLElement {
-  const el = document.createElement('div');
+  const move = { from: row.from, to: row.to } as XiangqiMove;
+  const el = document.createElement('button');
+  el.type = 'button';
   el.className = 'opening-explorer__row';
 
   const label = document.createElement('span');
   label.className = 'opening-explorer__move';
-  label.textContent = moveLabel(row, state, style);
+  label.textContent = state ? formatXiangqiMove(state, move, style) : `${row.from}${row.to}`;
 
   const count = document.createElement('span');
   count.className = 'opening-explorer__count';
-  count.textContent = formatGames(row.games);
-  // `total` is the sum of the move counts, which is the right denominator for a
-  // move's share but is NOT a distinct-game count: a game that returns to this
-  // position and varies appears under both moves. Word it as what it is.
+  const share = total > 0 ? Math.round((row.games / total) * 100) : 0;
+  count.append(
+    textSpan('opening-explorer__count-games', formatGames(row.games)),
+    textSpan('opening-explorer__count-share', `${share}%`),
+  );
+  // `total` is the sum of the move counts, the right denominator for a share but
+  // not a distinct-game census: a game that revisits this position and varies is
+  // counted under both moves.
   count.title = `${row.games} games played this move, of ${total} recorded from this position`;
 
   const bar = document.createElement('span');
   bar.className = 'opening-explorer__bar';
-  // Decided games only: an unknown result says nothing about who was better,
-  // so it must not be silently drawn as a draw.
   const decided = row.redWins + row.blackWins + row.draws;
-  // A full-width bar off two games looks exactly like one off four hundred. Past
-  // the first few plies most positions are this thin, so de-emphasize the bar
-  // below the threshold rather than letting a 100% block read as a result.
   if (decided > 0 && decided < MIN_DECIDED_FOR_BAR) {
     bar.classList.add('opening-explorer__bar--thin');
     bar.title = `Only ${decided} decided ${decided === 1 ? 'game' : 'games'}: too few to read as a score`;
@@ -206,10 +255,12 @@ function moveRow(
       ['black', row.blackWins],
     ] as const) {
       if (value === 0) continue;
+      const percent = (value / decided) * 100;
       const part = document.createElement('span');
       part.className = `opening-explorer__bar-part opening-explorer__bar-part--${kind}`;
-      part.style.width = `${((value / decided) * 100).toFixed(1)}%`;
+      part.style.width = `${percent.toFixed(1)}%`;
       part.title = `${kind === 'draw' ? 'Draws' : kind === 'red' ? 'Red wins' : 'Black wins'}: ${value}`;
+      if (percent >= MIN_BAND_PERCENT_FOR_LABEL) part.textContent = `${Math.round(percent)}%`;
       bar.append(part);
     }
   } else {
@@ -218,17 +269,44 @@ function moveRow(
   }
 
   el.append(label, count, bar);
+  el.addEventListener('click', () => play(move));
   return el;
 }
 
-function moveLabel(
-  row: ExplorerMove,
-  state: XiangqiGameState | null,
-  style: ReturnType<typeof currentXiangqiNotationStyle>,
-): string {
-  const move = { from: row.from, to: row.to } as XiangqiMove;
-  if (!state) return `${row.from}${row.to}`;
-  return formatXiangqiMove(state, move, style);
+function topGamesBlock(samples: ExplorerSample[]): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'opening-explorer__top-inner';
+  const heading = document.createElement('p');
+  heading.className = 'opening-explorer__top-heading';
+  heading.textContent = 'Top games';
+  wrap.append(heading);
+
+  for (const sample of samples.slice(0, TOP_GAMES_SHOWN)) {
+    const row = document.createElement('a');
+    row.className = 'opening-explorer__top-row';
+    row.href = `/xiangqi/game/${encodeURIComponent(sample.id)}`;
+    const rating = document.createElement('span');
+    rating.className = 'opening-explorer__top-rating';
+    // The corpus is anonymized, so the rating IS the identity on offer. Saying
+    // "unrated" beats printing a blank where a player name would be.
+    rating.textContent = sample.rating === null ? 'unrated' : String(sample.rating);
+    const result = document.createElement('span');
+    result.className = 'opening-explorer__top-result';
+    result.textContent = sample.result;
+    const played = document.createElement('span');
+    played.className = 'opening-explorer__top-date';
+    played.textContent = sample.playedOn ? sample.playedOn.slice(0, 7) : '';
+    row.append(rating, result, played);
+    wrap.append(row);
+  }
+  return wrap;
+}
+
+function textSpan(className: string, text: string): HTMLElement {
+  const el = document.createElement('span');
+  el.className = className;
+  el.textContent = text;
+  return el;
 }
 
 function formatGames(games: number): string {
@@ -238,8 +316,7 @@ function formatGames(games: number): string {
 
 function corpusLabel(data: ExplorerResponse): string {
   if (!data.build) return '';
-  const games = data.build.gameCount.toLocaleString('en-US');
-  return `${games} corpus games, first ${data.build.maxPly} plies.`;
+  return `${data.build.gameCount.toLocaleString('en-US')} games`;
 }
 
 async function fetchExplorer(
@@ -261,8 +338,7 @@ async function fetchExplorer(
  * A 200 is not a promise about the body. An edge error page, a proxy, or a
  * changed API can all answer 200 with something that is not an explorer
  * payload; reading it optimistically throws inside the render and takes the
- * whole panel down. Validate the shape, and treat anything else as
- * unavailable.
+ * whole panel down. Validate the shape, and treat anything else as unavailable.
  */
 function explorerResponse(value: unknown): ExplorerResponse | null {
   if (typeof value !== 'object' || value === null) return null;
@@ -278,6 +354,9 @@ function explorerResponse(value: unknown): ExplorerResponse | null {
         typeof move?.to === 'string' &&
         typeof move?.games === 'number',
     ),
+    topGames: Array.isArray(data.topGames)
+      ? data.topGames.filter((game): game is ExplorerSample => typeof game?.id === 'string')
+      : [],
     build: data.build ?? null,
   };
 }

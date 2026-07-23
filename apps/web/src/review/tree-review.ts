@@ -303,8 +303,10 @@ export type TreeReviewConfig<Move, Truth = never> = {
   explorer?: {
     el: HTMLElement;
     setTruth(truth: Truth): void;
-    /** Called with whether the explorer's underboard tab is the visible one. */
+    /** Called with whether the explorer panel is open. */
     setActive(active: boolean): void;
+    /** Register the handler that plays a move the reader clicked in the table. */
+    onPlayMove(handler: (move: Move) => void): void;
   };
   /** Game result appended to the move list as a terminal block (lichess: "0-1"
    *  over the termination line). Postgame surfaces supply it; the analysis board
@@ -396,6 +398,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     render();
     notifyChange();
   };
+  // Clicking a move in the opening explorer plays it, same as playing it on the
+  // board: the explorer is a navigation surface, not a readout.
+  config.explorer?.onPlayMove(handleMove);
+
   // Right-drag draws an annotation shape on the CURRENT node (toggle: re-drawing
   // the same shape removes it). Green by default, red with a modifier held.
   const handleDrawShape = (orig: string, dest: string | null, { alt }: { alt: boolean }): void => {
@@ -683,6 +689,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     });
   }
   const controls = createReviewControls({
+    // The book tool appears only when a corpus is behind it (see review-controls).
+    ...(config.explorer
+      ? { onToggleExplorer: (open: boolean) => config.explorer?.setActive(open) }
+      : {}),
     onFirst: () => go(ROOT_PATH),
     onPrevious: () => go(tree.stepBack(currentPath)),
     onNext: () => go(tree.stepForward(currentPath)),
@@ -747,8 +757,6 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   const underboardEl = underboardPanel(underboardBody, {
     hasAnalysis: Boolean(config.analysis),
     provenance: config.provenance,
-    explorer: config.explorer?.el,
-    onTabChange: (id) => config.explorer?.setActive(id === 'explorer'),
     moveTimes: config.moveTimes,
     seatColors: config.seatColors,
     players: config.showCrosstable ? (config.players ?? {}) : undefined,
@@ -854,15 +862,14 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     boardMaxPx: presentation.boardMaxPx,
     underboard: composeUnderboard(
       commentPanelEl,
-      config.analysis || config.provenance || config.showCrosstable || config.explorer
-        ? underboardEl
-        : undefined,
+      config.analysis || config.provenance || config.showCrosstable ? underboardEl : undefined,
       importPanel?.el,
     ),
     underboardOverflows: true,
     enginePanel: enginePanel?.el,
     moves: moveTree.el,
     annotations: annotationEditor?.el,
+    railPanel: config.explorer?.el,
     navigation: controls.el,
     analysisSummary: analysisSummaryEl,
     gauge: evalBar?.el,

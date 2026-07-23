@@ -109,7 +109,9 @@ export function mountXiangqiReview(
   // corpus is keyed by position, so it is as useful on a played game as on the
   // analysis board. Default-on rather than opt-in so a NEW surface inherits it
   // instead of quietly missing it. Set `openingExplorer: false` to decline (the
-  // study board does, to leave its hand-specced layout alone).
+  // study board does, to leave its hand-specced layout alone). The panel is
+  // closed until the reader opens it from the book tool, so this costs nothing
+  // on a surface where nobody looks.
   const explorer =
     config.openingExplorer === false ? undefined : (config.explorer ?? xiangqiOpeningExplorer());
   return mountTreeReview(root, xiangqiPresentation, { ...config, explorer });
@@ -122,6 +124,7 @@ function xiangqiOpeningExplorer(): NonNullable<XiangqiReviewConfig['explorer']> 
     el: explorer.el,
     setTruth: (truth) => explorer.setState(truth),
     setActive: (isActive) => explorer.setActive(isActive),
+    onPlayMove: (handler) => explorer.onPlayMove(handler),
   };
 }
 
