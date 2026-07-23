@@ -12,6 +12,8 @@ import { formatEval, winProbRed } from './eval-format.js';
 
 const BAR_WIDTH_PX = 20;
 const BAR_GAP_PX = 8;
+/** Gridline count: the bar is divided into eighths (lila renderGauge parity). */
+const TICK_DIVISIONS = 8;
 
 export interface EvalBar {
   el: HTMLElement;
@@ -38,19 +40,25 @@ export function createEvalBar(): EvalBar {
   el.setAttribute('aria-hidden', 'true');
   const fill = document.createElement('div');
   fill.className = 'review-eval-bar__fill';
-  // Static gradations: a faint tick at each ±1..±6 pawn advantage (mapped through
-  // the same win-prob curve as the fill, so they cluster toward the center like the
-  // bar itself), plus the red equality line at dead center.
+  // Static gradations at every eighth of the bar (lila renderGauge parity), with
+  // the red equality line at dead center supplied by CSS.
+  //
+  // These are POSITIONAL gridlines, not eval values. Until 2026-07-23 they marked
+  // ±1..±6 pawns run through the win-prob curve, i.e. equal steps in EVALUATION
+  // plotted on an axis of PROBABILITY — so they landed 7.7% apart near the centre
+  // and 4.0% apart out at ±6. Unlabelled ticks read as "equal steps of something",
+  // so uneven ones read as arbitrary, and nothing in the UI could tell you
+  // otherwise. Even eighths claim only what they can deliver: a scale to judge the
+  // fill height against.
   const ticks = document.createElement('div');
   ticks.className = 'review-eval-bar__ticks';
-  for (let pawns = 1; pawns <= 6; pawns += 1) {
-    for (const sign of [1, -1]) {
-      const prob = winProbRed(sign * pawns * 100, null);
-      const tick = document.createElement('div');
-      tick.className = 'review-eval-bar__tick';
-      tick.style.bottom = `${(prob * 100).toFixed(2)}%`;
-      ticks.append(tick);
-    }
+  for (let eighth = 1; eighth < TICK_DIVISIONS; eighth += 1) {
+    // Dead centre is the red equality line (CSS ::after); don't double-draw it.
+    if (eighth * 2 === TICK_DIVISIONS) continue;
+    const tick = document.createElement('div');
+    tick.className = 'review-eval-bar__tick';
+    tick.style.bottom = `${((eighth / TICK_DIVISIONS) * 100).toFixed(2)}%`;
+    ticks.append(tick);
   }
   const label = document.createElement('span');
   label.className = 'review-eval-bar__label';
