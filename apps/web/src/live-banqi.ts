@@ -99,9 +99,14 @@ export function banqiSeatInk(seat: BanqiSeat, view: BanqiWireView | null): Banqi
 // engine as "Red" even when it flipped black. Label by the bound ink once the flip
 // assigns it, else by move order ("First"/"Second") — colors do not exist pre-flip.
 function banqiSeatLabel(seat: BanqiSeat): string {
-  const ink = banqiSeatInk(seat, core?.state.view ?? null);
+  const ink = banqiLiveSeatInk(seat);
   if (ink) return ink === 'red' ? 'Red' : 'Black';
   return seat === 'red' ? 'First' : 'Second';
+}
+
+// The ink for the CURRENT live view — what the meta card's player disc renders.
+function banqiLiveSeatInk(seat: BanqiSeat): BanqiColor | null {
+  return banqiSeatInk(seat, core?.state.view ?? null);
 }
 
 const banqiWebTenant: WebVariantTenant<BanqiSeat> = {
@@ -121,6 +126,7 @@ const banqiWebTenant: WebVariantTenant<BanqiSeat> = {
   // Banqi colors are assigned by the opening flip; label players by ink (or move order
   // before the flip), and surface the opening "to move" before the clock arms.
   seatLabel: banqiSeatLabel,
+  seatInk: banqiLiveSeatInk,
   showPregameTurn: true,
 };
 

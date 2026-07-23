@@ -221,6 +221,54 @@ describe('tenant room chrome player names', () => {
   });
 });
 
+describe('tenant room chrome player discs', () => {
+  function discClasses(refs: LiveRefs): string[] {
+    return [...refs.gameInfo.querySelectorAll('.game-meta-card__disc')].map((disc) =>
+      [...disc.classList].filter((name) => name !== 'game-meta-card__disc').join(' '),
+    );
+  }
+
+  it('tints the disc by seat when the seat name IS the color', () => {
+    const { chrome, refs } = chromeHarness();
+    chrome.renderMeta();
+    // colors: ['white', 'red'] -> hollow light, filled red.
+    expect(discClasses(refs)).toEqual(['game-meta-card__disc--light', 'game-meta-card__disc--red']);
+  });
+
+  it('tints the disc by the BOUND INK, not the seat, for a flip variant', () => {
+    // Flip Jungle regression (jgf_afd6374e): the 'white' seat here is the first mover
+    // and its opening flip turned up the OTHER ink, so the first-mover seat must render
+    // dark and the second-mover seat red. Server display names suppress the ink-aware
+    // seatLabel, which leaves the disc as the only colour cue on the row — so a raw
+    // seat here is silently wrong rather than merely inconsistent.
+    const flipTenant: WebVariantTenant<Color> = {
+      ...tenant,
+      seatLabel: (seat) => (seat === 'white' ? 'Black' : 'Red'),
+      seatInk: (seat) => (seat === 'white' ? 'black' : 'red'),
+    };
+    const { chrome, refs } = chromeHarness(
+      { seatDisplayNames: { white: 'brianhliou-dev', red: 'Misty' } },
+      flipTenant,
+    );
+    chrome.renderMeta();
+    expect(discClasses(refs)).toEqual(['game-meta-card__disc--dark', 'game-meta-card__disc--red']);
+  });
+
+  it('renders a neutral disc while a flip variant has no ink bound yet', () => {
+    const preFlipTenant: WebVariantTenant<Color> = {
+      ...tenant,
+      seatLabel: (seat) => (seat === 'white' ? 'First' : 'Second'),
+      seatInk: () => null,
+    };
+    const { chrome, refs } = chromeHarness({}, preFlipTenant);
+    chrome.renderMeta();
+    expect(discClasses(refs)).toEqual([
+      'game-meta-card__disc--unbound',
+      'game-meta-card__disc--unbound',
+    ]);
+  });
+});
+
 describe('tenant room chrome meta and invite emphasis', () => {
   it('appends the variant detail to the Variant row', () => {
     const { chrome, refs } = chromeHarness({ variantDetail: '5+5' });

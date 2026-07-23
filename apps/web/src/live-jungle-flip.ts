@@ -30,6 +30,7 @@ import {
   jungleFlipPieceGhostSvg,
   renderJungleFlipBoardSvg,
 } from './jungle-flip-render.js';
+import { jungleFlipSeatInk as jungleFlipSeatInkForFirstColor } from './jungle-flip-result-label.js';
 import {
   maybePlayJungleFlipSnapshotSound,
   resetJungleFlipSoundState,
@@ -82,20 +83,24 @@ function isJungleFlipSeat(value: unknown): value is JungleFlipSeat {
   return value === 'red' || value === 'black';
 }
 
-// The ink a seat owns, once the opening flip binds it (null before). The 'red' seat plays
-// firstColor; the 'black' seat plays the opposite.
+// The ink a seat owns, once the opening flip binds it (null before). Thin view-shaped
+// wrapper over the shared helper so the seat -> ink rule lives in exactly one place.
 function jungleFlipSeatInk(
   seat: JungleFlipSeat,
   view: JungleFlipWireView | null,
 ): JungleFlipColor | null {
-  if (!view || view.firstColor === null) return null;
-  return seat === 'red' ? view.firstColor : view.firstColor === 'red' ? 'black' : 'red';
+  return jungleFlipSeatInkForFirstColor(seat, view?.firstColor ?? null);
+}
+
+// The ink for the CURRENT live view — what the meta card's player disc renders.
+function jungleFlipLiveSeatInk(seat: JungleFlipSeat): JungleFlipColor | null {
+  return jungleFlipSeatInk(seat, core?.state.view ?? null);
 }
 
 // A seat's player label. Flip Jungle's seat names are NOT colors, so label by the bound ink
 // once the flip assigns it, else by move order ("First"/"Second").
 function jungleFlipSeatLabel(seat: JungleFlipSeat): string {
-  const ink = jungleFlipSeatInk(seat, core?.state.view ?? null);
+  const ink = jungleFlipLiveSeatInk(seat);
   // The Jungle family brands its navy ink "Blue" (internal ink id stays 'black').
   if (ink) return ink === 'red' ? 'Red' : 'Blue';
   return seat === 'red' ? 'First' : 'Second';
@@ -116,6 +121,7 @@ const jungleFlipWebTenant: WebVariantTenant<JungleFlipSeat> = {
   spectatorBody: 'Watching the game.',
   selectInstruction: 'Tap a face-down tile to flip it, or select one of your animals to move.',
   seatLabel: jungleFlipSeatLabel,
+  seatInk: jungleFlipLiveSeatInk,
   showPregameTurn: true,
 };
 

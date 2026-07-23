@@ -68,6 +68,15 @@ export type WebVariantTenant<C extends string> = {
   // ink ("Red"/"Black") once flipped, else the move order ("First"/"Second"). The tenant
   // reads its own live view for this; the chrome passes only the seat.
   seatLabel?(seat: C): string;
+  // Optional companion to seatLabel: the INK a seat renders as, for the meta card's
+  // player disc. Omit when the seat name IS the color (chess/xiangqi/jieqi/crossroads)
+  // and the chrome passes the seat straight through. Flip variants MUST implement it:
+  // their seats are move-order slots and the ink binds on the opening flip, so a raw
+  // seat paints the wrong disc for every game whose first flip turns up the opposite
+  // color. Return null before the flip binds; the chrome renders a neutral disc rather
+  // than guessing. Defined-but-null is meaningfully different from undefined here, so
+  // the chrome tests for the method instead of using `?? seat` as a fallback.
+  seatInk?(seat: C): string | null;
   // Optional: mark the side-to-move on the unarmed (pregame) clock rows, so the opening
   // "to move" is clear before the clock starts. Default off; banqi opts in because its
   // colors do not exist until the first flip, making the mover otherwise ambiguous.
@@ -366,7 +375,11 @@ export function createTenantRoomChrome<C extends string>(
       players: tenant.colors.map((color) => {
         const serverName = ctx.seatDisplayNames()[color];
         return {
-          color,
+          // The disc wants the INK, not the seat. When a server display name exists it
+          // replaces the ink-aware seatLabel below, so the disc is the ONLY colour cue
+          // left on the row — a raw seat here is silently wrong for half of all flip
+          // games rather than merely inconsistent.
+          color: tenant.seatInk ? tenant.seatInk(color) : color,
           name: serverName ?? (color === seat ? `You (${seatName(color)})` : seatName(color)),
         };
       }),

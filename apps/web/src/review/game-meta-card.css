@@ -155,6 +155,15 @@
   background: transparent;
 }
 
+/* Flip variants before the opening flip binds an ink: nobody owns a colour yet, so
+   the disc is an empty muted ring rather than a guess. Distinct from --light, which
+   is a real ink (chess white). */
+.game-meta-card__disc--unbound {
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.55;
+}
+
 /* Red seat (xiangqi family + jungle): a filled red disc so a red-vs-black game
    reads as red/black rather than hollow/black. Matches the eval-bar / analysis
    chart red (#c0563f). */

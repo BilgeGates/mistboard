@@ -17,8 +17,16 @@ import { renderVariantMarker } from '../variant-markers.js';
 import type { VariantMiniId } from '../variant-mini-boards.js';
 
 export type GameMetaPlayer = {
-  /** Seat color id (e.g. 'red' | 'black' | 'white'). Drives the disc tint. */
-  color: string;
+  /**
+   * The INK this player renders as (e.g. 'red' | 'black' | 'white') — the colour on
+   * the board, NOT the seat id. For most variants the seat name IS the colour, so
+   * callers pass the seat straight through. For flip variants (Flip Jungle, banqi)
+   * the seat is a move-order slot and the ink binds on the opening flip, so the
+   * caller must translate first; passing the raw seat there paints the wrong disc
+   * for the half of games that flip the opposite colour. `null` means "not bound
+   * yet" (pre-flip) and renders a neutral disc.
+   */
+  color: string | null;
   name: string;
   rating?: number | null;
   /** Engine/bot seats get a small BOT tag (playstrategy-style). */
@@ -54,10 +62,13 @@ export type GameMetaCard = {
 // white/black and xiangqi red/black both map correctly.
 const DARK_COLORS = new Set(['black', 'blue']);
 
-// Seat-disc tint. 'red' gets a filled RED disc (so red-vs-black variants — xiangqi,
+// Ink-disc tint. 'red' gets a filled RED disc (so red-vs-black variants — xiangqi,
 // jungle, fortress, banqi, jieqi, … — read as red/black, not hollow/black); dark
-// inks fill dark; everything else (white) is the hollow light disc.
-function discToneClass(color: string): string {
+// inks fill dark; everything else (white) is the hollow light disc. `null` is a
+// flip variant before its opening flip: no ink is bound, so tint nothing rather
+// than guessing.
+function discToneClass(color: string | null): string {
+  if (color === null) return 'game-meta-card__disc--unbound';
   if (color === 'red') return 'game-meta-card__disc--red';
   return DARK_COLORS.has(color) ? 'game-meta-card__disc--dark' : 'game-meta-card__disc--light';
 }
