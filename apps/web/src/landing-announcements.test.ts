@@ -108,6 +108,24 @@ describe('landing announcements', () => {
     expect(more?.textContent).toBe('All updates »');
   });
 
+  it('links each hoverable relative date to the full feed', () => {
+    const panel = buildLandingAnnouncements();
+    const dates = [...panel.querySelectorAll<HTMLAnchorElement>('a.landing-news-date')];
+
+    expect(dates).toHaveLength(3);
+    for (const date of dates) {
+      expect(date.getAttribute('href')).toBe('/feed');
+      expect(date.getAttribute('title')).toMatch(/2026/);
+      expect(date.querySelector('time')?.dateTime).toMatch(/^2026-\d{2}-\d{2}$/);
+    }
+  });
+
+  it('keeps English announcement copy free of Han script', () => {
+    for (const entry of announcements()) {
+      expect(`${entry.headline} ${entry.body ?? ''}`).not.toMatch(/\p{Script=Han}/u);
+    }
+  });
+
   it('marks feed rows by supported post type and renders icon markers', () => {
     const firstRow = buildLandingAnnouncements().querySelector<HTMLElement>('.landing-news-update');
     const marker = firstRow?.querySelector<HTMLElement>('.landing-news-marker');
@@ -142,6 +160,9 @@ describe('landing announcements', () => {
     expect(news.querySelector<HTMLAnchorElement>('.news-page-link')?.getAttribute('href')).toBe(
       newestHref,
     );
+    expect(
+      landing.querySelector<HTMLAnchorElement>('a.landing-news-date')?.getAttribute('href'),
+    ).toBe('/feed');
     // Custom CTA labels fall through untranslated (only the shared CTA strings
     // have catalog entries).
     const newestCta = [...announcements()].sort((a, b) => b.date.localeCompare(a.date))[0]?.cta;
