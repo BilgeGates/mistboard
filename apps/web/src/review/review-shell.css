@@ -968,15 +968,22 @@
   flex: 1 1 auto;
   min-height: 0;
 }
-/* The overlay fills the moves region (which tracks the board height on desktop)
-   and scrolls on its own, so opening the book covers the move list without
-   resizing the board or the rail. Its own top border is the seam against the
-   engine head above; navigation stays visible below the wrapper. */
+/* The book pops the explorer up over the BOTTOM of the moves box, not the whole
+   column: the top of the move list stays visible above it, the explorer fills
+   the lower portion and scrolls on its own, and the top border + shadow read as
+   a panel that rose over the list. Toggling the book hides it (see the [hidden]
+   rule in opening-explorer.css), restoring the full move list. */
 .review-rail-overlay {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  height: 62%;
+  max-height: 62%;
   z-index: 6;
-  max-height: none;
-  border-radius: 6px;
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12);
+  overflow-y: auto;
+  border-top: 1px solid var(--site-border);
+  border-radius: 6px 6px 0 0;
+  box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.16);
 }
