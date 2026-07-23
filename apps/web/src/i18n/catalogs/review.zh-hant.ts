@@ -38,4 +38,9 @@ export const ZH_HANT_REVIEW = {
   'watch.revealHiddenIdentities': '揭示隱藏身分',
   'watch.revealHiddenIdentitiesShortcut': '揭示隱藏身分（h）',
   'watch.gameLoadFailed': '無法載入這盤棋。',
+  'study.chapterCount': '{count} 章',
+  'study.chapterCountOne': '1 章',
+  'study.chatRoom': '聊天室',
+  'study.chatSignIn': '登入後可聊天',
+  'study.chatPlaceholder': '聊天請保持友善！',
 } satisfies Partial<Record<ReviewI18nKey, string>>;

@@ -38,4 +38,9 @@ export const ZH_HANS_REVIEW = {
   'watch.revealHiddenIdentities': '揭示隐藏身份',
   'watch.revealHiddenIdentitiesShortcut': '揭示隐藏身份（h）',
   'watch.gameLoadFailed': '无法加载这盘棋。',
+  'study.chapterCount': '{count} 章',
+  'study.chapterCountOne': '1 章',
+  'study.chatRoom': '聊天室',
+  'study.chatSignIn': '登录后可聊天',
+  'study.chatPlaceholder': '聊天请保持友善！',
 } satisfies Partial<Record<ReviewI18nKey, string>>;

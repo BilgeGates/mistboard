@@ -228,6 +228,9 @@ export function isClientRoute(pathname: string): boolean {
     // review-shell route (COOP/COEP) below; the bare index is a plain client page.
     normalized === '/study' ||
     /^\/study\/[A-Za-z0-9]+$/.test(normalized) ||
+    // Locale-prefixed study permalinks (/zh-hans/study/:id) serve the same SPA
+    // shell with localized meta; without these they would 404.
+    /^\/(?:zh-hans|zh-hant)\/study\/[A-Za-z0-9]+$/.test(normalized) ||
     // Standalone analysis board: bare /analysis (opens the flagship variant) or
     // /analysis/:variant, fed by a move list rather than a room. Serves the
     // review SPA shell and mounts the ceval engine, so it must also be a
@@ -267,7 +270,10 @@ export function isReviewShellRoute(pathname: string): boolean {
     /^(?:\/[a-z0-9-]+)?\/game\/[^/]+$/.test(normalized) ||
     /^\/historical-xiangqi\/game\/[^/]+$/.test(normalized) ||
     /^\/analysis(?:\/[a-z0-9-]+)?$/.test(normalized) ||
-    /^\/study\/[A-Za-z0-9]+$/.test(normalized) ||
+    // Both the bare and locale-prefixed study permalinks mount the ceval engine,
+    // so both need the COOP/COEP headers or SharedArrayBuffer silently goes away
+    // on the localized URL only.
+    /^(?:\/(?:zh-hans|zh-hant))?\/study\/[A-Za-z0-9]+$/.test(normalized) ||
     normalized === '/puzzles' ||
     /^\/puzzles\/[^/]+$/.test(normalized)
   );

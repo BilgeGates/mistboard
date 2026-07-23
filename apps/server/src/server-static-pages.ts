@@ -260,8 +260,32 @@ export async function serveGamePage(params: {
 // the content; without this every study serves the generic homepage shell and
 // reads as a duplicate to a crawler). Unlisted/private studies get the plain
 // shell: their names must not leak into a shared-link preview or the index.
+/** URL slug -> the Locale code a study's `i18n` overlay is keyed by. */
+const STUDY_LOCALE_BY_SLUG = {
+  en: 'en',
+  'zh-hans': 'zh-Hans',
+  'zh-hant': 'zh-Hant',
+} as const;
+
+/** Pick a study's localized string for a locale, falling back to the base
+ *  column. Mirrors study-i18n.ts on the client; kept tiny and local rather than
+ *  importing web code into the server. */
+function localizedStudyField(
+  base: string,
+  i18n: unknown,
+  locale: string,
+  field: 'name' | 'description',
+): string {
+  if (!i18n || typeof i18n !== 'object' || Array.isArray(i18n)) return base;
+  const entry = (i18n as Record<string, unknown>)[locale];
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return base;
+  const value = (entry as Record<string, unknown>)[field];
+  return typeof value === 'string' && value.trim() ? value : base;
+}
+
 export async function serveStudyPage(params: {
   studyId: string;
+  localeSlug?: 'en' | 'zh-hans' | 'zh-hant';
   response: ServerResponse;
   publicHost: string;
   staticDir: string;
@@ -269,17 +293,32 @@ export async function serveStudyPage(params: {
   const indexPath = resolve(params.staticDir, 'index.html');
   let html = await fs.readFile(indexPath, 'utf-8');
 
+  const slug = params.localeSlug ?? 'en';
+  const localePath = slug === 'en' ? '' : `/${slug}`;
+  const locale = STUDY_LOCALE_BY_SLUG[slug];
   const study = await persistence.getStudyById(params.studyId).catch(() => null);
   if (study && study.visibility === 'public') {
     const chapterCount = study.chapters.length;
+    const name = localizedStudyField(study.name, study.i18n, locale, 'name');
+    const described = localizedStudyField(study.description, study.i18n, locale, 'description');
     const description =
-      study.description ||
+      described ||
       `A xiangqi study on Mistboard with ${chapterCount} ${chapterCount === 1 ? 'chapter' : 'chapters'}: annotated moves on an interactive board.`;
     html = injectPageMeta(html, {
-      title: `${study.name} | Mistboard study`,
+      title: `${name} | Mistboard study`,
       description,
-      url: `${params.publicHost}/study/${encodeURIComponent(params.studyId)}`,
+      url: `${params.publicHost}${localePath}/study/${encodeURIComponent(params.studyId)}`,
     });
+    // hreflang alternates so the locale variants read as one page in three
+    // languages rather than three competing near-duplicates.
+    const alternates = (['en', 'zh-hans', 'zh-hant'] as const)
+      .map((other) => {
+        const href = `${params.publicHost}${other === 'en' ? '' : `/${other}`}/study/${encodeURIComponent(params.studyId)}`;
+        const hreflang = other === 'en' ? 'en' : other === 'zh-hans' ? 'zh-Hans' : 'zh-Hant';
+        return `<link rel="alternate" hreflang="${hreflang}" href="${href}">`;
+      })
+      .join('');
+    html = html.replace('</head>', `${alternates}</head>`);
   }
 
   const preloadLinks = await routePreloadLinksForPath({

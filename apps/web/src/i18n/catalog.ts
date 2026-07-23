@@ -97,7 +97,9 @@ const APP_I18N_DOMAIN_DEFS: readonly AppI18nDomainDef[] = [
   },
   {
     name: 'review',
-    prefixes: ['replay', 'watch'],
+    // 'study' rides the review domain: the study surface IS the review shell,
+    // so its chrome loads with the same lazy chunk rather than a fourth one.
+    prefixes: ['replay', 'watch', 'study'],
     english: EN_REVIEW,
     critical: CRITICAL_REVIEW_I18N_KEYS,
   },

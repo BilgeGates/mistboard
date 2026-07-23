@@ -32,6 +32,13 @@ export const EN_REVIEW = {
   'watch.revealHiddenIdentities': 'Reveal hidden identities',
   'watch.revealHiddenIdentitiesShortcut': 'Reveal hidden identities (h)',
   'watch.gameLoadFailed': 'This game could not be loaded.',
+  // Study surface chrome. Study/chapter TEXT is author-supplied and localized
+  // per study (study-i18n.ts); these are the fixed labels around it.
+  'study.chapterCount': '{count} Chapters',
+  'study.chapterCountOne': '1 Chapter',
+  'study.chatRoom': 'Chat room',
+  'study.chatSignIn': 'Sign in to chat',
+  'study.chatPlaceholder': 'Please be nice in the chat!',
 } as const;
 
 export type ReviewI18nKey = keyof typeof EN_REVIEW;

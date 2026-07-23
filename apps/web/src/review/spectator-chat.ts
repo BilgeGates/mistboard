@@ -1,4 +1,5 @@
 import './spectator-chat.css';
+import { t } from '../i18n/catalog.js';
 
 type ChatLine = { id: string; handle: string | null; text: string; createdAt: string };
 type ChatState = {
@@ -38,7 +39,7 @@ export function buildLiveRoomChat(roomId: string): HTMLElement {
     ariaLabel: 'Game chat',
     live: true,
     pollMs: LIVE_POLL_MS,
-    title: 'Chat room',
+    title: t('study.chatRoom'),
   });
 }
 
@@ -48,7 +49,7 @@ export function buildStudyChat(studyId: string): HTMLElement {
     ariaLabel: 'Study chat',
     live: false,
     pollMs: POLL_MS,
-    title: 'Chat room',
+    title: t('study.chatRoom'),
     apiUrl: studyChatApiUrl(studyId),
   });
 }
@@ -149,7 +150,7 @@ function renderFooter(
   const signIn = document.createElement('a');
   signIn.className = 'review-spectator-chat__signin';
   signIn.href = '/account?tab=login';
-  signIn.textContent = 'Sign in to chat';
+  signIn.textContent = t('study.chatSignIn');
   footer.append(signIn);
 }
 
@@ -167,7 +168,7 @@ function buildComposer(
   input.className = 'review-spectator-chat__input';
   input.type = 'text';
   input.maxLength = 140;
-  input.placeholder = 'Please be nice in the chat!';
+  input.placeholder = t('study.chatPlaceholder');
 
   const status = document.createElement('span');
   status.className = 'review-spectator-chat__status';

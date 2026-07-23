@@ -602,3 +602,20 @@ test('proxyTrustWarningFor warns only in production when the resolved IP is priv
   // non-production → never warns, even for a private IP
   assert.equal(proxyTrustWarningFor('10.0.0.5', 1, {}), null);
 });
+
+// Locale-prefixed study permalinks. The review-shell assert is the load-bearing
+// one: that gate carries COOP/COEP, and a study page that misses it still
+// renders but silently loses SharedArrayBuffer, so the engine dies on the
+// localized URL only (same bug class as the /analysis saga).
+test('locale-prefixed study permalinks are client routes AND review-shell routes', () => {
+  for (const path of ['/study/Ab12cd', '/zh-hans/study/Ab12cd', '/zh-hant/study/Ab12cd']) {
+    assert.equal(isClientRoute(path), true, `${path} should serve the SPA shell`);
+    assert.equal(isReviewShellRoute(path), true, `${path} needs COOP/COEP for the engine`);
+  }
+});
+
+test('a bogus locale prefix on a study path is not a route', () => {
+  for (const path of ['/fr/study/Ab12cd', '/zh/study/Ab12cd', '/zh-hans/study/']) {
+    assert.equal(isClientRoute(path), false, `${path} should not match`);
+  }
+});

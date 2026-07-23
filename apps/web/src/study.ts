@@ -9,6 +9,7 @@
 // Non-owners get a read/explore view.
 
 import './game-shell.css';
+import { t } from './i18n/catalog.js';
 import { localizedStudyDescription, localizedStudyName } from './study-i18n.js';
 import './live-xiangqi.css';
 import './xiangqi-postgame.css';
@@ -482,7 +483,10 @@ function chapterPanel(
 
   const head = document.createElement('div');
   head.className = 'study-chapters__head';
-  head.textContent = `${chapters.length} ${chapters.length === 1 ? 'Chapter' : 'Chapters'}`;
+  head.textContent =
+    chapters.length === 1
+      ? t('study.chapterCountOne')
+      : t('study.chapterCount', { count: chapters.length });
   // The variant is a study-level fact now, so it is named once here rather than
   // repeated per chapter row.
   const first = chapters[0];
