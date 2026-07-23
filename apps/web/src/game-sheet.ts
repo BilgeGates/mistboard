@@ -39,7 +39,6 @@ const SHEET_LIVE_SPECS: ReadonlySet<string> = new Set([
   'jungle',
   'jungle-flip',
   'dark-xiangqi',
-  'dark-shogi',
 ]);
 
 export function gameSheetVariants(): GameSheetVariant[] {

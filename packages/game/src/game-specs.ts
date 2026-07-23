@@ -198,8 +198,8 @@ export const DARK_DUAL_CHESS_SPEC_ID = 'dark-dual-chess' satisfies GameSpecAlias
 // tenant that supplies both a seek factory and a deadline sweeper
 // (correspondence-eligibility.test.ts).
 export const CORRESPONDENCE_ELIGIBLE_SPEC_IDS: readonly GameSpecId[] = [
-  DARK_CHESS_SPEC_ID,
   XIANGQI_SPEC_ID,
+  DARK_CHESS_SPEC_ID,
 ];
 
 // Specs a study chapter may hold, in display order. The SINGLE source of truth
@@ -212,10 +212,10 @@ export const CORRESPONDENCE_ELIGIBLE_SPEC_IDS: readonly GameSpecId[] = [
 // against a freshly minted deal would truncate the line to its legal prefix.
 export const STUDY_ELIGIBLE_SPEC_IDS: readonly GameSpecId[] = [
   XIANGQI_SPEC_ID,
-  JUNGLE_SPEC_ID,
   FORTRESS_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   DARK_CHESS_SPEC_ID,
+  JUNGLE_SPEC_ID,
 ];
 
 /** Fail-closed membership test for {@link STUDY_ELIGIBLE_SPEC_IDS} — narrows an
@@ -226,42 +226,20 @@ export function isStudyEligibleSpecId(value: string): value is GameSpecId {
 
 // Single source of truth for variant DISPLAY order across every surface: the
 // play-menu picker, the leaderboard/profile grids, the Mistboard TV watch rail,
-// and the /rules rail. Specs not listed here sort to the end in their own order,
-// so a new variant appears without editing callers that already sort by
-// canonicalVariantOrderIndex (just curate it here).
-// 2026-07 xiangqi pivot (project_xiangqi_pivot_track): repositioned as the
-// lichess-of-Chinese-chess. Open xiangqi anchors, then the approachable
-// flip/animal cluster (Banqi, Jungle, Flip Jungle), the authored Fortress
-// variant, then Jieqi; followed by the fog trio
-// (Fog Xiangqi, Fog Chess, Fog Shogi). The Mini Xiangqi sub-family +
-// Dark Crazyhouse are retired to the tail (hidden from menu/rail/grids;
-// deep-link URLs stay alive).
+// and the /rules rail. Only the current public product shelf is ranked here.
+// Internal, retired, and deep-link-only specs remain valid GAME_SPECS but sort
+// after the live shelf. The xiangqi family leads in popularity/product order,
+// Fog Xiangqi bridges directly into Fog Chess, and the two Jungle games close
+// the shelf together.
 export const CANONICAL_VARIANT_ORDER: readonly GameSpecId[] = [
-  // Standard Xiangqi is the open-info anchor.
   XIANGQI_SPEC_ID,
-  // Approachable flip/animal cluster. The authored Fortress variant follows
-  // the established games so it stays discoverable without outranking them;
-  // Jieqi closes the cluster as the full-board reveal variant.
   BANQI_SPEC_ID,
-  JUNGLE_SPEC_ID,
-  JUNGLE_FLIP_SPEC_ID,
-  FORTRESS_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
-  // Fog trio, clustered together after the open/flip games.
+  FORTRESS_XIANGQI_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
   DARK_CHESS_SPEC_ID,
-  DARK_SHOGI_SPEC_ID,
-  LUZHANQI_SPEC_ID,
-  // Hidden / parked / retired — order here only affects hidden surfaces.
-  DARK_CRAZYHOUSE_SPEC_ID,
-  KRIEGSPIEL_SPEC_ID,
-  REVEAL_CHESS_SPEC_ID,
-  DARK_DRAFT960_SPEC_ID,
-  CROSSROADS_CHESS_SPEC_ID,
-  DARK_CROSSROADS_CHESS_SPEC_ID,
-  MINI_XIANGQI_SPEC_ID,
-  DARK_MINI_XIANGQI_SPEC_ID,
-  DROP_MINI_XIANGQI_SPEC_ID,
+  JUNGLE_SPEC_ID,
+  JUNGLE_FLIP_SPEC_ID,
 ];
 
 /** Sort index for {@link CANONICAL_VARIANT_ORDER}; unlisted specs sort to the end. */

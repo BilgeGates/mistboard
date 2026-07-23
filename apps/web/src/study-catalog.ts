@@ -20,10 +20,10 @@ import { type GameSpecId, gameSpecForId, hasStartFen, XIANGQI_SPEC_ID } from '@m
 // shared list fails the test until it also gets a board.
 const STUDY_VARIANT_IDS = [
   'xiangqi',
-  'jungle',
   'fortress-xiangqi',
   'dark-xiangqi',
   'dark-chess',
+  'jungle',
 ] as const satisfies readonly GameSpecId[];
 
 export type StudyVariantId = (typeof STUDY_VARIANT_IDS)[number];

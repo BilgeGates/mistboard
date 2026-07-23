@@ -136,9 +136,9 @@ const VARIANT_MINI_BY_GAME_SPEC: Partial<Record<GameSpecId, VariantMiniId>> = {
   [JUNGLE_FLIP_SPEC_ID]: 'jungle-flip',
 };
 
-// Ordered to match the shared CANONICAL_VARIANT_ORDER (packages/game): open /
-// flip xiangqi variants lead, the animal-rank cluster follows, then the fog
-// trio. variants.test.ts asserts this array is already sorted by
+// Public variants lead in the shared CANONICAL_VARIANT_ORDER (packages/game);
+// internal and retired definitions remain afterward for flags and deep links.
+// variants.test.ts asserts this array is already sorted by
 // canonicalVariantOrderIndex.
 export const VARIANTS: VariantDef[] = [
   // Standard Xiangqi (9x10 open info): the pivot anchor. Launched 2026-07-04:
@@ -155,8 +155,7 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: xiangqiOn,
     onProfile: xiangqiOn,
   },
-  // Banqi stays a xiangqi-family rules kernel, but sits with the animal-rank
-  // games for the planned animal-themed presentation.
+  // Banqi is the established half-board flip member of the xiangqi family.
   {
     id: currentRatingVariantForSpec(BANQI_SPEC_ID),
     gameSpecId: banqiSpec.id,
@@ -167,46 +166,9 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: banqiOn,
     onProfile: banqiOn,
   },
-  // Jungle + Flip Jungle: rated human PvP (own pools), PvE bot games written
-  // unrated. The rating pools + profile/persistence wiring are live, but the
-  // public leaderboard/profile DISPLAY follows the play flag (`jungleOn` /
-  // `jungleFlipOn`), launched 2026-06-30 (now always-on). Not lobby open-seek (no
-  // public matchmaking in v1), so `enabled: false`.
-  {
-    id: currentRatingVariantForSpec(JUNGLE_SPEC_ID),
-    gameSpecId: jungleSpec.id,
-    apiParam: JUNGLE_SPEC_ID,
-    label: jungleSpec.publicName,
-    miniId: 'jungle',
-    enabled: false,
-    onLeaderboard: jungleOn,
-    onProfile: jungleOn,
-  },
-  {
-    id: currentRatingVariantForSpec(JUNGLE_FLIP_SPEC_ID),
-    gameSpecId: jungleFlipSpec.id,
-    apiParam: JUNGLE_FLIP_SPEC_ID,
-    label: jungleFlipSpec.publicName,
-    miniId: 'jungle-flip',
-    enabled: false,
-    onLeaderboard: jungleFlipOn,
-    onProfile: jungleFlipOn,
-  },
-  // Fortress Xiangqi ("Storm the Fortress"): authored xiangqi product variant.
-  // It follows the established flip/animal games in public display order.
-  {
-    id: currentRatingVariantForSpec(FORTRESS_XIANGQI_SPEC_ID),
-    gameSpecId: fortressXiangqiSpec.id,
-    apiParam: FORTRESS_XIANGQI_SPEC_ID,
-    label: fortressXiangqiSpec.publicName,
-    miniId: 'fortress-xiangqi',
-    enabled: false,
-    onLeaderboard: fortressXiangqiOn,
-    onProfile: fortressXiangqiOn,
-  },
-  // Jieqi closes the flip cluster: launched casual and rating-ready (gated
-  // globally by MISTBOARD_RATED_ENABLED). Not lobby-selectable (no open-seek
-  // matchmaking).
+  // Jieqi is the established full-board reveal member of the xiangqi family.
+  // It is launched casual and rating-ready (gated globally by
+  // MISTBOARD_RATED_ENABLED), with no open-seek matchmaking.
   {
     id: currentRatingVariantForSpec(JIEQI_SPEC_ID),
     gameSpecId: jieqiSpec.id,
@@ -217,9 +179,19 @@ export const VARIANTS: VariantDef[] = [
     onLeaderboard: jieqiOn,
     onProfile: jieqiOn,
   },
-  // Full Dark Xiangqi (9x10 fog): launched PvP-first (no bot, no open-seek
-  // lobby), rating-ready like jieqi/banqi. It starts the fog trio in the shared
-  // canonical order.
+  // Fortress: the authored open-information xiangqi product variant.
+  {
+    id: currentRatingVariantForSpec(FORTRESS_XIANGQI_SPEC_ID),
+    gameSpecId: fortressXiangqiSpec.id,
+    apiParam: FORTRESS_XIANGQI_SPEC_ID,
+    label: fortressXiangqiSpec.publicName,
+    miniId: 'fortress-xiangqi',
+    enabled: false,
+    onLeaderboard: fortressXiangqiOn,
+    onProfile: fortressXiangqiOn,
+  },
+  // Full Fog Xiangqi (9x10): launched PvP-first (no bot, no open-seek lobby),
+  // rating-ready like Jieqi/Banqi, and paired directly with Fog Chess.
   {
     id: currentRatingVariantForSpec(DARK_XIANGQI_SPEC_ID),
     gameSpecId: darkXiangqiSpec.id,
@@ -239,6 +211,29 @@ export const VARIANTS: VariantDef[] = [
     enabled: true,
     onLeaderboard: true,
     onProfile: true,
+  },
+  // Jungle + Flip Jungle close the public shelf as a family pair. Both use
+  // rated human PvP pools; PvE bot games stay unrated. They are not open-seek
+  // lobby variants, so `enabled` remains false.
+  {
+    id: currentRatingVariantForSpec(JUNGLE_SPEC_ID),
+    gameSpecId: jungleSpec.id,
+    apiParam: JUNGLE_SPEC_ID,
+    label: jungleSpec.publicName,
+    miniId: 'jungle',
+    enabled: false,
+    onLeaderboard: jungleOn,
+    onProfile: jungleOn,
+  },
+  {
+    id: currentRatingVariantForSpec(JUNGLE_FLIP_SPEC_ID),
+    gameSpecId: jungleFlipSpec.id,
+    apiParam: JUNGLE_FLIP_SPEC_ID,
+    label: jungleFlipSpec.publicName,
+    miniId: 'jungle-flip',
+    enabled: false,
+    onLeaderboard: jungleFlipOn,
+    onProfile: jungleFlipOn,
   },
   {
     id: currentRatingVariantForSpec(DARK_SHOGI_SPEC_ID),

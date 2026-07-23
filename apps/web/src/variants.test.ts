@@ -31,9 +31,8 @@ import {
 
 describe('web variant launch registry', () => {
   it('lists VARIANTS in the shared canonical variant order', () => {
-    // The leaderboard/profile grids render in VARIANTS order; it must match the
-    // one canonical order every surface (picker, watch, rules rail) sorts by, so
-    // the variant sequence is identical everywhere.
+    // The leaderboard/profile grids render in VARIANTS order. Public entries
+    // must match the shelf; unranked internal definitions remain at the tail.
     const order = VARIANTS.map((v) => v.gameSpecId);
     const canonical = [...order].sort(
       (a, b) => canonicalVariantOrderIndex(a) - canonicalVariantOrderIndex(b),
@@ -63,13 +62,13 @@ describe('web variant launch registry', () => {
     vi.resetModules();
     vi.stubEnv('DEV', false);
     const prod = await import('./variants.js');
-    // Xiangqi pivot: drop-mini is off the rating grids now; chess is deranked so
-    // it sorts after the xiangqi + animal-rank buckets.
+    // Only always-on rating surfaces remain in this flag-off production view,
+    // filtered without changing their canonical shelf order.
     expect(prod.leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
-      JUNGLE_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
       FORTRESS_XIANGQI_SPEC_ID,
       DARK_CHESS_SPEC_ID,
+      JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
     ]);
     vi.unstubAllEnvs();
     vi.resetModules();
@@ -79,16 +78,15 @@ describe('web variant launch registry', () => {
     vi.resetModules();
     // Retired sub-family: DMX now gates on the single VITE_DARK_MINI_XIANGQI_ENABLED
     // flag (the two-tier public-entry flag was removed). With it on, DMX rejoins both
-    // profile + leaderboard (last, in canonical order); drop-mini stays off the grids
-    // and chess is deranked to the end of the filtered list.
+    // profile + leaderboard after the public shelf; drop-mini stays off the grids.
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     const flagged = await import('./variants.js');
     const expected = [
-      JUNGLE_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
       FORTRESS_XIANGQI_SPEC_ID,
       DARK_CHESS_SPEC_ID,
+      JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
       DARK_MINI_XIANGQI_SPEC_ID,
     ];
     expect(flagged.profileRatingVariants.map((v) => v.gameSpecId)).toEqual(expected);
@@ -157,27 +155,26 @@ describe('web variant launch registry', () => {
   });
 
   it('shows only product-profile variants on default local rating surfaces', () => {
-    // Xiangqi pivot: canonical order (xiangqi anchors, then the flip/animal
-    // cluster, then the fog trio), and drop-mini is off the rating grids.
+    // Public shelf order: xiangqi family, fog pair, then Jungle family.
     expect(leaderboardVariants.map((v) => v.gameSpecId)).toEqual([
       XIANGQI_SPEC_ID,
       BANQI_SPEC_ID,
-      JUNGLE_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
-      FORTRESS_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
+      FORTRESS_XIANGQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       DARK_CHESS_SPEC_ID,
+      JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
     ]);
     expect(profileRatingVariants.map((v) => v.gameSpecId)).toEqual([
       XIANGQI_SPEC_ID,
       BANQI_SPEC_ID,
-      JUNGLE_SPEC_ID,
-      JUNGLE_FLIP_SPEC_ID,
-      FORTRESS_XIANGQI_SPEC_ID,
       JIEQI_SPEC_ID,
+      FORTRESS_XIANGQI_SPEC_ID,
       DARK_XIANGQI_SPEC_ID,
       DARK_CHESS_SPEC_ID,
+      JUNGLE_SPEC_ID,
+      JUNGLE_FLIP_SPEC_ID,
     ]);
     expect(enabledVariants.map((v) => v.gameSpecId)).not.toContain(DARK_SHOGI_SPEC_ID);
     expect(variantMiniIdForGameSpec(DARK_SHOGI_SPEC_ID)).toBe('dark-shogi');
@@ -208,12 +205,12 @@ describe('web variant launch registry', () => {
     expect(VARIANTS.map((v) => [v.gameSpecId, v.apiParam])).toEqual([
       [XIANGQI_SPEC_ID, 'xiangqi'],
       [BANQI_SPEC_ID, 'banqi'],
-      [JUNGLE_SPEC_ID, 'jungle'],
-      [JUNGLE_FLIP_SPEC_ID, 'jungle-flip'],
-      [FORTRESS_XIANGQI_SPEC_ID, 'fortress-xiangqi'],
       [JIEQI_SPEC_ID, 'jieqi'],
+      [FORTRESS_XIANGQI_SPEC_ID, 'fortress-xiangqi'],
       [DARK_XIANGQI_SPEC_ID, 'dark-xiangqi'],
       [DARK_CHESS_SPEC_ID, 'fog'],
+      [JUNGLE_SPEC_ID, 'jungle'],
+      [JUNGLE_FLIP_SPEC_ID, 'jungle-flip'],
       [DARK_SHOGI_SPEC_ID, 'dark-shogi'],
       [DARK_CRAZYHOUSE_SPEC_ID, 'dark-crazyhouse'],
       [KRIEGSPIEL_SPEC_ID, 'kriegspiel'],

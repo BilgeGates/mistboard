@@ -16,6 +16,9 @@ describe('openChallengeDialog', () => {
     // is still in the DOM.
     expect(dialog?.querySelectorAll('select')).toHaveLength(3);
     expect(dialog?.textContent).toContain('alice');
+    const variant = dialog?.querySelector<HTMLSelectElement>('select[aria-label="Variant"]');
+    expect([...variant!.options].map((option) => option.value)).toEqual(['xiangqi', 'dark-chess']);
+    expect(variant?.value).toBe('xiangqi');
   });
 
   it('posts a directed challenge addressed by target handle on send', () => {
@@ -41,9 +44,8 @@ describe('openChallengeDialog', () => {
       preferredColor: string;
     };
     expect(body.targetHandle).toBe('bob');
-    // The challenge now names a variant, and the side is variant-neutral move order.
-    expect(typeof body.gameSpecId).toBe('string');
-    expect(body.gameSpecId.length).toBeGreaterThan(0);
+    // The canonical first correspondence variant is the default.
+    expect(body.gameSpecId).toBe('xiangqi');
     expect(typeof body.daysPerMove).toBe('number');
     expect(['random', 'first', 'second']).toContain(body.preferredColor);
   });

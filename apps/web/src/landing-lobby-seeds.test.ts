@@ -240,6 +240,22 @@ describe('landing lobby bot seeks', () => {
     expect(chip?.querySelector('.landing-quickpair-chip-text')?.textContent).toBe('3+2');
   });
 
+  it('promotes the first six canonical variants in the quick-pair table', () => {
+    const panel = buildLobbyPanel('en', { hydrate: false });
+    const specs = [
+      ...panel.querySelectorAll<HTMLElement>('.landing-quickpair-row[data-game-spec]'),
+    ].map((row) => row.dataset.gameSpec);
+
+    expect(specs).toEqual([
+      'xiangqi',
+      'banqi',
+      'jieqi',
+      'fortress-xiangqi',
+      'dark-xiangqi',
+      'dark-chess',
+    ]);
+  });
+
   it('opens the correspondence CTA on days-per-move, not real-time clocks', () => {
     vi.stubEnv('VITE_CORRESPONDENCE_ENABLED', 'true');
     const panel = buildLobbyPanel('en', { hydrate: false });

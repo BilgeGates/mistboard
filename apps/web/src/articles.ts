@@ -125,12 +125,12 @@ function isArticleListedInThisEnv(article: Article): boolean {
 type RulesArticleGroupId = 'chess' | 'xiangqi' | 'shogi' | 'jungle' | 'other';
 
 // Group order mirrors CANONICAL_VARIANT_ORDER (game-specs.ts) by each family's
-// first appearance there: xiangqi leads, then Jungle, then the deranked chess
-// family, then Shogi. The rules rail itself is globally sorted, not grouped.
+// first appearance there: xiangqi leads, Fog Chess bridges into the chess
+// family, then Jungle. The rules rail itself is globally sorted, not grouped.
 const RULES_ARTICLE_GROUP_ORDER: readonly RulesArticleGroupId[] = [
   'xiangqi',
-  'jungle',
   'chess',
+  'jungle',
   'shogi',
   'other',
 ];

@@ -682,8 +682,8 @@ describe('rules variant sidebar', () => {
     expect(navs).toHaveLength(1);
     const nav = navs?.[0];
     const hrefs = [...(nav?.querySelectorAll('a') ?? [])].map((link) => link.getAttribute('href'));
-    // The mini xiangqi trio is de-listed; the rail uses the global canonical
-    // order, including the animal-rank cluster followed by the fog trio.
+    // The mini xiangqi trio is de-listed; the rail uses the eight-variant
+    // public shelf order.
     expect(nav?.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/fog-xiangqi"]')).not.toBeNull();
@@ -699,21 +699,18 @@ describe('rules variant sidebar', () => {
     expect(nav?.querySelector('a[href="/rules/shogi"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/dark-shogi"]')).toBeNull();
     expect(hrefs.indexOf('/rules/xiangqi')).toBeLessThan(hrefs.indexOf('/rules/flip-xiangqi'));
-    expect(hrefs.indexOf('/rules/flip-xiangqi')).toBeLessThan(hrefs.indexOf('/rules/jungle'));
-    expect(hrefs.indexOf('/rules/jungle')).toBeLessThan(hrefs.indexOf('/rules/jungle-flip'));
-    expect(hrefs.indexOf('/rules/jungle-flip')).toBeLessThan(
-      hrefs.indexOf('/rules/fortress-xiangqi'),
-    );
-    expect(hrefs.indexOf('/rules/fortress-xiangqi')).toBeLessThan(
-      hrefs.indexOf('/rules/reveal-xiangqi'),
-    );
-    expect(hrefs.indexOf('/rules/jungle-flip')).toBeLessThan(
+    expect(hrefs.indexOf('/rules/flip-xiangqi')).toBeLessThan(
       hrefs.indexOf('/rules/reveal-xiangqi'),
     );
     expect(hrefs.indexOf('/rules/reveal-xiangqi')).toBeLessThan(
+      hrefs.indexOf('/rules/fortress-xiangqi'),
+    );
+    expect(hrefs.indexOf('/rules/fortress-xiangqi')).toBeLessThan(
       hrefs.indexOf('/rules/fog-xiangqi'),
     );
     expect(hrefs.indexOf('/rules/fog-xiangqi')).toBeLessThan(hrefs.indexOf('/rules/fog-chess'));
+    expect(hrefs.indexOf('/rules/fog-chess')).toBeLessThan(hrefs.indexOf('/rules/jungle'));
+    expect(hrefs.indexOf('/rules/jungle')).toBeLessThan(hrefs.indexOf('/rules/jungle-flip'));
   });
 
   it('lists the elevated xiangqi variants (not the hidden mini trio) by default', () => {
@@ -772,18 +769,18 @@ describe('rules variant sidebar', () => {
     const titles = [...landing.querySelectorAll('.rules-landing-group-title')].map(
       (el) => el.textContent,
     );
-    expect(titles).toEqual(['Xiangqi variants', 'Animal chess', 'Chess variants']);
+    expect(titles).toEqual(['Xiangqi variants', 'Chess variants', 'Animal chess']);
     const grids = landing.querySelectorAll('.rules-landing-grid');
     expect(grids[0]?.querySelector('a[href="/rules/xiangqi"]')).not.toBeNull();
     // Xiangqi pivot: the mini xiangqi trio is de-listed from the tile grid
     // (still reachable by direct URL).
     expect(grids[0]?.querySelector('a[href="/rules/drop-mini-xiangqi"]')).toBeNull();
     expect(grids[0]?.querySelector('a[href="/rules/fog-xiangqi"]')).not.toBeNull();
-    expect(grids[1]?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();
-    expect(grids[1]?.querySelector('a[href="/rules/jungle-flip"]')).not.toBeNull();
-    expect(grids[2]?.querySelector('a[href="/rules/fog-chess"]')).not.toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/fog-chess"]')).not.toBeNull();
+    expect(grids[2]?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();
+    expect(grids[2]?.querySelector('a[href="/rules/jungle-flip"]')).not.toBeNull();
     // The chess reference article is de-listed from the tile grid.
-    expect(grids[2]?.querySelector('a[href="/rules/chess"]')).toBeNull();
+    expect(grids[1]?.querySelector('a[href="/rules/chess"]')).toBeNull();
     expect(grids).toHaveLength(3);
   });
 

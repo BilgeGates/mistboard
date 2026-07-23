@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   BANQI_SPEC_ID,
+  CANONICAL_VARIANT_ORDER,
   CROSSROADS_CHESS_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_CRAZYHOUSE_SPEC_ID,
@@ -12,6 +13,7 @@ import {
   DARK_XIANGQI_SPEC_ID,
   DROP_MINI_XIANGQI_SPEC_ID,
   FOG_DRAFT960_SPEC_ID,
+  FORTRESS_XIANGQI_SPEC_ID,
   GAME_SPECS,
   gameSpecForId,
   gameSpecForLegacyLiveRoom,
@@ -31,7 +33,21 @@ import {
   REVEAL_CHESS_SPEC_ID,
   ratingPoolForSpec,
   STUDY_ELIGIBLE_SPEC_IDS,
+  XIANGQI_SPEC_ID,
 } from './game-specs.js';
+
+test('canonical display order contains exactly the current public variant shelf', () => {
+  assert.deepEqual(CANONICAL_VARIANT_ORDER, [
+    XIANGQI_SPEC_ID,
+    BANQI_SPEC_ID,
+    JIEQI_SPEC_ID,
+    FORTRESS_XIANGQI_SPEC_ID,
+    DARK_XIANGQI_SPEC_ID,
+    DARK_CHESS_SPEC_ID,
+    JUNGLE_SPEC_ID,
+    JUNGLE_FLIP_SPEC_ID,
+  ]);
+});
 
 test('current dark chess maps to the flagship chess spec', () => {
   const spec = gameSpecForId(DARK_CHESS_SPEC_ID);

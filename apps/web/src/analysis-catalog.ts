@@ -34,12 +34,12 @@ function entry(id: AnalysisVariantId): AnalysisVariant {
 export const ANALYSIS_VARIANTS: readonly AnalysisVariant[] = [
   entry('xiangqi'),
   entry('banqi'),
-  entry('jungle'),
-  entry('jungle-flip'),
-  entry('fortress-xiangqi'),
   entry('jieqi'),
+  entry('fortress-xiangqi'),
   entry('dark-xiangqi'),
   entry('dark-chess'),
+  entry('jungle'),
+  entry('jungle-flip'),
 ];
 
 export function analysisVariantLabel(id: AnalysisVariantId): string {

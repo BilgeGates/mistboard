@@ -11,19 +11,18 @@ import {
 import { setRatedModeEnabled } from './rated-flag.js';
 import { setResolvedSignedIn } from './signed-in-state.js';
 
-// Xiangqi pivot (2026-07): the open xiangqi anchors lead, the approachable
-// flip/animal cluster follows (Banqi, Jungle, Flip Jungle), then Fortress and
-// Jieqi, then the fog pair. The mini xiangqi trio, Fog Shogi, plus
-// dark-crazyhouse are hidden from menus (offerInMenu=false) — they remain
-// reachable only by deep link when their development flag is enabled.
+// The public shelf keeps the xiangqi family together, pairs Fog Xiangqi with
+// Fog Chess, then closes with Jungle + Flip Jungle. The mini xiangqi trio, Fog
+// Shogi, plus dark-crazyhouse are hidden from menus (offerInMenu=false) — they
+// remain reachable only by deep link when their development flag is enabled.
 const BASELINE_PICKER_SPECS = [
   'banqi',
-  'jungle',
-  'jungle-flip',
-  'fortress-xiangqi',
   'jieqi',
+  'fortress-xiangqi',
   'dark-xiangqi',
   'dark-chess',
+  'jungle',
+  'jungle-flip',
 ];
 
 describe('landing play panel', () => {
@@ -1152,12 +1151,13 @@ describe('landing play panel', () => {
         canonicalVariantOrderIndex(a as GameSpecId) - canonicalVariantOrderIndex(b as GameSpecId),
     );
     expect(specs).toEqual(canonical);
-    // Xiangqi pivot: the mini xiangqi trio is hidden from the picker, so the
-    // ordering that remains observable clusters the three fog variants together.
+    // The mini xiangqi trio is hidden; the two public fog games stay adjacent
+    // ahead of the Jungle pair.
     expect(specs).toContain('dark-xiangqi');
     expect(specs).not.toContain('mini-xiangqi');
-    expect(specs.indexOf('jungle')).toBeLessThan(specs.indexOf('dark-xiangqi'));
     expect(specs.indexOf('dark-xiangqi')).toBeLessThan(specs.indexOf('dark-chess'));
+    expect(specs.indexOf('dark-chess')).toBeLessThan(specs.indexOf('jungle'));
+    expect(specs.indexOf('jungle')).toBeLessThan(specs.indexOf('jungle-flip'));
   });
 
   it('sends the chess game spec id when finding a chess opponent', async () => {

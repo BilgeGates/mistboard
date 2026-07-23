@@ -17,21 +17,19 @@ import {
   type PublicStatsMode,
 } from './stats-charts.js';
 
-// The curated set of live variants shown on the public /stats surface, in
-// canonical order (game-specs.ts CANONICAL_VARIANT_ORDER, open/flip/fog bands),
-// minus the parked/retired ids. This is the product's "home of Chinese chess +
-// variants" shelf, so retired experiments (mini/drop, dark-shogi, luzhanqi) and
-// hidden chess variants stay off the public breakdown and chart filter. Admin
-// /metrics still shows the full diagnostic list.
+// The curated set of live variants shown on the public /stats surface, matching
+// game-specs.ts CANONICAL_VARIANT_ORDER. Retired experiments (mini/drop,
+// dark-shogi, luzhanqi) and hidden chess variants stay off the public breakdown
+// and chart filter. Admin /metrics still shows the full diagnostic list.
 const STATS_VARIANTS: readonly string[] = [
   'xiangqi',
   'banqi',
-  'jungle',
-  'jungle-flip',
-  'fortress-xiangqi',
   'jieqi',
+  'fortress-xiangqi',
   'dark-xiangqi',
   'dark-chess',
+  'jungle',
+  'jungle-flip',
 ];
 
 type LiveStats = { playing: number; online: number };

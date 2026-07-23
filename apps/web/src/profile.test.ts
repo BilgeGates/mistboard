@@ -594,10 +594,11 @@ describe('profile ratings rail', () => {
 
   it('renders ladders in canonical variant order regardless of which are populated', async () => {
     vi.stubEnv('DEV', false);
-    // Populate Dark Chess ('fog'), the LAST enabled ladder in the canonical
-    // order, to prove a populated ladder no longer floats to the front (#137):
+    // Populate Dark Chess ('fog') to prove a populated ladder no longer floats
+    // to the front (#137):
     // the leaderboard keys off CANONICAL_VARIANT_ORDER like the picker/profile/
-    // rail, so Fortress still leads with no data and Dark Chess keeps its slot.
+    // rail, so Fortress still leads with no data and Dark Chess keeps its slot
+    // between Fortress and the Jungle pair.
     stubLeaderboardFetch({
       ladders: [
         {
@@ -629,16 +630,15 @@ describe('profile ratings rail', () => {
     // Ladders absent from the summary render the no-rated-games state.
     expect(root.textContent).toContain('No rated games yet.');
 
-    // Canonical order: Jungle (first enabled ladder) leads even with no data,
-    // and the populated Dark Chess ladder stays LAST at its canonical index —
-    // no populated-first reordering.
+    // Canonical filtered order: Fortress, Fog Chess, Jungle, Flip Jungle.
     const titles = [...root.querySelectorAll('.leaderboard-panel-title')].map(
       (el) => el.textContent,
     );
-    expect(titles[0]).toBe('Jungle Chess');
+    expect(titles).toEqual(['Fortress Xiangqi', 'Fog Chess', 'Jungle Chess', 'Flip Jungle']);
     const panels = [...root.querySelectorAll('.leaderboard-panel')];
     expect(panels[0]?.textContent).toContain('No rated games yet.');
-    expect(panels[panels.length - 1]?.textContent).toContain('1520');
+    expect(panels[1]?.textContent).toContain('1520');
+    expect(panels[panels.length - 1]?.textContent).toContain('No rated games yet.');
   });
 
   it('localizes Traditional Chinese leaderboard chrome', async () => {
