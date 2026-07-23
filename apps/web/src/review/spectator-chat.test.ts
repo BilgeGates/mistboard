@@ -38,6 +38,7 @@ describe('live room chat', () => {
 
     expect(panel.getAttribute('aria-label')).toBe('Game chat');
     expect(panel.textContent).toContain('Chat room');
+    expect(panel.querySelector('[role="separator"][aria-label="Resize chat"]')).not.toBeNull();
     expect(fetchSpy).toHaveBeenCalledWith('/api/chat/player/room%20with%20spaces');
     expect(
       Array.from(panel.querySelectorAll<HTMLButtonElement>('.review-spectator-chat__quick-button'))

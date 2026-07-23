@@ -131,6 +131,51 @@
   background: var(--site-bg);
 }
 
+/* Desktop game/review rails: an accessible bottom-edge separator switches the
+   room from automatic flex-fill to a persisted preferred height. Study chat
+   deliberately omits it because study owns its own rail allocation. */
+.review-spectator-chat__resize {
+  display: none;
+  flex: 0 0 auto;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 18px;
+  border-top: 1px solid var(--review-chat-border);
+  background: var(--review-chat-bg);
+  cursor: row-resize;
+  touch-action: none;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.review-spectator-chat__resize-rule {
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--review-chat-muted);
+  opacity: 0.55;
+  transition:
+    width 120ms ease,
+    opacity 120ms ease;
+}
+
+.review-spectator-chat__resize:hover,
+.review-spectator-chat__resize:focus-visible,
+.review-spectator-chat__resize.is-dragging {
+  background: var(--site-accent-soft);
+  outline: none;
+}
+
+.review-spectator-chat__resize:hover .review-spectator-chat__resize-rule,
+.review-spectator-chat__resize:focus-visible .review-spectator-chat__resize-rule,
+.review-spectator-chat__resize.is-dragging .review-spectator-chat__resize-rule {
+  width: 42px;
+  opacity: 0.9;
+}
+
 .review-spectator-chat__composer {
   display: flex;
   flex-wrap: wrap;
@@ -234,4 +279,21 @@
     flex: 1 1 0;
     min-height: 0;
   }
+
+  .review-spectator-chat--manual-height {
+    flex: 0 0 auto;
+    height: var(--review-chat-manual-height);
+  }
+
+  .review-spectator-chat__resize {
+    display: flex;
+  }
+}
+
+.chat-resizing,
+.chat-resizing * {
+  /* biome-ignore lint/complexity/noImportantStyles: keep the resize cursor
+     stable while the pointer crosses descendants during a drag. */
+  cursor: row-resize !important;
+  user-select: none;
 }

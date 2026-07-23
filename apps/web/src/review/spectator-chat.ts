@@ -1,5 +1,6 @@
 import './spectator-chat.css';
 import { t } from '../i18n/catalog.js';
+import { attachChatResize } from './chat-resize.js';
 
 type ChatLine = { id: string; handle: string | null; text: string; createdAt: string };
 type ChatState = {
@@ -32,6 +33,8 @@ type GameChatOptions = {
    * instead. Falling back is a demotion, so quick chat goes with it.
    */
   fallback?: { apiUrl: string; title: string };
+  /** Desktop game/review rails can give this room a persisted height control. */
+  resizable?: boolean;
 };
 
 /** Mutable per-panel resolution: which room this panel actually ended up in. */
@@ -46,6 +49,7 @@ export function buildSpectatorChat(roomId: string): HTMLElement {
     live: false,
     pollMs: POLL_MS,
     title: 'Spectator room',
+    resizable: true,
   });
 }
 
@@ -64,6 +68,7 @@ export function buildLiveRoomChat(roomId: string): HTMLElement {
     title: t('study.chatRoom'),
     apiUrl: playerChatApiUrl(roomId),
     fallback: { apiUrl: gameChatApiUrl(roomId), title: 'Spectator room' },
+    resizable: true,
   });
 }
 
@@ -99,6 +104,7 @@ function buildGameChat(roomId: string, options: GameChatOptions): HTMLElement {
   renderStatus(footer, 'Loading chat...');
 
   panel.append(header, feed, footer);
+  if (options.resizable) attachChatResize(panel);
 
   const session: ChatSession = {
     apiUrl: options.apiUrl ?? gameChatApiUrl(roomId),
