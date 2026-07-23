@@ -18,6 +18,7 @@
 // (play a move → it branches the tree, promote/delete variations).
 
 import type { MoveJudgment } from '@mistboard/game';
+import { displayComment } from '../study-i18n.js';
 import { type AdvantageChart, createAdvantageChart } from './advantage-chart.js';
 import { createAnalysisSummary } from './analysis-summary.js';
 import { createAnnotationEditor } from './annotations-editor.js';
@@ -807,7 +808,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
         tag.textContent = 'main line';
         row.append(tag);
       }
-      const snippet = child.annotations?.comments?.[0]?.text;
+      const snippet = displayComment(child.annotations?.comments?.[0]);
       if (snippet) {
         const note = document.createElement('span');
         note.className = 'review-var-picker__snippet';
@@ -924,7 +925,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     annotationEditor?.setAnnotations(node.annotations);
     // Under-board comment panel: the current node's authored text (hidden when
     // the node carries none). The move list only marks commented moves.
-    const authoredComment = node.annotations?.comments?.[0]?.text ?? '';
+    const authoredComment = displayComment(node.annotations?.comments?.[0]) ?? '';
     commentPanelEl.textContent = authoredComment;
     commentPanelEl.classList.toggle('review-comment-panel--empty', !authoredComment);
     moveTree.setCurrent(currentPath);

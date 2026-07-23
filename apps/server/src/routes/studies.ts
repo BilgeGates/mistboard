@@ -38,11 +38,23 @@ function isSerializedTree(value: unknown): boolean {
   return !!root && typeof root === 'object' && Array.isArray(root.children);
 }
 
+/** Read an `i18n` overlay off a request body. Anything that is not a plain
+ *  object is treated as absent rather than rejected, so a client that omits or
+ *  fumbles the field just gets no translations. */
+function parseI18nField(value: unknown): Record<string, unknown> | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'object' || Array.isArray(value)) return undefined;
+  return value as Record<string, unknown>;
+}
+
 function studyView(study: persistence.StudyRecord, isOwner: boolean) {
   return {
     id: study.id,
     name: study.name,
     description: study.description,
+    // Per-locale overrides; the client resolves against its current locale and
+    // falls back to name/description (study-i18n.ts).
+    i18n: study.i18n,
     visibility: study.visibility,
     isOwner,
     createdAt: study.createdAt.toISOString(),
@@ -71,6 +83,7 @@ function chapterView(chapter: persistence.StudyChapterRecord) {
   return {
     id: chapter.id,
     name: chapter.name,
+    i18n: chapter.i18n,
     variant: chapter.variant,
     orientation: chapter.orientation,
     root: chapter.root,
@@ -249,9 +262,11 @@ async function createStudy(
     ownerId,
     name,
     description: typeof body.description === 'string' ? body.description : '',
+    i18n: parseI18nField(body.i18n),
     visibility: persistence.isStudyVisibility(visibility) ? visibility : 'private',
     chapter: {
       name: chapterName,
+      i18n: parseI18nField(chapter.i18n),
       variant,
       orientation,
       root: chapter.root,
@@ -326,6 +341,7 @@ async function addChapter(
   const orientation = body.orientation === 'black' ? 'black' : 'red';
   const result = await persistence.addChapter(studyId, ownerId, {
     name,
+    i18n: parseI18nField(body.i18n),
     variant,
     orientation,
     root: body.root,
@@ -376,13 +392,19 @@ async function patchChapter(
     writeJson(response, 200, { chapter: chapterView(result.chapter) });
     return true;
   }
-  if (typeof body.name === 'string') {
-    const name = body.name.trim();
-    if (!name) {
-      writeJson(response, 400, { error: 'invalid_name' });
-      return true;
+  // Rename and/or replace the chapter's locale overrides. An i18n-only body is
+  // valid: translating a chapter should not require restating its base name.
+  const chapterI18n = parseI18nField(body.i18n);
+  if (typeof body.name === 'string' || chapterI18n !== undefined) {
+    let name: string | null = null;
+    if (typeof body.name === 'string') {
+      name = body.name.trim();
+      if (!name) {
+        writeJson(response, 400, { error: 'invalid_name' });
+        return true;
+      }
     }
-    const result = await persistence.renameChapter(chapterId, ownerId, name);
+    const result = await persistence.renameChapter(chapterId, ownerId, name, chapterI18n);
     if (!result.ok) {
       writeJson(response, result.error === 'forbidden' ? 403 : 404, { error: result.error });
       return true;
@@ -433,6 +455,7 @@ async function updateMeta(
   const result = await persistence.updateStudyMeta(id, user.id, {
     name,
     description: typeof body.description === 'string' ? body.description : undefined,
+    i18n: parseI18nField(body.i18n),
     visibility: persistence.isStudyVisibility(body.visibility) ? body.visibility : undefined,
   });
   if (!result.ok) {

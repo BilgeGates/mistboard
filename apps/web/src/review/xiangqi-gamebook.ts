@@ -11,6 +11,7 @@ import {
   type XiangqiColor,
   type XiangqiGameState,
 } from '@mistboard/game';
+import { displayComment } from '../study-i18n.js';
 import { createXiangqiInteractiveBoard } from '../xiangqi-board.js';
 import { createGamebookSession } from './gamebook-play.js';
 import { deserializeTree, type SerializedTree } from './tree-serialize.js';
@@ -43,7 +44,7 @@ export function mountXiangqiGamebook(root: HTMLElement, opts: XiangqiGamebookOpt
     learner: opts.orientation,
     sideToMove: (truth: XiangqiGameState) =>
       truth.status.type === 'playing' ? truth.status.turn : null,
-    comment: (node) => node.annotations?.comments?.[0]?.text,
+    comment: (node) => displayComment(node.annotations?.comments?.[0]),
     hint: (node) => node.annotations?.gamebook?.hint,
     deviation: (node) => node.annotations?.gamebook?.deviation,
   });

@@ -5,6 +5,7 @@
 // opens the fresh study.
 
 import './game-shell.css';
+import { localizedStudyName } from './study-i18n.js';
 import './study.css';
 import './study-index.css';
 import { normalizeStartFen } from '@mistboard/game';
@@ -28,6 +29,8 @@ type StudySummary = {
   id: string;
   name: string;
   description: string;
+  /** Per-locale overrides for `name`. */
+  i18n?: unknown;
   visibility: StudyVisibility;
   chapterCount: number;
   // Preview slice of the first few chapter names (older servers may omit it).
@@ -419,7 +422,7 @@ function cardHead(study: StudySummary): HTMLElement {
 
   const name = document.createElement('span');
   name.className = 'study-index__name';
-  name.textContent = study.name;
+  name.textContent = localizedStudyName(study.name, study.i18n);
 
   const meta = document.createElement('span');
   meta.className = 'study-index__meta';

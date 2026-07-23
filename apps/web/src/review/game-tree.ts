@@ -64,6 +64,11 @@ export interface NodeEval {
 export interface NodeComment {
   by?: string;
   text: string;
+  /** Optional per-locale text, keyed by Locale code (see study-i18n.ts). The
+   *  tree model stays locale-agnostic on purpose: it stores the translations,
+   *  and the render layer resolves one against the reader's current locale,
+   *  falling back to `text`. */
+  i18n?: Record<string, string>;
 }
 
 /** A drawn board annotation. 'circle' marks a single square (`orig`); 'arrow' runs

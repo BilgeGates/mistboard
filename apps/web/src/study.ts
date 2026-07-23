@@ -9,6 +9,7 @@
 // Non-owners get a read/explore view.
 
 import './game-shell.css';
+import { localizedStudyDescription, localizedStudyName } from './study-i18n.js';
 import './live-xiangqi.css';
 import './xiangqi-postgame.css';
 import './study.css';
@@ -35,6 +36,8 @@ type StudyDto = {
   id: string;
   name: string;
   description: string;
+  /** Per-locale overrides for name/description; resolved at render time. */
+  i18n?: unknown;
   visibility: StudyVisibility;
   isOwner: boolean;
   likeCount: number;
@@ -44,6 +47,8 @@ type StudyDto = {
 type ChapterDto = {
   id: string;
   name: string;
+  /** Per-locale overrides for `name`. */
+  i18n?: unknown;
   variant: string;
   orientation: string;
   root: SerializedTree;
@@ -230,8 +235,8 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
       mountXiangqiGamebook(root, {
         tree: chapter.root,
         orientation: chapter.orientation === 'black' ? 'black' : 'red',
-        title: study.name,
-        summary: chapter.name,
+        title: localizedStudyName(study.name, study.i18n),
+        summary: localizedStudyName(chapter.name, chapter.i18n),
         aside,
       });
       return;
@@ -277,9 +282,10 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
       ariaLabel: 'Study',
       // Empty eyebrow: the info card leads with the study name itself.
       eyebrow: '',
-      title: study.name,
+      title: localizedStudyName(study.name, study.i18n),
       summary:
-        study.description || (study.isOwner ? 'Draw, comment, and branch. Edits autosave.' : ''),
+        localizedStudyDescription(study.description, study.i18n) ||
+        (study.isOwner ? 'Draw, comment, and branch. Edits autosave.' : ''),
       boardAriaLabel: `${studyVariantLabel(variant)} board`,
       actions: buildActions(study, chapters, activeId, status, chapterActions, owner),
       details: buildStudyChat(study.id),
@@ -502,8 +508,9 @@ function chapterPanel(
     num.textContent = String(index + 1);
     const name = document.createElement('span');
     name.className = 'study-chapters__name';
-    name.textContent = chapter.name;
-    name.title = chapter.name;
+    const chapterLabel = localizedStudyName(chapter.name, chapter.i18n);
+    name.textContent = chapterLabel;
+    name.title = chapterLabel;
     link.append(num, name);
     link.addEventListener('click', () => actions.onSwitch(chapter.id));
     row.append(link);

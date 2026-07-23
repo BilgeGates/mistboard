@@ -273,4 +273,79 @@ definePersistenceTests('studies', () => {
     assert.equal(await deleteStudy(study.id, owner.id), true);
     assert.equal(await getStudyById(study.id), null);
   });
+  test('locale overrides round-trip on the study and its chapters', async () => {
+    // Slice 1 of study i18n: translations are an overlay on the base columns, so
+    // a curated Chinese-first study can serve English readers (and vice versa)
+    // without forking the study or its move tree.
+    const user = await makeUser('i18n');
+    const created = await createStudy({
+      ownerId: user.id,
+      name: '橘中秘',
+      description: '明代象棋譜',
+      i18n: { en: { name: 'Secret in the Tangerine', description: 'A Ming xiangqi manual.' } },
+      visibility: 'private',
+      chapter: {
+        name: '大列手砲局',
+        i18n: { en: { name: 'The great opposing cannons' } },
+        variant: 'xiangqi',
+        orientation: 'red',
+        root: tree,
+      },
+    });
+    assert.ok(created);
+    assert.deepEqual(created.i18n, {
+      en: { name: 'Secret in the Tangerine', description: 'A Ming xiangqi manual.' },
+    });
+    assert.deepEqual(created.chapters[0]!.i18n, { en: { name: 'The great opposing cannons' } });
+
+    // Re-read from Postgres, not just the RETURNING row.
+    const fetched = await getStudyById(created.id);
+    assert.equal(
+      (fetched?.i18n as { en?: { name?: string } })?.en?.name,
+      'Secret in the Tangerine',
+    );
+    assert.equal(fetched?.name, '橘中秘', 'base column stays the fallback');
+
+    // An added chapter carries its own overrides.
+    const added = await addChapter(created.id, user.id, {
+      name: '屏風馬破當頭包局',
+      i18n: { en: { name: 'Screen horses beat the central cannon' } },
+      variant: 'xiangqi',
+      orientation: 'red',
+      root: tree,
+    });
+    assert.ok(added.ok);
+    assert.equal(
+      (added.chapter.i18n as { en?: { name?: string } })?.en?.name,
+      'Screen horses beat the central cannon',
+    );
+
+    // Translating a chapter must not require restating its base name.
+    const translated = await renameChapter(added.chapter.id, user.id, null, {
+      en: { name: 'Screen horses' },
+      'zh-Hans': { name: '屏风马破当头炮局' },
+    });
+    assert.ok(translated.ok);
+    assert.equal(translated.chapter.name, '屏風馬破當頭包局', 'base name untouched');
+    assert.equal(
+      (translated.chapter.i18n as { 'zh-Hans'?: { name?: string } })['zh-Hans']?.name,
+      '屏风马破当头炮局',
+    );
+
+    // A meta update that omits i18n leaves existing translations alone.
+    const meta = await updateStudyMeta(created.id, user.id, { visibility: 'public' });
+    assert.ok(meta.ok);
+    assert.equal(
+      (meta.study.i18n as { en?: { name?: string } })?.en?.name,
+      'Secret in the Tangerine',
+    );
+  });
+
+  test('a study with no translations reads back an empty overlay', async () => {
+    const user = await makeUser('i18n-none');
+    const created = await makeStudy(user.id);
+    assert.ok(created);
+    assert.deepEqual(created.i18n, {});
+    assert.deepEqual(created.chapters[0]!.i18n, {});
+  });
 });

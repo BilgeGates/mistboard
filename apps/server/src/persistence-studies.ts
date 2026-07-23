@@ -19,6 +19,9 @@ export type StudyChapterRecord = {
   studyId: string;
   ordinal: number;
   name: string;
+  /** Per-locale overrides for `name` (see migration 115). Base column is the
+   *  fallback, so a partial translation degrades one string at a time. */
+  i18n: Record<string, unknown>;
   variant: string;
   orientation: string;
   /** SerializedTree (tree-serialize.ts); node-pg parses JSONB, so already an object. */
@@ -37,6 +40,8 @@ export type StudyRecord = {
   ownerId: string;
   name: string;
   description: string;
+  /** Per-locale overrides for `name`/`description` (see migration 115). */
+  i18n: Record<string, unknown>;
   visibility: StudyVisibility;
   createdAt: Date;
   updatedAt: Date;
@@ -56,6 +61,8 @@ export type PublicStudySummary = StudySummary & {
 
 export type NewChapterInput = {
   name: string;
+  /** Optional per-locale overrides for `name`. */
+  i18n?: Record<string, unknown>;
   variant: string;
   orientation: string;
   root: unknown;
@@ -66,6 +73,8 @@ export type CreateStudyInput = {
   ownerId: string;
   name: string;
   description: string;
+  /** Optional per-locale overrides for `name`/`description`. */
+  i18n?: Record<string, unknown>;
   visibility: StudyVisibility;
   chapter: NewChapterInput;
 };
@@ -90,6 +99,7 @@ type StudyRow = {
   owner_id: string;
   name: string;
   description: string;
+  i18n: Record<string, unknown>;
   visibility: StudyVisibility;
   created_at: Date;
   updated_at: Date;
@@ -100,6 +110,7 @@ type ChapterRow = {
   study_id: string;
   ordinal: number;
   name: string;
+  i18n: Record<string, unknown>;
   variant: string;
   orientation: string;
   root: unknown;
@@ -116,6 +127,7 @@ function mapStudy(row: StudyRow): StudyRecord {
     ownerId: row.owner_id,
     name: row.name,
     description: row.description,
+    i18n: row.i18n ?? {},
     visibility: row.visibility,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -128,6 +140,7 @@ function mapChapter(row: ChapterRow): StudyChapterRecord {
     studyId: row.study_id,
     ordinal: row.ordinal,
     name: row.name,
+    i18n: row.i18n ?? {},
     variant: row.variant,
     orientation: row.orientation,
     root: row.root,
@@ -139,9 +152,9 @@ function mapChapter(row: ChapterRow): StudyChapterRecord {
   };
 }
 
-const STUDY_COLS = 'id, owner_id, name, description, visibility, created_at, updated_at';
+const STUDY_COLS = 'id, owner_id, name, description, i18n, visibility, created_at, updated_at';
 const CHAPTER_COLS =
-  'id, study_id, ordinal, name, variant, orientation, root, denorm, version, gamebook, created_at, updated_at';
+  'id, study_id, ordinal, name, i18n, variant, orientation, root, denorm, version, gamebook, created_at, updated_at';
 
 /** Correlated scalar subquery yielding the first few chapter names (by ordinal) as
  *  a text[], for a study aliased `s`. This is the preview slice a study card shows,
@@ -187,17 +200,26 @@ export async function createStudy(input: CreateStudyInput): Promise<StudyWithCha
     await client.query('BEGIN');
     const studyId = shortId();
     await client.query(
-      `INSERT INTO studies (id, owner_id, name, description, visibility)
-         VALUES ($1, $2, $3, $4, $5)`,
-      [studyId, input.ownerId, input.name, input.description, input.visibility],
+      `INSERT INTO studies (id, owner_id, name, description, i18n, visibility)
+         VALUES ($1, $2, $3, $4, $5::jsonb, $6)`,
+      [
+        studyId,
+        input.ownerId,
+        input.name,
+        input.description,
+        JSON.stringify(input.i18n ?? {}),
+        input.visibility,
+      ],
     );
     await client.query(
-      `INSERT INTO study_chapters (id, study_id, ordinal, name, variant, orientation, root, denorm)
-         VALUES ($1, $2, 0, $3, $4, $5, $6::jsonb, $7::jsonb)`,
+      `INSERT INTO study_chapters
+         (id, study_id, ordinal, name, i18n, variant, orientation, root, denorm)
+         VALUES ($1, $2, 0, $3, $4::jsonb, $5, $6, $7::jsonb, $8::jsonb)`,
       [
         shortId(),
         studyId,
         input.chapter.name,
+        JSON.stringify(input.chapter.i18n ?? {}),
         input.chapter.variant,
         input.chapter.orientation,
         JSON.stringify(input.chapter.root),
@@ -412,7 +434,12 @@ export type UpdateStudyMetaResult =
 export async function updateStudyMeta(
   id: string,
   ownerId: string,
-  patch: { name?: string; description?: string; visibility?: StudyVisibility },
+  patch: {
+    name?: string;
+    description?: string;
+    i18n?: Record<string, unknown>;
+    visibility?: StudyVisibility;
+  },
 ): Promise<UpdateStudyMetaResult> {
   if (!isInitialized()) return { ok: false, error: 'not_found' };
   const existing = await getPool().query<StudyRow>(
@@ -426,11 +453,18 @@ export async function updateStudyMeta(
     `UPDATE studies
        SET name = COALESCE($1, name),
            description = COALESCE($2, description),
-           visibility = COALESCE($3, visibility),
+           i18n = COALESCE($3::jsonb, i18n),
+           visibility = COALESCE($4, visibility),
            updated_at = now()
-       WHERE id = $4
+       WHERE id = $5
      RETURNING ${STUDY_COLS}`,
-    [patch.name ?? null, patch.description ?? null, patch.visibility ?? null, id],
+    [
+      patch.name ?? null,
+      patch.description ?? null,
+      patch.i18n === undefined ? null : JSON.stringify(patch.i18n),
+      patch.visibility ?? null,
+      id,
+    ],
   );
   return { ok: true, study: mapStudy(updated.rows[0]!) };
 }
@@ -465,15 +499,17 @@ export async function addChapter(
   if (row.owner_id !== ownerId) return { ok: false, error: 'forbidden' };
   const now = new Date();
   const inserted = await getPool().query<ChapterRow>(
-    `INSERT INTO study_chapters (id, study_id, ordinal, name, variant, orientation, root, denorm)
+    `INSERT INTO study_chapters
+       (id, study_id, ordinal, name, i18n, variant, orientation, root, denorm)
        VALUES ($1, $2,
                (SELECT COALESCE(MAX(ordinal), -1) + 1 FROM study_chapters WHERE study_id = $2),
-               $3, $4, $5, $6::jsonb, $7::jsonb)
+               $3, $4::jsonb, $5, $6, $7::jsonb, $8::jsonb)
      RETURNING ${CHAPTER_COLS}`,
     [
       shortId(),
       studyId,
       input.name,
+      JSON.stringify(input.i18n ?? {}),
       input.variant,
       input.orientation,
       JSON.stringify(input.root),
@@ -514,11 +550,13 @@ export async function deleteChapter(
   return { ok: true };
 }
 
-/** Rename a chapter (owner only). Does not touch the tree `version`. */
+/** Rename a chapter (owner only), optionally replacing its locale overrides.
+ *  Does not touch the tree `version`. */
 export async function renameChapter(
   chapterId: string,
   ownerId: string,
-  name: string,
+  name: string | null,
+  i18n?: Record<string, unknown>,
 ): Promise<UpdateChapterResult> {
   if (!isInitialized()) return { ok: false, error: 'not_found' };
   const { rows } = await getPool().query<{ owner_id: string }>(
@@ -531,8 +569,13 @@ export async function renameChapter(
   if (!found) return { ok: false, error: 'not_found' };
   if (found.owner_id !== ownerId) return { ok: false, error: 'forbidden' };
   const updated = await getPool().query<ChapterRow>(
-    `UPDATE study_chapters SET name = $1, updated_at = now() WHERE id = $2 RETURNING ${CHAPTER_COLS}`,
-    [name, chapterId],
+    `UPDATE study_chapters
+       SET name = COALESCE($1, name),
+           i18n = COALESCE($2::jsonb, i18n),
+           updated_at = now()
+     WHERE id = $3
+     RETURNING ${CHAPTER_COLS}`,
+    [name, i18n === undefined ? null : JSON.stringify(i18n), chapterId],
   );
   return { ok: true, chapter: mapChapter(updated.rows[0]!) };
 }
