@@ -1,8 +1,11 @@
 import { buildSiteBox } from './site-box.js';
+import { localizedStudyName } from './study-i18n.js';
 import { leaderboardVariants } from './variants.js';
 import './landing-community-widgets.css';
 
 type PublicStudy = {
+  /** Per-locale overrides; resolved against the viewer's locale (study-i18n.ts). */
+  i18n?: unknown;
   id: string;
   name: string;
   owner: { handle: string; displayName: string };
@@ -72,7 +75,7 @@ function studyRow(study: PublicStudy): HTMLElement {
   const main = document.createElement('span');
   main.className = 'landing-community-main';
   main.append(
-    text('landing-community-name', study.name),
+    text('landing-community-name', localizedStudyName(study.name, study.i18n)),
     text(
       'landing-community-meta',
       `${study.owner.displayName} · ${study.chapterCount} ${study.chapterCount === 1 ? 'chapter' : 'chapters'}`,
