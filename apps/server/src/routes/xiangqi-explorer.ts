@@ -38,6 +38,10 @@ export async function tryHandle(
     persistence.lookupXiangqiOpeningMoves(positionKey),
     persistence.readXiangqiOpeningBuild(),
   ]);
+  // Sum of the per-move game counts. Each row counts a game at most once, but a
+  // game that revisits this position and plays a different move counts under
+  // each, so this can slightly exceed the number of distinct games that reached
+  // here. It is the correct denominator for a move's share, not a game census.
   const total = moves.reduce((sum, row) => sum + row.games, 0);
 
   writeJson(response, 200, {
