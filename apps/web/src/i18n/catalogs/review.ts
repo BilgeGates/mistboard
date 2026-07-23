@@ -39,6 +39,13 @@ export const EN_REVIEW = {
   'study.chatRoom': 'Chat room',
   'study.chatSignIn': 'Sign in to chat',
   'study.chatPlaceholder': 'Please be nice in the chat!',
+  // Errata invitation. Studies here include transcriptions of woodblock
+  // sources, where a misread glyph is a real possibility; saying so plainly and
+  // giving readers a route to report it is part of being trustworthy about it.
+  'study.errataTitle': 'Spotted a mistake?',
+  'study.errataBody':
+    'Some studies are transcribed from historical sources, so a move, a name, or a comment can be wrong. If something looks off, tell us and we will check it against the original.',
+  'study.errataAction': 'Report a correction',
 } as const;
 
 export type ReviewI18nKey = keyof typeof EN_REVIEW;

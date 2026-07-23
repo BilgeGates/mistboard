@@ -289,3 +289,92 @@
 .study-actions__status[data-state="conflict"] {
   color: #b91c1c;
 }
+
+/* Errata invitation, below the chapter list on public studies. Deliberately
+ * quiet: it is an admission that the transcriptions can be wrong, which belongs
+ * on the page but must not compete with the study's own text. */
+.study-errata {
+  margin-top: 0.15rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius-sm, 6px);
+  background: color-mix(in srgb, var(--site-panel) 70%, transparent);
+}
+
+.study-errata__title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--site-text, inherit);
+}
+
+.study-errata__body {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--site-muted);
+}
+
+.study-errata__link {
+  display: inline-block;
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--site-accent-strong, var(--site-accent));
+  text-decoration: none;
+}
+
+.study-errata__link:hover,
+.study-errata__link:focus-visible {
+  text-decoration: underline;
+}
+
+/* ── Variation legibility, study surfaces only ────────────────────────────────
+ *
+ * A classical manual prints up to forty numbered variations against one game,
+ * several of them nested. The shared tree styling was tuned for the two or
+ * three shallow branches an analysis session produces, and at manual depth it
+ * collapses into one undifferentiated grey run: no anchors to scan for, no way
+ * to see where a branch begins or how deep it sits.
+ *
+ * Scoped to .study-review deliberately. The fix is only worth its risk where
+ * the deep trees actually live, and /analysis and postgame keep the styling
+ * they were designed around.
+ */
+
+/* Separate top-level branches from each other and from the mainline. Without
+   this the branch rows abut and read as continuous prose. */
+.study-review .move-tree__variation {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  border-left-color: color-mix(in srgb, var(--site-accent) 34%, transparent);
+  border-left-width: 2px;
+}
+
+/* Nested branches keep their inline flow (making them blocks would rewrap the
+   whole list), but gain a rule of their own so depth is visible rather than
+   inferred from parentheses. Nested opacity compounds, so each level also dims
+   slightly on its own. */
+.study-review .move-tree__subvar {
+  margin-left: 2px;
+  padding-left: 5px;
+  border-left: 1px solid color-mix(in srgb, var(--site-muted) 38%, transparent);
+}
+
+/* The move number is the anchor the eye scans for when hunting a branch point.
+   Muted grey at 0.9em made it the least visible thing in the row. */
+.study-review .move-tree__num {
+  color: color-mix(in srgb, var(--site-text) 62%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Editorial prose carries the book's actual argument ("one can only win a piece
+   back; a certain win is not seen"). It should not be dimmer than the moves. */
+.study-review .move-tree__comment--user,
+.study-review .move-tree__inline-comment--user {
+  color: color-mix(in srgb, var(--site-text) 86%, transparent);
+}
+.study-review .move-tree__comment--user {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  line-height: 1.55;
+}

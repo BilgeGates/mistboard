@@ -255,6 +255,12 @@ export type TreeReviewConfig<Move, Truth = never> = {
   /** Load a persisted study tree (with its annotations + variations) instead of
    *  seeding from `moves`. When set, the tree is rebuilt from this blob by replay. */
   initialTree?: SerializedTree;
+  /** Where the board sits on mount. 'end' (default) suits a game you just
+   *  finished or imported: the result is the thing you came for. 'start' suits a
+   *  study, which is a document meant to be read forward. Opening a 60-ply
+   *  annotated game on its final position asks the reader to rewind before they
+   *  can begin. */
+  initialPosition?: 'start' | 'end';
   /** Fired after any tree mutation (move, annotation, promote, delete). The study
    *  page uses it to autosave; the analysis/postgame pages ignore it. */
   onChange?: () => void;
@@ -341,7 +347,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   const mainlineLen = tree.mainlinePath().length;
   const notifyChange = (): void => config.onChange?.();
 
-  let currentPath: TreePath = tree.last();
+  let currentPath: TreePath = config.initialPosition === 'start' ? [] : tree.last();
   let flipped = false;
 
   const currentNode = (): Node => tree.nodeAt(currentPath) ?? tree.root;
