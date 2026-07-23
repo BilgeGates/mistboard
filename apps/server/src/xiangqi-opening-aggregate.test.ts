@@ -17,11 +17,16 @@ import {
 
 const START = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR r';
 
+// Squares are 2 OR 3 characters (rank 10), so a move key cannot be split by a
+// fixed offset from either end — "g8h10" is g8→h10, not "g8h"→"10".
+const MOVE_KEY = /^([a-i](?:10|[1-9]))([a-i](?:10|[1-9]))$/;
+
 function moves(...pairs: string[]): XiangqiMove[] {
-  return pairs.map((pair) => ({
-    from: pair.slice(0, pair.length - 2),
-    to: pair.slice(pair.length - 2),
-  })) as XiangqiMove[];
+  return pairs.map((pair) => {
+    const match = pair.match(MOVE_KEY);
+    if (!match) throw new Error(`bad move key in test: ${pair}`);
+    return { from: match[1], to: match[2] };
+  }) as XiangqiMove[];
 }
 
 test('folds a game into per-position move counts split by result', () => {
@@ -109,4 +114,21 @@ test('caps retained sample game ids', () => {
   const stats = acc.get(START)?.get('h3e3');
   assert.equal(stats?.games, 5, 'every game still counts');
   assert.deepEqual(stats?.sampleGameIds, ['g0', 'g1'], 'only the cap is retained');
+});
+
+test('a game that revisits a position counts once, not once per visit', () => {
+  // Horse out and back on both sides returns to the initial position with red to
+  // move. The corpus really does contain games that do this; counting the second
+  // visit again would make one game look like two.
+  const acc = createAccumulator();
+  const ok = accumulateGame(acc, {
+    id: 'shuffle',
+    result: '1-0',
+    moves: moves('h1g3', 'h10g8', 'g3h1', 'g8h10', 'h1g3'),
+  });
+
+  assert.equal(ok, true);
+  const stats = acc.get(START)?.get('h1g3');
+  assert.equal(stats?.games, 1, 'one game is one game, however many times it passes through');
+  assert.deepEqual(stats?.sampleGameIds, ['shuffle']);
 });
