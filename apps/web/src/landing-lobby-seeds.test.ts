@@ -4,16 +4,16 @@ import { buildLobbyPanel } from './landing-play.js';
 // The Lobby tab carries a compact table of rotating bot "seeks" (always-available
 // computer opponents) so the hooks surface is never empty at zero human
 // liquidity. These are client-derived launchers, not server seeks: the pool is
-// deterministic per UTC day, one click creates the PvE room directly, and the
+// deterministic per six-hour UTC bucket, one click creates the PvE room directly, and the
 // invariants worth pinning are honesty (labeled engine), separation from the
-// human seek table, and the day-stable rotation.
+// human seek table, and the bucket-stable rotation.
 
-// 2026-07-21 → UTC day-of-year 202: anchor Fairy-Stockfish level = 2 + 202 % 6 = 6.
+// Six-hour bucket 82622: lineup C and Fairy-Stockfish Level 3.
 const FIXED_DATE = new Date('2026-07-21T12:00:00Z');
 
 describe('landing lobby bot seeks', () => {
   beforeEach(() => {
-    // Freeze only Date so the day rotation is fixed; timers stay real for the
+    // Freeze only Date so the six-hour rotation is fixed; timers stay real for the
     // async fetch flushes below.
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(FIXED_DATE);
@@ -27,26 +27,24 @@ describe('landing lobby bot seeks', () => {
     vi.unstubAllEnvs();
   });
 
-  it('renders at most six rows led by the three daily anchors', () => {
+  it('renders six distinct variants in canonical order', () => {
     const panel = buildLobbyPanel('en', { hydrate: false });
     const seeds = [...panel.querySelectorAll<HTMLElement>('.landing-lobby-seed')];
-    expect(seeds.length).toBeGreaterThan(0);
-    expect(seeds.length).toBeLessThanOrEqual(6);
+    expect(seeds).toHaveLength(6);
 
     const signature = seeds.map((seed) => `${seed.dataset.botId}|${seed.dataset.gameSpec}`);
-    // Anchors, in order: Misty fog chess, Pikafish xiangqi, and the daily
-    // Fairy-Stockfish ladder rung (level 6 on the frozen date).
-    expect(signature.slice(0, 3)).toEqual([
+    expect(signature).toEqual([
+      'fairy-stockfish-level-3|xiangqi',
+      'misty|banqi',
+      'pikafish|jieqi',
       'misty|dark-chess',
-      'pikafish|xiangqi',
-      'fairy-stockfish-level-6|xiangqi',
+      'misty|jungle',
+      'misty|jungle-flip',
     ]);
-    // Dark chess is unconditionally enabled, so its variant label is a stable
-    // anchor regardless of which variant flags the test env sets.
-    const labels = seeds.map(
-      (seed) => seed.querySelector('.landing-lobby-seed-variant')?.textContent,
-    );
-    expect(labels).toContain('Fog Chess');
+    expect(new Set(seeds.map((seed) => seed.dataset.gameSpec)).size).toBe(6);
+    expect(
+      seeds.map((seed) => seed.querySelector('.landing-lobby-seed-time')?.textContent),
+    ).toEqual(['3+2', '3+2', '3+2', '3+2', '3+2', '3+2']);
   });
 
   it('labels each seed as an engine game rather than a human seek', () => {
@@ -128,8 +126,8 @@ describe('landing lobby bot seeks', () => {
               ],
             },
             {
-              id: 'pikafish',
-              displayName: 'Pikafish',
+              id: 'fairy-stockfish-level-3',
+              displayName: 'Fairy-Stockfish Level 3',
               // No blitz entry for the 3+2 xiangqi seed: falls back to the
               // variant's only rating, keeping the provisional '?' suffix.
               ratings: [
@@ -150,15 +148,15 @@ describe('landing lobby bot seeks', () => {
       '.landing-lobby-seed[data-bot-id="misty"][data-game-spec="dark-chess"] .landing-lobby-seed-rating',
     );
     expect(misty?.textContent).toBe('1874');
-    const pikafish = panel.querySelector(
-      '.landing-lobby-seed[data-bot-id="pikafish"][data-game-spec="xiangqi"] .landing-lobby-seed-rating',
+    const xiangqi = panel.querySelector(
+      '.landing-lobby-seed[data-bot-id="fairy-stockfish-level-3"][data-game-spec="xiangqi"] .landing-lobby-seed-rating',
     );
-    expect(pikafish?.textContent).toBe('2450?');
+    expect(xiangqi?.textContent).toBe('2450?');
     // Unmatched bots keep the placeholder rather than guessing a number.
-    const ladder = panel.querySelector(
-      '.landing-lobby-seed[data-bot-id="fairy-stockfish-level-6"] .landing-lobby-seed-rating',
+    const banqi = panel.querySelector(
+      '.landing-lobby-seed[data-bot-id="misty"][data-game-spec="banqi"] .landing-lobby-seed-rating',
     );
-    expect(ladder?.textContent).toBe('—');
+    expect(banqi?.textContent).toBe('—');
   });
 
   it('lists human seeks above the bots in one table with the same column grammar', async () => {
@@ -256,6 +254,33 @@ describe('landing lobby bot seeks', () => {
     ]);
   });
 
+  it('uses the same rotating bot and 3+2 pace in Quick Pairing', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/quick_bot' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLobbyPanel('en', { hydrate: false });
+    document.body.append(panel);
+
+    const chip = panel.querySelector<HTMLButtonElement>(
+      '.landing-quickpair-row[data-game-spec="xiangqi"] .landing-quickpair-bot',
+    );
+    expect(chip?.dataset.botId).toBe('fairy-stockfish-level-3');
+    chip!.click();
+    await flushPromises();
+
+    const post = fetchSpy.mock.calls.find(
+      ([input, init]) =>
+        String(input) === '/api/rooms' && (init as RequestInit | undefined)?.method === 'POST',
+    );
+    expect(JSON.parse(String((post![1] as RequestInit).body))).toMatchObject({
+      botId: 'fairy-stockfish-level-3',
+      gameSpecId: 'xiangqi',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    });
+  });
+
   it('opens the correspondence CTA on days-per-move, not real-time clocks', () => {
     vi.stubEnv('VITE_CORRESPONDENCE_ENABLED', 'true');
     const panel = buildLobbyPanel('en', { hydrate: false });
@@ -281,7 +306,7 @@ describe('landing lobby bot seeks', () => {
     overlay?.remove();
   });
 
-  it('renders the same seed list for two builds on the same day', () => {
+  it('renders the same seed list for two builds in the same bucket', () => {
     const signature = (panel: HTMLElement): string[] =>
       [...panel.querySelectorAll<HTMLElement>('.landing-lobby-seed')].map(
         (seed) => `${seed.dataset.botId}|${seed.dataset.gameSpec}|${seed.dataset.timeClass}`,

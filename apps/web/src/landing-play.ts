@@ -35,6 +35,12 @@ import { bindBotPlayControl } from './bot-play.js';
 import { correspondenceEnabled, crossroadsChessEnabled } from './feature-flags.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, type Locale } from './i18n/locale.js';
+import {
+  LANDING_BOT_GAME_SPEC_IDS,
+  landingBotLineup,
+  landingBotOffer,
+  landingBotRotationBucket,
+} from './landing-bot-policy.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildUiIcon, type UiIconName } from './ui-icon.js';
@@ -459,9 +465,9 @@ export function buildLobbyRequestsWindow(
 // Engine "seeds": rotating always-available bot seeks rendered as a compact
 // lichess-lobby-style hook table at the top of the Lobby tab, so the seeks
 // surface is never an empty table at zero human liquidity. These are NOT server
-// seeks: the pool is derived client-side and rotates deterministically per UTC
-// calendar day, so the prerendered shell and every visitor agree on the day's
-// list. One click creates and joins the PvE room directly (no setup dialog);
+// seeks: the pool is derived client-side from one six-hour UTC bucket, so every
+// visitor agrees on the lineup and an open page never changes rows underneath
+// them. One click creates and joins the PvE room directly (no setup dialog);
 // the server resolves the concrete engine from the bot identity.
 type LandingEngineSeed = {
   botId: string;
@@ -471,13 +477,7 @@ type LandingEngineSeed = {
   timeControlId: TimeControlId;
 };
 
-type LandingEngineSeedCandidate = Omit<LandingEngineSeed, 'variantLabel'>;
-
 const LANDING_ENGINE_SEED_COUNT = 6;
-
-function utcDayOfYear(date: Date): number {
-  return Math.floor((date.getTime() - Date.UTC(date.getUTCFullYear(), 0, 0)) / 86_400_000);
-}
 
 // A seed only lists when its variant is currently offered: dark chess is always
 // on; tenant variants follow the same offerInMenu gate as every play menu.
@@ -486,51 +486,25 @@ function landingSeedVariantOffered(gameSpecId: LandingGameSpecId): boolean {
   return webVariantTenantForSpecId(gameSpecId)?.landing?.offerInMenu() === true;
 }
 
-function landingEngineSeeds(locale: Locale, now: Date = new Date()): LandingEngineSeed[] {
-  const day = utcDayOfYear(now);
-  // Three anchors, always present when their variant is offered. The
-  // Fairy-Stockfish ladder rung rotates daily through levels 2..7.
-  const anchorLevel = 2 + (day % 6);
-  const anchors: LandingEngineSeedCandidate[] = [
-    { botId: 'misty', botName: 'Misty', gameSpecId: DARK_CHESS_SPEC_ID, timeControlId: '3m2' },
-    { botId: 'pikafish', botName: 'Pikafish', gameSpecId: XIANGQI_SPEC_ID, timeControlId: '3m2' },
-    {
-      botId: `fairy-stockfish-level-${anchorLevel}`,
-      botName: `Fairy-Stockfish Level ${anchorLevel}`,
-      gameSpecId: XIANGQI_SPEC_ID,
-      timeControlId: '5m5',
-    },
-  ];
-  // Three rotating slots: a day-offset rotation over whatever survives the
-  // offered-variant filter. The rotated tail also backfills any anchor slots
-  // lost to filtering, keeping the table at six rows whenever enough variants
-  // are live.
-  const fortressLevel = (day % 8) + 1;
-  const rotatingPool: LandingEngineSeedCandidate[] = [
-    { botId: 'misty', botName: 'Misty', gameSpecId: DARK_XIANGQI_SPEC_ID, timeControlId: '3m2' },
-    { botId: 'misty', botName: 'Misty', gameSpecId: BANQI_SPEC_ID, timeControlId: '3m2' },
-    { botId: 'misty', botName: 'Misty', gameSpecId: JUNGLE_SPEC_ID, timeControlId: '3m2' },
-    { botId: 'misty', botName: 'Misty', gameSpecId: JUNGLE_FLIP_SPEC_ID, timeControlId: '3m2' },
-    { botId: 'pikafish', botName: 'Pikafish', gameSpecId: JIEQI_SPEC_ID, timeControlId: '5m5' },
-    {
-      botId: `fairy-stockfish-level-${fortressLevel}`,
-      botName: `Fairy-Stockfish Level ${fortressLevel}`,
-      gameSpecId: FORTRESS_XIANGQI_SPEC_ID,
-      timeControlId: '5m5',
-    },
-  ];
-  const picked = anchors.filter((seed) => landingSeedVariantOffered(seed.gameSpecId));
-  const offered = rotatingPool.filter((seed) => landingSeedVariantOffered(seed.gameSpecId));
-  const start = offered.length > 0 ? day % offered.length : 0;
-  const rotated = [...offered.slice(start), ...offered.slice(0, start)];
-  for (const candidate of rotated) {
+function landingEngineSeeds(locale: Locale, rotationBucket: number): LandingEngineSeed[] {
+  const desired = landingBotLineup(rotationBucket);
+  const picked = desired.filter(landingSeedVariantOffered);
+  // Kill-switched variants drop out without shrinking the table when another
+  // supported live variant can backfill the slot.
+  for (const gameSpecId of LANDING_BOT_GAME_SPEC_IDS) {
     if (picked.length >= LANDING_ENGINE_SEED_COUNT) break;
-    picked.push(candidate);
+    if (!picked.includes(gameSpecId) && landingSeedVariantOffered(gameSpecId)) {
+      picked.push(gameSpecId);
+    }
   }
-  return picked.map((seed) => ({
-    ...seed,
-    variantLabel: variantLabelForGameSpec(seed.gameSpecId, locale),
-  }));
+  return picked
+    .sort((a, b) => canonicalVariantOrderIndex(a) - canonicalVariantOrderIndex(b))
+    .map((gameSpecId) => landingBotOffer(gameSpecId, rotationBucket))
+    .filter((offer): offer is NonNullable<typeof offer> => offer !== null)
+    .map((offer) => ({
+      ...offer,
+      variantLabel: variantLabelForGameSpec(offer.gameSpecId, locale),
+    }));
 }
 
 /** Opponent cell shared by every hook row: kind glyph, name, variant, and an
@@ -686,16 +660,7 @@ const QUICK_PAIR_COLUMN_IDS: TimeControlId[] = ['1m1', '3m2', '5m5'];
 // catalog rather than a second hand-maintained ranking.
 const QUICK_PAIR_ROW_COUNT = 6;
 
-/** Which bot answers the row's Computer chip. The ladder rung for fortress
- *  matches what the lobby seeds offer; everything else uses its house bot. */
-function quickPairBotId(gameSpecId: LandingGameSpecId): string | null {
-  if (!landingVariantSupportsPve(gameSpecId)) return null;
-  if (gameSpecId === XIANGQI_SPEC_ID || gameSpecId === JIEQI_SPEC_ID) return 'pikafish';
-  if (gameSpecId === FORTRESS_XIANGQI_SPEC_ID) return 'fairy-stockfish-level-3';
-  return 'misty';
-}
-
-function buildQuickPairPools(locale: Locale): HTMLElement {
+function buildQuickPairPools(locale: Locale, rotationBucket: number): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'landing-quickpair-pools';
 
@@ -809,16 +774,19 @@ function buildQuickPairPools(locale: Locale): HTMLElement {
       row.append(chip);
     }
 
-    const botId = quickPairBotId(gameSpecId);
-    if (botId) {
-      // Pick the pace the bot plays at: the row's blitz pool when it has one,
-      // otherwise its first offered control.
+    const botOffer = landingVariantSupportsPve(gameSpecId)
+      ? landingBotOffer(gameSpecId, rotationBucket)
+      : null;
+    if (botOffer) {
+      // The shared bot policy selects 3+2; retain the first-offered fallback so
+      // a future variant with narrower clocks cannot render a dead control.
       const botControl =
-        columns.find((column) => column.id === '3m2' && allowed.has(column.id)) ??
+        columns.find((column) => column.id === botOffer.timeControlId && allowed.has(column.id)) ??
         columns.find((column) => allowed.has(column.id));
       const botChip = document.createElement('button');
       botChip.type = 'button';
       botChip.className = 'landing-quickpair-chip landing-quickpair-bot';
+      botChip.dataset.botId = botOffer.botId;
       botChip.setAttribute('aria-label', `${t('play.playEngine', {}, locale)}: ${label}`);
       botChip.append(
         buildUiIcon('play-engine', 'landing-lobby-seed-boticon'),
@@ -827,7 +795,7 @@ function buildQuickPairPools(locale: Locale): HTMLElement {
       bindBotPlayControl(
         botChip,
         () => ({
-          botId,
+          botId: botOffer.botId,
           gameSpecId,
           ...(botControl
             ? {
@@ -877,6 +845,9 @@ export function buildLobbyPanel(
   locale: Locale = currentLocale(),
   options: { hydrate?: boolean } = {},
 ): HTMLElement {
+  // Capture once per mount: crossing a six-hour boundary never swaps a row
+  // underneath someone already browsing the panel.
+  const rotationBucket = landingBotRotationBucket();
   const board = document.createElement('section');
   board.className = 'landing-lobby-board';
   board.setAttribute('aria-label', t('play.openPairingRequests', {}, locale));
@@ -945,7 +916,7 @@ export function buildLobbyPanel(
   const lobbyRows = document.createElement('div');
   lobbyRows.className = 'landing-lobby-tbody';
 
-  const seeds = landingEngineSeeds(locale);
+  const seeds = landingEngineSeeds(locale, rotationBucket);
   const seedsBlock = document.createElement('div');
   seedsBlock.className = 'landing-lobby-seeds';
   for (const seed of seeds) seedsBlock.append(engineSeedRow(seed, locale));
@@ -969,7 +940,7 @@ export function buildLobbyPanel(
   quickPanelEl.setAttribute('role', 'tabpanel');
   quickPanelEl.hidden = true;
 
-  quickPanelEl.append(buildQuickPairPools(locale));
+  quickPanelEl.append(buildQuickPairPools(locale, rotationBucket));
 
   // Correspondence tab: open days-per-move seeks (they carry a creator name). A row
   // links to the challenge/accept page.
