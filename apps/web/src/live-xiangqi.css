@@ -270,6 +270,28 @@
   stroke: #4a4a4a;
 }
 
+/* Jungle and Flip Jungle are the only boards painted from photographic PNG
+   terrain (jungle-render / jungle-flip-render), so the palette tuned against the
+   tan xiangqi/fortress boards washes out on them. Deepen the hues and raise the
+   opacity on those two boards only, leaving the tuned tan-board look untouched.
+   Best and alternate move up together, so shaft width still carries strength. */
+.jungle-board-arrows .xq-arrow,
+.jungle-flip-board-arrows .xq-arrow {
+  opacity: 0.65;
+}
+.jungle-board-arrows .xq-arrow--pv1,
+.jungle-board-arrows .xq-arrow--best,
+.jungle-flip-board-arrows .xq-arrow--pv1,
+.jungle-flip-board-arrows .xq-arrow--best {
+  fill: #1d4e8a;
+  stroke: #1d4e8a;
+}
+.jungle-board-arrows .xq-arrow--alt,
+.jungle-flip-board-arrows .xq-arrow--alt {
+  fill: #262626;
+  stroke: #262626;
+}
+
 /* Move-judgment badge on the destination point (review board). The palette is
    the SAME one the move list uses (review/move-list.css) on purpose: the board
    and the list annotate the same move, so a disagreement in colour would read
