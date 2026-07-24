@@ -175,7 +175,7 @@ function buildContent(tab: StudyTab, q: string, studies: StudySummary[]): HTMLEl
   } else {
     const grid = document.createElement('ul');
     grid.className = 'study-index__grid';
-    for (const study of studies) grid.append(studyCard(study, tab === 'staff'));
+    for (const study of studies) grid.append(studyCard(study));
     content.append(grid);
   }
 
@@ -426,18 +426,18 @@ async function createStudy(
 // (derived glyphs read as noise); restore only as a user-picked field.
 const CHAPTER_PREVIEW_MAX = 4;
 
-function studyCard(study: StudySummary, staffPick: boolean): HTMLElement {
+function studyCard(study: StudySummary): HTMLElement {
   const item = document.createElement('li');
   const link = document.createElement('a');
   link.className = 'study-index__card';
   link.href = `/study/${study.id}`;
 
-  link.append(cardHead(study, staffPick), chapterPreview(study));
+  link.append(cardHead(study), chapterPreview(study));
   item.append(link);
   return item;
 }
 
-function cardHead(study: StudySummary, staffPick: boolean): HTMLElement {
+function cardHead(study: StudySummary): HTMLElement {
   const head = document.createElement('div');
   head.className = 'study-index__card-head';
 
@@ -452,12 +452,6 @@ function cardHead(study: StudySummary, staffPick: boolean): HTMLElement {
   meta.className = 'study-index__meta';
   meta.textContent = metaLine(study);
 
-  if (staffPick) {
-    const badge = document.createElement('span');
-    badge.className = 'study-index__staff-badge';
-    badge.textContent = '★ Staff pick';
-    heading.append(badge);
-  }
   heading.append(name, meta);
   head.append(heading);
   return head;

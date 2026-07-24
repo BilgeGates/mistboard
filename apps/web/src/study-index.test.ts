@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 describe('study index Staff picks', () => {
-  it('loads the public curated collection and marks its cards', async () => {
+  it('loads the public curated collection without repeating badges on its cards', async () => {
     window.history.replaceState({}, '', '/study?tab=staff');
     const fetcher = vi.fn(async (input: RequestInfo | URL) => {
       expect(input.toString()).toBe('/api/studies/staff?limit=30');
@@ -44,7 +44,7 @@ describe('study index Staff picks', () => {
     expect(root.querySelector('.study-index__staff-intro')?.textContent).toContain(
       'Curated by Mistboard',
     );
-    expect(root.querySelector('.study-index__staff-badge')?.textContent).toBe('★ Staff pick');
+    expect(root.querySelector('.study-index__staff-badge')).toBeNull();
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 

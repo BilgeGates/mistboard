@@ -204,15 +204,6 @@ a.study-index__rail-tab.is-active:hover {
   min-width: 0;
 }
 
-.study-index__staff-badge {
-  width: max-content;
-  color: var(--site-accent-strong);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
 .study-index__name {
   font-weight: 700;
   font-size: 1rem;
