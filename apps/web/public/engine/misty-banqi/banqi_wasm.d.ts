@@ -2,6 +2,20 @@
 /* eslint-disable */
 
 /**
+ * Stateful, incrementally advanced analysis for the browser's continuous mode.
+ *
+ * JavaScript calls `step` with bounded node slices and yields to the worker event loop
+ * between calls. Dropping this object cancels the search without an unbounded wasm call.
+ */
+export class AnalysisSession {
+    free(): void;
+    [Symbol.dispose](): void;
+    constructor(fen: string, multipv: number);
+    step(nodes: number): string;
+    readonly depth: number;
+}
+
+/**
  * Evaluate a redacted Banqi FEN and return the top-`multipv` legal moves as JSON,
  * ranked best-first, each with an exact side-to-move centipawn score.
  *
@@ -15,10 +29,15 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly __wbg_analysissession_free: (a: number, b: number) => void;
+    readonly analysissession_depth: (a: number) => number;
+    readonly analysissession_new: (a: number, b: number, c: number) => [number, number, number];
+    readonly analysissession_step: (a: number, b: number) => [number, number];
     readonly analyze: (a: number, b: number, c: number, d: number) => [number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+    readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_start: () => void;
 }

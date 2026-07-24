@@ -9,14 +9,16 @@ Fairy-Stockfish build). Driven from `apps/web/src/review/engine/misty-ceval.ts` 
 
 - `banqi_wasm.js`, `banqi_wasm_bg.wasm` (+ `.d.ts`) — the wasm-bindgen `--target web`
   output, generated (do not hand-edit).
-- `worker.js` — hand-written module worker: loads the wasm and answers `analyze` requests
-  off the main thread. Edit this by hand.
+- `worker.js` — hand-written module worker: loads the wasm, owns stateful analysis
+  sessions, and runs bounded `step` slices off the main thread. Edit this by hand.
 
 ## Regenerating the wasm
 
 Source lives in the private **misty-banqi** repo (`~/projects/misty-banqi`), crate
-`banqi-wasm` (a cdylib that `#[path]`-includes the shared engine core and exposes
-`analyze(fen, nodes, multipv)` over `root_move_values`). To rebuild after an engine change:
+`banqi-wasm` (a cdylib that `#[path]`-includes the shared engine core). It exposes both
+one-shot `analyze(fen, nodes, multipv)` and `AnalysisSession.step(nodes)`. Continuous
+analysis retains the TT, killer/history ordering, and completed iterative-deepening state
+between bounded worker slices. To rebuild after an engine change:
 
 ```sh
 cd ~/projects/misty-banqi

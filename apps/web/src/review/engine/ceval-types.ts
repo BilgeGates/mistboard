@@ -31,13 +31,9 @@ export function depthForEffort(effort: CevalEffort | undefined): number {
   return DEPTH_BY_EFFORT[effort];
 }
 
-export function cevalSupportsInfinite(variant: CevalVariant): boolean {
-  return (
-    variant === 'xiangqi' ||
-    variant === 'fortressxiangqi' ||
-    variant === 'jieqi' ||
-    variant === 'jungleflip'
-  );
+/** Every registered client-engine backend implements cancellable continuous search. */
+export function cevalSupportsInfinite(_variant: CevalVariant): boolean {
+  return true;
 }
 
 export interface CevalLine {

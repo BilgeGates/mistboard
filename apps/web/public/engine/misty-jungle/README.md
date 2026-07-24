@@ -10,15 +10,18 @@ the Fairy-Stockfish build). Driven from `apps/web/src/review/engine/misty-ceval.
 - `jungle_wasm.js`, `jungle_wasm_bg.wasm` (+ `.d.ts`) — the wasm-bindgen `--target web`
   output, generated (do not hand-edit).
 - `worker.js` — hand-written module worker (identical to the misty-banqi/jungle-flip one):
-  loads the wasm and answers `analyze` requests off the main thread. Edit this by hand.
+  loads the wasm, owns stateful analysis sessions, and runs bounded `step` slices off the
+  main thread. Edit this by hand.
 
 ## Regenerating the wasm
 
 Source lives in the private **misty-jungle** repo (`~/projects/misty-jungle`), crate
 `jungle-wasm` (a cdylib that `#[path]`-includes the shared engine core — a single
 self-contained `engine.rs`, no game/endgame/flatdb split and no `rayon`, so unlike the
-Flip Jungle build there is no stub module — and exposes `analyze(fen, nodes, multipv)` over
-`root_move_values`). To rebuild after an engine change:
+Flip Jungle build there is no stub module). It exposes one-shot
+`analyze(fen, nodes, multipv)` and `AnalysisSession.step(nodes)`. Continuous analysis
+retains the TT, Zobrist state, killer/history ordering, and completed
+iterative-deepening state between bounded worker slices. To rebuild after an engine change:
 
 ```sh
 cd ~/projects/misty-jungle

@@ -152,12 +152,13 @@ async function checkMistyJungle(browser) {
     await waitForEvalAndLines(page);
     await waitForBestMoveArrow(page);
     const result = await readPanel(page);
+    const continuous = await exerciseContinuousAnalysis(page, 8);
     const engineNamed = await page.evaluate(() =>
       (document.querySelector('.engine-panel')?.textContent ?? '').includes('MistyJungle'),
     );
     if (!engineNamed) throw new Error('engine panel did not name MistyJungle');
     assertNoFatalErrors(errors);
-    return { url, engine: 'MistyJungle', ...result };
+    return { url, engine: 'MistyJungle', ...result, continuous };
   } finally {
     await page.close();
   }
@@ -180,7 +181,7 @@ async function checkMistyJungleFlip(browser) {
     await waitForEvalAndLines(page);
     await waitForBestMoveIndicator(page);
     const result = await readPanel(page);
-    const continuous = await exerciseContinuousAnalysis(page);
+    const continuous = await exerciseContinuousAnalysis(page, 3);
     const engineNamed = await page.evaluate(() =>
       (document.querySelector('.engine-panel')?.textContent ?? '').includes('MistyJungleFlip'),
     );
@@ -209,12 +210,13 @@ async function checkMistyBanqiAnalysis(browser) {
     await waitForEvalAndLines(page);
     await waitForBestMoveIndicator(page);
     const result = await readPanel(page);
+    const continuous = await exerciseContinuousAnalysis(page, 2);
     const engineNamed = await page.evaluate(() =>
       (document.querySelector('.engine-panel')?.textContent ?? '').includes('MistyBanqi'),
     );
     if (!engineNamed) throw new Error('engine panel did not name MistyBanqi');
     assertNoFatalErrors(errors);
-    return { url, engine: 'MistyBanqi', ...result };
+    return { url, engine: 'MistyBanqi', ...result, continuous };
   } finally {
     await page.close();
   }
@@ -452,7 +454,7 @@ async function waitForBestMoveIndicator(page) {
     .waitFor({ state: 'attached', timeout: timeoutMs });
 }
 
-async function exerciseContinuousAnalysis(page) {
+async function exerciseContinuousAnalysis(page, minDepth) {
   await page.locator('.engine-panel__gear').click();
   const row = page.locator('.engine-panel__setting').filter({ hasText: 'Search effort' });
   const slider = row.locator('input[type="range"]');
@@ -462,11 +464,12 @@ async function exerciseContinuousAnalysis(page) {
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
   await page.waitForFunction(
-    () => {
+    (requiredDepth) => {
       const status = document.querySelector('.engine-panel__sub')?.textContent ?? '';
       const depth = Number(/\bDepth\s+(\d+)/.exec(status)?.[1] ?? 0);
-      return status.includes('analyzing') && depth >= 3;
+      return status.includes('analyzing') && depth >= requiredDepth;
     },
+    minDepth,
     { timeout: timeoutMs },
   );
   await waitForEvalAndLines(page);

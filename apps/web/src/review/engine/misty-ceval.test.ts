@@ -72,7 +72,7 @@ describe('variant dispatch', () => {
     expect(depthForEffort('deep')).toBe(22);
     expect(depthForEffort('max')).toBe(26);
     expect(cevalSupportsInfinite('jungleflip')).toBe(true);
-    expect(cevalSupportsInfinite('banqi')).toBe(false);
-    expect(cevalSupportsInfinite('jungle')).toBe(false);
+    expect(cevalSupportsInfinite('banqi')).toBe(true);
+    expect(cevalSupportsInfinite('jungle')).toBe(true);
   });
 });

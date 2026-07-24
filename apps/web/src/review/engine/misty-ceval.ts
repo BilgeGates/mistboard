@@ -8,9 +8,9 @@
 // Key differences from the FSF backend:
 //  - SINGLE-THREADED wasm: no SharedArrayBuffer, so NO cross-origin isolation needed
 //    (cevalSupported() is unconditionally true for these variants).
-//  - NODE-BUDGETED: finite searches return one update. Flip Jungle additionally exposes
-//    a stateful incremental session for continuous analysis, yielding between bounded
-//    slices while retaining its TT and move-ordering state.
+//  - NODE-BUDGETED: finite searches return one update. Continuous analysis advances a
+//    stateful incremental session in bounded slices while retaining its TT and
+//    move-ordering state.
 //  - FEN-per-position, not moves-from-startpos: a flip variant's position is fed as a
 //    redacted FEN (face-down tiles as X); the panel supplies initialFen, movesUci is empty.
 import type {
@@ -28,7 +28,7 @@ import type {
 // edge cache keys for the worker script, the JS glue, AND the wasm.
 // -coep1: the 0.2.4-2 keys were edge-cached before the server started sending
 // COEP/CORP on /engine/<pkg>/ assets (2026-07-16); fresh keys pick the headers up.
-const MISTY_ASSET_VERSION = '0.2.5-continuous1';
+const MISTY_ASSET_VERSION = '0.2.5-continuous2';
 
 interface MistyEngineConfig {
   /** Public base path of the vendored wasm build. */
@@ -39,8 +39,6 @@ interface MistyEngineConfig {
   engineName: string;
   /** Product effort → node budget. Misty searches by nodes rather than a fixed depth. */
   nodesForEffort: Record<Exclude<CevalEffort, 'infinite'>, number>;
-  /** Whether this vendored wasm exposes the stateful AnalysisSession API. */
-  incremental: boolean;
 }
 
 const MISTY_EFFORT_NODES: Record<Exclude<CevalEffort, 'infinite'>, number> = {
@@ -57,21 +55,18 @@ const MISTY_CONFIGS: Record<string, MistyEngineConfig> = {
     moduleName: 'banqi_wasm',
     engineName: 'MistyBanqi',
     nodesForEffort: MISTY_EFFORT_NODES,
-    incremental: false,
   },
   jungleflip: {
     base: '/engine/misty-jungle-flip/',
     moduleName: 'jungle_flip_wasm',
     engineName: 'MistyJungleFlip',
     nodesForEffort: MISTY_EFFORT_NODES,
-    incremental: true,
   },
   jungle: {
     base: '/engine/misty-jungle/',
     moduleName: 'jungle_wasm',
     engineName: 'MistyJungle',
     nodesForEffort: MISTY_EFFORT_NODES,
-    incremental: false,
   },
 };
 
@@ -161,7 +156,7 @@ export class MistyCeval implements CevalHandle {
       req.maxDepth !== undefined
         ? Math.max(80_000, req.maxDepth * 20_000)
         : this.config.nodesForEffort[effort === 'infinite' ? 'standard' : effort];
-    if (effort === 'infinite' && this.config.incremental) {
+    if (effort === 'infinite') {
       return await this.evaluateContinuous(req, fen, multiPv, myToken);
     }
     const json = await this.send(fen, nodes, multiPv);

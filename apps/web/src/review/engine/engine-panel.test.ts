@@ -221,14 +221,14 @@ describe('createEnginePanel search effort', () => {
     panel.dispose();
   });
 
-  it('keeps a finite maximum for Misty engines that are not incrementally cancellable yet', () => {
-    const panel = createEnginePanel({ variant: 'banqi' });
+  it.each(['banqi', 'jungle'] as const)('offers the same continuous endpoint for %s', (variant) => {
+    const panel = createEnginePanel({ variant });
     const row = effortRow(panel);
     const slider = row.querySelector<HTMLInputElement>('input[type="range"]')!;
     slider.value = slider.max;
     slider.dispatchEvent(new Event('input'));
-    expect(row.textContent).toContain('Max');
-    expect(row.textContent).not.toContain('∞');
+    expect(row.textContent).toContain('∞');
+    expect(slider.max).toBe('4');
     panel.dispose();
   });
 

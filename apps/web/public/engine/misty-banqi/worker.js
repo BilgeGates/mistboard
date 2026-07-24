@@ -1,5 +1,5 @@
-// MistyBanqi client-engine worker. Runs the vendored wasm-bindgen build (banqi_wasm.js
-// + banqi_wasm_bg.wasm) OFF the main thread, so a search never blocks the review UI. The
+// MistyBanqi client-engine worker. Runs the vendored wasm-bindgen build off the main
+// thread, so a bounded search slice never blocks the review UI. The
 // wasm is single-threaded (no SharedArrayBuffer / cross-origin isolation needed), unlike
 // the Fairy-Stockfish engine.
 //
@@ -7,11 +7,13 @@
 // so cache-busting lives in one place there (ceval's asset-version constant) rather than
 // in bare-path imports here. Message protocol:
 //   → { type: 'init', jsUrl, wasmUrl }        ← { type: 'ready' } | { type: 'error', error }
-//   → { type: 'analyze', id, fen, nodes, multipv }
-//                                              ← { type: 'result', id, json }
-//                                              ← { type: 'error', id, error }
+//   → { type: 'analyze', id, fen, nodes, multipv } ← { type: 'result', id, json }
+//   → { type: 'step', id, sessionId, fen?, nodes, multipv }
+//                                                ← { type: 'result', id, json }
+//   → { type: 'cancel', sessionId }
 let mod = null;
 let readyPromise = null;
+const sessions = new Map();
 
 async function ensureReady(jsUrl, wasmUrl) {
   if (!readyPromise) {
@@ -35,9 +37,26 @@ self.onmessage = async (event) => {
       if (!mod) throw new Error('engine not initialized');
       const json = mod.analyze(msg.fen, msg.nodes, msg.multipv);
       self.postMessage({ type: 'result', id: msg.id, json });
+      return;
+    }
+    if (msg.type === 'step') {
+      if (!mod) throw new Error('engine not initialized');
+      let session = sessions.get(msg.sessionId);
+      if (!session) {
+        if (typeof msg.fen !== 'string') throw new Error('analysis session requires a FEN');
+        session = new mod.AnalysisSession(msg.fen, msg.multipv);
+        sessions.set(msg.sessionId, session);
+      }
+      const json = session.step(msg.nodes);
+      self.postMessage({ type: 'result', id: msg.id, json });
+      return;
+    }
+    if (msg.type === 'cancel') {
+      sessions.get(msg.sessionId)?.free?.();
+      sessions.delete(msg.sessionId);
     }
   } catch (err) {
     const error = String((err && err.message) || err);
-    self.postMessage(msg && msg.type === 'analyze' ? { type: 'error', id: msg.id, error } : { type: 'error', error });
+    self.postMessage(msg && msg.id !== undefined ? { type: 'error', id: msg.id, error } : { type: 'error', error });
   }
 };
