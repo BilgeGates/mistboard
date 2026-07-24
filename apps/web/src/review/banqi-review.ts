@@ -79,6 +79,7 @@ function makeBanqiPresentation(
       fen: banqiStateToEngineFen,
       canEvaluatePosition: (truth) => truth.status.type === 'playing',
       formatPvMove: formatBanqiEngineMove,
+      moveFromEngineUci: engineUciToBanqiMove,
       engineArrowsFromLines: (lines) =>
         engineArrowsFromLinesWithParser(lines, engineUciToBanqiMove),
       engineMarkersFromLines: (lines) =>

@@ -451,6 +451,10 @@ export function installReviewKeyboard(
     /** Optional: `a` toggles the engine's on-board arrows (lichess parity). Only
      *  the tree surface draws them, so the linear controller omits this. */
     toggleArrows?(): void;
+    /** Optional: Space plays the current local engine's top move. Returns false
+     *  while the engine is off or has no legal fresh result, preserving normal
+     *  Space behavior in those states. */
+    playBestMove?(): boolean;
   },
   /** Optional abort signal to remove the listener (e.g. when a surface re-mounts). */
   signal?: AbortSignal,
@@ -487,6 +491,16 @@ export function installReviewKeyboard(
       } else if ((event.key === 'a' || event.key === 'A') && handlers.toggleArrows) {
         event.preventDefault();
         handlers.toggleArrows();
+      } else if (
+        (event.key === ' ' || event.code === 'Space') &&
+        !event.repeat &&
+        handlers.playBestMove &&
+        // Let focused controls keep native Space activation (notably the engine
+        // switch and settings gear). Inputs/selects already returned above.
+        !target?.closest('button, a, [role="button"]') &&
+        handlers.playBestMove()
+      ) {
+        event.preventDefault();
       } else if (event.key === 'Escape' && handlers.escape) {
         event.preventDefault();
         handlers.escape();

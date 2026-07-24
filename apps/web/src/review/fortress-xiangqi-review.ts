@@ -79,6 +79,7 @@ const fortressPresentation: TreePresentation<
     panelVariant: 'fortressxiangqi',
     fen: fortressXiangqiEngineFen,
     formatPvMove: formatFortressEngineMove,
+    moveFromEngineUci: fsfUciToFortressXiangqiMove,
     engineArrowsFromLines: (lines) =>
       engineArrowsFromLinesWithParser(lines, parseFortressBoardMove),
     engineMarkersFromLines: (lines) =>

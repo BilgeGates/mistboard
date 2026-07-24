@@ -53,6 +53,7 @@ function makeJieqiPresentation(
       fen: jieqiStateToPikafishFen,
       canEvaluatePosition: (truth) => truth.status.type === 'playing',
       formatPvMove: formatJieqiBestMove,
+      moveFromEngineUci: pikafishUciToJieqiMove,
       engineArrowsFromLines: (lines) =>
         engineArrowsFromLinesWithParser(lines, pikafishUciToJieqiMove),
       bestMoveArrow: (best) => bestMoveArrowWithParser(best, pikafishUciToJieqiMove),

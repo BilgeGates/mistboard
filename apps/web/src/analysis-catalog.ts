@@ -27,7 +27,10 @@ export type AnalysisVariant = {
 };
 
 function entry(id: AnalysisVariantId): AnalysisVariant {
-  return { id, label: gameSpecForId(id satisfies GameSpecId).publicName };
+  const publicName = gameSpecForId(id satisfies GameSpecId).publicName;
+  // The compact site brand is "Fortress", but the analysis dropdown benefits
+  // from naming the game family explicitly beside standard Xiangqi.
+  return { id, label: id === 'fortress-xiangqi' ? 'Fortress Xiangqi' : publicName };
 }
 
 /** Dropdown order follows CANONICAL_VARIANT_ORDER (game-specs.ts). */

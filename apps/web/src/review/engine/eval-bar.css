@@ -61,40 +61,6 @@
   bottom: auto;
   top: 0;
 }
-.review-eval-bar__label {
-  position: absolute;
-  left: 0;
-  right: 0;
-  z-index: 3;
-  padding: 2px 0;
-  text-align: center;
-  font-size: 9px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  /* The label rides the LEADING side's fill so it's always over a contrasting
-     block. Default (Black ahead, upright): dark track dominates the top → label
-     at top, light text. */
-  top: 0;
-  bottom: auto;
-  color: #f2ede3;
-}
-/* Red ahead (upright): light fill dominates the bottom → label at bottom, dark text. */
-.review-eval-bar--red-ahead .review-eval-bar__label {
-  top: auto;
-  bottom: 0;
-  color: #2b2724;
-}
-/* Flipped board swaps which end each side's fill occupies. */
-.review-eval-bar--flipped .review-eval-bar__label {
-  top: auto;
-  bottom: 0;
-}
-.review-eval-bar--flipped.review-eval-bar--red-ahead .review-eval-bar__label {
-  top: 0;
-  bottom: auto;
-}
 .review-eval-bar--loading .review-eval-bar__fill {
   opacity: 0.6;
 }
@@ -103,8 +69,7 @@
    colors exactly — its areas are #c0563f @72% (red) and #34302e @85% (black)
    composited over the white panel, so mixing the same ratios over --site-panel
    gives an eval bar whose two shades read identically to the graph (clear, not
-   muddy). The red-ahead label then reads dark on the lighter fill (the default),
-   so no per-variant label override is needed.
+   muddy).
 
    Every xiangqi-kernel review surface belongs here, flip variants included: the
    default light/near-black gauge is a CHESS presentation, and a variant whose

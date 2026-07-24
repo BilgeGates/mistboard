@@ -92,7 +92,7 @@ export interface TreeBoardFactoryOptions<Move, View, Color> {
 /** The injected, variant-specific presentation bundle. Arrow/Marker are OPAQUE to
  *  the controller (it only passes them from the engine/shape builders into the
  *  board handle), so they stay free type params. */
-export interface EnginePresentation<Truth, Arrow, Marker> {
+export interface EnginePresentation<Move, Truth, Arrow, Marker> {
   /** Which ceval engine the local engine panel loads. */
   panelVariant: CevalVariant;
   /** How the panel is fed each position. `'moves'` (default): replay engine UCI from the
@@ -108,6 +108,10 @@ export interface EnginePresentation<Truth, Arrow, Marker> {
   canEvaluatePosition?(truth: Truth): boolean;
   /** Prettify a PV move (engine UCI) for the engine panel. */
   formatPvMove(uci: string): string;
+  /** Decode the engine's UCI dialect into the board/tree move dialect. Omit when
+   *  the tree adapter's fromUci already consumes the same coordinates. Hidden
+   *  variants use this for their 0-indexed engine ranks. */
+  moveFromEngineUci?(uci: string, truth: Truth): Move | null;
   /** On-board arrows for live MultiPV lines. Omit while a board renderer has no
    *  overlay capability; the engine panel then hides its arrow setting. */
   engineArrowsFromLines?(lines: CevalLine[]): Arrow[];
@@ -127,7 +131,7 @@ export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
   /** Client-engine hooks (local ceval panel + eval gauge + engine arrows + Share
    *  FEN). Null for variants with no client engine: the panel and gauge are then
    *  omitted and the board carries no eval affordance. */
-  engine: EnginePresentation<Truth, Arrow, Marker> | null;
+  engine: EnginePresentation<Move, Truth, Arrow, Marker> | null;
   /** Format a whole-game-analysis best move (server `evals[].best`, in the ANALYSIS
    *  engine's UCI dialect) for the "… was best" advice line. Omit to use the default
    *  xiangqi/FSF formatter (correct for xiangqi/fortress/jungle, whose display coords
@@ -424,13 +428,14 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   const multiBoard = projectionShape.length > 1;
 
   // Play a move on the interactive board → branch the tree and follow it.
-  const handleMove = (move: Move): void => {
+  const handleMove = (move: Move): boolean => {
     const next = tree.addMove(currentPath, move);
-    if (!next) return;
+    if (!next) return false;
     currentPath = next;
     moveTree.rebuild();
     render();
     notifyChange();
+    return true;
   };
   // Clicking a move in the opening explorer plays it, same as playing it on the
   // board: the explorer is a navigation surface, not a readout.
@@ -1508,6 +1513,19 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
         enginePanel && engineOverlaysSupported
           ? () => enginePanel.setShowArrows(!showEngineArrows)
           : undefined,
+      // Space follows the current local engine's first PV move. setPosition()
+      // clears engineLines synchronously on every navigation, so a held/stale
+      // result can never race ahead through a second position.
+      playBestMove: () => {
+        if (!engineOn) return false;
+        const uci = engineLines?.[0]?.pvUci[0];
+        const engine = presentation.engine;
+        if (!uci || !engine) return false;
+        const move = engine.moveFromEngineUci
+          ? engine.moveFromEngineUci(uci, currentNode().truth)
+          : adapter.fromUci(uci, currentNode().truth);
+        return move ? handleMove(move) : false;
+      },
     },
     keyboardAbort.signal,
   );

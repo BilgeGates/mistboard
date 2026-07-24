@@ -5,6 +5,10 @@ describe('eval bar ruler', () => {
   it('does not imply a linear scale with unlabelled ticks', () => {
     expect(createEvalBar().el.querySelector('.review-eval-bar__tick')).toBeNull();
   });
+
+  it('leaves the numeric evaluation to the larger engine headline', () => {
+    expect(createEvalBar().el.querySelector('.review-eval-bar__label')).toBeNull();
+  });
 });
 
 describe('eval bar fill', () => {
@@ -51,11 +55,5 @@ describe('eval bar fill', () => {
     bar.setEval(null, 3);
     const fill = bar.el.querySelector<HTMLElement>('.review-eval-bar__fill');
     expect(Number.parseFloat(fill?.style.height ?? '0')).toBeGreaterThan(90);
-  });
-
-  it('accepts a variant-native display value without changing the fill input', () => {
-    const bar = createEvalBar();
-    bar.setEval(-201, null, '-0.20');
-    expect(bar.el.querySelector('.review-eval-bar__label')?.textContent).toBe('-0.20');
   });
 });

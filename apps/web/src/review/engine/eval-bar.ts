@@ -1,21 +1,22 @@
 // The iconic lichess on-board eval bar: a thin vertical gauge flush against the
 // board. The light fill grows from the Red end (bottom by default) in proportion
-// to Red's win probability; a midline marks equality and the current eval prints
-// at the leading end. Driven by the engine panel's live updates (setEval).
+// to Red's win probability; a midline marks equality. The larger engine-panel
+// headline carries the numeric evaluation, so this narrow gauge stays visual.
+// Driven by the engine panel's live updates (setEval).
 //
 // The board is sized by the review-stage's viewport fit and is narrower than its
 // slot, so the bar is absolutely positioned inside the board host and aligned to
 // the board's measured rect (alignTo), re-run on a ResizeObserver — it can't drift
 // when the board rescales.
 import './eval-bar.css';
-import { formatEval, winProbRed } from './eval-format.js';
+import { winProbRed } from './eval-format.js';
 
 const BAR_WIDTH_PX = 20;
 const BAR_GAP_PX = 8;
 export interface EvalBar {
   el: HTMLElement;
   /** Update from a fixed-side score (normally Red; P1 while flip colors are unbound). */
-  setEval(cp: number | null, mate: number | null, display?: string): void;
+  setEval(cp: number | null, mate: number | null): void;
   /** Use a seat-neutral palette while flip-game colors are still unbound. */
   setNeutral(neutral: boolean): void;
   /** Show a neutral "thinking" state without a number. */
@@ -42,19 +43,16 @@ export function createEvalBar(): EvalBar {
   // The red equality line is the only ruler mark. The fill uses a nonlinear
   // advantage curve, so unlabelled subdivisions cannot honestly represent a
   // fixed number of centipawns (or a calibrated win probability).
-  const label = document.createElement('span');
-  label.className = 'review-eval-bar__label';
-  el.append(fill, label);
+  el.append(fill);
 
   function applyProb(prob: number): void {
     fill.style.height = `${(prob * 100).toFixed(1)}%`;
     el.classList.toggle('review-eval-bar--red-ahead', prob >= 0.5);
   }
 
-  function setEval(cp: number | null, mate: number | null, display?: string): void {
+  function setEval(cp: number | null, mate: number | null): void {
     el.classList.remove('review-eval-bar--loading');
     applyProb(winProbRed(cp, mate));
-    label.textContent = display ?? formatEval(cp, mate);
   }
 
   function setNeutral(neutral: boolean): void {
@@ -63,13 +61,11 @@ export function createEvalBar(): EvalBar {
 
   function setLoading(): void {
     el.classList.add('review-eval-bar--loading');
-    label.textContent = '';
   }
 
   function reset(): void {
     el.classList.remove('review-eval-bar--loading');
     applyProb(0.5);
-    label.textContent = '';
   }
 
   function setIdle(idle: boolean): void {

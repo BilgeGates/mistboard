@@ -134,7 +134,7 @@ describe('createEnginePanel flip-game opening scores', () => {
         { text: '-0.20', tone: true },
       ]);
       expect(evalBar.el.classList.contains('review-eval-bar--neutral')).toBe(true);
-      expect(evalBar.el.querySelector('.review-eval-bar__label')?.textContent).toBe('-0.20');
+      expect(evalBar.el.querySelector('.review-eval-bar__label')).toBeNull();
 
       panel.setPosition([], 'XXXX/XXXX/XXXX/XXXX r RCDWPTLErcdwptle 0 2');
       await vi.advanceTimersByTimeAsync(151);

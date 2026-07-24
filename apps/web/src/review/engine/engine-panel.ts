@@ -229,7 +229,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
       evalLabel.textContent = firstPlayer ? `P1 ${display}` : display;
       if (firstPlayer) evalLabel.title = 'First player perspective';
       else evalLabel.removeAttribute('title');
-      opts.evalBar?.setEval(cp, mate, display);
+      opts.evalBar?.setEval(cp, mate);
     }
     const status = update.depth
       ? `Depth ${update.depth}${update.nps ? ` · ${formatKnps(update.nps)}` : ''}`

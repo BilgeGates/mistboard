@@ -64,6 +64,7 @@ const junglePresentation: TreePresentation<
     fen: jungleStateToEngineFen,
     canEvaluatePosition: (truth) => truth.status.type === 'playing',
     formatPvMove: formatJungleEngineMove,
+    moveFromEngineUci: engineUciToJungleMove,
     engineArrowsFromLines: (lines) => engineArrowsFromLinesWithParser(lines, engineUciToJungleMove),
     bestMoveArrow: (best) => bestMoveArrowWithParser(best, engineUciToJungleMove),
   },

@@ -80,6 +80,7 @@ function makeJungleFlipPresentation(
       fen: jungleFlipStateToEngineFen,
       canEvaluatePosition: (truth) => truth.status.type === 'playing',
       formatPvMove: formatJungleFlipEngineMove,
+      moveFromEngineUci: engineUciToJungleFlipMove,
       engineArrowsFromLines: (lines) =>
         engineArrowsFromLinesWithParser(lines, engineUciToJungleFlipMove),
       engineMarkersFromLines: (lines) =>

@@ -7,12 +7,20 @@ describe('analysis catalog', () => {
   it('every entry is a real game spec with a site label and a variant marker', () => {
     for (const variant of ANALYSIS_VARIANTS) {
       const spec = gameSpecForId(variant.id);
-      expect(variant.label).toBe(spec.publicName);
+      expect(variant.label).toBe(
+        variant.id === 'fortress-xiangqi' ? 'Fortress Xiangqi' : spec.publicName,
+      );
       expect(variant.label.length).toBeGreaterThan(0);
       // The dropdown + meta card render the finalized variant marker; a catalog
       // entry without one would fall back to a blank icon box.
       expect(variantMiniIdForGameSpec(variant.id)).not.toBeNull();
     }
+  });
+
+  it('disambiguates Fortress in the analysis dropdown', () => {
+    expect(ANALYSIS_VARIANTS.find((variant) => variant.id === 'fortress-xiangqi')?.label).toBe(
+      'Fortress Xiangqi',
+    );
   });
 
   it('dropdown order follows CANONICAL_VARIANT_ORDER', () => {
