@@ -226,12 +226,13 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
       return;
     }
 
-    // /study/:id mirrors /game/:id: a public study bakes its own title/meta into
-    // the shell (crawlers + link previews); unlisted/private serve the plain shell.
-    // Accepts the locale-prefixed forms too (/zh-hans/study/:id), so a study
-    // shared in Chinese bakes its Chinese title into the shell for crawlers and
-    // link previews instead of falling back to the base language.
-    const studyRouteMatch = pathname.match(/^(?:\/(zh-hans|zh-hant))?\/study\/([^/]+)$/);
+    // /study/:id and /study/:id/:chapterId mirror /game/:id: a public study
+    // bakes its own title/meta into the shell (crawlers + link previews);
+    // unlisted/private serve the plain shell. Locale-prefixed forms get the same
+    // treatment so a shared chapter keeps its translated study metadata.
+    const studyRouteMatch = pathname.match(
+      /^(?:\/(zh-hans|zh-hant))?\/study\/([^/]+)(?:\/[^/]+)?$/,
+    );
     if (studyRouteMatch && persistence.isInitialized()) {
       const studyId = decodeURIComponent(studyRouteMatch[2]!);
       const localeSlug = studyRouteMatch[1] ?? 'en';

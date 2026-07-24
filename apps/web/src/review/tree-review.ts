@@ -293,9 +293,14 @@ export type TreeReviewConfig<Move, Truth = never, Arrow = unknown> = {
   /** Show gamebook (lesson) authoring fields — per-node hint + deviation — in the
    *  annotation editor. The study page sets this for a gamebook chapter's owner. */
   gamebookEditing?: boolean;
+  /** Study-level lesson controls shown in the under-board Lesson tab. The study
+   *  page supplies the enable/preview controls; the annotation editor adds the
+   *  current position's hint/deviation fields when gamebook mode is active. */
+  annotationLessonControls?: HTMLElement;
   /** Show the study annotation controls (glyph picker + comment box + clear-shapes)
-   *  in the right rail. Only editable studies set this; the postgame/analysis
-   *  review surfaces are read-only and omit it. Board shape-drawing still works. */
+   *  in the under-board authoring dock. Only editable studies set this; the
+   *  postgame/analysis surfaces are read-only and omit it. Board shape-drawing
+   *  still works. */
   annotationEditing?: boolean;
   /** Whole-game analysis source; null disables the analysis affordance. */
   analysis: AnalysisSource | null;
@@ -857,17 +862,6 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // Live-FEN share input, refreshed on every navigation (see render()).
   const shareFenInput = document.createElement('input');
   const shareMovesInput = document.createElement('textarea');
-  const underboardEl = underboardPanel(underboardBody, {
-    hasAnalysis: Boolean(config.analysis),
-    about: config.aboutTab,
-    provenance: config.provenance,
-    moveTimes: config.moveTimes,
-    seatColors: config.seatColors,
-    players: config.showCrosstable ? (config.players ?? {}) : undefined,
-    shareFenInput,
-    shareMovesInput,
-    gameUrl: typeof window !== 'undefined' ? window.location.href : '',
-  });
   // FEN + moves-import block below the underboard tools (analysis board only);
   // its FEN mirrors the current node, its moves box prefills with the current
   // line but never clobbers in-progress typing (see render()).
@@ -921,6 +915,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
           notifyChange();
         },
         gamebook: config.gamebookEditing,
+        lessonControls: config.annotationLessonControls,
         onGamebook: (patch) => {
           tree.annotateAt(currentPath, {
             gamebook: {
@@ -932,6 +927,18 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
         },
       })
     : null;
+  const underboardEl = underboardPanel(underboardBody, {
+    hasAnalysis: Boolean(config.analysis),
+    about: config.aboutTab,
+    tools: annotationEditor?.tabs,
+    provenance: config.provenance,
+    moveTimes: config.moveTimes,
+    seatColors: config.seatColors,
+    players: config.showCrosstable ? (config.players ?? {}) : undefined,
+    shareFenInput,
+    shareMovesInput,
+    gameUrl: typeof window !== 'undefined' ? window.location.href : '',
+  });
 
   // The tree truncates an illegal seed to the legal prefix; surface a notice.
   const truncated = !config.initialTree && mainlineLen < config.moves.length;
@@ -976,7 +983,6 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     underboardOverflows: true,
     enginePanel: enginePanel?.el,
     moves: moveTree.el,
-    annotations: annotationEditor?.el,
     railPanel: config.explorer?.el,
     navigation: controls.el,
     analysisSummary: analysisSummaryEl,

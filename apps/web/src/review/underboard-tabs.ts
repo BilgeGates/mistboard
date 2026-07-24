@@ -19,6 +19,10 @@ export type UnderboardOptions = {
   /** A caller-labelled info tab, shown FIRST. The study surface uses it for the
    *  study's own description + favorite + errata, moving them off the left rail. */
   about?: { label: string; body: HTMLElement };
+  /** Caller-owned tool tabs inserted after About and before analysis/share.
+   *  Studies use these for the current move's comment, glyphs, and lesson
+   *  authoring controls. */
+  tools?: Array<{ id: string; label: string; body: HTMLElement }>;
   /** Prebuilt opening-explorer panel → an "Opening explorer" tab. Present only
    *  on surfaces with a corpus behind them (standard xiangqi today). */
   explorer?: HTMLElement;
@@ -48,6 +52,7 @@ export function underboardPanel(analysisBody: HTMLElement, opts: UnderboardOptio
   if (opts.about) {
     tabDefs.push({ id: 'about', label: opts.about.label, body: opts.about.body });
   }
+  if (opts.tools) tabDefs.push(...opts.tools);
   if (opts.hasAnalysis) {
     tabDefs.push({ id: 'analysis', label: 'Computer analysis', body: analysisBody });
   }

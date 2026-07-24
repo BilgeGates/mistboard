@@ -234,7 +234,10 @@ const historicalXiangqiGameId = historicalXiangqiGameIdFromPath(path);
 // itself is already picked up from the URL by initializeLocaleFromCurrentUrl;
 // without this pattern the localized URL fell through to the 404 shell even
 // though the server happily served it with localized meta.
-const studyId = /^(?:\/(?:zh-hans|zh-hant))?\/study\/([A-Za-z0-9]+)$/.exec(path)?.[1] ?? null;
+const studyBaseId = /^(?:\/(?:zh-hans|zh-hant))?\/study\/([A-Za-z0-9]+)$/.exec(path)?.[1] ?? null;
+const studyChapterRoute = studyChapterRouteFromPath(path);
+const studyId = studyBaseId ?? studyChapterRoute?.studyId ?? null;
+const studyChapterId = studyChapterRoute?.chapterId ?? null;
 const wantsStudyIndex = path === '/study';
 // Hidden DEV-only spike: FoW Xiangqi Phase A. No nav entry, no landing link.
 const wantsXiangqiSpike = import.meta.env.DEV && path === '/xiangqi-spike';
@@ -352,7 +355,7 @@ if (replaySample) {
   setTitle('Study');
   void mountOrReport(() =>
     import('./study.js').then(({ mountStudy }) => {
-      mountStudy(appRoot, studyId);
+      mountStudy(appRoot, studyId, studyChapterId ?? undefined);
     }),
   );
 } else if (wantsHistoricalXiangqiSearch) {
@@ -776,6 +779,11 @@ async function mountOrReport(run: () => Promise<void>): Promise<void> {
 function gameRoomIdFromPath(value: string): string | null {
   const match = value.match(/^\/game\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function studyChapterRouteFromPath(value: string): { studyId: string; chapterId: string } | null {
+  const match = value.match(/^(?:\/(?:zh-hans|zh-hant))?\/study\/([A-Za-z0-9]+)\/([A-Za-z0-9]+)$/);
+  return match ? { studyId: match[1]!, chapterId: match[2]! } : null;
 }
 
 // Variant-tenant postgame routes (<gameRouteBase>/:roomId) resolve through the

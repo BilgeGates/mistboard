@@ -524,6 +524,49 @@ export type DeleteChapterResult =
   | { ok: true }
   | { ok: false; error: 'not_found' | 'forbidden' | 'last_chapter' };
 
+export type ReorderStudyChaptersResult =
+  | { ok: true }
+  | { ok: false; error: 'not_found' | 'forbidden' | 'invalid_order' };
+
+/** Replace a study's complete chapter order. Requiring the exact current ID set
+ * prevents a stale browser from silently dropping a newly-added chapter. */
+export async function reorderStudyChapters(
+  studyId: string,
+  ownerId: string,
+  chapterIds: string[],
+): Promise<ReorderStudyChaptersResult> {
+  if (!isInitialized()) return { ok: false, error: 'not_found' };
+  const study = await getPool().query<{ owner_id: string }>(
+    `SELECT owner_id FROM studies WHERE id = $1`,
+    [studyId],
+  );
+  const found = study.rows[0];
+  if (!found) return { ok: false, error: 'not_found' };
+  if (found.owner_id !== ownerId) return { ok: false, error: 'forbidden' };
+  const existing = await getPool().query<{ id: string }>(
+    `SELECT id FROM study_chapters WHERE study_id = $1 ORDER BY ordinal, created_at`,
+    [studyId],
+  );
+  const existingIds = existing.rows.map((row) => row.id);
+  if (
+    chapterIds.length !== existingIds.length ||
+    new Set(chapterIds).size !== chapterIds.length ||
+    chapterIds.some((id) => !existingIds.includes(id))
+  ) {
+    return { ok: false, error: 'invalid_order' };
+  }
+  await getPool().query(
+    `UPDATE study_chapters AS chapter
+       SET ordinal = ordering.ordinal - 1,
+           updated_at = now()
+      FROM unnest($1::text[]) WITH ORDINALITY AS ordering(id, ordinal)
+      WHERE chapter.study_id = $2 AND chapter.id = ordering.id`,
+    [chapterIds, studyId],
+  );
+  await getPool().query(`UPDATE studies SET updated_at = now() WHERE id = $1`, [studyId]);
+  return { ok: true };
+}
+
 /** Delete a chapter (owner only). Refuses to remove the last chapter — a study
  *  always has at least one. */
 export async function deleteChapter(

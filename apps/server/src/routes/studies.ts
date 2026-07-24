@@ -9,6 +9,7 @@
 //   PATCH  /api/studies/:id                   update name/description/visibility (owner)
 //   DELETE /api/studies/:id                   delete (owner)
 //   POST   /api/studies/:id/chapters          add a chapter (owner)
+//   PATCH  /api/studies/:id/chapters          reorder all chapters (owner)
 //   PATCH  /api/studies/:id/chapters/:cid     save tree (version-guarded) OR rename (owner)
 //   DELETE /api/studies/:id/chapters/:cid     delete a chapter (owner; refuses the last)
 
@@ -183,14 +184,38 @@ export async function tryHandle(
   // ── Add a chapter ──
   const chaptersMatch = CHAPTERS_PATH.exec(pathname);
   if (chaptersMatch) {
-    if (!requireMethod(request, response, 'POST')) return true;
     if (!requirePersistence(response)) return true;
     const user = await currentAccountUser(request);
     if (!user) {
       writeJson(response, 401, { error: 'not_signed_in' });
       return true;
     }
-    return addChapter(request, response, chaptersMatch[1]!, user.id);
+    if (request.method === 'POST') return addChapter(request, response, chaptersMatch[1]!, user.id);
+    if (request.method === 'PATCH') {
+      const body = await readJsonBody(request);
+      if (
+        !Array.isArray(body.chapterIds) ||
+        !body.chapterIds.every((id) => typeof id === 'string')
+      ) {
+        writeJson(response, 400, { error: 'invalid_chapter_order' });
+        return true;
+      }
+      const result = await persistence.reorderStudyChapters(
+        chaptersMatch[1]!,
+        user.id,
+        body.chapterIds,
+      );
+      if (!result.ok) {
+        const status =
+          result.error === 'forbidden' ? 403 : result.error === 'not_found' ? 404 : 409;
+        writeJson(response, status, { error: result.error });
+        return true;
+      }
+      writeJson(response, 200, { ok: true });
+      return true;
+    }
+    writeJson(response, 405, { error: 'method_not_allowed' });
+    return true;
   }
 
   // ── Chapter: tree save / rename / delete ──

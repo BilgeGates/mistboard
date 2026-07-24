@@ -29,12 +29,18 @@ export interface AnnotationEditorOptions {
   onClearShapes(): void;
   /** Gamebook (lesson) authoring: show hint + deviation fields for the current node. */
   gamebook?: boolean;
+  /** Study-level lesson controls (enable/disable + preview), shown above the
+   *  per-position hint fields. Supplying this keeps Lesson discoverable even
+   *  before the current chapter has gamebook mode enabled. */
+  lessonControls?: HTMLElement;
   /** Set the current node's gamebook hint/deviation. Per keystroke; no re-render. */
   onGamebook?(patch: { hint?: string; deviation?: string }): void;
 }
 
 export interface AnnotationEditor {
   el: HTMLElement;
+  /** Tool bodies for the study's under-board authoring dock. */
+  tabs: Array<{ id: string; label: string; body: HTMLElement }>;
   /** Load a node's annotations into the controls (call on every navigation). */
   setAnnotations(annotations: NodeAnnotations | undefined): void;
 }
@@ -43,6 +49,8 @@ export function createAnnotationEditor(opts: AnnotationEditorOptions): Annotatio
   const panel = document.createElement('section');
   panel.className = 'annotation-editor';
 
+  const glyphPanel = document.createElement('section');
+  glyphPanel.className = 'annotation-editor annotation-editor--glyphs';
   const glyphRow = document.createElement('div');
   glyphRow.className = 'annotation-editor__glyphs';
   const glyphButtons = new Map<number, HTMLButtonElement>();
@@ -68,16 +76,24 @@ export function createAnnotationEditor(opts: AnnotationEditorOptions): Annotatio
   clearShapes.addEventListener('click', () => opts.onClearShapes());
   glyphRow.append(clearShapes);
 
+  glyphPanel.append(glyphRow);
+
+  const commentPanel = document.createElement('section');
+  commentPanel.className = 'annotation-editor annotation-editor--comment';
   const comment = document.createElement('textarea');
   comment.className = 'annotation-editor__comment';
   comment.rows = 2;
   comment.placeholder = 'Add a note on this move…';
   comment.addEventListener('input', () => opts.onComment(comment.value));
 
-  panel.append(glyphRow, comment);
+  commentPanel.append(comment);
+  panel.append(commentPanel, glyphPanel);
 
   // Gamebook (lesson) fields: hint (revealed on demand) + deviation (shown when the
   // learner leaves this line). Only rendered in lesson-authoring mode.
+  const lessonPanel = document.createElement('section');
+  lessonPanel.className = 'annotation-editor annotation-editor--lesson';
+  if (opts.lessonControls) lessonPanel.append(opts.lessonControls);
   let hint: HTMLTextAreaElement | null = null;
   let deviation: HTMLTextAreaElement | null = null;
   if (opts.gamebook) {
@@ -96,8 +112,9 @@ export function createAnnotationEditor(opts: AnnotationEditorOptions): Annotatio
     const section = document.createElement('div');
     section.className = 'annotation-editor__gamebook';
     section.append(hint, deviation);
-    panel.append(section);
+    lessonPanel.append(section);
   }
+  if (lessonPanel.childElementCount > 0) panel.append(lessonPanel);
 
   function setAnnotations(annotations: NodeAnnotations | undefined): void {
     const active = annotations?.glyphs?.[0];
@@ -118,5 +135,12 @@ export function createAnnotationEditor(opts: AnnotationEditorOptions): Annotatio
   }
 
   setAnnotations(undefined);
-  return { el: panel, setAnnotations };
+  const tabs = [
+    { id: 'comment', label: 'Comment', body: commentPanel },
+    { id: 'glyphs', label: 'Glyphs', body: glyphPanel },
+  ];
+  if (lessonPanel.childElementCount > 0) {
+    tabs.push({ id: 'lesson', label: 'Lesson', body: lessonPanel });
+  }
+  return { el: panel, tabs, setAnnotations };
 }

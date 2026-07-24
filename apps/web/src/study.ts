@@ -1,12 +1,11 @@
 // Study viewer/editor (/study/:id). Fetches a persisted study, rebuilds each
 // chapter's tree from its serialized blob, and mounts that chapter variant's
-// review surface (review/study-review.ts owns the board dispatch — a study is
-// mixed-variant capable: `variant` is a per-CHAPTER column, not a study one).
-// Chapters list in a compact scrolling left-rail panel (lichess study anatomy)
-// with a per-study chat room beneath; switching re-mounts the review for that
-// chapter. For the owner, tree edits autosave (debounced) through the
-// version-guarded chapter PATCH, and the owner can add/delete chapters.
-// Non-owners get a read/explore view.
+// review surface (review/study-review.ts owns the board dispatch). A study is
+// single-variant: the first chapter fixes the variant and later chapters inherit
+// it. Chapters live in a compact navigation-first rail with a per-study chat
+// beneath; owner metadata and chapter actions open in focused dialogs. Tree
+// edits autosave through the version-guarded chapter PATCH. Non-owners get the
+// same reading workspace without authoring controls.
 
 import './game-shell.css';
 import { t } from './i18n/catalog.js';
@@ -31,8 +30,17 @@ import {
   studyVariantSupportsComposition,
   studyVariantSupportsGamebook,
 } from './study-catalog.js';
-
-type StudyVisibility = 'private' | 'unlisted' | 'public';
+import {
+  buildStudyRail,
+  type ChapterControlModel,
+  type ChapterSettingsPatch,
+  clearTreeAnnotations,
+  keepTreeMainline,
+  openChapterSettingsDialog,
+  openStudySettingsDialog,
+  type StudySettingsPatch,
+  type StudyVisibility,
+} from './study-controls.js';
 
 type StudyDto = {
   id: string;
@@ -64,12 +72,12 @@ type LoadResult =
 
 const EMPTY_TREE: SerializedTree = { version: 1, root: { children: [] } };
 
-export function mountStudy(root: HTMLElement, studyId: string): void {
+export function mountStudy(root: HTMLElement, studyId: string, initialChapterId?: string): void {
   root.classList.add('landing-page', 'xiangqi-postgame-route');
   root.replaceChildren(buildNav(), notice('Loading study'));
   void loadStudy(studyId)
     .then((result) => {
-      if (result.ok) renderStudy(root, result.study, result.chapters);
+      if (result.ok) renderStudy(root, result.study, result.chapters, initialChapterId);
       else renderError(root, result.status);
     })
     .catch(() => renderError(root, 0));
@@ -84,26 +92,67 @@ async function loadStudy(studyId: string): Promise<LoadResult> {
   return { ok: true, study: body.study, chapters: body.chapters };
 }
 
-function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[]): void {
+function renderStudy(
+  root: HTMLElement,
+  study: StudyDto,
+  chapters: ChapterDto[],
+  initialChapterId?: string,
+): void {
   if (chapters.length === 0) {
     renderError(root, 415);
     return;
   }
-  let activeId = chapters[0]!.id;
+  let activeId = chapters.some((chapter) => chapter.id === initialChapterId)
+    ? initialChapterId!
+    : chapters[0]!.id;
   // Bumped on every render so an in-flight async board mount knows it is stale.
   let mountSeq = 0;
+  let activeHandle: TreeReviewHandle | null = null;
+  let cancelActiveSave: (() => void) | null = null;
 
-  const switchTo = (id: string): void => {
+  const updateChapterUrl = (id: string, mode: 'push' | 'replace'): void => {
+    const nextPath = studyChapterPath(study.id, id, window.location.pathname);
+    if (window.location.pathname === nextPath) return;
+    const nextUrl = `${nextPath}${window.location.search}${window.location.hash}`;
+    if (mode === 'push')
+      window.history.pushState({ studyId: study.id, chapterId: id }, '', nextUrl);
+    else window.history.replaceState({ studyId: study.id, chapterId: id }, '', nextUrl);
+  };
+
+  const switchTo = (id: string, historyMode: 'push' | 'replace' = 'push'): void => {
     // No-op when already active — otherwise a double-click (two clicks) would
     // re-render and detach the tab label before its dblclick-to-rename fires.
     if (id === activeId) return;
     activeId = id;
+    updateChapterUrl(id, historyMode);
     // renderActive() rebuilds the whole page and the board mounts async, so the
     // document briefly shrinks and the browser yanks the scroll to the top. Pin
     // it: hold the current scroll while the new chapter mounts.
     preserveScroll();
     renderActive();
   };
+
+  // Every rendered chapter has a stable permalink, including the first chapter
+  // reached through the shorter /study/:id URL or an invalid stale chapter URL.
+  updateChapterUrl(activeId, 'replace');
+  const onPopState = (): void => {
+    if (!root.isConnected) {
+      window.removeEventListener('popstate', onPopState);
+      return;
+    }
+    const chapterId = chapterIdFromStudyPath(window.location.pathname, study.id);
+    if (
+      !chapterId ||
+      chapterId === activeId ||
+      !chapters.some((chapter) => chapter.id === chapterId)
+    ) {
+      return;
+    }
+    activeId = chapterId;
+    preserveScroll();
+    renderActive();
+  };
+  window.addEventListener('popstate', onPopState);
 
   // Keep the page from jumping to the top on a chapter switch. Capture the
   // scroll now and restore it across the re-render + async board mount, until a
@@ -138,54 +187,91 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     return first && isStudyVariantId(first.variant) ? first.variant : DEFAULT_STUDY_VARIANT;
   };
 
-  const createChapter = async (name: string, rootFen?: string): Promise<void> => {
-    // rootFen rides inside the tree blob (SerializedTree.rootFen) — a
-    // composition chapter needs no dedicated column or route change.
-    const root: SerializedTree = rootFen ? { ...EMPTY_TREE, rootFen } : EMPTY_TREE;
+  const createChapter = async (
+    name: string,
+    rootFen?: string,
+    sourceRoot?: SerializedTree,
+  ): Promise<string | null> => {
+    // rootFen rides inside the tree blob (SerializedTree.rootFen). Duplicating a
+    // chapter supplies the whole source tree instead.
+    const chapterRoot: SerializedTree = sourceRoot
+      ? structuredClone(sourceRoot)
+      : rootFen
+        ? { ...EMPTY_TREE, rootFen }
+        : EMPTY_TREE;
     const response = await fetch(`/api/studies/${study.id}/chapters`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         name: name || `Chapter ${chapters.length + 1}`,
-        root,
+        root: chapterRoot,
       }),
     });
-    if (!response.ok) return;
+    if (!response.ok) return responseError(response, 'Could not create the chapter.');
     const { chapter } = (await response.json()) as { chapter: ChapterDto };
     chapters.push(chapter);
     switchTo(chapter.id);
+    return null;
   };
 
   const addChapter = (): void =>
-    openAddChapterDialog(`Chapter ${chapters.length + 1}`, studyVariant(), (name, rootFen) => {
-      void createChapter(name, rootFen);
-    });
+    openAddChapterDialog(`Chapter ${chapters.length + 1}`, studyVariant(), (name, rootFen) =>
+      createChapter(name, rootFen),
+    );
 
-  const removeChapter = async (id: string): Promise<void> => {
+  const removeChapter = async (id: string): Promise<string | null> => {
     const response = await fetch(`/api/studies/${study.id}/chapters/${id}`, { method: 'DELETE' });
-    if (!response.ok) return; // 409 last_chapter is silently a no-op (button is hidden anyway)
+    if (!response.ok) return responseError(response, 'Could not delete the chapter.');
     const index = chapters.findIndex((chapter) => chapter.id === id);
     if (index >= 0) chapters.splice(index, 1);
-    if (activeId === id) activeId = chapters[0]?.id ?? activeId;
+    if (activeId === id) {
+      activeId = chapters[Math.min(index, chapters.length - 1)]?.id ?? activeId;
+      updateChapterUrl(activeId, 'replace');
+    }
     renderActive();
+    return null;
+  };
+
+  const reorderChapters = async (nextIds: string[]): Promise<string | null> => {
+    const response = await fetch(`/api/studies/${study.id}/chapters`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ chapterIds: nextIds }),
+    });
+    if (!response.ok) return responseError(response, 'Could not reorder the chapters.');
+    const byId = new Map(chapters.map((chapter) => [chapter.id, chapter]));
+    const reordered = nextIds.flatMap((id) => {
+      const chapter = byId.get(id);
+      return chapter ? [chapter] : [];
+    });
+    if (reordered.length !== chapters.length)
+      return 'The chapter list changed. Reload and try again.';
+    chapters.splice(0, chapters.length, ...reordered);
+    renderActive();
+    return null;
   };
 
   // Owner-only: whether the owner is previewing (test-playing) the active gamebook
   // chapter instead of authoring it.
   let previewMode = false;
 
-  const setGamebook = async (chapterId: string, on: boolean): Promise<void> => {
+  const setGamebook = async (
+    chapterId: string,
+    on: boolean,
+    rerender = true,
+  ): Promise<string | null> => {
     const chapter = chapters.find((entry) => entry.id === chapterId);
-    if (!chapter) return;
+    if (!chapter) return 'Chapter not found.';
     const response = await fetch(`/api/studies/${study.id}/chapters/${chapterId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ gamebook: on }),
     });
-    if (!response.ok) return;
+    if (!response.ok) return responseError(response, 'Could not update lesson mode.');
     chapter.gamebook = on;
     if (!on) previewMode = false;
-    renderActive();
+    if (rerender) renderActive();
+    return null;
   };
 
   const setPreview = (on: boolean): void => {
@@ -193,33 +279,104 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     renderActive();
   };
 
-  const renameStudy = async (name: string): Promise<void> => {
-    const trimmed = name.trim();
-    if (!trimmed || trimmed === study.name) return;
+  const saveStudySettings = async (patch: StudySettingsPatch): Promise<string | null> => {
     const response = await fetch(`/api/studies/${study.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: trimmed }),
+      body: JSON.stringify(patch),
     });
-    if (response.ok) {
-      study.name = trimmed;
-      renderActive();
-    }
+    if (!response.ok) return responseError(response, 'Could not save study settings.');
+    study.name = patch.name;
+    study.description = patch.description;
+    study.visibility = patch.visibility;
+    renderActive();
+    return null;
   };
 
-  const renameChapter = async (id: string, name: string): Promise<void> => {
-    const trimmed = name.trim();
-    const chapter = chapters.find((entry) => entry.id === id);
-    if (chapter && trimmed && trimmed !== chapter.name) {
-      const response = await fetch(`/api/studies/${study.id}/chapters/${id}`, {
+  const deleteStudy = async (): Promise<string | null> => {
+    const response = await fetch(`/api/studies/${study.id}`, { method: 'DELETE' });
+    if (!response.ok) return responseError(response, 'Could not delete the study.');
+    window.location.href = localizedHref('/study?tab=mine');
+    return null;
+  };
+
+  const saveChapterSettings = async (
+    chapter: ChapterDto,
+    patch: ChapterSettingsPatch,
+  ): Promise<string | null> => {
+    if (patch.name !== chapter.name) {
+      const response = await fetch(`/api/studies/${study.id}/chapters/${chapter.id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: trimmed }),
+        body: JSON.stringify({ name: patch.name }),
       });
-      if (response.ok) chapter.name = trimmed;
+      if (!response.ok) return responseError(response, 'Could not rename the chapter.');
+      chapter.name = patch.name;
     }
-    // Always re-render so an in-tab edit input is restored (commit or cancel).
+    if (patch.gamebook !== chapter.gamebook) {
+      const error = await setGamebook(chapter.id, patch.gamebook, false);
+      if (error) return error;
+    }
     renderActive();
+    return null;
+  };
+
+  const saveChapterRoot = async (
+    chapter: ChapterDto,
+    nextRoot: SerializedTree,
+  ): Promise<string | null> => {
+    const response = await fetch(`/api/studies/${study.id}/chapters/${chapter.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ root: nextRoot, baseVersion: chapter.version }),
+    });
+    if (!response.ok) {
+      return response.status === 409
+        ? 'This chapter changed in another tab. Reload before editing it.'
+        : responseError(response, 'Could not update the chapter.');
+    }
+    const body = (await response.json()) as { chapter: { version: number } };
+    chapter.root = nextRoot;
+    chapter.version = body.chapter.version;
+    renderActive();
+    return null;
+  };
+
+  const openStudySettings = (): void => {
+    openStudySettingsDialog(study, {
+      onSave: saveStudySettings,
+      onDelete: deleteStudy,
+    });
+  };
+
+  const openChapterSettings = (model: ChapterControlModel): void => {
+    const chapter = chapters.find((entry) => entry.id === model.id);
+    if (!chapter) return;
+    const snapshotActive = (cancelPending: boolean): void => {
+      if (chapter.id === activeId && activeHandle) chapter.root = activeHandle.serialize();
+      if (cancelPending) cancelActiveSave?.();
+    };
+    openChapterSettingsDialog(chapter, {
+      canUseGamebook: studyVariantSupportsGamebook(studyVariant()),
+      canDelete: chapters.length > 1,
+      onSave: (patch) => saveChapterSettings(chapter, patch),
+      onDuplicate: () => {
+        snapshotActive(false);
+        return createChapter(`${chapter.name} copy`, undefined, chapter.root);
+      },
+      onClearAnnotations: () => {
+        snapshotActive(true);
+        return saveChapterRoot(chapter, clearTreeAnnotations(chapter.root));
+      },
+      onClearVariations: () => {
+        snapshotActive(true);
+        return saveChapterRoot(chapter, keepTreeMainline(chapter.root));
+      },
+      onDelete: () => {
+        snapshotActive(true);
+        return removeChapter(chapter.id);
+      },
+    });
   };
 
   function renderActive(): void {
@@ -234,24 +391,25 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     const variant = chapter.variant;
     activeId = chapter.id;
 
-    const chapterActions: ChapterActions = {
-      onSwitch: switchTo,
-      onAdd: addChapter,
-      onRemove: removeChapter,
-      onRename: study.isOwner ? (id, name) => void renameChapter(id, name) : undefined,
-    };
     const gamebookable = studyVariantSupportsGamebook(variant);
-    const owner: OwnerControls | undefined = study.isOwner
-      ? {
-          // The lesson toggle only appears where a gamebook player exists; the
-          // flag stays whatever it was for variants that cannot use it.
-          gamebook: gamebookable ? chapter.gamebook : null,
-          preview: previewMode,
-          onToggleGamebook: (on) => void setGamebook(chapter.id, on),
-          onTogglePreview: setPreview,
-          onRenameStudy: (name) => void renameStudy(name),
-        }
-      : undefined;
+    const rail = (status: HTMLElement): HTMLElement =>
+      buildStudyRail(study, chapters, activeId, status, {
+        onSwitch: switchTo,
+        onAdd: addChapter,
+        chapterHref: (id) => studyChapterPath(study.id, id, window.location.pathname),
+        onReorder: reorderChapters,
+        onOpenStudySettings: openStudySettings,
+        onOpenChapterSettings: openChapterSettings,
+      });
+    const lessonControls =
+      study.isOwner && gamebookable
+        ? buildLessonDock({
+            enabled: chapter.gamebook,
+            preview: previewMode,
+            onToggle: (enabled) => setGamebook(chapter.id, enabled),
+            onPreview: setPreview,
+          })
+        : undefined;
 
     root.replaceChildren(buildNav());
 
@@ -260,10 +418,7 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
     if (gamebookable && chapter.gamebook && (!study.isOwner || previewMode)) {
       const aside = document.createElement('div');
       aside.className = 'study-aside';
-      aside.append(
-        buildActions(study, chapters, activeId, statusSpan(), chapterActions, owner),
-        buildStudyChat(study.id),
-      );
+      aside.append(rail(statusSpan()), buildStudyChat(study.id));
       mountXiangqiGamebook(root, {
         tree: chapter.root,
         orientation: chapter.orientation === 'black' ? 'black' : 'red',
@@ -276,6 +431,8 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
 
     let version = chapter.version;
     let handle: TreeReviewHandle | null = null;
+    activeHandle = null;
+    cancelActiveSave = null;
     const status = statusSpan();
 
     const save = debounce(() => {
@@ -304,6 +461,7 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
         })
         .catch(() => setStatus(status, 'error', 'Save failed'));
     }, 700);
+    cancelActiveSave = save.cancel;
 
     // The board stacks are code-split per variant, so the mount is async: the
     // page renders its nav, then the board lands. A stale mount (the reader
@@ -317,13 +475,14 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
       eyebrow: '',
       title: localizedStudyName(study.name, study.i18n),
       // The full description now lives in the underboard "About" tab, not the
-      // rail info card; owners keep a one-line authoring hint there.
-      summary: study.isOwner ? 'Draw, comment, and branch. Edits autosave.' : '',
+      // rail info card. The compact chapter rail carries save state.
+      summary: '',
       boardAriaLabel: `${studyVariantLabel(variant)} board`,
-      actions: buildActions(study, chapters, activeId, status, chapterActions, owner),
-      aboutTab: { label: t('study.aboutTab'), body: aboutPanel(study) },
+      actions: rail(status),
+      aboutTab: { label: t('study.aboutTab'), body: aboutPanel(study, chapter) },
       details: buildStudyChat(study.id),
       gamebookEditing: gamebookable && chapter.gamebook && study.isOwner,
+      annotationLessonControls: lessonControls,
       annotationEditing: study.isOwner,
       // A study is read forward. Landing on the final position of a 60-ply
       // annotated game means rewinding before you can start.
@@ -340,14 +499,14 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
             if (handle) chapter.root = handle.serialize();
             status.textContent = 'Editing…';
             status.dataset.state = 'dirty';
-            save();
+            save.run();
           }
         : undefined,
     })
       .then((mounted) => {
         if (mountToken !== mountSeq) return;
         handle = mounted;
-        clampSummary(root);
+        activeHandle = mounted;
       })
       .catch(() => renderError(root, 415));
   }
@@ -355,66 +514,59 @@ function renderStudy(root: HTMLElement, study: StudyDto, chapters: ChapterDto[])
   renderActive();
 }
 
-/** Clamp a long study description to a few lines (with a more/less toggle) so
- * the chapter list and chat keep most of the left rail. */
-function clampSummary(root: HTMLElement): void {
-  const summary = root.querySelector<HTMLElement>('.review-info-card__summary');
-  if (!summary?.textContent) return;
-  summary.classList.add('study-summary');
-  requestAnimationFrame(() => {
-    if (summary.scrollHeight <= summary.clientHeight + 1) return;
-    const toggle = document.createElement('button');
-    toggle.type = 'button';
-    toggle.className = 'study-summary__toggle';
-    toggle.textContent = 'more';
-    toggle.addEventListener('click', () => {
-      const open = summary.classList.toggle('is-open');
-      toggle.textContent = open ? 'less' : 'more';
-    });
-    summary.after(toggle);
-  });
+export function studyChapterPath(studyId: string, chapterId: string, pathname = '/'): string {
+  const localePrefix = /^\/(zh-hans|zh-hant)(?:\/|$)/.exec(pathname)?.[1];
+  return `${localePrefix ? `/${localePrefix}` : ''}/study/${encodeURIComponent(
+    studyId,
+  )}/${encodeURIComponent(chapterId)}`;
 }
 
-type ChapterActions = {
-  onSwitch: (id: string) => void;
-  onAdd: () => void;
-  onRemove: (id: string) => void;
-  /** Owner-only: double-click a tab to rename it. Absent for viewers. */
-  onRename?: (id: string, name: string) => void;
-};
-
-type OwnerControls = {
-  /** null = this chapter's variant has no gamebook player, so the row is hidden. */
-  gamebook: boolean | null;
-  preview: boolean;
-  onToggleGamebook: (on: boolean) => void;
-  onTogglePreview: (on: boolean) => void;
-  onRenameStudy: (name: string) => void;
-};
+export function chapterIdFromStudyPath(pathname: string, studyId: string): string | null {
+  const match = /^(?:\/(?:zh-hans|zh-hant))?\/study\/([A-Za-z0-9]+)\/([A-Za-z0-9]+)\/?$/.exec(
+    pathname,
+  );
+  return match?.[1] === studyId ? match[2]! : null;
+}
 
 function statusSpan(): HTMLElement {
   const status = document.createElement('span');
   status.className = 'study-actions__status';
+  status.dataset.state = 'saved';
+  status.textContent = 'Saved';
   return status;
 }
 
 /** The underboard "About" tab: the study's own description, plus the favorite and
  *  errata affordances. Pulling these out of the left rail leaves it as just the
  *  chapter list and chat, which was the source of the double-scroll clutter. */
-function aboutPanel(study: StudyDto): HTMLElement {
+function aboutPanel(study: StudyDto, chapter: ChapterDto): HTMLElement {
   const panel = document.createElement('div');
   panel.className = 'study-about';
 
+  const title = document.createElement('h3');
+  title.className = 'study-about__title';
+  title.textContent = `${localizedStudyName(study.name, study.i18n)}: ${localizedStudyName(
+    chapter.name,
+    chapter.i18n,
+  )}`;
+  panel.append(title);
+
   const desc = localizedStudyDescription(study.description, study.i18n);
-  if (desc) {
-    const p = document.createElement('p');
-    p.className = 'study-about__description';
-    p.textContent = desc;
-    panel.append(p);
-  }
+  const description = document.createElement('p');
+  description.className = 'study-about__description';
+  description.textContent =
+    desc || (study.isOwner ? 'Add a description from Study settings.' : 'No description yet.');
+  if (!desc) description.classList.add('is-empty');
+  panel.append(description);
 
   const row = document.createElement('div');
   row.className = 'study-about__row';
+  if (study.isOwner) {
+    const visibility = document.createElement('span');
+    visibility.className = 'study-about__visibility';
+    visibility.textContent = study.visibility;
+    row.append(visibility);
+  }
   if (study.visibility === 'public') row.append(likeButton(study));
   panel.append(row);
 
@@ -422,36 +574,6 @@ function aboutPanel(study: StudyDto): HTMLElement {
   // the owner is the one who would fix it).
   if (study.visibility === 'public' && !study.isOwner) panel.append(errataNote());
   return panel;
-}
-
-function buildActions(
-  study: StudyDto,
-  chapters: ChapterDto[],
-  activeId: string,
-  status: HTMLElement,
-  chapterActions: ChapterActions,
-  owner?: OwnerControls,
-): HTMLElement {
-  const wrap = document.createElement('div');
-  wrap.className = 'study-actions';
-
-  wrap.append(chapterPanel(study, chapters, activeId, chapterActions));
-
-  // Owner authoring controls stay in the rail beside the chapter list (they
-  // belong to editing, not reading). Reader-facing metadata — description,
-  // favorite, errata — moves to the underboard "About" tab (see aboutPanel), so
-  // the rail is just chapters + chat and no longer double-scrolls.
-  if (owner) {
-    wrap.append(studyNameControl(study, owner.onRenameStudy));
-    const active = chapters.find((entry) => entry.id === activeId);
-    if (active && chapterActions.onRename) {
-      wrap.append(chapterNameControl(active, chapterActions.onRename));
-    }
-    if (owner.gamebook !== null) wrap.append(lessonControls(owner));
-    wrap.append(visibilityControl(study));
-    wrap.append(status);
-  }
-  return wrap;
 }
 
 /** Invite corrections. Several studies here are transcriptions of woodblock
@@ -515,191 +637,71 @@ function likeButton(study: StudyDto): HTMLButtonElement {
   return button;
 }
 
-function studyNameControl(study: StudyDto, onRename: (name: string) => void): HTMLElement {
-  const row = document.createElement('div');
-  row.className = 'study-actions__row';
-  const label = document.createElement('span');
-  label.className = 'study-actions__label';
-  label.textContent = 'Name';
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'study-actions__name';
-  input.value = study.name;
-  input.maxLength = 100;
-  input.setAttribute('aria-label', 'Study name');
-  input.addEventListener('change', () => onRename(input.value));
-  row.append(label, input);
-  return row;
-}
+function buildLessonDock(opts: {
+  enabled: boolean;
+  preview: boolean;
+  onToggle(enabled: boolean): Promise<string | null>;
+  onPreview(preview: boolean): void;
+}): HTMLElement {
+  const panel = document.createElement('div');
+  panel.className = 'study-lesson-dock';
+  const copy = document.createElement('div');
+  const title = document.createElement('strong');
+  title.textContent = 'Interactive lesson';
+  const description = document.createElement('p');
+  description.textContent = opts.enabled
+    ? 'Add a hint or a response for learners who leave the main line.'
+    : 'Ask readers to find each move instead of showing the continuation.';
+  copy.append(title, description);
 
-function lessonControls(owner: OwnerControls): HTMLElement {
-  const row = document.createElement('div');
-  row.className = 'study-actions__row';
-  const label = document.createElement('span');
-  label.className = 'study-actions__label';
-  label.textContent = 'Lesson';
-  // Only reached when the variant has a gamebook player (buildActions guards on
-  // null), so the flag reads as a plain boolean here.
-  const on = owner.gamebook === true;
+  const actions = document.createElement('div');
+  actions.className = 'study-lesson-dock__actions';
   const toggle = document.createElement('button');
   toggle.type = 'button';
-  toggle.className = on ? 'study-actions__vis study-actions__vis--active' : 'study-actions__vis';
-  toggle.textContent = on ? 'On' : 'Off';
-  toggle.addEventListener('click', () => owner.onToggleGamebook(!on));
-  row.append(label, toggle);
-  if (on) {
+  toggle.className = opts.enabled ? 'study-lesson-dock__toggle is-on' : 'study-lesson-dock__toggle';
+  toggle.textContent = opts.enabled ? 'Lesson on' : 'Enable lesson';
+  toggle.setAttribute('aria-pressed', String(opts.enabled));
+  const feedback = document.createElement('span');
+  feedback.className = 'study-lesson-dock__feedback';
+  feedback.setAttribute('aria-live', 'polite');
+  toggle.addEventListener('click', () => {
+    toggle.disabled = true;
+    void opts
+      .onToggle(!opts.enabled)
+      .then((error) => {
+        if (!error) return;
+        toggle.disabled = false;
+        feedback.textContent = error;
+      })
+      .catch(() => {
+        toggle.disabled = false;
+        feedback.textContent = 'The request failed. Check your connection and try again.';
+      });
+  });
+  actions.append(toggle);
+  if (opts.enabled) {
     const preview = document.createElement('button');
     preview.type = 'button';
-    preview.className = 'study-actions__copy';
-    preview.textContent = owner.preview ? 'Back to editing' : 'Preview';
-    preview.addEventListener('click', () => owner.onTogglePreview(!owner.preview));
-    row.append(preview);
+    preview.className = 'study-lesson-dock__preview';
+    preview.textContent = opts.preview ? 'Back to editing' : 'Preview lesson';
+    preview.addEventListener('click', () => opts.onPreview(!opts.preview));
+    actions.append(preview);
   }
-  return row;
-}
-
-// Compact scrolling chapter panel (lichess study anatomy): a numbered list in
-// small text with the active chapter highlighted, capped in height so long
-// studies scroll instead of swallowing the rail.
-function chapterPanel(
-  study: StudyDto,
-  chapters: ChapterDto[],
-  activeId: string,
-  actions: ChapterActions,
-): HTMLElement {
-  const panel = document.createElement('section');
-  panel.className = 'study-chapters';
-  panel.setAttribute('aria-label', 'Chapters');
-
-  const head = document.createElement('div');
-  head.className = 'study-chapters__head';
-  head.textContent =
-    chapters.length === 1
-      ? t('study.chapterCountOne')
-      : t('study.chapterCount', { count: chapters.length });
-  panel.append(head);
-
-  const list = document.createElement('ol');
-  list.className = 'study-chapters__list';
-  chapters.forEach((chapter, index) => {
-    const row = document.createElement('li');
-    row.className = 'study-chapters__row';
-    if (chapter.id === activeId) row.classList.add('is-active');
-    const link = document.createElement('button');
-    link.type = 'button';
-    link.className = 'study-chapters__link';
-    const num = document.createElement('span');
-    num.className = 'study-chapters__num';
-    num.textContent = String(index + 1);
-    const name = document.createElement('span');
-    name.className = 'study-chapters__name';
-    const chapterLabel = localizedStudyName(chapter.name, chapter.i18n);
-    name.textContent = chapterLabel;
-    name.title = chapterLabel;
-    link.append(num, name);
-    link.addEventListener('click', () => actions.onSwitch(chapter.id));
-    row.append(link);
-    // Owners can delete any chapter but the last (server enforces; hide when one).
-    if (study.isOwner && chapters.length > 1) {
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'study-chapters__del';
-      del.textContent = '×';
-      del.title = 'Delete chapter';
-      del.addEventListener('click', () => actions.onRemove(chapter.id));
-      row.append(del);
-    }
-    list.append(row);
-  });
-  panel.append(list);
-
-  if (study.isOwner) {
-    const add = document.createElement('button');
-    add.type = 'button';
-    add.className = 'study-chapters__add';
-    add.textContent = '+ New chapter';
-    add.addEventListener('click', () => actions.onAdd());
-    panel.append(add);
-  }
-
-  // Keep the active chapter in view once the panel is laid out. Scroll the list
-  // itself (not scrollIntoView, which would also jolt the page's own scroll).
-  requestAnimationFrame(() => {
-    const active = list.querySelector<HTMLElement>('.is-active');
-    if (active) list.scrollTop = Math.max(0, active.offsetTop - list.clientHeight / 2);
-  });
-
+  panel.append(copy, actions, feedback);
   return panel;
 }
 
-function chapterNameControl(
-  chapter: ChapterDto,
-  onRename: (id: string, name: string) => void,
-): HTMLElement {
-  const row = document.createElement('div');
-  row.className = 'study-actions__row';
-  const label = document.createElement('span');
-  label.className = 'study-actions__label';
-  label.textContent = 'Chapter';
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'study-actions__name';
-  input.value = chapter.name;
-  input.maxLength = 80;
-  input.setAttribute('aria-label', 'Chapter name');
-  input.addEventListener('change', () => onRename(chapter.id, input.value));
-  row.append(label, input);
-  return row;
-}
-
-function visibilityControl(study: StudyDto): HTMLElement {
-  const visibility = document.createElement('div');
-  visibility.className = 'study-actions__visibility';
-  let current = study.visibility;
-  const options: StudyVisibility[] = ['private', 'unlisted', 'public'];
-  const buttons = new Map<StudyVisibility, HTMLButtonElement>();
-  const paint = (): void => {
-    for (const [value, button] of buttons) {
-      button.classList.toggle('study-actions__vis--active', value === current);
+async function responseError(response: Response, fallback: string): Promise<string> {
+  try {
+    const body = (await response.json()) as { error?: unknown };
+    if (typeof body.error === 'string') {
+      const readable = body.error.replaceAll('_', ' ');
+      return `${readable.charAt(0).toUpperCase() + readable.slice(1)}.`;
     }
-  };
-  for (const value of options) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'study-actions__vis';
-    button.textContent = value;
-    button.addEventListener('click', () => {
-      const previous = current;
-      current = value;
-      study.visibility = value;
-      paint();
-      void fetch(`/api/studies/${study.id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ visibility: value }),
-      }).then((response) => {
-        if (!response.ok) {
-          current = previous;
-          study.visibility = previous;
-          paint();
-        }
-      });
-    });
-    buttons.set(value, button);
-    visibility.append(button);
+  } catch {
+    // The fallback is more useful than exposing a malformed server response.
   }
-  paint();
-  return labelled('Visibility', visibility);
-}
-
-function labelled(label: string, control: HTMLElement): HTMLElement {
-  const row = document.createElement('div');
-  row.className = 'study-actions__row';
-  const span = document.createElement('span');
-  span.className = 'study-actions__label';
-  span.textContent = label;
-  row.append(span, control);
-  return row;
+  return fallback;
 }
 
 function setStatus(el: HTMLElement, state: string, text: string): void {
@@ -707,11 +709,17 @@ function setStatus(el: HTMLElement, state: string, text: string): void {
   el.textContent = text;
 }
 
-function debounce(fn: () => void, ms: number): () => void {
+function debounce(fn: () => void, ms: number): { run(): void; cancel(): void } {
   let timer: ReturnType<typeof setTimeout> | null = null;
-  return () => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(fn, ms);
+  return {
+    run: () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(fn, ms);
+    },
+    cancel: () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+    },
   };
 }
 
@@ -733,7 +741,7 @@ function notice(text: string): HTMLElement {
 function openAddChapterDialog(
   defaultName: string,
   studyVariant: StudyVariantId,
-  onCreate: (name: string, rootFen?: string) => void,
+  onCreate: (name: string, rootFen?: string) => Promise<string | null>,
 ): void {
   document.querySelector<HTMLDialogElement>('dialog[data-add-chapter]')?.remove();
 
@@ -809,8 +817,23 @@ function openAddChapterDialog(
       }
       rootFen = parsed.fen;
     }
-    dialog.close('create');
-    onCreate(nameInput.value.trim(), rootFen);
+    start.disabled = true;
+    start.textContent = 'Adding…';
+    void onCreate(nameInput.value.trim(), rootFen)
+      .then((error) => {
+        if (!error) {
+          dialog.close('create');
+          return;
+        }
+        fenError.textContent = error;
+        start.disabled = false;
+        start.textContent = 'Add';
+      })
+      .catch(() => {
+        fenError.textContent = 'The request failed. Check your connection and try again.';
+        start.disabled = false;
+        start.textContent = 'Add';
+      });
   });
 
   dialog.append(heading, form);

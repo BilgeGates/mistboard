@@ -11,6 +11,7 @@ import {
   listStudiesForOwner,
   listTopPublicStudies,
   renameChapter,
+  reorderStudyChapters,
   setChapterGamebook,
   setStudyLike,
   updateChapterTree,
@@ -252,6 +253,56 @@ definePersistenceTests('studies', () => {
     // The last chapter cannot be deleted — a study always has at least one.
     const lastDel = await deleteChapter(full!.chapters[0]!.id, owner.id);
     assert.ok(!lastDel.ok && lastDel.error === 'last_chapter');
+  });
+
+  test('reorders the complete chapter set and rejects stale or foreign orders', async () => {
+    const owner = await makeUser('reorder');
+    const stranger = await makeUser('reorder-stranger');
+    const study = await makeStudy(owner.id);
+    assert.ok(study);
+    const second = await addChapter(study.id, owner.id, {
+      name: 'Chapter 2',
+      variant: 'xiangqi',
+      orientation: 'red',
+      root: tree,
+    });
+    const third = await addChapter(study.id, owner.id, {
+      name: 'Chapter 3',
+      variant: 'xiangqi',
+      orientation: 'red',
+      root: tree,
+    });
+    assert.ok(second.ok && third.ok);
+    const firstId = study.chapters[0]!.id;
+    assert.ok(
+      (
+        await reorderStudyChapters(study.id, owner.id, [
+          third.chapter.id,
+          firstId,
+          second.chapter.id,
+        ])
+      ).ok,
+    );
+    const reordered = await getStudyById(study.id);
+    assert.deepEqual(
+      reordered?.chapters.map((chapter) => chapter.name),
+      ['Chapter 3', 'Chapter 1', 'Chapter 2'],
+    );
+
+    const stale = await reorderStudyChapters(study.id, owner.id, [firstId, second.chapter.id]);
+    assert.ok(!stale.ok && stale.error === 'invalid_order');
+    const duplicate = await reorderStudyChapters(study.id, owner.id, [
+      firstId,
+      firstId,
+      third.chapter.id,
+    ]);
+    assert.ok(!duplicate.ok && duplicate.error === 'invalid_order');
+    const forbidden = await reorderStudyChapters(study.id, stranger.id, [
+      firstId,
+      second.chapter.id,
+      third.chapter.id,
+    ]);
+    assert.ok(!forbidden.ok && forbidden.error === 'forbidden');
   });
 
   test('updates study meta (owner only) and cascades on delete', async () => {
