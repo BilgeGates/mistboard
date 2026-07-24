@@ -6,9 +6,7 @@ describe('Jungle-family last-move indicators', () => {
   it('draws Jungle cell separators without a perimeter outline', () => {
     const svg = renderJungleBoardSvg({}, { shadow: false });
     const gridLines =
-      svg.match(
-        /<line [^>]*stroke="rgba\(91,74,50,0\.55\)"[^>]*stroke-width="1"[^>]*\/>/g,
-      ) ?? [];
+      svg.match(/<line [^>]*stroke="rgba\(91,74,50,0\.55\)"[^>]*stroke-width="1"[^>]*\/>/g) ?? [];
 
     expect(gridLines).toHaveLength(14);
     expect(gridLines).not.toContain(
