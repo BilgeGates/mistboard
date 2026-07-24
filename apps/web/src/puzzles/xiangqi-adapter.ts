@@ -205,7 +205,9 @@ function formatXiangqiEngineMove(uci: string): string {
 // lines, and the engine's candidate moves drawn as arrows on the puzzle board.
 // Reuses the review board's ceval stack unchanged; the only puzzle-specific bit
 // is feeding the engine a FEN of the displayed position — mined puzzles begin
-// mid-game, so there is no start-position move list to replay.
+// mid-game, so there is no game-start move list for the engine to replay to it.
+// The "Open in analysis board" link is separate (puzzleAnalysisHref): it seeds
+// the full board from the puzzle's own start position plus the played line.
 function createPuzzleAnalysis(): PuzzleAnalysisController {
   let arrows: XiangqiBoardArrow[] = [];
   let boardHost: HTMLElement | null = null;
@@ -227,9 +229,10 @@ function createPuzzleAnalysis(): PuzzleAnalysisController {
     },
   });
 
-  // Jump to the full /analysis/xiangqi board seeded at the displayed position
-  // (?fen= accepts the engine-dialect FEN). Follows the scrubber, so it opens
-  // whichever ply the solver is looking at.
+  // Jump to the full /analysis/xiangqi board seeded from the puzzle's START
+  // position with the whole solution line as a navigable tree (?fen= the start,
+  // ?moves= the played line), so the board opens where the puzzle began and the
+  // solver can step through the moves — not just a snapshot of the end.
   const openLink = document.createElement('a');
   openLink.className = 'puzzle-analysis-open-link';
   openLink.textContent = 'Open in analysis board';
@@ -247,7 +250,7 @@ function createPuzzleAnalysis(): PuzzleAnalysisController {
       // board's arrow layer is regenerated empty on every render).
       paintArrows();
       const fen = puzzleAnalysisFen(displayState as XiangqiGameState);
-      openLink.href = `/analysis/xiangqi?fen=${encodeURIComponent(fen)}`;
+      openLink.href = puzzleAnalysisHref(session);
       if (fen !== lastFen) {
         lastFen = fen;
         // setPosition clears arrows (onLines(null)) then re-evaluates if the
@@ -268,6 +271,25 @@ function createPuzzleAnalysis(): PuzzleAnalysisController {
 // wrong side and parseStandardXiangqiFen rejects the analysis link, silently
 // opening the start position. Restore the real continuation turn: the side
 // that did not win is to move in the final position.
+// The "Open in analysis board" link. Seed the analysis board from the puzzle's
+// START position (session.puzzle.initial — always the solver's turn, a legal
+// 'playing' FEN, so no side-to-move fixup is needed) and pass the full played
+// line as ?moves= coordinates. That reconstructs the whole puzzle as a
+// navigable tree instead of dropping the solver at a single end snapshot.
+// playedMoves holds the complete solution once the puzzle is complete (the
+// accumulated attempt line on a solve, the fetched solution on a reveal); every
+// standard-xiangqi puzzle move is a board move ({from,to}), never a drop.
+function puzzleAnalysisHref(session: PuzzleSession): string {
+  const fen = standardXiangqiEngineFen(session.puzzle.initial as XiangqiGameState);
+  const moves = session.playedMoves
+    .map((move) => ('drop' in move ? '' : `${move.from}-${move.to}`))
+    .filter(Boolean)
+    .join(' ');
+  const params = new URLSearchParams({ fen });
+  if (moves) params.set('moves', moves);
+  return `/analysis/xiangqi?${params.toString()}`;
+}
+
 function puzzleAnalysisFen(state: XiangqiGameState): string {
   const fen = standardXiangqiEngineFen(state);
   if (state.status.type !== 'finished' || !state.status.winner) return fen;
