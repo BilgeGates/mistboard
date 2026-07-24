@@ -3,6 +3,28 @@ import { renderJungleFlipBoardSvg } from './jungle-flip-render.js';
 import { renderJungleBoardSvg } from './jungle-render.js';
 
 describe('Jungle-family last-move indicators', () => {
+  it('draws Jungle cell separators without a perimeter outline', () => {
+    const svg = renderJungleBoardSvg({}, { shadow: false });
+    const gridLines =
+      svg.match(
+        /<line [^>]*stroke="rgba\(91,74,50,0\.55\)"[^>]*stroke-width="1"[^>]*\/>/g,
+      ) ?? [];
+
+    expect(gridLines).toHaveLength(14);
+    expect(gridLines).not.toContain(
+      '<line x1="0" y1="0" x2="0" y2="432" stroke="rgba(91,74,50,0.55)" stroke-width="1" stroke-linecap="round"/>',
+    );
+    expect(gridLines).not.toContain(
+      '<line x1="336" y1="0" x2="336" y2="432" stroke="rgba(91,74,50,0.55)" stroke-width="1" stroke-linecap="round"/>',
+    );
+    expect(gridLines).not.toContain(
+      '<line x1="0" y1="0" x2="336" y2="0" stroke="rgba(91,74,50,0.55)" stroke-width="1" stroke-linecap="round"/>',
+    );
+    expect(gridLines).not.toContain(
+      '<line x1="0" y1="432" x2="336" y2="432" stroke="rgba(91,74,50,0.55)" stroke-width="1" stroke-linecap="round"/>',
+    );
+  });
+
   it('uses a disc shadow and destination halo for a Jungle move', () => {
     const svg = renderJungleBoardSvg(
       { a4: { color: 'red', role: 'rat' } },

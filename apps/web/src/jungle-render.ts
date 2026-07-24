@@ -165,16 +165,18 @@ function furniture(
     }
   }
 
-  // Tile-separating grid on every cell boundary (banqi-style), drawn OVER all the terrain
-  // (grass, water, den, trap) so every tile — including the river lakes — reads as a
-  // discrete cell.
-  for (let i = 0; i <= FILES; i += 1) {
+  // Tile-separating grid on interior cell boundaries (banqi-style), drawn OVER all
+  // the terrain (grass, water, den, trap) so every tile — including the river
+  // lakes — reads as a discrete cell. The playable background itself defines the
+  // board edge, so do not add perimeter lines that get visibly clipped at the
+  // rounded corners.
+  for (let i = 1; i < FILES; i += 1) {
     const x = i * c;
     parts.push(
       `<line x1="${x}" y1="0" x2="${x}" y2="${boardH}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
     );
   }
-  for (let j = 0; j <= RANKS; j += 1) {
+  for (let j = 1; j < RANKS; j += 1) {
     const y = j * c;
     parts.push(
       `<line x1="0" y1="${y}" x2="${boardW}" y2="${y}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,

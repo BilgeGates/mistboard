@@ -24,6 +24,7 @@ describe('Jungle watch replay', () => {
     expect(root.textContent).toContain('Ply 0 / 1');
     // Perfect-info: one truth board, no triptych.
     expect(root.querySelectorAll('svg.jungle-live-svg')).toHaveLength(1);
+    expectJungleBoardHasInteriorGridOnly(root.querySelector('svg.jungle-live-svg'));
     // No hidden identities, so no Reveal control (unlike Flip Jungle).
     expect(root.textContent).not.toContain('Reveal');
 
@@ -60,6 +61,23 @@ describe('Jungle watch replay', () => {
     handle.destroy();
   });
 });
+
+function expectJungleBoardHasInteriorGridOnly(board: SVGSVGElement | null): void {
+  expect(board).not.toBeNull();
+  const gridLines = [...(board?.querySelectorAll('line') ?? [])].filter(
+    (line) => line.getAttribute('stroke') === 'rgba(91,74,50,0.55)',
+  );
+
+  expect(gridLines).toHaveLength(14);
+  for (const line of gridLines) {
+    const x1 = line.getAttribute('x1');
+    const x2 = line.getAttribute('x2');
+    const y1 = line.getAttribute('y1');
+    const y2 = line.getAttribute('y2');
+    if (x1 === x2) expect(x1).not.toMatch(/^(0|336)$/);
+    if (y1 === y2) expect(y1).not.toMatch(/^(0|432)$/);
+  }
+}
 
 function postgameFixture(roomId: string): JunglePostgameResponse {
   const move: JungleMove = { from: 'a3', to: 'a4' };
