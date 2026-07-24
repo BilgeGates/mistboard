@@ -36,6 +36,26 @@ describe('Jungle-family last-move indicators', () => {
     expect(svg).not.toContain('jungle-last-move-collision');
   });
 
+  it('renders ranked Jungle engine arrows over the pieces and flips their geometry', () => {
+    const arrow = {
+      from: 'a1' as const,
+      to: 'b2' as const,
+      className: 'xq-arrow--pv1',
+      opacity: 0.4,
+      width: 14,
+    };
+    const red = renderJungleBoardSvg({}, { perspective: 'red', arrows: [arrow], shadow: false });
+    const black = renderJungleBoardSvg(
+      {},
+      { perspective: 'black', arrows: [arrow], shadow: false },
+    );
+
+    expect(red).toContain('jungle-board-arrows xq-live-arrows');
+    expect(red).toContain('xq-arrow xq-arrow--pv1');
+    expect(red).toContain('stroke-width="9.3"');
+    expect(red).not.toBe(black);
+  });
+
   it('uses the same two-part disc grammar for a Flip Jungle board move', () => {
     const svg = renderJungleFlipBoardSvg(
       { b1: { faceDown: false, color: 'red', role: 'rat' } },

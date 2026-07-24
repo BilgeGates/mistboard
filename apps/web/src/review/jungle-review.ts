@@ -5,6 +5,7 @@
 // advice all light up. This is the first non-xiangqi consumer of mountTreeReview.
 
 import {
+  engineUciToJungleMove,
   type JungleColor,
   type JungleGameState,
   type JungleMove,
@@ -13,7 +14,15 @@ import {
 } from '@mistboard/game';
 import { rectangularGridAspect } from '../board-metrics.js';
 import { createJungleInteractiveBoard } from '../jungle-board.js';
-import { animateJungleBoardMove, JUNGLE_BOARD_VIEW } from '../jungle-render.js';
+import {
+  animateJungleBoardMove,
+  JUNGLE_BOARD_VIEW,
+  type JungleBoardArrow,
+} from '../jungle-render.js';
+import {
+  bestMoveArrowWithParser,
+  engineArrowsFromLinesWithParser,
+} from './engine/engine-arrows.js';
 import type { NodeShape } from './game-tree.js';
 import { jungleTreeAdapter } from './jungle-tree-adapter.js';
 import {
@@ -37,15 +46,12 @@ function formatJungleEngineMove(uci: string): string {
   return `${uci.slice(0, 2)}-${uci.slice(2, 4)}`;
 }
 
-// Jungle has no board overlay layer, so its engine presentation omits that capability
-// and the panel hides its arrow setting. The eval gauge + MultiPV panel still light up;
-// Arrow/Marker remain unused and the shapeTo* hooks pass shapes through opaquely.
 const junglePresentation: TreePresentation<
   JungleMove,
   JungleGameState,
   JunglePlayerView,
   JungleColor,
-  unknown,
+  JungleBoardArrow,
   unknown
 > = {
   adapter: jungleTreeAdapter,
@@ -58,6 +64,8 @@ const junglePresentation: TreePresentation<
     fen: jungleStateToEngineFen,
     canEvaluatePosition: (truth) => truth.status.type === 'playing',
     formatPvMove: formatJungleEngineMove,
+    engineArrowsFromLines: (lines) => engineArrowsFromLinesWithParser(lines, engineUciToJungleMove),
+    bestMoveArrow: (best) => bestMoveArrowWithParser(best, engineUciToJungleMove),
   },
   formatBestMove: formatJungleEngineMove,
   boardHostClassName: 'jungle-postgame-board jungle-live-board',
@@ -72,7 +80,11 @@ const junglePresentation: TreePresentation<
   seatFor: (view) => (view.status.type === 'playing' ? view.status.turn : null),
   createBoard: (opts) => createJungleInteractiveBoard(opts),
   animateMove: animateJungleBoardMove,
-  shapeToArrow: (s: NodeShape) => s,
+  shapeToArrow: (s: NodeShape): JungleBoardArrow => ({
+    from: s.orig as JungleBoardArrow['from'],
+    to: (s.dest ?? s.orig) as JungleBoardArrow['to'],
+    className: `xq-arrow--draw xq-shape--${s.brush}`,
+  }),
   shapeToMarker: (s: NodeShape) => s,
 };
 

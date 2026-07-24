@@ -42,6 +42,7 @@ import {
   jungleLastMoveToSvg,
   jungleShadowFilterDef,
 } from './jungle-art.js';
+import { type SvgBoardArrowStyle, svgBoardArrow } from './svg-board-arrow.js';
 
 const FILES = 7;
 const RANKS = 9;
@@ -95,6 +96,7 @@ const DESCRIPTOR: GridBoardDescriptor = {
 export const JUNGLE_BOARD_VIEW = { cell: CELL, files: FILES, ranks: RANKS } as const;
 
 export type JungleRenderOptions = {
+  arrows?: readonly JungleBoardArrow[];
   // Black sees the board flipped (its den at the bottom).
   perspective?: JungleColor;
   lastMove?: { from: JungleSquare; to: JungleSquare } | null;
@@ -108,6 +110,11 @@ export type JungleRenderOptions = {
   // filter ids when several cropped boards render on one page).
   shadow?: boolean;
 };
+
+export interface JungleBoardArrow extends SvgBoardArrowStyle {
+  from: JungleSquare;
+  to: JungleSquare;
+}
 
 function cellRef(square: JungleSquare): GridCellRef {
   const { file, rank } = jungleCoordOf(square);
@@ -282,7 +289,8 @@ export function renderJungleBoardSvg(
     coords: false,
     renderPieces: (geom) =>
       furniture(geom, options.lastMove ?? null) +
-      pieces(board, geom, gid, shadow, options.draggingFrom ?? null),
+      pieces(board, geom, gid, shadow, options.draggingFrom ?? null) +
+      `<g class="jungle-board-arrows xq-live-arrows" aria-hidden="true" pointer-events="none">${jungleArrowLayer(options.arrows ?? [], geom)}</g>`,
     // Last-move is drawn inside furniture (over the grass terrain); the core's own
     // last-move layer sits under renderPieces and would be hidden by the grass.
     lastMove: null,
@@ -294,4 +302,32 @@ export function renderJungleBoardSvg(
     squareName: (file, rank) => `${'abcdefg'[file]}${rank}`,
     interactive: options.interactive ?? false,
   });
+}
+
+export function jungleArrowSvg(arrow: JungleBoardArrow, perspective: JungleColor): string {
+  const geom = createGridGeometry(DESCRIPTOR, perspective === 'black');
+  return jungleArrowSvgWithGeometry(arrow, geom);
+}
+
+function jungleArrowLayer(arrows: readonly JungleBoardArrow[], geom: GridGeometry): string {
+  return arrows.map((arrow) => jungleArrowSvgWithGeometry(arrow, geom)).join('');
+}
+
+function jungleArrowSvgWithGeometry(arrow: JungleBoardArrow, geom: GridGeometry): string {
+  const from = jungleCoordOf(arrow.from);
+  const to = jungleCoordOf(arrow.to);
+  const scaledArrow = {
+    ...arrow,
+    width: arrow.width === undefined ? undefined : arrow.width * (CELL / 72),
+  };
+  return svgBoardArrow(
+    scaledArrow,
+    geom.center(from.file, from.rank),
+    geom.center(to.file, to.rank),
+    {
+      baseClassName: 'xq-arrow',
+      defaultWidth: 6,
+      startInset: 8,
+    },
+  );
 }

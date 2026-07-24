@@ -11,8 +11,8 @@
 // gesture and the reserve strips are not rendered — that is a scoped follow-up
 // (needs installHandDrag + a reserve host + the two-headed selection machine).
 //
-// No overlay layer, so setArrows/setMarkers are no-ops (engine PV / drawn shapes
-// are not surfaced here yet).
+// Engine and user arrows share the SVG overlay layer. Point markers and reserve
+// drop gestures remain separate review-capability slices.
 
 import type {
   FortressXiangqiColor,
@@ -22,6 +22,8 @@ import type {
 } from '@mistboard/game';
 import {
   FORTRESS_XIANGQI_PIECE_PX,
+  type FortressXiangqiBoardArrow,
+  fortressXiangqiArrowSvg,
   fortressXiangqiPieceGhostSvg,
   installFortressXiangqiBoardStyles,
   renderFortressXiangqiBoardSvg,
@@ -42,7 +44,7 @@ export interface FortressXiangqiInteractiveBoardOptions {
 export interface FortressXiangqiInteractiveBoard {
   render(view: FortressXiangqiPlayerView | null, perspective: FortressXiangqiColor): void;
   clearSelection(): void;
-  setArrows(): void;
+  setArrows(arrows: readonly FortressXiangqiBoardArrow[]): void;
   setMarkers(): void;
 }
 
@@ -53,6 +55,7 @@ export function createFortressXiangqiInteractiveBoard(
 
   let selectedSquare: FortressXiangqiSquare | null = null;
   let draggingFrom: FortressXiangqiSquare | null = null;
+  let arrows: readonly FortressXiangqiBoardArrow[] = [];
 
   function render(view: FortressXiangqiPlayerView | null, perspective: FortressXiangqiColor): void {
     if (!view) {
@@ -67,7 +70,18 @@ export function createFortressXiangqiInteractiveBoard(
       selectedSquare,
       targets,
       draggingFrom,
+      arrows,
     });
+  }
+
+  function setArrows(next: readonly FortressXiangqiBoardArrow[]): void {
+    arrows = next;
+    const layer = opts.board.querySelector('.xq-live-arrows');
+    if (layer) {
+      layer.innerHTML = arrows
+        .map((arrow) => fortressXiangqiArrowSvg(arrow, opts.getPerspective()))
+        .join('');
+    }
   }
 
   function rerender(): void {
@@ -154,5 +168,5 @@ export function createFortressXiangqiInteractiveBoard(
     },
   });
 
-  return { render, clearSelection, setArrows: () => {}, setMarkers: () => {} };
+  return { render, clearSelection, setArrows, setMarkers: () => {} };
 }

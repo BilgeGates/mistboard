@@ -32,4 +32,23 @@ describe('Fortress Xiangqi board styles', () => {
     expect(svg).toContain('class="fxq-board-bg"');
     expect(svg).not.toMatch(/class="fxq-board-bg"[^>]*\srx=/);
   });
+
+  it('renders ranked engine arrows over the pieces and flips their geometry', () => {
+    const state = createInitialFortressXiangqiState('arrow-render');
+    const view = getFortressXiangqiPlayerView(state, 'red');
+    const arrow = {
+      from: 'a1' as const,
+      to: 'b2' as const,
+      className: 'xq-arrow--pv1',
+      opacity: 0.4,
+      width: 14,
+    };
+    const red = renderFortressXiangqiBoardSvg(view, 'red', { arrows: [arrow] });
+    const black = renderFortressXiangqiBoardSvg(view, 'black', { arrows: [arrow] });
+
+    expect(red).toContain('fxq-board-arrows xq-live-arrows');
+    expect(red).toContain('xq-arrow xq-arrow--pv1');
+    expect(red).toContain('stroke-width="14"');
+    expect(red).not.toBe(black);
+  });
 });

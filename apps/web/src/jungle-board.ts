@@ -5,12 +5,17 @@
 // hit-testing) + installSelectionClickAway — and delegates rendering to
 // renderJungleBoardSvg with its interactive/selected/targets/draggingFrom options.
 //
-// Jungle has no client engine and no overlay layer in the grid renderer, so
-// setArrows/setMarkers are no-ops (engine PV + drawn shapes are not surfaced here
-// yet). The move-tree, control bar, and replay all work without them.
+// Engine and user arrows share the SVG overlay layer. Point markers remain the
+// next review-capability slice.
 
 import type { JungleColor, JungleMove, JunglePlayerView, JungleSquare } from '@mistboard/game';
-import { JUNGLE_BOARD_VIEW, junglePieceGhostSvg, renderJungleBoardSvg } from './jungle-render.js';
+import {
+  JUNGLE_BOARD_VIEW,
+  type JungleBoardArrow,
+  jungleArrowSvg,
+  junglePieceGhostSvg,
+  renderJungleBoardSvg,
+} from './jungle-render.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 
@@ -35,8 +40,7 @@ export interface JungleInteractiveBoardOptions {
 export interface JungleInteractiveBoard {
   render(view: JunglePlayerView | null, perspective: JungleColor): void;
   clearSelection(): void;
-  /** No jungle overlay layer yet — engine PV / drawn shapes are not surfaced. */
-  setArrows(): void;
+  setArrows(arrows: readonly JungleBoardArrow[]): void;
   setMarkers(): void;
 }
 
@@ -45,6 +49,7 @@ export function createJungleInteractiveBoard(
 ): JungleInteractiveBoard {
   let selectedSquare: JungleSquare | null = null;
   let draggingFrom: JungleSquare | null = null;
+  let arrows: readonly JungleBoardArrow[] = [];
 
   function render(view: JunglePlayerView | null, perspective: JungleColor): void {
     if (!view) {
@@ -61,7 +66,18 @@ export function createJungleInteractiveBoard(
       targets,
       draggingFrom,
       interactive: true,
+      arrows,
     });
+  }
+
+  function setArrows(next: readonly JungleBoardArrow[]): void {
+    arrows = next;
+    const layer = opts.board.querySelector('.xq-live-arrows');
+    if (layer) {
+      layer.innerHTML = arrows
+        .map((arrow) => jungleArrowSvg(arrow, opts.getPerspective()))
+        .join('');
+    }
   }
 
   // Re-render from the live interaction view after a click/drag mutation.
@@ -151,5 +167,5 @@ export function createJungleInteractiveBoard(
     },
   });
 
-  return { render, clearSelection, setArrows: () => {}, setMarkers: () => {} };
+  return { render, clearSelection, setArrows, setMarkers: () => {} };
 }

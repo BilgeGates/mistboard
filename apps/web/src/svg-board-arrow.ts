@@ -78,7 +78,7 @@ export function svgBoardArrow(
 
   return (
     `<g class="${className}" opacity="${opacity}" fill="${color}" stroke="${color}" pointer-events="none">` +
-    `<line x1="${fmt(startX)}" y1="${fmt(startY)}" x2="${fmt(baseX)}" y2="${fmt(baseY)}" stroke-width="${width}" stroke-linecap="round"${dash}/>` +
+    `<line x1="${fmt(startX)}" y1="${fmt(startY)}" x2="${fmt(baseX)}" y2="${fmt(baseY)}" stroke-width="${fmt(width)}" stroke-linecap="round"${dash}/>` +
     `<polygon points="${head}" stroke="none"/>` +
     `</g>`
   );

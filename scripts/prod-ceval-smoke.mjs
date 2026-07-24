@@ -5,11 +5,12 @@
 // exercised a real search).
 //
 // Backends (see apps/web/src/review/engine/):
-//   fsf   - Fairy-Stockfish pthread wasm on /analysis/xiangqi (needs COOP/COEP
-//           cross-origin isolation + SharedArrayBuffer). ceval.ts.
-//   misty - Misty single-threaded wasm (MistyBanqi) on a finished banqi game's
-//           review page. The game id is DISCOVERED at runtime from the public
-//           /api/watch?channel=banqi feed, never hardcoded. misty-ceval.ts.
+//   fsf   - Fairy-Stockfish pthread wasm on /analysis/xiangqi and
+//           /analysis/fortress-xiangqi (needs COOP/COEP cross-origin isolation
+//           + SharedArrayBuffer). ceval.ts.
+//   misty - Misty single-threaded wasm on /analysis/jungle plus MistyBanqi on a
+//           finished banqi game's review page. The game id is DISCOVERED at
+//           runtime from the public /api/watch?channel=banqi feed, never hardcoded.
 //           Note: the review document carries COEP, so the dedicated worker
 //           script must itself be served with a compatible COEP header or
 //           Chrome blocks the load (net::ERR_BLOCKED_BY_RESPONSE) - the exact
@@ -74,7 +75,20 @@ async function runCheck(name, fn) {
 
 // ── Fairy-Stockfish on the standalone analysis board ────────────────────────
 async function checkFsf(browser) {
-  const url = `${baseUrl}/analysis/xiangqi?moves=${encodeURIComponent(moves)}`;
+  const xiangqi = await checkFsfAnalysisSurface(browser, {
+    slug: 'xiangqi',
+    query: `?moves=${encodeURIComponent(moves)}`,
+    boardSelector: '.xiangqi-live-board svg',
+  });
+  const fortressXiangqi = await checkFsfAnalysisSurface(browser, {
+    slug: 'fortress-xiangqi',
+    boardSelector: '.fortress-xiangqi-live-board svg',
+  });
+  return { surfaces: { xiangqi, fortressXiangqi } };
+}
+
+async function checkFsfAnalysisSurface(browser, { slug, query = '', boardSelector }) {
+  const url = `${baseUrl}/analysis/${slug}${query}`;
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   try {
     const errors = collectErrors(page);
@@ -90,10 +104,7 @@ async function checkFsf(browser) {
     }
 
     // The board must reconstruct from the pasted move list.
-    await page
-      .locator('.xiangqi-live-board svg')
-      .first()
-      .waitFor({ state: 'attached', timeout: timeoutMs });
+    await page.locator(boardSelector).first().waitFor({ state: 'attached', timeout: timeoutMs });
 
     await toggleEngineOn(page);
     await waitForEvalAndLines(page);
@@ -112,8 +123,43 @@ async function checkMisty(browser) {
   // worker script must carry a compatible COEP of its own or Chrome refuses to
   // start it. Assert the served headers first so a regression fails with the
   // real cause instead of an opaque "worker error".
-  await assertMistyAssetHeaders();
+  await assertMistyAssetHeaders('misty-banqi', 'banqi_wasm');
+  await assertMistyAssetHeaders('misty-jungle', 'jungle_wasm');
 
+  const jungle = await checkMistyJungle(browser);
+  const banqi = await checkMistyBanqi(browser);
+  return { surfaces: { jungle, banqi } };
+}
+
+async function checkMistyJungle(browser) {
+  const url = `${baseUrl}/analysis/jungle`;
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  try {
+    const errors = collectErrors(page);
+    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    if (!response?.ok())
+      throw new Error(`${url} returned HTTP ${response?.status() ?? 'no response'}`);
+
+    await page
+      .locator('.jungle-live-board svg')
+      .first()
+      .waitFor({ state: 'attached', timeout: timeoutMs });
+    await toggleEngineOn(page);
+    await waitForEvalAndLines(page);
+    await waitForBestMoveArrow(page);
+    const result = await readPanel(page);
+    const engineNamed = await page.evaluate(() =>
+      (document.querySelector('.engine-panel')?.textContent ?? '').includes('MistyJungle'),
+    );
+    if (!engineNamed) throw new Error('engine panel did not name MistyJungle');
+    assertNoFatalErrors(errors);
+    return { url, engine: 'MistyJungle', ...result };
+  } finally {
+    await page.close();
+  }
+}
+
+async function checkMistyBanqi(browser) {
   const roomId = await discoverFinishedBanqiGame();
   if (!roomId) {
     // Watch feed had no finished banqi game to open (feed drained). The asset
@@ -158,7 +204,13 @@ async function checkMisty(browser) {
 async function discoverFinishedBanqiGame() {
   const feedUrl = `${baseUrl}/api/watch?channel=banqi`;
   const response = await fetch(feedUrl);
-  if (!response.ok) throw new Error(`${feedUrl} returned HTTP ${response.status}`);
+  if (!response.ok) {
+    // The in-memory local server has no persistence-backed watch feed. Let its
+    // browser smoke continue in assets-only Banqi mode, while HTTPS staging and
+    // production still fail closed on an unavailable feed.
+    if (baseUrl.startsWith('http://') && response.status === 503) return null;
+    throw new Error(`${feedUrl} returned HTTP ${response.status}`);
+  }
   const feed = await response.json();
   const game = (feed.unlocked ?? []).find((entry) => typeof entry.roomId === 'string');
   return game?.roomId ?? null;
@@ -219,9 +271,9 @@ function mistyAssetVersion() {
   return match[1];
 }
 
-async function assertMistyAssetHeaders() {
+async function assertMistyAssetHeaders(packageName, moduleName) {
   const v = encodeURIComponent(mistyAssetVersion());
-  const workerUrl = `${baseUrl}/engine/misty-banqi/worker.js?v=${v}`;
+  const workerUrl = `${baseUrl}/engine/${packageName}/worker.js?v=${v}`;
   const worker = await fetch(workerUrl);
   if (!worker.ok) throw new Error(`${workerUrl} returned HTTP ${worker.status}`);
   const workerType = worker.headers.get('content-type') ?? '';
@@ -237,7 +289,7 @@ async function assertMistyAssetHeaders() {
     );
   }
 
-  const wasmUrl = `${baseUrl}/engine/misty-banqi/banqi_wasm_bg.wasm?v=${v}`;
+  const wasmUrl = `${baseUrl}/engine/${packageName}/${moduleName}_bg.wasm?v=${v}`;
   const wasm = await fetch(wasmUrl, { method: 'HEAD' });
   if (!wasm.ok) throw new Error(`${wasmUrl} returned HTTP ${wasm.status}`);
   const wasmType = wasm.headers.get('content-type') ?? '';

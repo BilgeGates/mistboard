@@ -6,10 +6,9 @@
 // engine (Fairy-Stockfish 'fortressxiangqi' — ceval loads the custom
 // fortress-xiangqi.ini). The eval gauge + engine panel + Share FEN are live; the
 // engine reads the tree's FSF move list (startpos + moves), so no server round-trip.
-// On-board PV arrows are deferred (the fortress board has no overlay layer yet), so
-// the engine presentation omits that capability. Drop reserves and the drop gesture
-// are both absent here by choice — drops replay in the mainline. (The live room
-// does show reserves; see the `material` note on the presentation below.)
+// Board-move PV arrows are live. A drop has no origin square, so its destination
+// marker remains a separate slice. Drop reserves and the drop gesture are both
+// absent here by choice; drops still replay in the mainline.
 
 import {
   type FortressXiangqiColor,
@@ -21,8 +20,15 @@ import {
   isFortressXiangqiDropMove,
 } from '@mistboard/game';
 import { createFortressXiangqiInteractiveBoard } from '../fortress-xiangqi-board.js';
-import { animateFortressXiangqiBoardMove } from '../fortress-xiangqi-render.js';
+import {
+  animateFortressXiangqiBoardMove,
+  type FortressXiangqiBoardArrow,
+} from '../fortress-xiangqi-render.js';
 import { fortressXiangqiMoveLabel } from '../fortress-xiangqi-view.js';
+import {
+  bestMoveArrowWithParser,
+  engineArrowsFromLinesWithParser,
+} from './engine/engine-arrows.js';
 import { fortressXiangqiTreeAdapter } from './fortress-xiangqi-tree-adapter.js';
 import type { NodeShape } from './game-tree.js';
 import {
@@ -40,6 +46,13 @@ function formatFortressEngineMove(uci: string): string {
   return move ? fortressXiangqiMoveLabel(move) : uci;
 }
 
+function parseFortressBoardMove(
+  uci: string,
+): { from: FortressXiangqiBoardArrow['from']; to: FortressXiangqiBoardArrow['to'] } | null {
+  const move = fsfUciToFortressXiangqiMove(uci);
+  return move && !isFortressXiangqiDropMove(move) ? move : null;
+}
+
 /** Config for a Fortress Xiangqi review mount. */
 export type FortressXiangqiReviewConfig = TreeReviewConfig<
   FortressXiangqiMove,
@@ -54,7 +67,7 @@ const fortressPresentation: TreePresentation<
   FortressXiangqiGameState,
   FortressXiangqiPlayerView,
   FortressXiangqiColor,
-  unknown,
+  FortressXiangqiBoardArrow,
   unknown
 > = {
   adapter: fortressXiangqiTreeAdapter,
@@ -62,6 +75,9 @@ const fortressPresentation: TreePresentation<
     panelVariant: 'fortressxiangqi',
     fen: fortressXiangqiEngineFen,
     formatPvMove: formatFortressEngineMove,
+    engineArrowsFromLines: (lines) =>
+      engineArrowsFromLinesWithParser(lines, parseFortressBoardMove),
+    bestMoveArrow: (best) => bestMoveArrowWithParser(best, parseFortressBoardMove),
   },
   boardHostClassName: 'fortress-xiangqi-postgame-board fortress-xiangqi-live-board',
   boardWrapClassName: 'dxq-postgame__board-wrap review-board-host',
@@ -77,7 +93,11 @@ const fortressPresentation: TreePresentation<
       animateFortressXiangqiBoardMove(boardEl, move, perspective, opts);
     }
   },
-  shapeToArrow: (s: NodeShape) => s,
+  shapeToArrow: (s: NodeShape): FortressXiangqiBoardArrow => ({
+    from: s.orig as FortressXiangqiBoardArrow['from'],
+    to: (s.dest ?? s.orig) as FortressXiangqiBoardArrow['to'],
+    className: `xq-arrow--draw xq-shape--${s.brush}`,
+  }),
   shapeToMarker: (s: NodeShape) => s,
   // Drop reserves are deliberately NOT rendered here (product call): drops
   // replay in the mainline instead. To turn them back on, supply the controller's

@@ -8,6 +8,7 @@ import type {
 import { fortressXiangqiCoordOf, fortressXiangqiSquareOf } from '@mistboard/game';
 import { glideSvgPiece, pieceAnimationDurationMs } from './board-anim.js';
 import { tokenPieceSize } from './board-metrics.js';
+import { type SvgBoardArrowStyle, svgBoardArrow } from './svg-board-arrow.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import {
   animalTreasureMarks,
@@ -43,6 +44,7 @@ const RED_PALACE: Palace = { fileLo: 0, fileHi: 2, rankLo: 1, rankHi: 3 };
 const BLACK_PALACE: Palace = { fileLo: 4, fileHi: 6, rankLo: 6, rankHi: 8 };
 
 export type FortressXiangqiBoardRenderOptions = {
+  arrows?: readonly FortressXiangqiBoardArrow[];
   interactive?: boolean;
   selectedSquare?: FortressXiangqiSquare | null;
   // Highlighted destination squares — board-move targets for a selected piece,
@@ -54,6 +56,11 @@ export type FortressXiangqiBoardRenderOptions = {
   pieceSet?: XiangqiPieceSet;
   draggingFrom?: FortressXiangqiSquare | null;
 };
+
+export interface FortressXiangqiBoardArrow extends SvgBoardArrowStyle {
+  from: FortressXiangqiSquare;
+  to: FortressXiangqiSquare;
+}
 
 export const FORTRESS_XIANGQI_PIECE_PX = PIECE_SIZE;
 
@@ -75,9 +82,31 @@ export function renderFortressXiangqiBoardSvg(
       ${options.interactive ? '' : moveHints(view, targets, perspective)}
       ${options.interactive ? '' : blockedMarks(options.blockedSquares ?? [], perspective)}
       ${pieceLayer(view, perspective, pieceSet, options.draggingFrom ?? null)}
+      <g class="fxq-board-arrows xq-live-arrows" aria-hidden="true" pointer-events="none">${fortressXiangqiArrowLayer(options.arrows ?? [], perspective)}</g>
       ${options.interactive ? hitLayer(perspective, view, targets) : ''}
     </svg>
   `;
+}
+
+export function fortressXiangqiArrowSvg(
+  arrow: FortressXiangqiBoardArrow,
+  perspective: FortressXiangqiColor,
+): string {
+  const from = fortressXiangqiCoordOf(arrow.from);
+  const to = fortressXiangqiCoordOf(arrow.to);
+  return svgBoardArrow(
+    arrow,
+    intersection(from.file, from.rank, perspective),
+    intersection(to.file, to.rank, perspective),
+    { baseClassName: 'xq-arrow' },
+  );
+}
+
+function fortressXiangqiArrowLayer(
+  arrows: readonly FortressXiangqiBoardArrow[],
+  perspective: FortressXiangqiColor,
+): string {
+  return arrows.map((arrow) => fortressXiangqiArrowSvg(arrow, perspective)).join('');
 }
 
 // A standalone <svg> for one piece, used as the floating drag ghost.
