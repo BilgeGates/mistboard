@@ -80,6 +80,11 @@ export function installBoardDrag(handlers: BoardDragHandlers): void {
     const from = squareOf(event.target);
     if (!from || !handlers.canDragFrom(from)) return;
 
+    // Stop the browser from beginning a native text-selection gesture when the
+    // pointer later leaves the board. Pointer events still produce the trailing
+    // click for a sub-threshold tap, preserving click-to-move.
+    event.preventDefault();
+
     const startX = event.clientX;
     const startY = event.clientY;
     let dragging = false;

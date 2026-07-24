@@ -1,9 +1,12 @@
 import { hiddenSquareClasses } from '@mistboard/board-render/interactive';
-import type { Color, Move, PlayerView, Square } from '@mistboard/game';
+import type { Color, PlayerView, Square } from '@mistboard/game';
 import type * as cg from 'chessground/types';
+import { castlingKingDestinationFromView } from './chess-castling.js';
 import { isLive } from './live-replay.js';
 import { liveState } from './live-state.js';
 import { files } from './web-utils.js';
+
+export { castlingKingDestinationFromView } from './chess-castling.js';
 
 export function boardHighlightClasses(view: PlayerView, orientation: Color): cg.SquareClasses {
   const classes = hiddenSquareClasses(view, orientation, { preserveFogOnFinished: true });
@@ -35,15 +38,6 @@ export function legalDests(view: PlayerView): cg.Dests {
   return dests;
 }
 
-export function castlingKingDestinationFromView(view: PlayerView, move: Move): Square | null {
-  const piece = view.board[move.from];
-  const rook = view.board[move.to];
-  if (piece?.role !== 'king' || !rook || rook.role !== 'rook' || rook.color !== piece.color)
-    return null;
-  if (rankOf(move.from) !== rankOf(move.to)) return null;
-  return `${squareFileIndex(move.to) > squareFileIndex(move.from) ? 'g' : 'c'}${rankOf(move.from)}` as Square;
-}
-
 export function squareFileIndex(square: Square): number {
   return files.indexOf(square[0] as (typeof files)[number]);
 }
@@ -67,8 +61,4 @@ function addCastlingDestinationAliases(view: PlayerView, dests: cg.Dests): void 
     const current = dests.get(from) ?? [];
     if (!current.includes(alias as cg.Key)) dests.set(from, [...current, alias as cg.Key]);
   }
-}
-
-function rankOf(square: Square): string {
-  return square[1] ?? '';
 }

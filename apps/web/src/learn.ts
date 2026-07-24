@@ -11,6 +11,7 @@ import {
 } from '@mistboard/game';
 import type { Api } from 'chessground/api';
 import type * as cg from 'chessground/types';
+import { castlingKingDestinationFromView } from './chess-castling.js';
 import {
   type ChapterStatus,
   chapters,
@@ -613,15 +614,6 @@ function addCastlingDestinationAliases(view: PlayerView, dests: cg.Dests): void 
     const current = dests.get(from) ?? [];
     if (!current.includes(alias as cg.Key)) dests.set(from, [...current, alias as cg.Key]);
   }
-}
-
-function castlingKingDestinationFromView(view: PlayerView, move: Move): Square | null {
-  const piece = view.board[move.from];
-  const rook = view.board[move.to];
-  if (piece?.role !== 'king' || !rook || rook.role !== 'rook' || rook.color !== piece.color)
-    return null;
-  if (rankOf(move.from) !== rankOf(move.to)) return null;
-  return `${squareFileIndex(move.to) > squareFileIndex(move.from) ? 'g' : 'c'}${rankOf(move.from)}` as Square;
 }
 
 function squareFileIndex(square: Square): number {

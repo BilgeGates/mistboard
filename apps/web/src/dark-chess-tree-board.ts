@@ -10,6 +10,7 @@
 // a promotion picker is a later refinement.
 
 import type { Color, Move, PlayerView, Square } from '@mistboard/game';
+import { castlingKingDestinationFromView } from './chess-castling.js';
 import { darkChessPieceGhostSvg, renderDarkChessInteractiveBoardSvg } from './dark-chess-render.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
@@ -38,7 +39,13 @@ export interface DarkChessInteractiveBoard {
 /** Legal move from → to, auto-queening a promotion (the legal set carries one
  *  entry per promotion piece; the review surface picks queen). */
 function findMove(view: PlayerView, from: Square, to: Square): Move | undefined {
-  const candidates = view.legalMoves.filter((move) => move.from === from && move.to === to);
+  const castlingCandidates = view.legalMoves.filter(
+    (move) => move.from === from && castlingKingDestinationFromView(view, move) === to,
+  );
+  const candidates =
+    castlingCandidates.length > 0
+      ? castlingCandidates
+      : view.legalMoves.filter((move) => move.from === from && move.to === to);
   return candidates.find((move) => move.promotion === 'queen') ?? candidates[0];
 }
 
@@ -54,7 +61,12 @@ export function createDarkChessInteractiveBoard(
       return;
     }
     const targets = selectedSquare
-      ? view.legalMoves.filter((move) => move.from === selectedSquare).map((move) => move.to)
+      ? view.legalMoves
+          .filter((move) => move.from === selectedSquare)
+          .flatMap((move) => {
+            const castlingDestination = castlingKingDestinationFromView(view, move);
+            return castlingDestination ? [move.to, castlingDestination] : [move.to];
+          })
       : [];
     opts.board.innerHTML = renderDarkChessInteractiveBoardSvg(view, {
       perspective,
