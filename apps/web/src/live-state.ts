@@ -145,9 +145,8 @@ export type SoundKind =
   | 'game-start'
   | 'king-capture'
   | 'king-fall'
-  // learn-* / level-* / stage-*: the Learn course's event sounds (item pickup,
-  // soft failure, level/stage start and completion). Synth-only: no sound set
-  // maps files for them, so every set falls back to the mist tones.
+  // Learn and puzzle event sounds are synth-only: no sound set maps files for
+  // them, so every set uses the same purpose-built tones.
   | 'learn-failure'
   | 'learn-take'
   | 'level-end'
@@ -155,6 +154,7 @@ export type SoundKind =
   | 'lose'
   | 'low-time'
   | 'move'
+  | 'puzzle-solved'
   | 'stage-end'
   | 'stage-start'
   | 'win';

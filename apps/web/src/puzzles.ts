@@ -575,10 +575,15 @@ async function submitMove(
     session.feedback = attempt.complete
       ? { kind: 'good', text: 'Solved.' }
       : { kind: 'good', text: 'Correct.' };
-    // Solved = victory fanfare; a correct-but-incomplete move sounds like the
-    // move it was (capture if the played line reduced piece count, else a step).
+    // A solve gets its own warm confirmation cue. A correct-but-incomplete move
+    // sounds like the move it was (capture if the line reduced piece count,
+    // otherwise a step).
     playSound(
-      attempt.complete ? 'win' : puzzlePieceCount(session.state) < beforeCount ? 'capture' : 'move',
+      attempt.complete
+        ? 'puzzle-solved'
+        : puzzlePieceCount(session.state) < beforeCount
+          ? 'capture'
+          : 'move',
     );
   } else {
     session.state = attempt.state;

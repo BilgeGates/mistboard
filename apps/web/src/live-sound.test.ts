@@ -59,6 +59,19 @@ describe('Mist finish sound tone plans', () => {
   });
 });
 
+describe('puzzle solved sound tone plan', () => {
+  it('resolves a rising phrase into a warm major chord across every sound set', () => {
+    const mist = tonesForSound('puzzle-solved', 'mist');
+    const wood = tonesForSound('puzzle-solved', 'wood');
+
+    expect(wood).toEqual(mist);
+    expect(finishAt('puzzle-solved')).toBeLessThanOrEqual(0.9);
+    expect(mist.slice(0, 3).map((tone) => tone.frequency)).toEqual([392, 523.25, 659.25]);
+    expect(mist.slice(-4).map((tone) => tone.frequency)).toEqual([523.25, 659.25, 783.99, 1046.5]);
+    expect(mist.every((tone) => tone.type === 'sine')).toBe(true);
+  });
+});
+
 describe('Wood finish sound tone plans', () => {
   it.each(['win', 'lose', 'draw'] as const)('gives %s its own percussive pattern', (kind) => {
     const wood = tonesForSound(kind, 'wood');

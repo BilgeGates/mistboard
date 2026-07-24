@@ -590,6 +590,69 @@ export function tonesForSound(kind: SoundKind, set: SoundSetId = DEFAULT_SOUND_S
       { delay: 0.11, duration: 0.18, frequency: 277.18, gain: 0.03, type: 'sine' },
     ];
   }
+  if (kind === 'puzzle-solved') {
+    // A warm major resolution for a solved puzzle. The rising melody supplies
+    // the affirmation; the quiet C-major bed under the final note gives it
+    // body without turning the short trainer moment into a game-win fanfare.
+    return [
+      {
+        delay: 0,
+        duration: 0.18,
+        frequency: 392,
+        gain: 0.036,
+        type: 'sine',
+        attack: 0.008,
+      },
+      {
+        delay: 0.1,
+        duration: 0.22,
+        frequency: 523.25,
+        gain: 0.043,
+        type: 'sine',
+        attack: 0.008,
+      },
+      {
+        delay: 0.21,
+        duration: 0.26,
+        frequency: 659.25,
+        gain: 0.046,
+        type: 'sine',
+        attack: 0.008,
+      },
+      {
+        delay: 0.34,
+        duration: 0.5,
+        frequency: 523.25,
+        gain: 0.022,
+        type: 'sine',
+        attack: 0.012,
+      },
+      {
+        delay: 0.34,
+        duration: 0.5,
+        frequency: 659.25,
+        gain: 0.018,
+        type: 'sine',
+        attack: 0.012,
+      },
+      {
+        delay: 0.34,
+        duration: 0.5,
+        frequency: 783.99,
+        gain: 0.02,
+        type: 'sine',
+        attack: 0.012,
+      },
+      {
+        delay: 0.36,
+        duration: 0.54,
+        frequency: 1046.5,
+        gain: 0.04,
+        type: 'sine',
+        attack: 0.01,
+      },
+    ];
+  }
   if (kind === 'level-start') {
     // A single soft ping when a lesson level mounts.
     return [{ delay: 0, duration: 0.12, frequency: 659.25, gain: 0.04, type: 'sine' }];
