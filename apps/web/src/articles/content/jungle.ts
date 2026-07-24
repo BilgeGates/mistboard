@@ -16,18 +16,18 @@ export const jungleArticle: Article = {
   kind: 'rules',
   title: 'Jungle Chess Rules',
   summary:
-    "The classic Chinese animal-chess game, traditionally Dou Shou Qi (斗兽棋), on a 7×9 board. Eight ranked animals, rivers only the rat can cross, and a race to the opponent's den.",
+    "The classic animal-chess game on a 7 by 9 board. Eight ranked animals, rivers only the rat can cross, and a race to the opponent's den.",
   showSummaryOnPage: false,
   status: 'published',
   publishedAt: '2026-06-30',
-  updatedAt: '2026-07-12',
+  updatedAt: '2026-07-23',
   playableOnMistboard: true,
   audience:
-    'Anyone who knows Jungle Chess, Dou Shou Qi, or Animal Chess and wants the rules clearly, plus chess and xiangqi players meeting it for the first time.',
+    'Experienced Jungle Chess players who want a clear reference, plus chess and xiangqi players meeting it for the first time.',
   intro: [
     {
       kind: 'paragraph',
-      text: 'Jungle Chess is Mistboard\'s public name for Dou Shou Qi (斗兽棋), also called Animal Chess. It is a two-player game played across much of East Asia. Each side commands eight animals of different rank. You win by marching a piece into your opponent’s den, or by capturing all of their pieces.',
+      text: 'Jungle Chess, also called Animal Chess, is a two-player game played across much of East Asia. Each side commands eight animals of different rank. You win by marching a piece into your opponent’s den, or by capturing all of their pieces.',
     },
     {
       kind: 'paragraph',

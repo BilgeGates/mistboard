@@ -20,11 +20,11 @@ export const xiangqiArticle: Article = {
     playableOnMistboard: true,
     title: 'Xiangqi Rules',
     summary:
-      'The rules of xiangqi, also called Chinese chess (象棋): palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.',
+      'The rules of xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-05-26',
-    updatedAt: '2026-07-04',
+    updatedAt: '2026-07-23',
     audience:
       'Players new to Xiangqi, and chess players who want to learn xiangqi and play it on Mistboard.',
     thumbnail: { kind: 'svg', svg: XQ_RULES_PRIMER_THUMBNAIL },
@@ -32,7 +32,7 @@ export const xiangqiArticle: Article = {
       {
         kind: 'paragraph',
         text:
-          'Xiangqi (象棋), also known as Chinese chess, is a two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).',
+          'Xiangqi, also known as Chinese chess, is a two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).',
       },
       {
         kind: 'paragraph',
@@ -84,7 +84,7 @@ export const xiangqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              '**Advisor:** moves one point diagonally and, like the general, stays inside the palace.',
+              '**Advisor:** moves one point diagonally and, like the general, stays inside the palace. Both advisors share just five possible points. Their main job is to protect the general, but they can also become a liability by blocking its escape or serving as a cannon screen.',
           },
           {
             kind: 'raw-svg',
@@ -93,7 +93,7 @@ export const xiangqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              '**Elephant:** moves exactly two points diagonally and cannot cross the river, so it never leaves its own half. It does not jump: a piece on the midpoint of the diagonal, the elephant\'s eye, blocks the move.',
+              '**Elephant:** moves exactly two points diagonally and cannot cross the river, so the two elephants share only seven possible points on their own half. It does not jump: a piece on the midpoint of the diagonal, the elephant\'s eye, blocks the move.',
           },
           {
             kind: 'raw-svg',
@@ -143,22 +143,17 @@ export const xiangqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'A general is in check when an enemy piece attacks it, and the player in check must answer the threat. If there is no legal answer, it is checkmate and the checked player loses.',
+              'A general is in **check** when an enemy piece attacks it. Every move must leave your own general safe, so a player in check must move the general, capture the attacker, or block the attack. If no legal answer exists, it is checkmate and the checked player loses.',
           },
           {
             kind: 'paragraph',
             text:
-              'A player who has no legal move at all also loses. This is the opposite of Western chess, where having no legal move is a stalemate draw.',
+              'A player with no legal move also loses, even when the general is not in check. In Western chess that position is a stalemate draw; in xiangqi it is a win for the player who made the last move.',
           },
           {
             kind: 'paragraph',
             text:
-              'Xiangqi also restricts endless forcing cycles. Perpetual check and perpetual chase are not allowed: a player who repeats an endless attack loses rather than forcing a draw. Tournament rules spell out detailed repetition procedures for exactly when a cycle counts as perpetual.',
-          },
-          {
-            kind: 'paragraph',
-            text:
-              'A game is drawn when neither side has enough material to checkmate, by a repetition that breaks none of those rules, or when a long run of moves passes with no capture. The no-capture limit depends on the rule set: the World Xiangqi Federation rules use a fifty-move rule, while the Chinese (CXA) rules require at least sixty plies before a draw can be claimed.',
+              'Tournament rules use detailed procedures for perpetual check, perpetual chase, and other repeated attacks. Mistboard uses two automatic draw rules: the same position three times, or 60 consecutive plies without a capture.',
           },
         ],
       },
@@ -168,7 +163,7 @@ export const xiangqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'To see the pieces work together, step through the most famous trap in xiangqi. It comes from Juzhongmi (橘中秘), a manual printed in 1632. Red gives up a horse; when Black grabs it, Red\'s chariots and cannons pour through the gap and checkmate on the thirteenth move.',
+              'To see the pieces work together, step through a famous trap from a manual printed in 1632. Red gives up a horse; when Black grabs it, Red\'s chariots and cannons pour through the gap and checkmate on the thirteenth move.',
           },
           {
             kind: 'xq-replay',
@@ -176,8 +171,8 @@ export const xiangqiArticle: Article = {
               iccs: 'h2e2 h7e7 h0g2 h9g7 i0i1 i9h9 i1d1 h9h3 d1d8 b9a7 a0a1 b7b0 b2b7 g7h9 e2e6 f9e8 a1d1 e9f9 d8d9 e8d9 d1f1 e7f7 f1f7 f9e9 b7e7',
               red: 'Red',
               black: 'Black',
-              title: 'Sacrifice the Horse in 13 (弃马十三着)',
-              event: 'Juzhongmi, 1632',
+              title: 'Sacrifice the Horse in 13',
+              event: 'Classic manual, 1632',
               resultText: 'Checkmate on move 13. Red\'s paired cannons pin the general on the open central file.',
             },
           } as ArticleBlock,

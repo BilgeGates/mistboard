@@ -4,6 +4,7 @@ import {
   XQ_CANNON_RULE_PAIR,
   XQ_DARK_XIANGQI_THUMBNAIL,
   XQ_FACING_GENERAL_STEPS,
+  XQ_FOG_SAMPLE_STEPS,
   XQ_GENERAL_CAPTURE_PAIR,
   XQ_START_TRIPTYCH,
   XQ_VISIBILITY_GRID,
@@ -24,14 +25,14 @@ export const darkXiangqiArticle: Article = {
     status: 'published',
     playableOnMistboard: true,
     publishedAt: '2026-05-26',
-    updatedAt: '2026-05-30',
+    updatedAt: '2026-07-23',
     audience:
       'Xiangqi players, Fog Chess players, and anyone who wants a clean first explanation of xiangqi under fog.',
     thumbnail: { kind: 'svg', svg: XQ_DARK_XIANGQI_THUMBNAIL },
     intro: [
       {
         kind: 'paragraph',
-        text: 'Fog Xiangqi is xiangqi (象棋) under Fog of War. Pieces keep their normal movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.',
+        text: 'Fog Xiangqi is xiangqi under Fog of War. Pieces keep their normal movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.',
       },
       {
         kind: 'paragraph',
@@ -135,6 +136,28 @@ export const darkXiangqiArticle: Article = {
             kind: 'raw-svg-stepper',
             steps: XQ_FACING_GENERAL_STEPS,
           } as ArticleBlock,
+        ],
+      },
+      {
+        heading: 'A sample game',
+        blocks: [
+          {
+            kind: 'paragraph',
+            text:
+              'This public production game ends with the rule that most clearly separates Fog Xiangqi from ordinary xiangqi. Red sends a chariot to d10, Black’s general captures it, and the open file lets Red’s general fly from d1 to d10 for the win.',
+          },
+          {
+            kind: 'raw-svg-stepper',
+            header: {
+              players: 'rebirthfox333 (Red) vs Misty DXQ 1.1 (Black)',
+              event: 'Production game · July 17, 2026',
+            },
+            steps: XQ_FOG_SAMPLE_STEPS,
+          } as ArticleBlock,
+          {
+            kind: 'paragraph',
+            text: '[Open the original game](/dark-xiangqi/game/dxq_ef889df8-a1eb-4d0a-bd0a-ffd7e8bc30f4).',
+          },
         ],
       },
       playClosing({

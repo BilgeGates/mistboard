@@ -19,14 +19,14 @@ export const jungleFlipArticle: Article = {
   showSummaryOnPage: false,
   status: 'published',
   publishedAt: '2026-06-30',
-  updatedAt: '2026-07-12',
+  updatedAt: '2026-07-23',
   playableOnMistboard: true,
   audience:
-    'Jungle players who want the flip variant, and anyone who grew up playing 翻翻棋 on a chalk grid.',
+    'Jungle players who want the flip variant, and anyone who grew up playing a face-down animal game on a chalk grid.',
   intro: [
     {
       kind: 'paragraph',
-      text: 'Flip Jungle is a small, fast relative of [Jungle Chess](/rules/jungle), built around the same eight ranked animals. Chinese names include 翻翻棋, roughly “flip-flip chess,” and 兽棋, “animal chess.” English speakers may also encounter Flip Animal Chess. All sixteen animals begin face-down on a four-by-four grid. There are no rivers, dens, or traps.',
+      text: 'Flip Jungle is a small, fast relative of [Jungle Chess](/rules/jungle), built around the same eight ranked animals. It is also known in English as Flip Animal Chess. All sixteen animals begin face-down on a four-by-four grid. There are no rivers, dens, or traps.',
     },
     {
       kind: 'paragraph',
@@ -94,7 +94,7 @@ export const jungleFlipArticle: Article = {
         },
         {
           kind: 'paragraph',
-          text: 'Equal ranks work differently. When an animal captures an enemy of its own rank, both pieces leave the board (同归于尽, “they perish together”), and neither side keeps the square.',
+          text: 'Equal ranks work differently. When an animal captures an enemy of its own rank, both pieces leave the board, and neither side keeps the square.',
         },
         {
           kind: 'raw-svg',

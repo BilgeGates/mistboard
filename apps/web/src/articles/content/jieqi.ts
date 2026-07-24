@@ -17,19 +17,19 @@ export const jieqiArticle: Article = {
     playableOnMistboard: true,
     title: 'Reveal Xiangqi Rules',
     summary:
-      'Reveal Xiangqi rules: jieqi (揭棋), xiangqi with hidden non-general pieces that first move by starting point, then reveal and play by identity.',
+      'Reveal Xiangqi rules: hidden non-general pieces first move by starting point, then reveal and play by identity.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-06-15',
-    updatedAt: '2026-07-12',
+    updatedAt: '2026-07-23',
     audience:
-      'Xiangqi players and hidden-information fans who want a clean English rules reference for jieqi.',
+      'Xiangqi players and hidden-information fans who want a clean English rules reference for Reveal Xiangqi.',
     thumbnail: { kind: 'svg', svg: JIEQI_RULES_THUMBNAIL },
     intro: [
       {
         kind: 'paragraph',
         text:
-          "Reveal Xiangqi is jieqi (揭棋, 'reveal chess'). It keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.",
+          "Reveal Xiangqi keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.",
       },
       {
         kind: 'paragraph',
@@ -105,7 +105,7 @@ export const jieqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'This reference uses the common Jieqi convention: the capturer sees it. Some cờ úp groups handle captured dark pieces differently, so agree on the convention before over-the-board play.',
+              'Mistboard uses capturer-only reveal: the player who takes a dark piece learns its identity, while the former owner does not.',
           },
         ],
       },
@@ -115,17 +115,17 @@ export const jieqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              "Every occupied point is visible, so players can see when the general is attacked. An unmoved dark piece attacks from its starting point using that point's role. Once it moves, it reveals immediately; any check from the destination uses the revealed identity.",
+              "Every occupied point is visible, so players can see when a general is attacked. An unmoved dark piece attacks using its starting point's role. Once it moves, it reveals immediately, and any attack from the destination uses its revealed identity.",
           },
           {
             kind: 'paragraph',
             text:
-              'Win by checkmating the general or leaving the opponent with no legal move. The facing-generals rule still applies, and dark pieces block the file like any other piece.',
+              'Normal check rules apply: a move may not leave your own general attacked, and a player in check must answer the threat. You win by checkmate or by leaving the opponent with no legal move. The facing-generals rule still applies, and dark pieces block the file like any other piece.',
           },
           {
             kind: 'paragraph',
             text:
-              'Repetition follows xiangqi long-beat rules, not a generic threefold or fourfold result. Perpetual check and direct perpetual chase are forbidden, so the forcing side must change course or lose; mutual forcing and ordinary repeated positions are judged by the xiangqi cycle, not by board equality alone. The automatic draw convention in this reference is the Guangdong/Tencent no-capture clock: 60 full moves, meaning 120 plies, without a capture.',
+              'Mistboard automatically draws after 120 plies, or 60 moves by each player, without a capture. Repeated positions do not trigger a separate automatic draw.',
           },
         ],
       },
@@ -135,7 +135,7 @@ export const jieqiArticle: Article = {
           {
             kind: 'paragraph',
             text:
-              'Step through a full self-play game below. Dark pieces show as colored backs and flip to their dealt identity the first time they move, so a corner that plays like a chariot can reveal a soldier. Red wins by checkmate.',
+              'Step through a self-play game. Dark pieces appear as colored backs and reveal their identity the first time they move. Red wins by checkmate.',
           },
           {
             kind: 'jieqi-replay',
@@ -148,16 +148,6 @@ export const jieqiArticle: Article = {
               deal: JIEQI_SAMPLE_GAME.deal,
               moves: JIEQI_SAMPLE_GAME.moves,
             },
-          },
-        ],
-      },
-      {
-        heading: 'Name',
-        blocks: [
-          {
-            kind: 'paragraph',
-            text:
-              '揭棋 is Mandarin jiēqí, meaning reveal chess. Luo Jinsheng of Guangzhou invented it in the 1980s, and Vietnamese play commonly calls this family cờ úp. On Mistboard, Reveal Xiangqi means jieqi; [Fog Xiangqi](/rules/fog-xiangqi) is the Fog of War variant, and [Flip Xiangqi](/rules/flip-xiangqi) is the half-board flip game.',
           },
         ],
       },

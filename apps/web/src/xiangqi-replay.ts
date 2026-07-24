@@ -26,6 +26,7 @@ const BOARD_W = MARGIN * 2 + 8 * CELL;
 const BOARD_H = MARGIN * 2 + 9 * CELL;
 const RADIUS = 8;
 const ARROW = '#15781B';
+const ARROW_END_INSET = 10;
 
 export type XiangqiReplaySpec = {
   // Space-separated ICCS coordinate tokens (e.g. "h2e2 h9g7 ..."). ICCS ranks
@@ -128,7 +129,14 @@ function arrowSvg(move: XiangqiMove, perspective: XiangqiColor, id: string): str
   const from = coord(move.from);
   const to = coord(move.to);
   const a = pointXY(from.file, from.rank, perspective);
-  const b = pointXY(to.file, to.rank, perspective);
+  const rawEnd = pointXY(to.file, to.rank, perspective);
+  const dx = rawEnd.x - a.x;
+  const dy = rawEnd.y - a.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const b = {
+    x: rawEnd.x - (dx / length) * ARROW_END_INSET,
+    y: rawEnd.y - (dy / length) * ARROW_END_INSET,
+  };
   return [
     `<defs><marker id="${id}" markerWidth="4" markerHeight="4" refX="2.05" refY="2" orient="auto" overflow="visible" markerUnits="strokeWidth"><path d="M0,0 V4 L3,2 Z" fill="${ARROW}"/></marker></defs>`,
     `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${ARROW}" stroke-width="5.25" stroke-linecap="round" opacity="0.38" marker-end="url(#${id})"/>`,

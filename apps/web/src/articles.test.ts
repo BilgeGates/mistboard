@@ -5,6 +5,11 @@ import {
   BANQI_BOARD_W,
   BANQI_ENGINE_THUMBNAIL,
   BANQI_RULES_THUMBNAIL,
+  BANQI_SETUP_BOARD,
+  XQ_FOG_SAMPLE_STATES,
+  XQ_FOG_SAMPLE_STEPS,
+  XQ_PRIMER_FACING_LEGAL,
+  XQ_PRIMER_HORSE_BLOCKED,
 } from './articles/diagrams.js';
 import {
   buildArticlePage,
@@ -791,7 +796,8 @@ describe('rules variant sidebar', () => {
     expect(pageText).not.toContain('[VISUAL:');
     expect(pageText).not.toMatch(/\bsquares?\b/i);
     expect(pageText).toContain('starting point it occupies');
-    expect(pageText).toContain('Repetition follows xiangqi long-beat rules');
+    expect(pageText).toContain('120 plies, or 60 moves by each player');
+    expect(pageText).toContain('Repeated positions do not trigger a separate automatic draw');
     const jieqiSvgs = [...page.querySelectorAll('.article-figure .xq-article-svg')];
     expect(jieqiSvgs.length).toBeGreaterThanOrEqual(4);
     // The shuffled-start board is the section hero (a single enlarged board,
@@ -817,6 +823,7 @@ describe('rules variant sidebar', () => {
     expect(page.innerHTML).toContain('stroke="#6f342c"');
     expect(page.innerHTML).not.toContain('fill="#286d55"');
     expect(page.innerHTML).not.toContain('stroke="#c8ead2"');
+    expect(page.innerHTML).not.toContain('fill="#2563eb"');
     expect(page.innerHTML).not.toContain('C40 39 60 39 66 50');
     const captions = [...page.querySelectorAll('.article-figure-caption')].map(
       (caption) => caption.textContent,
@@ -834,14 +841,14 @@ describe('rules variant sidebar', () => {
 
     expect(pageText).not.toContain('[VISUAL:');
     expect(pageText).toContain('General > Advisor > Elephant > Chariot > Horse > Soldier');
-    expect(pageText).toContain('The cannon sits outside this rank ladder');
+    expect(pageText).toContain('it sits outside the ladder when capturing');
     expect(pageText).toContain('40 plies (single moves) with no flip or capture');
     expect(pageText).toContain('threefold repetition');
-    expect(pageText).toContain('There is no single worldwide banqi rules authority');
-    expect(pageText).toContain('Mistboard uses the ladder and screen-jumping cannon');
-    expect(pageText).toContain('For a capture only');
-    expect(pageText).toContain('A non-capturing cannon move is still just one square');
-    expect(pageText).toContain('an adjacent cannon can be taken by a general');
+    expect(pageText).toContain('do exactly one of two things');
+    expect(pageText).toContain('The cannon ignores rank when it captures');
+    expect(pageText).toContain('Without a capture, the cannon moves one square');
+    expect(pageText).not.toContain('Rules used on Mistboard');
+    expect(pageText).not.toContain('Names');
     expect(pageText).not.toContain('any revealed enemy piece except a soldier can capture it');
     expect(pageText).not.toContain('It slides any distance');
     expect(pageText).not.toContain('horse, cannon, soldier');
@@ -866,6 +873,113 @@ describe('rules variant sidebar', () => {
     expect(figureText).toContain('CAPTURE RANK LADDER');
     expect(figureText).toContain('CANNON SCREEN CAPTURE');
     expect(page.querySelectorAll('.article-cta')).toHaveLength(2);
+  });
+
+  it('keeps the first rules-polish pass on a consistent editorial path', () => {
+    const headings = (slug: string) =>
+      [...buildArticlePage(slug).querySelectorAll('h2')].map((heading) => heading.textContent);
+
+    expect(headings('xiangqi')).toEqual([
+      'The board',
+      'The pieces',
+      'Check, checkmate, and endings',
+      'A famous game',
+      'Play on Mistboard',
+    ]);
+    expect(headings('banqi')).toEqual([
+      'Board and setup',
+      'Turns',
+      'Capture by rank',
+      'The cannon',
+      'Winning and draws',
+      'A sample game',
+      'Play on Mistboard',
+    ]);
+    expect(headings('jieqi')).toEqual([
+      'Setup',
+      'First moves use starting points',
+      'Revealed pieces use identity',
+      'Captured dark pieces',
+      'Checks, wins, and draws',
+      'A sample game',
+      'Play on Mistboard',
+    ]);
+  });
+
+  it('embeds the complete production Fog Xiangqi sample and its flying-general finish', () => {
+    const page = buildArticlePage('dark-xiangqi');
+    const finalState = XQ_FOG_SAMPLE_STATES.at(-1);
+
+    expect(XQ_FOG_SAMPLE_STATES).toHaveLength(32);
+    expect(XQ_FOG_SAMPLE_STEPS).toHaveLength(32);
+    expect(finalState?.status).toEqual({
+      type: 'finished',
+      winner: 'red',
+      reason: 'general-captured',
+    });
+    expect(finalState?.lastMove).toEqual({ from: 'd1', to: 'd10' });
+    expect([...page.querySelectorAll('h2')].map((heading) => heading.textContent)).toContain(
+      'A sample game',
+    );
+    expect(
+      page.querySelector('a[href="/dark-xiangqi/game/dxq_ef889df8-a1eb-4d0a-bd0a-ffd7e8bc30f4"]'),
+    ).not.toBeNull();
+
+    const sample = [...page.querySelectorAll<HTMLElement>('.article-figure-raw-svg-stepper')].at(
+      -1,
+    );
+    const next = sample?.querySelector<HTMLButtonElement>('.stepper-button-next');
+    for (let ply = 0; ply < 31; ply += 1) next?.click();
+    expect(sample?.querySelector('.stepper-counter')?.textContent).toBe('32 / 32');
+    expect(sample?.querySelector('.stepper-narrative')?.textContent).toBe(
+      'Red’s general flies from d1 to d10 and captures Black’s general. Fog Xiangqi ends immediately.',
+    );
+  });
+
+  it('keeps non-English aliases out of the eight English rules pages', () => {
+    const aliases =
+      /\b(?:banqi|jieqi|Dou Shou Qi)\b|cờ úp|象棋|揭棋|暗棋|斗兽棋|鬥獸棋|翻翻棋|同归于尽|同歸於盡/;
+    const slugs = [
+      'xiangqi',
+      'banqi',
+      'jieqi',
+      'fortress-xiangqi',
+      'dark-xiangqi',
+      'dark-chess',
+      'jungle',
+      'jungle-flip',
+    ];
+
+    for (const slug of slugs) {
+      const page = buildArticlePage(slug);
+      document.body.append(page);
+      const controllers = mountPendingWidgets(page);
+      expect(page.textContent, slug).not.toMatch(aliases);
+      for (const controller of controllers) controller.destroy();
+      page.remove();
+    }
+  });
+
+  it('pins the requested Xiangqi diagram positions', () => {
+    expect(XQ_PRIMER_FACING_LEGAL.board.e5).toBeUndefined();
+    expect(XQ_PRIMER_FACING_LEGAL.board.e6).toEqual({ color: 'black', role: 'soldier' });
+    expect(XQ_PRIMER_HORSE_BLOCKED.board.g5).toEqual({ color: 'red', role: 'soldier' });
+    expect(BANQI_SETUP_BOARD()).toContain('aria-label="red elephant"');
+    expect(BANQI_SETUP_BOARD()).not.toContain('aria-label="red horse"');
+  });
+
+  it('stops sample-game arrows before the destination center', () => {
+    const page = buildArticlePage('xiangqi');
+    document.body.append(page);
+    const controllers = mountPendingWidgets(page);
+    try {
+      page.querySelector<HTMLButtonElement>('.xq-replay .stepper-button-next')?.click();
+      const arrow = page.querySelector<SVGLineElement>('.xq-replay line[marker-end]');
+      expect(arrow?.getAttribute('x2')).toBe('152');
+    } finally {
+      for (const controller of controllers) controller.destroy();
+      page.remove();
+    }
   });
 
   it('teaches Jungle movement before terrain details and shows both colors in the shared ladder', () => {

@@ -41,6 +41,7 @@ import {
   type Square,
   type XiangqiColor,
   type XiangqiGameState,
+  type XiangqiMove,
   type XiangqiPiece,
   type XiangqiPlayerView,
   type XiangqiSquare,
@@ -1593,7 +1594,14 @@ export function xqArrowLayer(
       const fromCoord = xqCoord(from);
       const toCoord = xqCoord(to);
       const start = xqPoint(fromCoord.file, fromCoord.rank, perspective, x0, y0);
-      const end = xqPoint(toCoord.file, toCoord.rank, perspective, x0, y0);
+      const rawEnd = xqPoint(toCoord.file, toCoord.rank, perspective, x0, y0);
+      const dx = rawEnd.x - start.x;
+      const dy = rawEnd.y - start.y;
+      const length = Math.hypot(dx, dy) || 1;
+      const end = {
+        x: rawEnd.x - (dx / length) * 10,
+        y: rawEnd.y - (dy / length) * 10,
+      };
       const id = `xq-arrow-${from}-${to}-${index}`;
       return [
         `<defs><marker id="${id}" markerWidth="4" markerHeight="4" refX="2.05" refY="2" orient="auto" overflow="visible" markerUnits="strokeWidth"><path d="M0,0 V4 L3,2 Z" fill="#15781B"/></marker></defs>`,
@@ -2045,6 +2053,7 @@ export const XQ_PRIMER_HORSE_OPEN = xqVisionDemoState('xq-primer-horse-open', {
 export const XQ_PRIMER_HORSE_BLOCKED = xqVisionDemoState('xq-primer-horse-blocked', {
   e5: { color: 'red', role: 'horse' },
   e6: { color: 'black', role: 'soldier' },
+  g5: { color: 'red', role: 'soldier' },
 });
 export const XQ_PRIMER_HORSE_PAIR = () => xqSvg(
   XQ_BOARD_W * 2 + 28,
@@ -2100,7 +2109,7 @@ export const XQ_PRIMER_FACING_ILLEGAL = xqVisionDemoState('xq-primer-facing-ille
 export const XQ_PRIMER_FACING_LEGAL = xqVisionDemoState('xq-primer-facing-legal', {
   e1: { color: 'red', role: 'general' },
   e10: { color: 'black', role: 'general' },
-  e5: { color: 'black', role: 'soldier' },
+  e6: { color: 'black', role: 'soldier' },
 });
 export function xqFacingLine(x0: number): string {
   const a = xqPoint(4, 1, 'red', x0, 28);
@@ -2449,6 +2458,112 @@ export const XQ_DARK_XIANGQI_THUMBNAIL = () => xqSvg(
   ].join(''),
 );
 
+// ── Fog Xiangqi sample game ───────────────────────────────────────────────
+// A complete public production game from 2026-07-17:
+// rebirthfox333 (Red) vs Misty DXQ 1.1 (Black), Red wins in 31 plies.
+// The finish is an unusually clean demonstration of the Fog rules. Red's
+// chariot captures on d10, Black's general recaptures onto the newly opened
+// d-file, then Red's general flies from d1 to d10 and captures it.
+// https://mistboard.com/dark-xiangqi/game/dxq_ef889df8-a1eb-4d0a-bd0a-ffd7e8bc30f4
+export const XQ_FOG_SAMPLE_MOVES: XiangqiMove[] = [
+  { from: 'h3', to: 'h5' },
+  { from: 'b10', to: 'a8' },
+  { from: 'h5', to: 'e5' },
+  { from: 'g10', to: 'e8' },
+  { from: 'e5', to: 'i5' },
+  { from: 'h8', to: 'i8' },
+  { from: 'i5', to: 'g5' },
+  { from: 'c7', to: 'c6' },
+  { from: 'i1', to: 'i2' },
+  { from: 'b8', to: 'b1' },
+  { from: 'a1', to: 'b1' },
+  { from: 'i7', to: 'i6' },
+  { from: 'i2', to: 'd2' },
+  { from: 'i8', to: 'f8' },
+  { from: 'd1', to: 'e2' },
+  { from: 'e10', to: 'e9' },
+  { from: 'e1', to: 'd1' },
+  { from: 'a10', to: 'a9' },
+  { from: 'b3', to: 'e3' },
+  { from: 'h10', to: 'g8' },
+  { from: 'g5', to: 'g8' },
+  { from: 'c6', to: 'c5' },
+  { from: 'c4', to: 'c5' },
+  { from: 'i10', to: 'i8' },
+  { from: 'g8', to: 'g9' },
+  { from: 'e9', to: 'e10' },
+  { from: 'g9', to: 'c9' },
+  { from: 'a8', to: 'c9' },
+  { from: 'd2', to: 'd10' },
+  { from: 'e10', to: 'd10' },
+  { from: 'd1', to: 'd10' },
+];
+
+function replayFogXiangqiSample(): XiangqiGameState[] {
+  const states = [createInitialXiangqiState('fog-xiangqi-production-sample')];
+  for (const [index, move] of XQ_FOG_SAMPLE_MOVES.entries()) {
+    const current = states.at(-1)!;
+    const next = applyXiangqiMove(current, move);
+    if (next === current) {
+      throw new Error(`invalid Fog Xiangqi sample move at ply ${index + 1}`);
+    }
+    states.push(next);
+  }
+  return states;
+}
+
+export const XQ_FOG_SAMPLE_STATES = replayFogXiangqiSample();
+
+const XQ_FOG_SAMPLE_NARRATIVES: Partial<Record<number, string>> = {
+  0: 'Red has the lower army. Step through Red’s view, the server truth, and Black’s view.',
+  10: 'Black’s cannon jumps a screen and captures the horse on b1.',
+  11: 'Red’s chariot immediately captures that cannon.',
+  21: 'Red’s roaming cannon captures Black’s horse on g8.',
+  28: 'Black’s remaining horse catches the cannon on c9.',
+  29: 'Red’s chariot crashes into d10 and captures an advisor beside the general.',
+  30: 'Black’s general captures the chariot on d10. The entire d-file between the two generals is now open.',
+  31: 'Red’s general flies from d1 to d10 and captures Black’s general. Fog Xiangqi ends immediately.',
+};
+
+function xqFogSampleTriptych(state: XiangqiGameState): string {
+  const arrows = state.lastMove ? [{ from: state.lastMove.from, to: state.lastMove.to }] : undefined;
+  return xqSvg(
+    XQ_BOARD_W * 3 + 56,
+    XQ_BOARD_H + 52,
+    [
+      xqBoardSvg({
+        state,
+        view: getXiangqiPlayerView(state, 'red', 'D'),
+        x: 0,
+        y: 0,
+        label: "RED'S VIEW",
+        perspective: 'red',
+      }),
+      xqBoardSvg({
+        state,
+        x: XQ_BOARD_W + 28,
+        y: 0,
+        label: 'SERVER TRUTH',
+        perspective: 'red',
+        arrows,
+      }),
+      xqBoardSvg({
+        state,
+        view: getXiangqiPlayerView(state, 'black', 'D'),
+        x: (XQ_BOARD_W + 28) * 2,
+        y: 0,
+        label: "BLACK'S VIEW",
+        perspective: 'red',
+      }),
+    ].join(''),
+  );
+}
+
+export const XQ_FOG_SAMPLE_STEPS = XQ_FOG_SAMPLE_STATES.map((state, ply) => ({
+  svg: () => xqFogSampleTriptych(state),
+  narrative: XQ_FOG_SAMPLE_NARRATIVES[ply],
+}));
+
 // ── Jieqi rules diagrams ──────────────────────────────────────────────────
 // Jieqi is hidden-identity, not fog. These diagrams reuse the xiangqi board
 // shell but render all non-general pieces as same-color piece backs and keep the
@@ -2551,7 +2666,6 @@ export const JIEQI_REVEALED_FREEDOMS = () => xqSvg(
       y: 0,
       label: 'ADVISOR AFTER REVEAL',
       perspective: 'red',
-      zones: true,
       dots: xqDots(['b5', 'd5', 'b7', 'd7']),
     }),
     xqBoardSvg({
@@ -2560,7 +2674,6 @@ export const JIEQI_REVEALED_FREEDOMS = () => xqSvg(
       y: 0,
       label: 'ELEPHANT AFTER REVEAL',
       perspective: 'red',
-      zones: true,
       dots: [
         ...xqDots(['e5', 'i5', 'i9']),
         { square: 'e9' as XiangqiSquare, blocked: true },
@@ -2788,7 +2901,7 @@ export const BANQI_SETUP_BOARD = () => xqSvg(
     banqiBackPieces(BANQI_CENTER_X, 28, {
       col: 3,
       row: 1,
-      piece: { color: 'red', role: 'horse' },
+      piece: { color: 'red', role: 'elephant' },
     }),
   ].join(''),
 );

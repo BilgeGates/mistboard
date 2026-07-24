@@ -142,25 +142,25 @@ export const ARTICLE_META: Record<
     title: 'Reveal Xiangqi Rules',
     kind: 'rules',
     description:
-      'The complete rules of Reveal Xiangqi, traditionally jieqi (揭棋): every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Checkmate the general to win.',
+      'The complete rules of Reveal Xiangqi: every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Checkmate the general to win.',
   },
   'flip-xiangqi': {
     title: 'Flip Xiangqi Rules',
     kind: 'rules',
     description:
-      'The complete rules of Flip Xiangqi, traditionally banqi (暗棋): flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
+      'The complete rules of Flip Xiangqi: flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
   },
   jungle: {
     title: 'Jungle Chess Rules',
     kind: 'rules',
     description:
-      'The complete rules of Jungle Chess, traditionally Dou Shou Qi (斗兽棋): eight ranked animals on a 7×9 board, the rat beats the elephant, only the rat swims, the lion and tiger leap the rivers, and you win by reaching the enemy den or capturing every piece.',
+      'The complete rules of Jungle Chess: eight ranked animals on a 7×9 board, the rat beats the elephant, only the rat swims, the lion and tiger leap the rivers, and you win by reaching the enemy den or capturing every piece.',
   },
   'jungle-flip': {
     title: 'Flip Jungle Rules',
     kind: 'rules',
     description:
-      'The complete rules of Flip Jungle (兽棋 / 翻翻棋), the 4×4 flip version of Dou Shou Qi: animals start face-down, you flip or move each turn, capture by rank, equal ranks destroy each other (同归于尽), and you win by eliminating the opponent.',
+      'The complete rules of Flip Jungle, the 4×4 flip version of Jungle Chess: animals start face-down, you flip or move each turn, capture by rank, equal ranks destroy each other, and you win by eliminating the opponent.',
   },
   'reveal-chess': {
     title: 'Reveal Chess Rules',
