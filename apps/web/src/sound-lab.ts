@@ -1,6 +1,8 @@
-// DEV-only sound audition lab (/sound-lab). Two surfaces:
+// DEV-only sound and lifecycle audition lab (/sound-lab). Three surfaces:
 //   1. Sound board — every SoundKind, one click each, under the active set.
-//   2. Playthrough — replays a bundled sample game through the REAL snapshot
+//   2. Lifecycle preview — the real start/finish controller and CSS paired with
+//      the sound a player hears for that transition.
+//   3. Playthrough — replays a bundled sample game through the REAL snapshot
 //      sound pipeline (maybePlaySnapshotSound + the fog-sanitized policy),
 //      from a chosen seat, so what you hear is exactly what a player hears.
 //
@@ -9,6 +11,11 @@
 // sound. Volume comes from the normal settings panel.
 
 import { darkChessVariant, type GameEvent, replayGameEvents } from '@mistboard/game';
+import './live-lifecycle-effects.css';
+import {
+  createLiveLifecycleEffects,
+  type LiveLifecycleSnapshot,
+} from './live-lifecycle-effects.js';
 import {
   initLiveSound,
   maybePlaySnapshotSound,
@@ -66,7 +73,14 @@ export function mountSoundLab(root: HTMLElement): void {
     'Uses the normal sound volume setting: if the site is muted, nothing plays here either.';
   hint.style.color = 'var(--site-muted)';
 
-  main.append(heading, hint, buildSetPicker(), buildSoundBoard(), buildPlaythrough());
+  main.append(
+    heading,
+    hint,
+    buildSetPicker(),
+    buildSoundBoard(),
+    buildLifecyclePreview(),
+    buildPlaythrough(),
+  );
   root.append(main);
 }
 
@@ -119,6 +133,129 @@ function buildSoundBoard(): HTMLElement {
   }
   section.append(grid);
   return section;
+}
+
+type LifecyclePreview = {
+  label: string;
+  effect: 'start' | 'win' | 'loss' | 'draw' | 'neutral';
+  sound: SoundKind | null;
+};
+
+const LIFECYCLE_PREVIEWS: readonly LifecyclePreview[] = [
+  { label: 'Start', effect: 'start', sound: 'game-start' },
+  { label: 'Win', effect: 'win', sound: 'win' },
+  { label: 'Loss', effect: 'loss', sound: 'lose' },
+  { label: 'Draw', effect: 'draw', sound: 'draw' },
+  { label: 'Neutral finish', effect: 'neutral', sound: null },
+];
+
+function buildLifecyclePreview(): HTMLElement {
+  const section = document.createElement('section');
+  const title = document.createElement('h2');
+  title.textContent = 'Game lifecycle';
+  const blurb = document.createElement('p');
+  blurb.textContent =
+    'Uses the production board-frame effect and the corresponding live sound. Neutral finish is visual only.';
+  blurb.style.color = 'var(--site-muted)';
+
+  const controls = document.createElement('div');
+  controls.style.display = 'flex';
+  controls.style.gap = '8px';
+  controls.style.flexWrap = 'wrap';
+
+  const previewWrap = document.createElement('div');
+  previewWrap.style.width = 'min(100%, 360px)';
+  previewWrap.style.marginTop = '16px';
+  const stage = buildLifecyclePreviewBoard();
+  const effects = createLiveLifecycleEffects(stage);
+
+  for (const preview of LIFECYCLE_PREVIEWS) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'landing-cta-secondary';
+    button.dataset.lifecyclePreview = preview.effect;
+    button.textContent = preview.label;
+    button.addEventListener('click', () => {
+      runLifecyclePreview(effects, preview.effect);
+      if (preview.sound) playSound(preview.sound);
+    });
+    controls.append(button);
+  }
+
+  previewWrap.append(stage);
+  section.append(title, blurb, controls, previewWrap);
+  return section;
+}
+
+function buildLifecyclePreviewBoard(): HTMLElement {
+  const stage = document.createElement('div');
+  stage.className = 'board-stage';
+  stage.dataset.lifecyclePreviewStage = '';
+  stage.setAttribute('aria-label', 'Game lifecycle effect preview');
+
+  const board = document.createElement('div');
+  board.style.position = 'absolute';
+  board.style.inset = '0';
+  board.style.display = 'grid';
+  board.style.gridTemplateColumns = 'repeat(8, 1fr)';
+  board.style.overflow = 'hidden';
+  board.style.borderRadius = 'var(--board-corner-radius)';
+  board.style.boxShadow = '0 2px 8px var(--site-shadow)';
+  for (let index = 0; index < 64; index += 1) {
+    const square = document.createElement('span');
+    const row = Math.floor(index / 8);
+    square.style.background = (row + index) % 2 === 0 ? 'var(--board-light)' : 'var(--board-dark)';
+    board.append(square);
+  }
+  stage.append(board);
+  return stage;
+}
+
+function runLifecyclePreview(
+  effects: ReturnType<typeof createLiveLifecycleEffects>,
+  preview: LifecyclePreview['effect'],
+): void {
+  effects.reset();
+  const gameId = `sound-lab-${preview}`;
+  if (preview === 'start') {
+    effects.update(lifecycleSnapshot({ gameId, moveNumber: 1 }));
+    return;
+  }
+
+  const seated = preview !== 'neutral';
+  const seat = seated ? 'red' : null;
+  effects.update(lifecycleSnapshot({ gameId, moveNumber: 8, seated, seat }));
+  effects.update(
+    lifecycleSnapshot({
+      gameId,
+      status: 'finished',
+      moveNumber: 8,
+      seated,
+      seat,
+      winner:
+        preview === 'draw'
+          ? null
+          : preview === 'win'
+            ? 'red'
+            : preview === 'loss'
+              ? 'black'
+              : 'red',
+    }),
+  );
+}
+
+function lifecycleSnapshot(overrides: Partial<LiveLifecycleSnapshot> = {}): LiveLifecycleSnapshot {
+  return {
+    gameId: 'sound-lab',
+    status: 'playing',
+    moveNumber: 1,
+    ready: true,
+    seated: true,
+    isLive: true,
+    seat: 'red',
+    winner: null,
+    ...overrides,
+  };
 }
 
 function buildPlaythrough(): HTMLElement {

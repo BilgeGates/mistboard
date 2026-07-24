@@ -419,8 +419,7 @@ export function tonesForSound(kind: SoundKind, set: SoundSetId = DEFAULT_SOUND_S
   if (set === 'wood') {
     const wood = woodTonesForSound(kind);
     if (wood) return wood;
-    // Kinds the wood set doesn't override (win/lose/draw/king-*) fall through
-    // to the mist musical tones below.
+    // Kinds the wood set doesn't override fall through to the Mist tones below.
   }
   if (kind === 'capture')
     return [{ delay: 0, duration: 0.11, frequency: 180, gain: 0.075, type: 'triangle' }];
@@ -442,15 +441,66 @@ export function tonesForSound(kind: SoundKind, set: SoundSetId = DEFAULT_SOUND_S
   }
   if (kind === 'win') {
     return [
-      { delay: 0, duration: 0.11, frequency: 392, gain: 0.045, type: 'sine' },
-      { delay: 0.1, duration: 0.15, frequency: 493.88, gain: 0.045, type: 'sine' },
-      { delay: 0.22, duration: 0.24, frequency: 659.25, gain: 0.042, type: 'sine' },
+      {
+        delay: 0,
+        duration: 0.18,
+        frequency: 392,
+        gain: 0.062,
+        type: 'sine',
+        attack: 0.006,
+      },
+      {
+        delay: 0.11,
+        duration: 0.22,
+        frequency: 493.88,
+        gain: 0.064,
+        type: 'sine',
+        attack: 0.006,
+      },
+      {
+        delay: 0.23,
+        duration: 0.28,
+        frequency: 587.33,
+        gain: 0.066,
+        type: 'sine',
+        attack: 0.006,
+      },
+      {
+        delay: 0.37,
+        duration: 0.42,
+        frequency: 783.99,
+        gain: 0.06,
+        type: 'sine',
+        attack: 0.006,
+      },
     ];
   }
   if (kind === 'lose') {
     return [
-      { delay: 0, duration: 0.14, frequency: 246.94, gain: 0.038, type: 'triangle' },
-      { delay: 0.13, duration: 0.22, frequency: 196, gain: 0.034, type: 'triangle' },
+      {
+        delay: 0,
+        duration: 0.2,
+        frequency: 329.63,
+        gain: 0.06,
+        type: 'triangle',
+        attack: 0.006,
+      },
+      {
+        delay: 0.16,
+        duration: 0.28,
+        frequency: 261.63,
+        gain: 0.062,
+        type: 'triangle',
+        attack: 0.006,
+      },
+      {
+        delay: 0.36,
+        duration: 0.4,
+        frequency: 220,
+        gain: 0.064,
+        type: 'triangle',
+        attack: 0.006,
+      },
     ];
   }
   if (kind === 'king-fall') {
@@ -471,8 +521,30 @@ export function tonesForSound(kind: SoundKind, set: SoundSetId = DEFAULT_SOUND_S
   }
   if (kind === 'draw') {
     return [
-      { delay: 0, duration: 0.14, frequency: 329.63, gain: 0.04, type: 'sine' },
-      { delay: 0.14, duration: 0.2, frequency: 329.63, gain: 0.036, type: 'sine' },
+      {
+        delay: 0,
+        duration: 0.18,
+        frequency: 329.63,
+        gain: 0.055,
+        type: 'sine',
+        attack: 0.006,
+      },
+      {
+        delay: 0.15,
+        duration: 0.24,
+        frequency: 246.94,
+        gain: 0.06,
+        type: 'sine',
+        attack: 0.006,
+      },
+      {
+        delay: 0.36,
+        duration: 0.3,
+        frequency: 329.63,
+        gain: 0.055,
+        type: 'sine',
+        attack: 0.006,
+      },
     ];
   }
   if (kind === 'low-time') {
@@ -554,8 +626,8 @@ export function tonesForSound(kind: SoundKind, set: SoundSetId = DEFAULT_SOUND_S
 
 // The 'wood' set: wooden pieces clacked on a wooden board (xiangqi/shogi feel).
 // Each tactile kind is a sharp bandpass-noise "clack" transient over a short
-// low triangle "body" (the board's resonance). Non-tactile kinds
-// (win/lose/draw/king-*/low-time) return null and reuse the mist tones.
+// low triangle "body" (the board's resonance). Terminal cues use their own
+// rising, falling, or balanced knock patterns instead of borrowing Mist.
 function woodTonesForSound(kind: SoundKind): SoundTone[] | null {
   switch (kind) {
     case 'move':
@@ -710,9 +782,60 @@ function woodTonesForSound(kind: SoundKind): SoundTone[] | null {
           attack: 0.001,
         },
       ];
+    case 'win':
+      // Four increasingly bright knocks: tactile and clearly celebratory.
+      return [
+        ...woodHit(0, 1650, 220, 0.075, 0.05),
+        ...woodHit(0.12, 1900, 277.18, 0.08, 0.053),
+        ...woodHit(0.24, 2200, 329.63, 0.085, 0.056),
+        ...woodHit(0.37, 2600, 440, 0.095, 0.06, 0.24),
+      ];
+    case 'lose':
+      // Three descending, heavier board knocks: unmistakable but not punitive.
+      return [
+        ...woodHit(0, 1500, 180, 0.08, 0.058, 0.14),
+        ...woodHit(0.18, 1100, 135, 0.085, 0.065, 0.23),
+        ...woodHit(0.39, 800, 90, 0.075, 0.07, 0.34),
+      ];
+    case 'draw':
+      // Two equal knocks with the same body: balanced and unresolved.
+      return [
+        ...woodHit(0, 1750, 200, 0.08, 0.055, 0.16),
+        ...woodHit(0.22, 1750, 200, 0.08, 0.055, 0.24),
+      ];
     default:
       return null;
   }
+}
+
+function woodHit(
+  delay: number,
+  noiseFrequency: number,
+  bodyFrequency: number,
+  noiseGain: number,
+  bodyGain: number,
+  bodyDuration = 0.11,
+): SoundTone[] {
+  return [
+    {
+      delay,
+      duration: 0.03,
+      frequency: noiseFrequency,
+      gain: noiseGain,
+      type: 'sine',
+      noise: true,
+      q: 0.65,
+      attack: 0.001,
+    },
+    {
+      delay,
+      duration: bodyDuration,
+      frequency: bodyFrequency,
+      gain: bodyGain,
+      type: 'triangle',
+      attack: 0.002,
+    },
+  ];
 }
 
 function shouldUseRevealedEventSounds(nextView: PlayerView | null): boolean {

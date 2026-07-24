@@ -28,8 +28,8 @@ export const DEFAULT_SOUND_SET: SoundSetId = 'wood';
 
 // Synthesized sets carry no asset files: every SoundKind routes to the WebAudio
 // tones in live-sound.ts. 'mist' is the only fully-synthesized set. ('wood' is a
-// FILE set of real CC0 wood-board recordings; kinds it has no file for still fall
-// back to the synth tones.)
+// FILE set of real CC0 wood-board recordings plus wood-specific synthesized
+// fallbacks while files load; kinds without either still fall back to Mist.)
 const SYNTHESIZED_SETS: ReadonlySet<SoundSetId> = new Set<SoundSetId>(['mist']);
 
 export function isSynthesizedSet(set: SoundSetId): boolean {
@@ -69,8 +69,9 @@ const FILE_BY_KIND: Partial<Record<SoundKind, SoundFileSpec>> = {
 
 // The 'wood' set is real CC0 recordings of pieces on a wooden board (el_boss's
 // "Chess Puzzle Blitz SFX", freesound.org pack 30764, CC0 — see public/sound/
-// CREDITS.md). Four source files serve the tactile kinds; terminal/alert kinds
-// have no file and fall back to the synthesized tones.
+// CREDITS.md). Four source files serve the tactile kinds. The terminal cues are
+// a matched CC0 pizzicato family; live-sound.ts provides percussive fallbacks
+// during loading.
 const WOOD_FILE_BY_KIND: Partial<Record<SoundKind, SoundFileSpec>> = {
   move: { file: 'move.mp3' },
   capture: { file: 'capture.mp3' },
@@ -82,6 +83,9 @@ const WOOD_FILE_BY_KIND: Partial<Record<SoundKind, SoundFileSpec>> = {
   // The cannon slam: the capture, pitched down for extra weight.
   'cannon-capture': { file: 'capture.mp3', rate: 0.85, gain: 1.1 },
   'game-start': { file: 'start.mp3' },
+  win: { file: 'win.ogg' },
+  lose: { file: 'loss.ogg' },
+  draw: { file: 'draw.ogg' },
 };
 
 export function soundFileFor(set: SoundSetId, kind: SoundKind): SoundFileSpec | null {

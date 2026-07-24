@@ -149,6 +149,10 @@ export function isDarkMiniXiangqiLiveRoom(): boolean {
   return isMiniXiangqiShellRoom();
 }
 
+export function isDarkMiniXiangqiReplayLive(): boolean {
+  return replay.isLive();
+}
+
 export function resetDarkMiniXiangqiReplayState(): void {
   selectedSquare = null;
   replay.reset();

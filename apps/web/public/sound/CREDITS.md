@@ -12,6 +12,10 @@ released under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
 (public domain, no attribution required — credited here as courtesy):
 `move.mp3` (Piece Placement, 546119), `capture.mp3` (Piece Capture, 546120),
 `slide.mp3` (Piece Slide, 546118), `start.mp3` (Board Start, 546121).
+Its terminal cues are from
+[Kenney's Music Jingles](https://www.kenney.nl/assets/music-jingles), also
+released under CC0 1.0: `win.ogg` is pizzicato 02, `loss.ogg` is pizzicato 01,
+and `draw.ogg` is pizzicato 12.
 
 The "Mist" sounds are Mistboard's own WebAudio-synthesized tones
 (`apps/web/src/live-sound.ts`), no external assets.

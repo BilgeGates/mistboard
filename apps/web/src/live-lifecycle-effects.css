@@ -1,0 +1,81 @@
+/*
+ * Shared live-game lifecycle treatment. The board-stage is persistent across
+ * every renderer, so this frame never depends on canonical board state and
+ * cannot expose a hidden move or piece.
+ */
+.board-stage::after {
+  --live-lifecycle-color: var(--site-muted);
+
+  position: absolute;
+  z-index: 20;
+  inset: -2px;
+  content: "";
+  pointer-events: none;
+  border: 2px solid transparent;
+  border-radius: 5px;
+  opacity: 0;
+}
+
+.board-stage.live-lifecycle--start::after {
+  --live-lifecycle-color: color-mix(in srgb, var(--site-accent) 75%, white);
+
+  border-color: var(--live-lifecycle-color);
+  animation: live-lifecycle-start 600ms ease-out;
+}
+
+.board-stage.live-lifecycle--finish::after {
+  --live-lifecycle-color: color-mix(in srgb, var(--site-muted) 58%, white);
+
+  border-color: var(--live-lifecycle-color);
+  animation: live-lifecycle-finish 800ms ease-out;
+}
+
+.board-stage.live-lifecycle--finish-win::after {
+  --live-lifecycle-color: color-mix(in srgb, var(--site-success, #4f9f74) 70%, white);
+
+  border-color: var(--live-lifecycle-color);
+}
+
+.board-stage.live-lifecycle--finish-draw::after {
+  --live-lifecycle-color: color-mix(in srgb, var(--site-accent) 48%, white);
+
+  border-color: var(--live-lifecycle-color);
+}
+
+@keyframes live-lifecycle-start {
+  0% {
+    opacity: 0;
+    box-shadow: 0 0 0 0 transparent;
+  }
+  28% {
+    opacity: 0.9;
+    box-shadow: 0 0 18px 2px color-mix(in srgb, var(--live-lifecycle-color) 32%, transparent);
+  }
+  100% {
+    opacity: 0;
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+
+@keyframes live-lifecycle-finish {
+  0% {
+    opacity: 0;
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+  24% {
+    opacity: 0.85;
+    box-shadow: inset 0 0 24px 2px color-mix(in srgb, var(--live-lifecycle-color) 18%, transparent);
+  }
+  100% {
+    opacity: 0;
+    box-shadow: inset 0 0 0 8px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-stage.live-lifecycle--start::after,
+  .board-stage.live-lifecycle--finish::after {
+    animation: none;
+    opacity: 0.65;
+  }
+}

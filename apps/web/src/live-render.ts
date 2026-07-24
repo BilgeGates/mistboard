@@ -38,6 +38,7 @@ import {
   updateAbortCountdown as updateGameControlCountdown,
 } from './live-game-controls.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from './live-layout.js';
+import { createLiveLifecycleEffects, type LiveLifecycleEffects } from './live-lifecycle-effects.js';
 import { renderReplay, resetMoveListState } from './live-move-list.js';
 import { captureFogView, initReplay, isLive, resetReplayState } from './live-replay.js';
 import {
@@ -47,6 +48,7 @@ import {
 import { initLiveSound, playSound, resetLiveSoundState, soundForOwnMove } from './live-sound.js';
 import {
   type InfoTone,
+  isPlayableSeat,
   type LiveRefs,
   liveState,
   type PendingPromotion,
@@ -83,6 +85,7 @@ let reconnectNow: () => void = () => {};
 let ground: Api | null = null;
 let pendingPromotion: PendingPromotion | null = null;
 let orientation: Color = 'white';
+let lifecycleEffects: LiveLifecycleEffects | null = null;
 
 // Fog squares for the Draft960 pick overlay — opponent's half is always hidden.
 const PICKER_FOG_WHITE: Square[] = [
@@ -197,6 +200,10 @@ export function initRender(
     debugRequested: liveState.debugRequested,
     roomId: liveState.room,
   });
+  const boardStage = refs.board.closest<HTMLElement>('.board-stage');
+  if (!boardStage) throw new Error('missing board stage');
+  lifecycleEffects?.destroy();
+  lifecycleEffects = createLiveLifecycleEffects(boardStage);
   installSelectionClickAway({
     roots: () => [refs.board, refs.promotion],
     hasSelection: () => pendingPromotion === null && ground !== null,
@@ -211,6 +218,7 @@ export function initRender(
 export function render(): void {
   setLiveLayoutGameSpec(refs.board.closest('#app') ?? document.body, liveState.gameSpecId);
   const shellTenant = activeLiveShellTenant();
+  updateLifecycleEffects(shellTenant?.isReplayLive() ?? isLive());
   if (shellTenant) {
     destroyChessBoardForAlternateRenderer();
     captureFogView();
@@ -256,6 +264,32 @@ export function render(): void {
   renderBoard(view);
   renderBoardResult(view);
   renderPromotion();
+}
+
+function updateLifecycleEffects(replayIsLive: boolean): void {
+  const view = liveState.state;
+  if (!lifecycleEffects || !view) return;
+  const seated = isPlayableSeat(liveState.seat);
+  const opponentConnected =
+    seated &&
+    Object.entries(liveState.connectedSeats).some(
+      ([color, connected]) => color !== liveState.seat && connected === true,
+    );
+  const correspondence =
+    liveState.roomMode === 'correspondence' || liveState.timeControl?.daysPerMove !== undefined;
+  const ready =
+    !correspondence &&
+    (liveState.solo || liveState.roomMode !== 'pvp' || view.moveNumber >= 2 || opponentConnected);
+  lifecycleEffects.update({
+    gameId: view.id,
+    status: view.status.type,
+    moveNumber: view.moveNumber,
+    ready,
+    seated,
+    isLive: replayIsLive,
+    seat: seated ? liveState.seat : null,
+    winner: view.status.type === 'finished' ? view.status.winner : null,
+  });
 }
 
 function trackGameLifecycle(view: PlayerView | null): void {

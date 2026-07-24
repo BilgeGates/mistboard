@@ -51,4 +51,16 @@ describe('sound set registry', () => {
       }
     }
   });
+
+  it('maps Wood terminal cues to their matched acoustic family', () => {
+    expect(soundFileFor('wood', 'win')).toEqual({
+      file: '/sound/wood/win.ogg',
+    });
+    expect(soundFileFor('wood', 'lose')).toEqual({
+      file: '/sound/wood/loss.ogg',
+    });
+    expect(soundFileFor('wood', 'draw')).toEqual({
+      file: '/sound/wood/draw.ogg',
+    });
+  });
 });

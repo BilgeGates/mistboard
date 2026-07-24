@@ -21,27 +21,57 @@ function makeView(overrides: Partial<PlayerView> = {}): PlayerView {
   };
 }
 
-function finishAt(kind: Parameters<typeof tonesForSound>[0]): number {
-  return Math.max(...tonesForSound(kind).map((tone) => tone.delay + tone.duration));
+function finishAt(
+  kind: Parameters<typeof tonesForSound>[0],
+  set: Parameters<typeof tonesForSound>[1] = 'mist',
+): number {
+  return Math.max(...tonesForSound(kind, set).map((tone) => tone.delay + tone.duration));
 }
 
-function maxGain(kind: Parameters<typeof tonesForSound>[0]): number {
-  return Math.max(...tonesForSound(kind).map((tone) => tone.gain));
+function maxGain(
+  kind: Parameters<typeof tonesForSound>[0],
+  set: Parameters<typeof tonesForSound>[1] = 'mist',
+): number {
+  return Math.max(...tonesForSound(kind, set).map((tone) => tone.gain));
 }
 
-describe('finish sound tone plans', () => {
-  it('keeps the win tone short and ascending', () => {
-    const tones = tonesForSound('win');
-    expect(finishAt('win')).toBeLessThanOrEqual(0.5);
-    expect(tones.map((tone) => tone.frequency)).toEqual([392, 493.88, 659.25]);
+describe('Mist finish sound tone plans', () => {
+  it('makes the win tone prominent and ascending', () => {
+    const tones = tonesForSound('win', 'mist');
+    expect(finishAt('win')).toBeLessThanOrEqual(0.8);
+    expect(maxGain('win')).toBeGreaterThanOrEqual(0.06);
+    expect(tones.map((tone) => tone.frequency)).toEqual([392, 493.88, 587.33, 783.99]);
     expect(tones.every((tone) => tone.type === 'sine')).toBe(true);
   });
 
-  it('keeps the loss tone softer and descending', () => {
-    const tones = tonesForSound('lose');
-    expect(finishAt('lose')).toBeLessThanOrEqual(0.4);
-    expect(maxGain('lose')).toBeLessThan(maxGain('win'));
-    expect(tones.map((tone) => tone.frequency)).toEqual([246.94, 196]);
+  it('makes the loss tone prominent and descending', () => {
+    const tones = tonesForSound('lose', 'mist');
+    expect(finishAt('lose')).toBeLessThanOrEqual(0.8);
+    expect(maxGain('lose')).toBeGreaterThanOrEqual(0.06);
+    expect(tones.map((tone) => tone.frequency)).toEqual([329.63, 261.63, 220]);
+  });
+
+  it('makes the draw tone prominent without rising or falling', () => {
+    const tones = tonesForSound('draw', 'mist');
+    expect(finishAt('draw')).toBeLessThanOrEqual(0.7);
+    expect(maxGain('draw')).toBeGreaterThanOrEqual(0.055);
+    expect(tones.map((tone) => tone.frequency)).toEqual([329.63, 246.94, 329.63]);
+  });
+});
+
+describe('Wood finish sound tone plans', () => {
+  it.each(['win', 'lose', 'draw'] as const)('gives %s its own percussive pattern', (kind) => {
+    const wood = tonesForSound(kind, 'wood');
+    expect(wood).not.toEqual(tonesForSound(kind, 'mist'));
+    expect(wood.some((tone) => tone.noise)).toBe(true);
+  });
+
+  it('uses rising board resonances for a win and falling resonances for a loss', () => {
+    const winBodies = tonesForSound('win', 'wood').filter((tone) => !tone.noise);
+    const lossBodies = tonesForSound('lose', 'wood').filter((tone) => !tone.noise);
+
+    expect(winBodies.map((tone) => tone.frequency)).toEqual([220, 277.18, 329.63, 440]);
+    expect(lossBodies.map((tone) => tone.frequency)).toEqual([180, 135, 90]);
   });
 });
 
@@ -137,8 +167,13 @@ describe('audio unlock and sticky activation', () => {
     });
   });
 
-  function installFakeAudio(): { oscillatorCount: () => number; peakGain: () => number } {
+  function installFakeAudio(): {
+    noiseFilterCount: () => number;
+    oscillatorCount: () => number;
+    peakGain: () => number;
+  } {
     let count = 0;
+    let noiseFilters = 0;
     const gainTargets: number[] = [];
     class FakeAudioContext {
       currentTime = 0;
@@ -184,6 +219,7 @@ describe('audio unlock and sticky activation', () => {
         };
       }
       createBiquadFilter() {
+        noiseFilters += 1;
         return {
           type: 'bandpass',
           frequency: { setValueAtTime() {} },
@@ -193,7 +229,11 @@ describe('audio unlock and sticky activation', () => {
       }
     }
     (window as unknown as { AudioContext: unknown }).AudioContext = FakeAudioContext;
-    return { oscillatorCount: () => count, peakGain: () => Math.max(0, ...gainTargets) };
+    return {
+      noiseFilterCount: () => noiseFilters,
+      oscillatorCount: () => count,
+      peakGain: () => Math.max(0, ...gainTargets),
+    };
   }
 
   function setUserActivation(hasBeenActive: boolean): void {
@@ -249,6 +289,26 @@ describe('audio unlock and sticky activation', () => {
     window.dispatchEvent(new Event('pointerdown'));
     mod.playSound('move');
     expect(audio.oscillatorCount()).toBeGreaterThan(0);
+  });
+
+  it('switches the running controller from Mist tones to Wood percussion', async () => {
+    const audio = installFakeAudio();
+    setUserActivation(true);
+    window.localStorage.setItem('mistboard.soundSet', 'mist');
+    vi.resetModules();
+    const mod = await import('./live-sound.js');
+
+    mod.initLiveSound();
+    mod.playSound('win');
+    expect(audio.noiseFilterCount()).toBe(0);
+
+    window.localStorage.setItem('mistboard.soundSet', 'wood');
+    window.dispatchEvent(new Event('mistboard:sound-set-changed'));
+    mod.playSound('win');
+
+    // The real wood file is loading on this first play, so the controller must
+    // immediately use the wood-specific percussive fallback, never Mist.
+    expect(audio.noiseFilterCount()).toBeGreaterThan(0);
   });
 
   it('suppresses the critical-time warning when the account preference is disabled', async () => {

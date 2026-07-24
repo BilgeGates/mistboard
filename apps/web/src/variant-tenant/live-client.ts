@@ -20,6 +20,10 @@
  */
 
 import { createLiveLayout, setLiveLayoutGameSpec } from '../live-layout.js';
+import {
+  createLiveLifecycleEffects,
+  type LiveLifecycleEffects,
+} from '../live-lifecycle-effects.js';
 import { initLiveSound, resetLiveSoundState } from '../live-sound.js';
 import { clearSeatTokenForRoom, type LiveRefs } from '../live-state.js';
 import { roomIdFromPath } from '../room-url.js';
@@ -303,6 +307,7 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
   // The view the previous renderAll displayed — a scrub back-step animates the
   // move that view carried (its lastMove), which the new view no longer has.
   let lastDisplayedView: V | null = null;
+  let lifecycleEffects: LiveLifecycleEffects | null = null;
 
   const replay = createTenantReplayController<V>();
 
@@ -435,6 +440,8 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     lastCapturedKey = null;
     pendingLiveAnimation = null;
     lastDisplayedView = null;
+    lifecycleEffects?.destroy();
+    lifecycleEffects = null;
     replay.reset();
     chrome.resetState();
     initLiveSound();
@@ -454,6 +461,9 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     }
 
     refs = createLiveLayout(app, { debugRequested: false, roomId: room });
+    const boardStage = refs.board.closest<HTMLElement>('.board-stage');
+    if (!boardStage) throw new Error('missing board stage');
+    lifecycleEffects = createLiveLifecycleEffects(boardStage);
     setLiveLayoutGameSpec(app, config.layoutGameSpecId ?? config.gameSpecId);
     chrome.setRenderTarget(refs, {
       sendSocket: send,
@@ -511,6 +521,7 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     const view = state.view;
     captureReplayView(view);
     const displayed = replay.currentView(view);
+    updateLifecycleEffects(view);
     // Drain the animation channel on EVERY render (even disabled/hook-less
     // paths) so nothing stale carries into a later, unrelated render.
     const pendingAnimation = consumePendingAnimation(lastDisplayedView);
@@ -540,6 +551,30 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
         return value;
       });
     }
+  }
+
+  function updateLifecycleEffects(view: V | null): void {
+    if (!lifecycleEffects || !view) return;
+    const seated = tenant.isColor(state.seat);
+    const opponentConnected =
+      seated &&
+      Object.entries(state.connectedSeats).some(
+        ([color, connected]) => color !== state.seat && connected === true,
+      );
+    const roomMode = config.chrome?.roomMode?.() ?? 'pvp';
+    const ready =
+      roomMode !== 'correspondence' &&
+      (roomMode !== 'pvp' || view.moveNumber >= 2 || opponentConnected);
+    lifecycleEffects.update({
+      gameId: view.id,
+      status: view.status.type,
+      moveNumber: view.moveNumber,
+      ready,
+      seated,
+      isLive: replay.isLive(),
+      seat: seated ? state.seat : null,
+      winner: view.status.type === 'finished' ? view.status.winner : null,
+    });
   }
 
   // ── Move list (two-column, first mover left) ───────────────────────────────

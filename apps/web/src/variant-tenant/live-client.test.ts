@@ -203,6 +203,35 @@ describe('tenant live-client core', () => {
     expect(h.client.state.timeControl).toEqual({ initialMs: 60_000, incrementMs: 0 });
   });
 
+  it('drives the shared lifecycle frame from viewer-safe room state', () => {
+    const h = createHarness();
+    h.feedHello({
+      seat: 'red',
+      connectedSeats: { red: true, blue: false },
+      state: view(),
+    });
+    const stage = h.refs().board.closest<HTMLElement>('.board-stage');
+    expect(stage?.dataset.liveLifecycleEffect).toBeUndefined();
+
+    h.feedSnapshot({
+      seat: 'red',
+      connectedSeats: { red: true, blue: true },
+      state: view(),
+    });
+    expect(stage?.dataset.liveLifecycleEffect).toBe('start');
+
+    h.feedEvent({
+      seat: 'red',
+      connectedSeats: { red: true, blue: true },
+      event: { type: 'game-ended', at: 0 },
+      state: view({
+        moveNumber: 8,
+        status: { type: 'finished', winner: 'red', reason: 'the-rules' },
+      }),
+    });
+    expect(stage?.dataset.liveLifecycleEffect).toBe('finish-win');
+  });
+
   it('renders the unmasked two-column move list with a fallback for missing plies', () => {
     const h = createHarness();
     h.feedHello({

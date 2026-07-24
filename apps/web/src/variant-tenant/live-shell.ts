@@ -14,6 +14,7 @@
 import {
   handleDarkMiniXiangqiReplayKeyboard,
   isDarkMiniXiangqiLiveRoom,
+  isDarkMiniXiangqiReplayLive,
   reconcileDarkMiniXiangqiInteractionState,
   renderDarkMiniXiangqiRoom,
   resetDarkMiniXiangqiReplayState,
@@ -31,6 +32,7 @@ export type LiveShellTenant = {
   ): void;
   reconcileInteractionState(): void;
   resetReplayState(): void;
+  isReplayLive(): boolean;
   // Clock/countdown ticks on the shell's 100ms interval; tenants without them
   // fall through to the shell's chess tick path.
   tickClocks?(): void;
@@ -45,6 +47,7 @@ const LIVE_SHELL_TENANTS: readonly LiveShellTenant[] = [
     render: renderDarkMiniXiangqiRoom,
     reconcileInteractionState: reconcileDarkMiniXiangqiInteractionState,
     resetReplayState: resetDarkMiniXiangqiReplayState,
+    isReplayLive: isDarkMiniXiangqiReplayLive,
     tickClocks: tickDarkMiniXiangqiClocks,
     tickCountdowns: tickDarkMiniXiangqiCountdowns,
     handleReplayKeyboard: handleDarkMiniXiangqiReplayKeyboard,

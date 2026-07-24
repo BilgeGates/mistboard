@@ -1,5 +1,6 @@
 import { attachBoardResizeGrip, restoreBoardScale } from './board-resize.js';
 import { createGameTable } from './game-table.js';
+import './live-lifecycle-effects.css';
 import type { LiveRefs } from './live-state.js';
 import './review/review-shell.css';
 import './live-review.css';
