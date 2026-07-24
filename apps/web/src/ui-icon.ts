@@ -7,6 +7,7 @@
 import {
   Bell,
   Bot,
+  Crown,
   createElement,
   Heart,
   type IconNode,
@@ -31,6 +32,7 @@ export type UiIconName =
   | 'create-topic'
   | 'event-broadcast'
   | 'event-tournament'
+  | 'featured-channel'
   | 'find-opponent'
   | 'forum-topic'
   | 'notification'
@@ -49,6 +51,7 @@ const UI_ICON_NODES: Record<UiIconName, IconNode> = {
   'create-topic': SquarePen,
   'event-broadcast': RadioTower,
   'event-tournament': Trophy,
+  'featured-channel': Crown,
   'find-opponent': Users,
   'forum-topic': MessagesSquare,
   notification: Bell,

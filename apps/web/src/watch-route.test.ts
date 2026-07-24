@@ -297,6 +297,24 @@ describe('renderWatchChannelList', () => {
       ).not.toBeNull();
     }
   });
+
+  it('uses the rounded house crown for the Top Rated channel', () => {
+    const root = document.createElement('nav');
+    renderWatchChannelList(root, {
+      activeChannel: 'top',
+      channels: [channel('top', 'Top Rated'), channel('xiangqi', 'Xiangqi')],
+      now: '2026-07-23T00:00:00.000Z',
+      unlockLimit: 64,
+      sealedCount: 0,
+      unlocked: [],
+    });
+
+    const crown = root.querySelector<SVGElement>('a[aria-label="Top Rated"] .watch-channel-crown');
+    expect(crown?.classList.contains('ui-icon-featured-channel')).toBe(true);
+    expect(crown?.getAttribute('fill')).toBe('none');
+    expect(crown?.getAttribute('stroke-linecap')).toBe('round');
+    expect(crown?.getAttribute('stroke-linejoin')).toBe('round');
+  });
 });
 
 describe('renderWatchQueue', () => {
