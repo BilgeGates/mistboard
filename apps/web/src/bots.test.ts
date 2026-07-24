@@ -126,7 +126,7 @@ describe('bot pages', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders featured Misty/Pikafish rows and the ladder as 8 rows', async () => {
+  it('renders featured and Fairy-Stockfish opponents with one uniform card UI', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse(rosterPayload()));
     const root = document.createElement('div');
     const { mountBots } = await import('./bots.js');
@@ -135,35 +135,51 @@ describe('bot pages', () => {
 
     expect(
       [...root.querySelectorAll('.bot-roster-section h2')].map((el) => el.textContent),
-    ).toEqual(['Featured', 'Fairy-Stockfish ladder']);
+    ).toEqual(['Featured opponents', 'Fairy-Stockfish ladder']);
     // Community rail is shared with /player; Online bots is the active entry.
     expect(root.querySelector('.community-rail a[aria-current="page"]')?.textContent).toBe(
       'Online bots',
     );
 
-    const featuredNames = [...root.querySelectorAll('.bot-row-featured .bot-row-name')].map(
-      (el) => el.textContent,
-    );
+    const featuredNames = [
+      ...root.querySelectorAll(
+        '.bot-roster-section:first-of-type .profile-summary-card .profile-summary-card-name',
+      ),
+    ].map((el) => el.textContent);
     expect(featuredNames).toEqual(['Misty', 'Pikafish']);
     expect(
-      root.querySelector<HTMLAnchorElement>('.bot-row-featured .bot-row-name')?.href,
+      root.querySelector<HTMLAnchorElement>('.profile-summary-card .profile-summary-card-name')
+        ?.href,
     ).toContain('/bot/misty');
     expect(root.textContent).toContain('Searches hidden positions');
-    // Misty's primary rating + games sit right-aligned on the row.
-    expect(root.querySelector('.bot-row-featured .bot-row-rating')?.textContent).toBe('1,812');
-    expect(root.querySelector('.bot-row-featured .bot-row-games')?.textContent).toBe('12 games');
+    expect(root.querySelector('.profile-summary-card-rating-value')?.textContent).toBe('1,812');
+    expect(root.querySelector('.profile-summary-card-footer')?.textContent).toContain('12 games');
 
-    const ladderRows = [...root.querySelectorAll('.bot-row-ladder')];
-    expect(ladderRows).toHaveLength(8);
-    expect(ladderRows.map((row) => row.querySelector('.bot-row-name')?.textContent)).toEqual(
-      [1, 2, 3, 4, 5, 6, 7, 8].map((level) => `Fairy-Stockfish Level ${level}`),
-    );
+    const ladderCards = [
+      ...root.querySelectorAll('.profile-summary-card[data-bot-id^="fairy-stockfish-level-"]'),
+    ];
+    expect(ladderCards).toHaveLength(8);
+    expect(
+      ladderCards.map((card) => card.querySelector('.profile-summary-card-name')?.textContent),
+    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8].map((level) => `Fairy-Stockfish Level ${level}`));
+    expect(
+      ladderCards.map((card) =>
+        card.querySelector<HTMLAnchorElement>('.profile-summary-card-name')?.getAttribute('href'),
+      ),
+    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8].map((level) => `/bot/fairy-stockfish-level-${level}`));
+    for (const card of ladderCards) {
+      expect(card.getAttribute('data-subject-kind')).toBe('bot');
+      expect(card.querySelector('.profile-summary-card-avatar')).not.toBeNull();
+      expect(card.querySelector('.profile-summary-card-bio')).not.toBeNull();
+      expect(card.querySelector('.profile-summary-card-actions')).not.toBeNull();
+      expect(card.querySelector('.profile-summary-card-footer')).not.toBeNull();
+    }
 
     // dark-draft960 stays hidden as a separate chip.
     expect(root.textContent).not.toContain('Draft960');
   });
 
-  it('shows the xiangqi blitz rating per ladder row, dash and ?-suffix included', async () => {
+  it('shows the xiangqi blitz rating per FSF card, dash and ?-suffix included', async () => {
     const payload = {
       bots: [
         ladderBot(1, {
@@ -191,9 +207,9 @@ describe('bot pages', () => {
 
     await mountBots(root);
 
-    const ratings = [...root.querySelectorAll('.bot-row-ladder .bot-row-ladder-rating')].map(
-      (el) => el.textContent,
-    );
+    const ratings = [
+      ...root.querySelectorAll('.profile-summary-card[data-bot-id^="fairy-stockfish-level-"]'),
+    ].map((card) => card.querySelector('.profile-summary-card-rating-value')?.textContent ?? '—');
     expect(ratings).toEqual(['1,450', '1,710?', '—']);
   });
 
@@ -209,9 +225,9 @@ describe('bot pages', () => {
     const { mountBots } = await import('./bots.js');
 
     await mountBots(root);
-    const fogChip = [...root.querySelectorAll<HTMLButtonElement>('button.bot-play-chip')].find(
-      (chip) => chip.textContent?.includes('Fog Chess'),
-    );
+    const fogChip = [
+      ...root.querySelectorAll<HTMLButtonElement>('button.profile-summary-card-action'),
+    ].find((chip) => chip.textContent?.includes('Fog Chess'));
     expect(fogChip).toBeDefined();
     fogChip?.click();
     // The chip itself shows the starting state while the room is created.
@@ -240,7 +256,7 @@ describe('bot pages', () => {
     const { mountBots } = await import('./bots.js');
 
     await mountBots(root);
-    const offChip = root.querySelector<HTMLElement>('.bot-play-chip-off');
+    const offChip = root.querySelector<HTMLElement>('.profile-summary-card-action-unavailable');
     expect(offChip?.textContent).toContain('Fortress Xiangqi');
     expect(offChip?.tagName).not.toBe('BUTTON');
     offChip?.click();
@@ -276,37 +292,36 @@ describe('bot pages', () => {
 
     await mountBotProfile(root, 'misty');
 
-    // Shared profile shell vocabulary (buildProfileHeaderShell + profile body).
-    expect(
-      root.querySelector('.profile-shell .profile-header .site-section-heading')?.textContent,
-    ).toBe('Misty');
+    // Bots use the same dashboard, overview, rating rail, and tabs as players.
+    expect(root.querySelector('.profile-overview .profile-identity-handle')?.textContent).toBe(
+      'Misty',
+    );
     expect(root.querySelector('.profile-role-bot')?.textContent).toBe('BOT');
     expect(root.querySelector('.profile-role-owner')?.textContent).toBe('First-party');
-    expect(root.querySelector('.profile-body')).not.toBeNull();
-    // Header stats: primary rating, record, games, variants. No raw engine id.
-    const statValues = [...root.querySelectorAll('.profile-stat-value')].map(
+    expect(root.querySelector('.profile-body > .profile-ratings')).not.toBeNull();
+    expect(root.querySelector('.profile-center > .profile-overview')).not.toBeNull();
+    expect(root.querySelector('.profile-center > .profile-tabs')).not.toBeNull();
+    const countValues = [...root.querySelectorAll('.profile-count-value')].map(
       (el) => el.textContent,
     );
-    expect(statValues).toEqual(['1,812', '8-3-1', '12', '2']);
-    expect(root.querySelector('.profile-stats')?.textContent).not.toContain('python-v2-v1.5');
+    expect(countValues).toEqual(['12', '8-3-1', '2']);
 
-    // One play row per visible playOption (dark-draft960 stays hidden).
-    const playRows = [...root.querySelectorAll('.bot-play-row')];
-    expect(playRows).toHaveLength(2);
-    expect(playRows.map((row) => row.querySelector('.bot-play-row-name')?.textContent)).toEqual([
-      'Fog Chess',
-      'Flip Xiangqi',
-    ]);
-    expect(playRows[0]?.querySelector('.bot-play-row-button')?.textContent).toBe('Play');
-
-    // Sidebar ratings reuse the profile rail rows; provenance lives in About.
+    // The selected rating drives the shared overview and its bot-only Play fork.
     const ratingRows = [...root.querySelectorAll('.profile-rating-row')];
     expect(ratingRows).toHaveLength(2);
     expect(ratingRows[0]?.textContent).toContain('1,812');
     expect(ratingRows[0]?.textContent).toContain('48 rated games');
-    expect(root.querySelector('.bot-profile-about')?.textContent).toContain('python-v2-v1.5');
+    expect(root.querySelector('.profile-chart-variant')?.textContent).toBe('Fog Chess');
+    expect(root.querySelector('.bot-profile-actions button')?.textContent).toBe('Play Fog Chess');
+    expect(root.querySelector('.bot-rating-spotlight-title')?.textContent).toBe(
+      'Play against Misty',
+    );
+    expect(root.querySelector('.profile-overview-side')?.textContent).toContain('python-v2-v1.5');
 
-    // Recent games ride the shared profile game rows.
+    // Recent games ride the same tab card and game rows.
+    expect(root.querySelector('.profile-tab[aria-selected="true"]')?.textContent).toBe(
+      'Recent games',
+    );
     expect(root.querySelectorAll('.profile-game-list .profile-game-row')).toHaveLength(1);
   });
 
@@ -325,12 +340,18 @@ describe('bot pages', () => {
 
     await mountBotProfile(root, 'fairy-stockfish-level-4');
 
-    const offRow = root.querySelector('.bot-play-row-off');
+    const offRow = root.querySelector<HTMLElement>(
+      '.profile-rating-row[data-game-spec-id="fortress-xiangqi"]',
+    );
     expect(offRow?.textContent).toContain('Fortress Xiangqi');
-    expect(offRow?.textContent).toContain('Not available right now');
-    expect(offRow?.querySelector('.bot-play-row-button')).toBeNull();
+    expect(offRow?.textContent).toContain('Unavailable');
+    offRow?.click();
+    const unavailable = root.querySelector<HTMLButtonElement>('.bot-profile-actions button');
+    expect(unavailable?.textContent).toBe('Unavailable');
+    expect(unavailable?.disabled).toBe(true);
 
-    root.querySelector<HTMLButtonElement>('.bot-play-row .bot-play-row-button')?.click();
+    root.querySelector<HTMLElement>('.profile-rating-row[data-game-spec-id="xiangqi"]')?.click();
+    root.querySelector<HTMLButtonElement>('.bot-profile-actions button')?.click();
     await flushPromises();
 
     const roomCall = fetchMock.mock.calls.find(([input]) => String(input) === '/api/rooms');

@@ -1,7 +1,4 @@
-/* /bots directory + /bot/:id profile.
-   The profile page leans on account-profile.css (profile-shell, profile-header,
-   profile-stats, profile-rating-row rail, profile-game-row list); this file only
-   carries the compact roster rows, the play chips, and small panel glue. */
+/* /bots directory + /bot/:id profile. */
 
 .bots-shell {
   display: grid;
@@ -10,18 +7,41 @@
 
 .bots-main {
   display: grid;
-  gap: 16px;
+  gap: 28px;
   min-width: 0;
-  max-width: 980px;
+  max-width: 1040px;
 }
 
 .bots-directory-header {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
+  align-items: center;
+  overflow: hidden;
+  padding: clamp(22px, 4vw, 34px);
+  border: 1px solid var(--site-border);
+  border-radius: calc(var(--site-radius) + 2px);
+  background:
+    radial-gradient(
+      circle at 88% 20%,
+      color-mix(in srgb, var(--site-accent) 15%, transparent),
+      transparent 38%
+    ),
+    linear-gradient(135deg, var(--site-panel), var(--site-panel-soft));
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--site-shadow) 16%, transparent);
+}
+
+.bots-directory-header-copy {
+  display: grid;
+  gap: 7px;
+  max-width: 660px;
 }
 
 .bots-directory-header .site-section-heading {
   margin: 0;
+  font-size: clamp(30px, 5vw, 44px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
 .bots-sub,
@@ -32,16 +52,77 @@
   line-height: 1.5;
 }
 
+.bots-sub {
+  max-width: 620px;
+  font-size: 14px;
+}
+
+.bots-directory-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 18px;
+  margin-top: 8px;
+}
+
+.bots-directory-meta span {
+  position: relative;
+  color: var(--site-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.bots-directory-meta span + span::before {
+  position: absolute;
+  top: 50%;
+  left: -11px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--site-accent);
+  content: "";
+  transform: translateY(-50%);
+}
+
+.bots-directory-markers {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px 8px 28px;
+}
+
+.bots-directory-marker {
+  display: inline-flex;
+  filter: drop-shadow(0 8px 12px color-mix(in srgb, var(--site-shadow) 24%, transparent));
+  line-height: 0;
+}
+
+.bots-directory-marker + .bots-directory-marker {
+  margin-left: -14px;
+}
+
+.bots-directory-marker:nth-child(2) {
+  position: relative;
+  z-index: 1;
+}
+
+.bots-status {
+  padding: 20px;
+  border: 1px solid var(--site-border);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+}
+
 .bots-directory {
   display: grid;
-  gap: 18px;
+  gap: 30px;
 }
 
 /* ── Roster sections ──────────────────────────────────────────────────────── */
 
 .bot-roster-section {
   display: grid;
-  gap: 7px;
+  gap: 12px;
 }
 
 .bot-roster-header {
@@ -51,11 +132,23 @@
   justify-content: space-between;
 }
 
+.bot-roster-header-copy {
+  display: grid;
+  gap: 3px;
+}
+
 .bot-roster-section h2 {
   margin: 0;
   color: var(--site-heading);
-  font-size: 16px;
-  font-weight: 550;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.bot-roster-intro {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .bot-roster-count {
@@ -67,346 +160,88 @@
 }
 
 .bot-roster {
-  overflow: hidden;
-  border: 1px solid var(--site-border);
-  border-radius: var(--site-radius-sm);
-  background: var(--site-panel);
-  box-shadow: 0 2px 2px color-mix(in srgb, var(--site-shadow) 20%, transparent);
-}
-
-.bot-roster > :nth-child(even) {
-  background: var(--site-zebra);
-}
-
-/* ── Rows ─────────────────────────────────────────────────────────────────── */
-
-.bot-row-featured {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  align-items: start;
-  padding: 10px 14px;
 }
 
-.bot-row-marker {
-  display: inline-flex;
-  line-height: 0;
-  margin-top: 2px;
-}
-
-.bot-row-body {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.bot-row-title {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  min-width: 0;
-}
-
-.bot-row-name {
-  min-width: 0;
-  color: var(--site-heading);
-  font-size: 14px;
-  font-weight: 650;
-  line-height: 1.25;
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-
-.bot-row-name:hover,
-.bot-row-name:focus-visible {
-  color: var(--site-accent-strong);
-  outline: none;
-}
-
-.bot-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 17px;
-  padding: 2px 5px;
-  border-radius: var(--site-radius-sm);
-  background: color-mix(in srgb, #4f8edb 18%, var(--site-panel));
-  color: #4f8edb;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  line-height: 1;
-}
-
-.bot-row-bio {
-  margin: 0;
-  color: var(--site-muted);
-  font-size: 12px;
-  line-height: 1.4;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-}
-
-.bot-row-figures {
-  display: grid;
-  gap: 1px;
-  justify-items: end;
-  align-content: start;
-  font-variant-numeric: tabular-nums;
-}
-
-.bot-row-rating {
-  color: var(--site-heading);
-  font-size: 16px;
-  font-weight: 750;
-  line-height: 1.15;
-}
-
-.bot-row-figures-label,
-.bot-row-games {
-  color: var(--site-muted);
-  font-size: 11px;
-  line-height: 1.3;
-  white-space: nowrap;
-}
-
-.bot-row-figures-label {
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-/* Ladder rows: one line each, lichess-lobby density. */
-.bot-row-ladder {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 58px auto;
-  gap: 12px;
-  align-items: center;
-  min-height: 36px;
-  padding: 4px 14px;
-}
-
-.bot-row-ladder .bot-row-name {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.bot-row-ladder-rating {
-  justify-self: end;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-/* ── Play chips (the chip is the play control) ────────────────────────────── */
-
-.bot-row-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  align-items: center;
-}
-
-.bot-play-chip {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
-  min-height: 24px;
-  padding: 2px 8px;
-  border: 1px solid var(--site-border-soft);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--site-text);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-button.bot-play-chip {
-  cursor: pointer;
+/* The directory embeds the exact profile-summary body used by name hovers.
+   This host only controls gallery sizing and lift; card content stays shared. */
+.bots-directory .profile-summary-card {
+  width: auto;
+  max-width: none;
+  height: 100%;
+  min-height: 190px;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--site-accent) 5%, var(--site-panel)),
+    var(--site-panel) 55%
+  );
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--site-shadow) 12%, transparent);
   transition:
-    border-color 120ms ease,
-    color 120ms ease,
-    background 120ms ease;
+    border-color 140ms ease,
+    transform 140ms ease,
+    box-shadow 140ms ease;
 }
 
-button.bot-play-chip:hover:not(:disabled),
-button.bot-play-chip:focus-visible {
-  border-color: var(--site-accent);
-  background: color-mix(in srgb, var(--site-accent) 10%, transparent);
-  color: var(--site-accent-strong);
-  outline: none;
+.bots-directory .profile-summary-card:hover {
+  border-color: color-mix(in srgb, var(--site-accent) 42%, var(--site-border));
+  box-shadow: 0 9px 24px color-mix(in srgb, var(--site-shadow) 18%, transparent);
+  transform: translateY(-2px);
 }
 
-button.bot-play-chip:disabled {
-  cursor: progress;
-  opacity: 0.7;
-}
-
-.bot-play-chip.bot-play-error {
-  border-color: color-mix(in srgb, #c45b52 60%, var(--site-border));
-  color: #c45b52;
-}
-
-.bot-play-chip-off {
-  color: var(--site-muted);
-  opacity: 0.55;
-}
-
-.bot-play-chip-thumb {
-  display: inline-flex;
-  line-height: 0;
-}
-
-.bot-play-chip-arrow {
-  color: var(--site-accent-strong);
-  font-size: 10px;
-}
-
-.bot-play-chip-off .bot-play-chip-arrow {
-  display: none;
+.bots-directory .profile-summary-card-footer {
+  margin-top: auto;
 }
 
 /* ── Bot profile (/bot/:id) ───────────────────────────────────────────────── */
 
-.bot-profile-shell {
-  display: grid;
-  gap: 16px;
-  align-content: start;
+.bot-rating-spotlight {
+  display: flex;
+  min-height: 210px;
+  flex-direction: column;
 }
 
-/* Grid geometry (270px rail + main, mobile collapse) comes from .profile-body. */
-.bot-profile-sidebar,
-.bot-profile-main {
-  display: grid;
-  gap: 16px;
-  align-content: start;
-  min-width: 0;
-}
-
-@media (max-width: 720px) {
-  .bot-profile-main {
-    order: -1;
-  }
-}
-
-.bot-panel {
-  overflow: hidden;
-  border: 1px solid var(--site-border);
-  border-radius: var(--site-radius);
-  background: var(--site-panel);
-  box-shadow: 0 2px 2px color-mix(in srgb, var(--site-shadow) 24%, transparent);
-}
-
-.bot-panel > h2 {
-  margin: 0;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--site-border-soft);
-  color: var(--site-heading);
-  font-size: 16px;
-  font-weight: 550;
-}
-
-.bot-stats .profile-stat-value {
-  font-size: 18px;
-}
-
-/* Play panel rows. */
-.bot-play-list {
-  display: grid;
-}
-
-.bot-play-row {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) auto;
-  gap: 12px;
+.bot-rating-spotlight-play {
+  display: flex;
   align-items: center;
-  padding: 9px 16px;
-  border-bottom: 1px solid var(--site-border-soft);
+  gap: 16px;
+  min-height: 128px;
+  margin-top: auto;
+  border-top: 1px solid var(--site-border-soft);
+  color: var(--site-muted);
 }
 
-.bot-play-row:last-child {
-  border-bottom: 0;
-}
-
-.bot-play-row-off {
-  opacity: 0.55;
-}
-
-.bot-play-row-marker {
+.bot-rating-spotlight-marker {
   display: inline-flex;
+  flex: 0 0 auto;
   line-height: 0;
 }
 
-.bot-play-row-meta {
+.bot-rating-spotlight-copy {
   display: grid;
-  gap: 1px;
-  min-width: 0;
+  gap: 4px;
 }
 
-.bot-play-row-name {
+.bot-rating-spotlight-title {
   color: var(--site-heading);
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.bot-rating-spotlight-clock {
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.25;
 }
 
-.bot-play-row-clock {
+.bot-profile-provenance {
+  max-width: 100%;
   color: var(--site-muted);
   font-size: 12px;
-  line-height: 1.3;
-}
-
-.bot-play-row-button {
-  min-height: 28px;
-  min-width: 74px;
-  padding: 4px 14px;
-  border: 1px solid var(--site-accent);
-  border-radius: var(--site-radius-sm);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 650;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.bot-play-row-button.bot-play-error {
-  border-color: color-mix(in srgb, #c45b52 60%, var(--site-border));
-  background: color-mix(in srgb, #c45b52 14%, var(--site-panel));
-  color: #c45b52;
-}
-
-/* Sidebar rating rail rows reuse the profile rail vocabulary but are not
-   selectable buttons here. */
-.bot-rating-row,
-.bot-rating-row:hover {
-  background: transparent;
-  cursor: default;
-}
-
-/* About panel. */
-.bot-profile-about-body {
-  display: grid;
-  gap: 8px;
-  padding: 12px 16px 14px;
-}
-
-.bot-profile-about-body p {
-  margin: 0;
-  color: var(--site-text);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.bot-profile-about-body .bot-profile-provenance {
-  color: var(--site-muted);
-  font-size: 12px;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
-/* Recent games panel: heading chrome comes from .bot-panel; the list rows come
-   from profile-game-row in account-profile.css. */
 .bot-profile-games .landing-games-empty {
   margin: 0;
   padding: 14px 16px;
@@ -423,24 +258,52 @@ button.bot-play-chip:disabled {
   color: var(--site-accent-strong);
 }
 
+@media (max-width: 760px) {
+  .bots-directory-markers {
+    padding-left: 8px;
+  }
+
+  .bot-roster {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 560px) {
-  .bot-row-featured {
-    grid-template-columns: 40px minmax(0, 1fr);
+  .bots-main {
+    gap: 22px;
   }
 
-  .bot-row-figures {
-    grid-column: 2;
-    justify-items: start;
-    grid-auto-flow: column;
-    gap: 8px;
-    align-items: baseline;
+  .bots-directory-header {
+    grid-template-columns: 1fr;
+    padding: 20px;
   }
 
-  .bot-row-ladder {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .bot-row-ladder-rating {
+  .bots-directory-markers {
     display: none;
+  }
+
+  .bots-directory-meta {
+    display: grid;
+    gap: 4px;
+  }
+
+  .bots-directory-meta span + span::before {
+    display: none;
+  }
+
+  .bots-directory {
+    gap: 26px;
+  }
+
+  .bot-roster-header {
+    align-items: start;
+  }
+
+  .bot-roster-count {
+    margin-top: 5px;
+  }
+
+  .bots-directory .profile-summary-card {
+    min-height: 0;
   }
 }

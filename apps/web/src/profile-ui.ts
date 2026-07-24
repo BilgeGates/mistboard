@@ -1,20 +1,111 @@
-// Shared profile-surface primitives, used by the player profile (/@handle) and
-// the engine profile (/engine/:id) so the two render as siblings. The header
-// shell and the game-row are identical across both subjects; only the middle
-// block (rating buckets vs engine records) differs and stays per-page.
+// Shared profile-surface primitives. Player (/@handle) and bot (/bot/:id)
+// profiles use the same dashboard, overview, tabs, and game rows, with only
+// subject-specific identity, actions, and content passed into the slots.
+// Engine profiles also retain the shared legacy header and game-row primitives.
 import { maybeGameSpecForId } from '@mistboard/game';
 import {
   displayParticipantName,
   type FeaturedGame,
+  type GameParticipant,
   matchupLabel,
   matchupSeats,
+  participantForColor,
 } from './game-display.js';
 import { timeControlLabelForGame } from './game-meta.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
+import { attachBotCard } from './profile-summary-card.js';
 import { renderVariantMarker } from './variant-markers.js';
 import { webVariantTenantForRoomId, webVariantTenantForSpecId } from './variant-tenant/registry.js';
 import { variantMiniIdForRawVariant } from './variants.js';
+
+export function buildProfileDashboard(
+  ratings: HTMLElement,
+  overview: HTMLElement,
+  tabs: HTMLElement,
+): HTMLElement {
+  const center = document.createElement('div');
+  center.className = 'profile-center';
+  center.append(overview, tabs);
+
+  const body = document.createElement('div');
+  body.className = 'profile-body';
+  body.append(ratings, center);
+  return body;
+}
+
+export function buildProfileOverviewShell(opts: {
+  identity: HTMLElement;
+  actions?: HTMLElement | null;
+  primary: HTMLElement;
+  side: HTMLElement;
+}): HTMLElement {
+  const card = document.createElement('section');
+  card.className = 'profile-overview';
+
+  const top = document.createElement('div');
+  top.className = 'profile-overview-top';
+  top.append(opts.identity);
+  if (opts.actions) top.append(opts.actions);
+
+  const body = document.createElement('div');
+  body.className = 'profile-overview-body';
+  body.append(opts.primary, opts.side);
+
+  card.append(top, body);
+  return card;
+}
+
+export type ProfileTab = {
+  label: string;
+  panel: HTMLElement;
+  count?: number;
+  onActivate?: () => void;
+};
+
+export function buildProfileTabsShell(tabs: ProfileTab[]): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'profile-tabs';
+
+  const tabList = document.createElement('div');
+  tabList.className = 'profile-tab-list';
+  tabList.setAttribute('role', 'tablist');
+
+  const buttons: HTMLButtonElement[] = [];
+  tabs.forEach((tab, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'profile-tab';
+    button.id = `${tab.panel.id}-tab`;
+    button.setAttribute('role', 'tab');
+    button.setAttribute('aria-controls', tab.panel.id);
+    button.setAttribute('aria-selected', String(index === 0));
+    button.textContent = tab.label;
+    if (tab.count != null) {
+      const badge = document.createElement('span');
+      badge.className = 'profile-tab-count';
+      badge.textContent = String(tab.count);
+      button.append(document.createTextNode(' '), badge);
+    }
+
+    tab.panel.hidden = index !== 0;
+    tab.panel.setAttribute('role', 'tabpanel');
+    tab.panel.setAttribute('aria-labelledby', button.id);
+    button.addEventListener('click', () => {
+      tabs.forEach((candidate, candidateIndex) => {
+        const selected = candidateIndex === index;
+        buttons[candidateIndex]?.setAttribute('aria-selected', String(selected));
+        candidate.panel.toggleAttribute('hidden', !selected);
+      });
+      tab.onActivate?.();
+    });
+    buttons.push(button);
+  });
+
+  tabList.append(...buttons);
+  section.append(tabList, ...tabs.map((tab) => tab.panel));
+  return section;
+}
 
 const GAME_VARIANT_LABEL_KEY: Record<string, I18nKey> = {
   fog: 'variant.darkChess.name',
@@ -110,6 +201,12 @@ export function buildProfileGameRow(
   opponent.textContent = neutral
     ? matchupLabel(game)
     : t('profile.vsOpponent', { opponent: profileOpponentName(game, locale) }, locale);
+  if (!neutral) {
+    const participant = profileOpponentParticipant(game);
+    if (participant?.subjectType === 'bot' && participant.subjectId) {
+      attachBotCard(opponent, participant.subjectId);
+    }
+  }
 
   // Date rides its own right-aligned column (lichess game-row style) instead of
   // sharing the top line with the opponent name.
@@ -170,6 +267,11 @@ function buildGameDetail(label: string, extraClass?: string): HTMLElement {
 function profileOpponentName(game: FeaturedGame, locale: Locale): string {
   const color = game.playerColor ?? 'white';
   return localizedSeatName(displayParticipantName(game, opponentColor(game, color)), locale);
+}
+
+function profileOpponentParticipant(game: FeaturedGame): GameParticipant | null {
+  const color = game.playerColor ?? 'white';
+  return participantForColor(game, opponentColor(game, color));
 }
 
 function profileSideLabel(game: FeaturedGame, locale: Locale): string {

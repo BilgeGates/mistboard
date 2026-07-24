@@ -10,7 +10,13 @@ import './bots.css';
 import { bindBotPlayControl } from './bot-play.js';
 import { buildCommunityLayout } from './community-rail.js';
 import type { FeaturedGame } from './game-display.js';
-import { buildProfileGameRow, buildProfileHeaderShell } from './profile-ui.js';
+import { buildBotSummaryCard } from './profile-summary-card.js';
+import {
+  buildProfileDashboard,
+  buildProfileGameRow,
+  buildProfileOverviewShell,
+  buildProfileTabsShell,
+} from './profile-ui.js';
 import { buildNav, buildNotice } from './site-shell.js';
 import { renderVariantMarker } from './variant-markers.js';
 import { variantMiniIdForRawVariant } from './variants.js';
@@ -88,20 +94,43 @@ export async function mountBots(root: HTMLElement): Promise<void> {
 
   const header = document.createElement('section');
   header.className = 'bots-directory-header';
+  const headerCopy = document.createElement('div');
+  headerCopy.className = 'bots-directory-header-copy';
 
   const eyebrow = document.createElement('span');
   eyebrow.className = 'account-eyebrow';
-  eyebrow.textContent = 'Play';
+  eyebrow.textContent = 'Play against the computer';
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'Bots';
+  heading.textContent = 'Choose your opponent';
 
   const sub = document.createElement('p');
   sub.className = 'bots-sub';
-  sub.textContent = 'Engine opponents with public profiles. Pick a variant to start a game.';
+  sub.textContent =
+    'Meet every engine, compare strength, or jump straight into a game. Every bot has a full public profile.';
 
-  header.append(eyebrow, heading, sub);
+  const meta = document.createElement('div');
+  meta.className = 'bots-directory-meta';
+  meta.append(
+    buildDirectoryMeta('Public profiles'),
+    buildDirectoryMeta('One-click play'),
+    buildDirectoryMeta('Eight strength levels'),
+  );
+  headerCopy.append(eyebrow, heading, sub, meta);
+
+  const markers = document.createElement('div');
+  markers.className = 'bots-directory-markers';
+  markers.setAttribute('aria-hidden', 'true');
+  for (const [gameSpecId, size] of [
+    ['dark-chess', 48],
+    ['xiangqi', 64],
+    ['banqi', 44],
+  ] as const) {
+    const marker = variantThumb(gameSpecId, size, 'bots-directory-marker');
+    if (marker) markers.append(marker);
+  }
+  header.append(headerCopy, markers);
 
   const body = document.createElement('section');
   body.className = 'bots-directory';
@@ -130,6 +159,12 @@ export async function mountBots(root: HTMLElement): Promise<void> {
   body.replaceChildren(...buildBotDirectorySections(bots));
 }
 
+function buildDirectoryMeta(label: string): HTMLElement {
+  const item = document.createElement('span');
+  item.textContent = label;
+  return item;
+}
+
 export async function mountBotProfile(root: HTMLElement, botId: string): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'profile-route', 'bots-route');
@@ -153,19 +188,33 @@ export async function mountBotProfile(root: HTMLElement, botId: string): Promise
 
   document.title = `${bot.displayName} · Bot · Mistboard`;
 
-  const sidebar = document.createElement('aside');
-  sidebar.className = 'bot-profile-sidebar';
-  sidebar.append(buildBotRatingsRail(bot), buildBotAbout(bot));
+  const options = playOptionsFor(bot);
+  const primaryGameSpecId = primaryRating(bot)?.gameSpecId;
+  let selectedGameSpecId =
+    options.find((option) => option.gameSpecId === primaryGameSpecId)?.gameSpecId ??
+    options[0]?.gameSpecId ??
+    bot.defaultGameSpecId;
+  let overview = buildBotOverview(bot, selectedGameSpecId);
+  const ratings = buildBotRatingsRail(bot, {
+    selectedGameSpecId,
+    onSelect: (gameSpecId) => {
+      selectedGameSpecId = gameSpecId;
+      const next = buildBotOverview(bot, selectedGameSpecId);
+      overview.replaceWith(next);
+      overview = next;
+      syncSelectedBotRating(ratings, selectedGameSpecId);
+    },
+  });
+  const games = buildRecentGames(bot);
+  games.id = `bot-games-${bot.id}`;
+  const tabs = buildProfileTabsShell([
+    {
+      label: 'Recent games',
+      panel: games,
+    },
+  ]);
 
-  const main = document.createElement('div');
-  main.className = 'bot-profile-main';
-  main.append(buildBotPlayPanel(bot), buildRecentGames(bot));
-
-  const body = document.createElement('div');
-  body.className = 'profile-body bot-profile-body';
-  body.append(sidebar, main);
-
-  shell.append(buildBotHeader(bot), body);
+  shell.append(buildProfileDashboard(ratings, overview, tabs));
 }
 
 async function fetchBots(): Promise<BotProfile[]> {
@@ -195,34 +244,59 @@ function buildBotDirectorySections(bots: BotProfile[]): HTMLElement[] {
   const featured = system.filter((bot) => !bot.id.startsWith(LADDER_BOT_ID_PREFIX));
   const community = bots.filter((bot) => bot.ownerType === 'user');
 
-  const groups: Array<{ title: string; rows: HTMLElement[] }> = [
-    { title: 'Featured', rows: featured.map(buildFeaturedRow) },
-    { title: 'Fairy-Stockfish ladder', rows: ladder.map(buildLadderRow) },
-    { title: 'Community bots', rows: community.map(buildFeaturedRow) },
+  const groups: BotRosterGroup[] = [
+    {
+      title: 'Featured opponents',
+      intro: 'Distinct engines with their own styles and variant specialties.',
+      rows: featured.map(buildBotSummaryCard),
+    },
+    {
+      title: 'Fairy-Stockfish ladder',
+      intro: 'Pick a level that feels competitive, then move up when you are ready.',
+      rows: ladder.map(buildBotSummaryCard),
+    },
+    {
+      title: 'Community bots',
+      intro: 'Engines shared by the Mistboard community.',
+      rows: community.map(buildBotSummaryCard),
+    },
   ];
   return groups.filter((group) => group.rows.length > 0).map(buildRosterSection);
 }
+
+type BotRosterGroup = {
+  title: string;
+  intro: string;
+  rows: HTMLElement[];
+};
 
 function ladderLevel(bot: BotProfile): number {
   const level = Number.parseInt(bot.id.slice(LADDER_BOT_ID_PREFIX.length), 10);
   return Number.isFinite(level) ? level : Number.MAX_SAFE_INTEGER;
 }
 
-function buildRosterSection(group: { title: string; rows: HTMLElement[] }): HTMLElement {
+function buildRosterSection(group: BotRosterGroup): HTMLElement {
   const section = document.createElement('section');
   section.className = 'bot-roster-section';
 
   const header = document.createElement('div');
   header.className = 'bot-roster-header';
+  const headerCopy = document.createElement('div');
+  headerCopy.className = 'bot-roster-header-copy';
 
   const title = document.createElement('h2');
   title.textContent = group.title;
+
+  const intro = document.createElement('p');
+  intro.className = 'bot-roster-intro';
+  intro.textContent = group.intro;
+  headerCopy.append(title, intro);
 
   const count = document.createElement('span');
   count.className = 'bot-roster-count';
   count.textContent = `${group.rows.length} ${group.rows.length === 1 ? 'bot' : 'bots'}`;
 
-  header.append(title, count);
+  header.append(headerCopy, count);
 
   const list = document.createElement('div');
   list.className = 'bot-roster';
@@ -232,264 +306,178 @@ function buildRosterSection(group: { title: string; rows: HTMLElement[] }): HTML
   return section;
 }
 
-// Featured (and community) row: marker, name + bio + one chip per variant,
-// primary rating and games on the right.
-function buildFeaturedRow(bot: BotProfile): HTMLElement {
-  const row = document.createElement('article');
-  row.className = 'bot-row bot-row-featured';
-
-  const marker = variantThumb(bot.defaultGameSpecId, 40, 'bot-row-marker');
-  if (marker) row.append(marker);
-
-  const body = document.createElement('div');
-  body.className = 'bot-row-body';
-
-  const title = document.createElement('div');
-  title.className = 'bot-row-title';
-
-  const name = document.createElement('a');
-  name.className = 'bot-row-name';
-  name.href = `/bot/${encodeURIComponent(bot.id)}`;
-  name.textContent = bot.displayName;
-
-  const badge = document.createElement('span');
-  badge.className = 'bot-badge';
-  badge.textContent = 'BOT';
-
-  title.append(name, badge);
-
-  const bio = document.createElement('p');
-  bio.className = 'bot-row-bio';
-  bio.textContent = bot.bio.trim() || 'Public Mistboard bot profile.';
-
-  const chips = document.createElement('div');
-  chips.className = 'bot-row-chips';
-  for (const option of playOptionsFor(bot)) chips.append(buildPlayChip(bot, option));
-
-  body.append(title, bio, chips);
-
-  const figures = document.createElement('div');
-  figures.className = 'bot-row-figures';
-
-  const ratingSnapshot = primaryRating(bot);
-  const ratingValue = document.createElement('span');
-  ratingValue.className = 'bot-row-rating';
-  ratingValue.textContent = ratingSnapshot ? ratingLabel(ratingSnapshot) : '—';
-
-  const ratingCaption = document.createElement('span');
-  ratingCaption.className = 'bot-row-figures-label';
-  ratingCaption.textContent = ratingSnapshot
-    ? `${gameSpecLabel(ratingSnapshot.gameSpecId)} ${timeClassLabel(ratingSnapshot.timeClass)}`
-    : 'Unrated';
-
-  const games = document.createElement('span');
-  games.className = 'bot-row-games';
-  games.textContent = gameCountLabel(bot.gamesTotal);
-
-  figures.append(ratingValue, ratingCaption, games);
-
-  row.append(body, figures);
-  return row;
-}
-
-// Ladder row: table-like, one per level. Name, xiangqi blitz rating, then a
-// play chip per variant (Fortress may be off in some environments).
-function buildLadderRow(bot: BotProfile): HTMLElement {
-  const row = document.createElement('article');
-  row.className = 'bot-row bot-row-ladder';
-
-  const name = document.createElement('a');
-  name.className = 'bot-row-name';
-  name.href = `/bot/${encodeURIComponent(bot.id)}`;
-  name.textContent = bot.displayName;
-
-  const rating = document.createElement('span');
-  rating.className = 'bot-row-rating bot-row-ladder-rating';
-  const blitz = botRatings(bot).find(
-    (snapshot) => snapshot.gameSpecId === 'xiangqi' && snapshot.timeClass === 'blitz',
-  );
-  rating.textContent = blitz ? ratingLabel(blitz) : '—';
-  rating.title = blitz ? 'Xiangqi blitz rating' : 'No published rating yet';
-
-  const chips = document.createElement('div');
-  chips.className = 'bot-row-chips';
-  for (const option of playOptionsFor(bot)) chips.append(buildPlayChip(bot, option));
-
-  row.append(name, rating, chips);
-  return row;
-}
-
-// A playable chip is itself the play control: click starts the game against
-// this bot in that variant (random side, the bot's standing clock). Unplayable
-// variants render as muted, non-interactive chips.
-function buildPlayChip(bot: BotProfile, option: BotPlayOption): HTMLElement {
-  const label = gameSpecLabel(option.gameSpecId);
-
-  if (!option.playable) {
-    const chip = document.createElement('span');
-    chip.className = 'bot-play-chip bot-play-chip-off';
-    chip.title = 'Not available right now';
-    appendChipContent(chip, option.gameSpecId, label);
-    return chip;
-  }
-
-  const chip = document.createElement('button');
-  chip.type = 'button';
-  chip.className = 'bot-play-chip';
-  chip.title = `Play ${label} against ${bot.displayName}`;
-  const labelEl = appendChipContent(chip, option.gameSpecId, label);
-
-  const arrow = document.createElement('span');
-  arrow.className = 'bot-play-chip-arrow';
-  arrow.setAttribute('aria-hidden', 'true');
-  arrow.textContent = '▸';
-  chip.append(arrow);
-
-  bindBotPlayControl(
-    chip,
-    () => ({ botId: bot.id, gameSpecId: option.gameSpecId, preferredColor: 'random' }),
-    {
-      onStateChange: (state) => {
-        labelEl.textContent =
-          state === 'pending' ? 'Starting...' : state === 'error' ? 'Try again' : label;
-      },
-    },
-  );
-  return chip;
-}
-
-function appendChipContent(chip: HTMLElement, gameSpecId: string, label: string): HTMLElement {
-  const thumb = variantThumb(gameSpecId, 16, 'bot-play-chip-thumb');
-  if (thumb) chip.append(thumb);
-  const labelEl = document.createElement('span');
-  labelEl.className = 'bot-play-chip-label';
-  labelEl.textContent = label;
-  chip.append(labelEl);
-  return labelEl;
-}
-
 // ── Profile ─────────────────────────────────────────────────────────────────
 
-function buildBotHeader(bot: BotProfile): HTMLElement {
-  const games = document.createElement('span');
-  games.className = 'profile-game-count';
-  games.textContent = gameCountLabel(bot.gamesTotal);
-
-  const badge = document.createElement('span');
-  badge.className = 'profile-role-badge profile-role-bot';
-  badge.textContent = 'BOT';
-
-  const owner = document.createElement('span');
-  owner.className = 'profile-role-badge profile-role-owner';
-  owner.textContent = bot.ownerType === 'system' ? 'First-party' : 'Community';
-
-  return buildProfileHeaderShell({
-    eyebrow: 'Bot profile',
-    title: bot.displayName,
-    metaParts: [games, badge, owner],
-    stats: buildBotStats(bot),
+function buildBotOverview(bot: BotProfile, gameSpecId: string): HTMLElement {
+  const option =
+    playOptionsFor(bot).find((candidate) => candidate.gameSpecId === gameSpecId) ??
+    playOptionsFor(bot)[0];
+  return buildProfileOverviewShell({
+    identity: buildBotIdentity(bot),
+    actions: option ? buildBotPlayAction(bot, option) : null,
+    primary: buildBotRatingSpotlight(bot, gameSpecId),
+    side: buildBotSideInfo(bot, gameSpecId),
   });
 }
 
-// Trimmed to what matters: primary rating, record, games, variants count. The
-// raw engine id is provenance, not a stat; it lives in the About panel.
-function buildBotStats(bot: BotProfile): HTMLElement {
-  const stats = document.createElement('div');
-  stats.className = 'profile-stats bot-stats';
-  const cells: HTMLElement[] = [];
-  const ratingSnapshot = primaryRating(bot);
-  if (ratingSnapshot) {
-    cells.push(
-      statCell(
-        ratingLabel(ratingSnapshot),
-        `${gameSpecLabel(ratingSnapshot.gameSpecId)} ${timeClassLabel(ratingSnapshot.timeClass)}`,
-      ),
-    );
-  }
-  cells.push(
-    statCell(recordLabel(bot.record), 'Record'),
-    statCell(new Intl.NumberFormat().format(bot.gamesTotal), 'Games'),
-    statCell(String(playOptionsFor(bot).length), 'Variants'),
+function buildBotIdentity(bot: BotProfile): HTMLElement {
+  const identity = document.createElement('div');
+  identity.className = 'profile-identity';
+
+  const heading = document.createElement('h1');
+  heading.className = 'profile-identity-handle';
+  heading.textContent = bot.displayName;
+  identity.append(heading);
+
+  const meta = document.createElement('p');
+  meta.className = 'profile-header-meta';
+  const badge = document.createElement('span');
+  badge.className = 'profile-role-badge profile-role-bot';
+  badge.textContent = 'BOT';
+  const owner = document.createElement('span');
+  owner.className = 'profile-role-badge profile-role-owner';
+  owner.textContent = bot.ownerType === 'system' ? 'First-party' : 'Community';
+  meta.append(badge, document.createTextNode(' · '), owner);
+  identity.append(meta);
+
+  const counts = document.createElement('div');
+  counts.className = 'profile-counts';
+  counts.append(
+    buildBotCount(new Intl.NumberFormat().format(bot.gamesTotal), 'Games'),
+    buildBotCount(recordLabel(bot.record), 'Record'),
+    buildBotCount(String(playOptionsFor(bot).length), 'Variants'),
   );
-  stats.append(...cells);
-  return stats;
+  identity.append(counts);
+  return identity;
 }
 
-function statCell(value: string, label: string): HTMLElement {
-  const stat = document.createElement('div');
-  stat.className = 'profile-stat';
-
+function buildBotCount(value: string, label: string): HTMLElement {
+  const count = document.createElement('span');
+  count.className = 'profile-count';
   const valueEl = document.createElement('span');
-  valueEl.className = 'profile-stat-value';
+  valueEl.className = 'profile-count-value';
   valueEl.textContent = value;
-
   const labelEl = document.createElement('span');
-  labelEl.className = 'profile-stat-label';
+  labelEl.className = 'profile-count-label';
   labelEl.textContent = label;
-
-  stat.append(valueEl, labelEl);
-  return stat;
+  count.append(valueEl, labelEl);
+  return count;
 }
 
-// "Play <name>" panel: one row per supported variant, each with a direct-play
-// button. Unplayable variants stay listed but muted, with no action.
-function buildBotPlayPanel(bot: BotProfile): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'bot-panel bot-profile-play';
-
-  const heading = document.createElement('h2');
-  heading.textContent = `Play ${bot.displayName}`;
-  section.append(heading);
-
-  const list = document.createElement('div');
-  list.className = 'bot-play-list';
-  for (const option of playOptionsFor(bot)) list.append(buildPlayRow(bot, option));
-  section.append(list);
-  return section;
-}
-
-function buildPlayRow(bot: BotProfile, option: BotPlayOption): HTMLElement {
-  const row = document.createElement('div');
-  row.className = option.playable ? 'bot-play-row' : 'bot-play-row bot-play-row-off';
-
-  const thumb = variantThumb(option.gameSpecId, 32, 'bot-play-row-marker');
-  if (thumb) row.append(thumb);
-
-  const meta = document.createElement('div');
-  meta.className = 'bot-play-row-meta';
-
-  const name = document.createElement('span');
-  name.className = 'bot-play-row-name';
-  name.textContent = gameSpecLabel(option.gameSpecId);
-
-  const clock = document.createElement('span');
-  clock.className = 'bot-play-row-clock';
-  clock.textContent = option.playable
-    ? `${timeControlLabel(bot.play.timeControl)} · random side`
-    : 'Not available right now';
-
-  meta.append(name, clock);
-  row.append(meta);
-
+function buildBotPlayAction(bot: BotProfile, option: BotPlayOption): HTMLElement {
+  const actions = document.createElement('div');
+  actions.className = 'profile-relation-actions bot-profile-actions';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = option.playable ? 'landing-setup-start' : 'landing-setup-back';
+  button.disabled = !option.playable;
+  button.textContent = option.playable ? `Play ${gameSpecLabel(option.gameSpecId)}` : 'Unavailable';
   if (option.playable) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'landing-setup-start bot-play-row-button';
-    button.textContent = 'Play';
     bindBotPlayControl(
       button,
       () => ({ botId: bot.id, gameSpecId: option.gameSpecId, preferredColor: 'random' }),
       { pendingLabel: 'Starting...', errorLabel: 'Try again' },
     );
-    row.append(button);
   }
-
-  return row;
+  actions.append(button);
+  return actions;
 }
 
-// Sidebar rating rail in the player-profile idiom: one compact row per
-// published variant/time-class snapshot.
-function buildBotRatingsRail(bot: BotProfile): HTMLElement {
+function buildBotRatingSpotlight(bot: BotProfile, gameSpecId: string): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'profile-rating-spotlight bot-rating-spotlight';
+  const rating = botRatings(bot).find((candidate) => candidate.gameSpecId === gameSpecId);
+  const option = playOptionsFor(bot).find((candidate) => candidate.gameSpecId === gameSpecId);
+
+  const head = document.createElement('header');
+  head.className = 'profile-chart-head';
+  const headline = document.createElement('div');
+  headline.className = 'profile-chart-headline';
+  const name = document.createElement('span');
+  name.className = 'profile-chart-variant';
+  name.textContent = gameSpecLabel(gameSpecId);
+  const value = document.createElement('span');
+  value.className = 'profile-chart-value';
+  const detail = document.createElement('span');
+  detail.className = 'profile-chart-detail';
+  if (rating) {
+    value.textContent = new Intl.NumberFormat().format(rating.rating);
+    if (rating.provisional) {
+      const q = document.createElement('span');
+      q.className = 'profile-rating-q';
+      q.textContent = '?';
+      value.append(q);
+    }
+    detail.textContent = `${rating.games} rated ${rating.games === 1 ? 'game' : 'games'} · ${timeClassLabel(rating.timeClass)}`;
+  } else {
+    value.textContent = '—';
+    value.classList.add('profile-chart-value-empty');
+    detail.textContent = 'No published rating yet';
+  }
+  headline.append(name, value, detail);
+  head.append(headline);
+
+  const play = document.createElement('div');
+  play.className = 'bot-rating-spotlight-play';
+  const marker = variantThumb(gameSpecId, 64, 'bot-rating-spotlight-marker');
+  if (marker) play.append(marker);
+  const playCopy = document.createElement('div');
+  playCopy.className = 'bot-rating-spotlight-copy';
+  const playTitle = document.createElement('span');
+  playTitle.className = 'bot-rating-spotlight-title';
+  playTitle.textContent = option?.playable
+    ? `Play against ${bot.displayName}`
+    : 'Currently offline';
+  const clock = document.createElement('span');
+  clock.className = 'bot-rating-spotlight-clock';
+  clock.textContent = option?.playable
+    ? `${timeControlLabel(bot.play.timeControl)} · random side`
+    : 'Not available right now';
+  playCopy.append(playTitle, clock);
+  play.append(playCopy);
+  section.append(head, play);
+  return section;
+}
+
+function buildBotSideInfo(bot: BotProfile, gameSpecId: string): HTMLElement {
+  const side = document.createElement('aside');
+  side.className = 'profile-overview-side';
+
+  if (bot.bio.trim().length > 0) {
+    const bio = document.createElement('p');
+    bio.className = 'profile-side-line profile-side-bio';
+    bio.textContent = bot.bio;
+    side.append(bio);
+  }
+
+  const rating = botRatings(bot).find((candidate) => candidate.gameSpecId === gameSpecId);
+  if (rating) side.append(buildBotSideStat('Published rating', ratingLabel(rating)));
+  side.append(buildBotSideStat('Record', recordLabel(bot.record)));
+
+  const engineId = playOptionsFor(bot).find(
+    (candidate) => candidate.gameSpecId === gameSpecId,
+  )?.engineId;
+  if (engineId) side.append(buildBotSideStat('Engine', engineId));
+  return side;
+}
+
+function buildBotSideStat(label: string, value: string): HTMLElement {
+  const stat = document.createElement('div');
+  stat.className = 'profile-side-stat';
+  const labelEl = document.createElement('span');
+  labelEl.className = 'profile-side-stat-label';
+  labelEl.textContent = label;
+  const valueEl = document.createElement('span');
+  valueEl.className = 'profile-side-stat-value bot-profile-provenance';
+  valueEl.textContent = value;
+  stat.append(labelEl, valueEl);
+  return stat;
+}
+
+function buildBotRatingsRail(
+  bot: BotProfile,
+  opts: { selectedGameSpecId: string; onSelect: (gameSpecId: string) => void },
+): HTMLElement {
   const section = document.createElement('section');
   section.className = 'profile-ratings bot-profile-ratings';
 
@@ -498,8 +486,8 @@ function buildBotRatingsRail(bot: BotProfile): HTMLElement {
   heading.textContent = 'Ratings';
   section.append(heading);
 
-  const ratings = botRatings(bot);
-  if (ratings.length === 0) {
+  const options = playOptionsFor(bot);
+  if (options.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'profile-ratings-empty';
     empty.textContent = 'No published rating yet.';
@@ -509,16 +497,29 @@ function buildBotRatingsRail(bot: BotProfile): HTMLElement {
 
   const rail = document.createElement('div');
   rail.className = 'profile-ratings-rail';
-  for (const rating of ratings) rail.append(buildBotRatingRow(rating));
+  for (const option of options) {
+    const rating = botRatings(bot).find((candidate) => candidate.gameSpecId === option.gameSpecId);
+    rail.append(buildBotRatingRow(option, rating, opts));
+  }
   section.append(rail);
   return section;
 }
 
-function buildBotRatingRow(rating: BotRatingSnapshot): HTMLElement {
-  const row = document.createElement('div');
+function buildBotRatingRow(
+  option: BotPlayOption,
+  rating: BotRatingSnapshot | undefined,
+  opts: { selectedGameSpecId: string; onSelect: (gameSpecId: string) => void },
+): HTMLElement {
+  const row = document.createElement('button');
+  row.type = 'button';
   row.className = 'profile-rating-row bot-rating-row';
+  row.dataset.gameSpecId = option.gameSpecId;
+  const selected = option.gameSpecId === opts.selectedGameSpecId;
+  row.classList.toggle('profile-rating-row-selected', selected);
+  row.setAttribute('aria-pressed', String(selected));
+  row.addEventListener('click', () => opts.onSelect(option.gameSpecId));
 
-  const thumb = variantThumb(rating.gameSpecId, 32, 'profile-rating-thumb');
+  const thumb = variantThumb(option.gameSpecId, 32, 'profile-rating-thumb');
   if (thumb) row.append(thumb);
 
   const meta = document.createElement('div');
@@ -526,15 +527,15 @@ function buildBotRatingRow(rating: BotRatingSnapshot): HTMLElement {
 
   const name = document.createElement('span');
   name.className = 'profile-rating-name';
-  name.textContent = `${gameSpecLabel(rating.gameSpecId)} · ${timeClassLabel(rating.timeClass)}`;
+  name.textContent = gameSpecLabel(option.gameSpecId);
 
   const figures = document.createElement('span');
   figures.className = 'profile-rating-figures';
 
   const value = document.createElement('span');
   value.className = 'profile-rating-value';
-  value.textContent = new Intl.NumberFormat().format(rating.rating);
-  if (rating.provisional) {
+  value.textContent = rating ? new Intl.NumberFormat().format(rating.rating) : '—';
+  if (rating?.provisional) {
     const q = document.createElement('span');
     q.className = 'profile-rating-q';
     q.textContent = '?';
@@ -543,50 +544,34 @@ function buildBotRatingRow(rating: BotRatingSnapshot): HTMLElement {
 
   const games = document.createElement('span');
   games.className = 'profile-rating-games';
-  games.textContent = `${rating.games} rated ${rating.games === 1 ? 'game' : 'games'}`;
+  games.textContent = rating
+    ? `${rating.games} rated ${rating.games === 1 ? 'game' : 'games'}`
+    : option.playable
+      ? 'Unrated'
+      : 'Unavailable';
 
   figures.append(value, games);
   meta.append(name, figures);
   row.append(meta);
+  const chevron = document.createElement('span');
+  chevron.className = 'profile-rating-chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  chevron.textContent = '›';
+  row.append(chevron);
   return row;
 }
 
-function buildBotAbout(bot: BotProfile): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'bot-panel bot-profile-about';
-
-  const heading = document.createElement('h2');
-  heading.textContent = 'About';
-  section.append(heading);
-
-  const body = document.createElement('div');
-  body.className = 'bot-profile-about-body';
-
-  if (bot.bio.trim().length > 0) {
-    const bio = document.createElement('p');
-    bio.textContent = bot.bio;
-    body.append(bio);
+function syncSelectedBotRating(section: HTMLElement, gameSpecId: string): void {
+  for (const row of section.querySelectorAll<HTMLElement>('.profile-rating-row')) {
+    const selected = row.dataset.gameSpecId === gameSpecId;
+    row.classList.toggle('profile-rating-row-selected', selected);
+    row.setAttribute('aria-pressed', String(selected));
   }
-
-  const engineIds = [...new Set(playOptionsFor(bot).map((option) => option.engineId))];
-  if (engineIds.length > 0) {
-    const provenance = document.createElement('p');
-    provenance.className = 'bot-profile-provenance';
-    provenance.textContent = `${engineIds.length === 1 ? 'Engine' : 'Engines'}: ${engineIds.join(', ')}`;
-    body.append(provenance);
-  }
-
-  section.append(body);
-  return section;
 }
 
 function buildRecentGames(bot: BotProfile): HTMLElement {
   const section = document.createElement('section');
-  section.className = 'bot-panel profile-games bot-profile-games';
-
-  const heading = document.createElement('h2');
-  heading.textContent = 'Recent games';
-  section.append(heading);
+  section.className = 'profile-games bot-profile-games';
 
   const games = bot.games ?? [];
   if (games.length === 0) {
@@ -598,7 +583,7 @@ function buildRecentGames(bot: BotProfile): HTMLElement {
   }
 
   const list = document.createElement('ol');
-  list.className = 'profile-game-list';
+  list.className = 'profile-game-list profile-activity';
   for (const game of games) list.append(buildProfileGameRow(game));
   section.append(list);
   return section;
@@ -672,10 +657,6 @@ function timeControlLabel(timeControl: BotProfile['play']['timeControl']): strin
   return `${Math.round(timeControl.initialMs / 1_000)}s + ${Math.round(
     timeControl.incrementMs / 1_000,
   )}s`;
-}
-
-function gameCountLabel(games: number): string {
-  return `${new Intl.NumberFormat().format(games)} ${games === 1 ? 'game' : 'games'}`;
 }
 
 function recordLabel(record: BotRecord): string {

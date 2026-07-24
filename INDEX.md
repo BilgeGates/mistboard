@@ -559,8 +559,9 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `account-profile.css` | Account, profile, and leaderboard route styles loaded by `account.ts` and `profile.ts` |
 | `streamer.ts` | `/streamer` mount (`mountStreamer`) — basic empty-state streamers directory (no backend yet). Uses `site-shell.ts` chrome and loads `streamer.css` |
 | `streamer.css` | Streamers directory route styles loaded by `streamer.ts` |
-| `user-card.ts` | Reusable hover user-card (`buildUserCard`, `attachUserCard`): compact profile summary (ratings grid + Follow/Message + games/joined) fed by `/api/users/:handle/profile`, shown as a shared singleton popover. Consumed by the friends-online widget + leaderboard online list. Loads `user-card.css` |
-| `user-card.css` | Hover user-card styles (site design tokens; themes light/dark) |
+| `profile-summary-card.ts` | Shared compact profile-summary renderer and singleton hover popover for players and bots. `buildUserCard`/`buildBotSummaryCard` fork only identity/actions; the bot directory embeds the bot renderer inline, while `attachUserCard`/`attachBotCard` load the same bodies on identity hover |
+| `profile-summary-card.css` | Shared inline + hover profile-summary styles (site design tokens; themes light/dark) |
+| `user-card.ts` | Compatibility facade re-exporting the player-only profile-summary API for existing consumers |
 | `friends-online.ts` | Global bottom-corner friends-online widget (`mountFriendsOnline`, lichess parity): collapsed pill → expandable list of online followed players, each row hovering into `user-card.ts`. Behind `friendsOnlineEnabled()`; polls `/api/relations/online-following` while visible. Loads `friends-online.css` |
 | `friends-online.css` | Friends-online widget styles |
 | `community-rail.ts` | Shared community sub-nav rail + column layout (`buildCommunityRail`, `buildCommunityLayout`) used by `/leaderboard` and `/bots`. Loads `community-rail.css` |
@@ -662,8 +663,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `engines.css` | `/engines` admin engine-tracker styles loaded by `engines.ts` |
 | `engine-profile.ts` | Unlisted admin per-engine profile (`/engine/:id`): reuses `profile-ui.ts` + `account-profile.css` with a PvE/EvE records block; admin-gated by `/api/admin/engines/:id`, reached from `/engines`. Loads `engine-profile.css` |
 | `engine-profile.css` | `/engine/:id` engine-records block styles (atop `account-profile.css`) loaded by `engine-profile.ts` |
-| `profile-ui.ts` | Shared profile-surface primitives (`buildProfileHeaderShell`, `buildProfileGameRow`) used by the player profile (`/@handle`) and engine profile (`/engine/:id`) so the two render as siblings |
-| `bots.ts` | Public bot directory and profile route (`/bots`, `/bot/:id`): profile shell, published bot rating, playable CTA, and recent bot game rows |
+| `profile-ui.ts` | Shared profile-surface primitives (dashboard, overview, tabs, header, game rows) used across player (`/@handle`), bot (`/bot/:id`), and engine (`/engine/:id`) profiles |
+| `bots.ts` | Public bot directory and profile route (`/bots`, `/bot/:id`): one uniform opponent-card gallery across featured/community bots and the Fairy-Stockfish family, with bot-specific identity/play/provenance mounted into the shared player-profile dashboard |
 | `correspondence.ts` | `/correspondence` dashboard: lists the player's in-flight async games from `GET /api/correspondence/games` (your-move-first), with sign-in gate and unavailable-state notices. Loads `correspondence.css` |
 | `correspondence.css` | `/correspondence` dashboard styles loaded by `correspondence.ts` |
 | `rematch-controls.ts` | Shared post-game rematch control block for chess (white/black) and Dark Mini Xiangqi (red/black); reads the unified `liveState.rematch`, only per-game input is the two seat colors |

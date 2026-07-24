@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FeaturedGame } from './game-display.js';
 import { buildProfileGameRow } from './profile-ui.js';
 import { webVariantTenants } from './variant-tenant/registry.js';
@@ -38,6 +38,62 @@ function game(overrides: Partial<FeaturedGame> = {}): FeaturedGame {
 }
 
 describe('profile game rows', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('loads the shared bot summary when a bot opponent name is hovered', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          bot: {
+            id: 'misty',
+            displayName: 'Misty',
+            bio: 'Searches hidden positions.',
+            ownerType: 'system',
+            defaultGameSpecId: 'dark-chess',
+            activeEngineId: 'misty-v1',
+            supportedGameSpecIds: ['dark-chess'],
+            gamesTotal: 12,
+            record: { games: 12, wins: 8, losses: 3, draws: 1 },
+            rating: null,
+          },
+        }),
+        { headers: { 'content-type': 'application/json' }, status: 200 },
+      ),
+    );
+    const row = buildProfileGameRow(
+      game({
+        participants: [
+          {
+            color: 'white',
+            displayName: 'Alice',
+            subjectType: 'user',
+            subjectId: 'u_alice',
+            visibility: 'public',
+          },
+          {
+            color: 'black',
+            displayName: 'Misty',
+            subjectType: 'bot',
+            subjectId: 'misty',
+            visibility: 'public',
+          },
+        ],
+      }),
+    );
+    document.body.append(row);
+
+    row.querySelector('.profile-game-opponent')?.dispatchEvent(new MouseEvent('mouseenter'));
+    await vi.advanceTimersByTimeAsync(220);
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/bots/misty');
+    expect(document.querySelector('.profile-summary-card-popover')?.textContent).toContain('Misty');
+  });
+
   it('renders Dark Mini Xiangqi rows with red/black outcome and review route', () => {
     const row = buildProfileGameRow(
       game({

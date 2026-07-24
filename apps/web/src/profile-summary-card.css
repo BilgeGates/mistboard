@@ -1,15 +1,17 @@
-/* Reusable hover user-card (see user-card.ts). Styled with the site design
+/* Reusable hover profile-summary-card (see profile-summary-card.ts). Styled with the site design
    tokens so it themes light/dark automatically. The popover is a fixed-position
-   singleton; the .user-card body is what any surface can also embed inline. */
+   singleton; the .profile-summary-card body is what any surface can also embed inline. */
 
-.user-card-popover {
+.profile-summary-card-popover {
   position: fixed;
   z-index: 60;
   /* Above the friends widget (z 40) and most chrome, below modal dialogs. */
   pointer-events: auto;
 }
 
-.user-card {
+.profile-summary-card {
+  display: flex;
+  flex-direction: column;
   width: 300px;
   max-width: calc(100vw - 16px);
   background: var(--site-panel);
@@ -21,7 +23,7 @@
   font-size: 0.9rem;
 }
 
-.user-card-header {
+.profile-summary-card-header {
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -29,7 +31,25 @@
   border-bottom: 1px solid var(--site-border-soft, var(--site-border));
 }
 
-.user-card-dot {
+.profile-summary-card-avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+
+.profile-summary-card-identity {
+  display: grid;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.profile-summary-card-subtitle {
+  color: var(--site-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.profile-summary-card-dot {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
@@ -37,7 +57,7 @@
   flex: 0 0 auto;
 }
 
-.user-card-name {
+.profile-summary-card-name {
   font-weight: 600;
   font-size: 1.05rem;
   color: var(--site-heading, var(--site-text));
@@ -47,11 +67,11 @@
   white-space: nowrap;
 }
 
-.user-card-name:hover {
+.profile-summary-card-name:hover {
   color: var(--site-link, var(--site-accent));
 }
 
-.user-card-badge {
+.profile-summary-card-badge {
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -62,58 +82,72 @@
   padding: 0.05rem 0.3rem;
 }
 
-.user-card-playing {
+.profile-summary-card-playing {
   margin-left: auto;
   color: var(--site-muted);
   font-size: 0.95rem;
 }
 
-.user-card-ratings {
+.profile-summary-card-bio {
+  display: -webkit-box;
+  min-height: 2.6em;
+  margin: 0;
+  padding: 0.6rem 0.8rem 0;
+  overflow: hidden;
+  color: var(--site-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.profile-summary-card-ratings {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.2rem 0.9rem;
   padding: 0.6rem 0.8rem;
 }
 
-.user-card-rating {
+.profile-summary-card-rating {
   display: flex;
   align-items: center;
   gap: 0.4rem;
 }
 
-.user-card-rating-icon {
+.profile-summary-card-rating-icon {
   display: inline-flex;
   width: 20px;
   height: 20px;
   flex: 0 0 auto;
 }
 
-.user-card-rating-icon svg {
+.profile-summary-card-rating-icon svg {
   width: 100%;
   height: 100%;
   display: block;
 }
 
-.user-card-rating-icon .variant-marker {
+.profile-summary-card-rating-icon .variant-marker {
   width: 100%;
   height: 100%;
   display: block;
 }
 
-.user-card-rating-value {
+.profile-summary-card-rating-value {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: var(--site-text);
 }
 
-.user-card-actions {
+.profile-summary-card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   padding: 0.5rem 0.8rem;
   border-top: 1px solid var(--site-border-soft, var(--site-border));
 }
 
-.user-card-action {
+.profile-summary-card-action {
   flex: 1;
   text-align: center;
   padding: 0.35rem 0.5rem;
@@ -127,21 +161,39 @@
   cursor: pointer;
 }
 
-.user-card-action:hover {
+.profile-summary-card-bot-actions .profile-summary-card-action {
+  flex: 1 1 calc(50% - 0.4rem);
+}
+
+.profile-summary-card-action:hover {
   background: var(--site-hover, var(--site-accent-soft));
 }
 
-.user-card-action:disabled {
+.profile-summary-card-action-unavailable {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.profile-summary-card-action-unavailable:hover {
+  background: var(--site-panel-soft, transparent);
+}
+
+.profile-summary-card-action.bot-play-error {
+  border-color: color-mix(in srgb, #c45b52 60%, var(--site-border));
+  color: #c45b52;
+}
+
+.profile-summary-card-action:disabled {
   opacity: 0.6;
   cursor: default;
 }
 
-.user-card-action-active {
+.profile-summary-card-action-active {
   border-color: var(--site-accent);
   color: var(--site-accent-strong, var(--site-accent));
 }
 
-.user-card-footer {
+.profile-summary-card-footer {
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildTitleBadge, PLAYER_TITLES, titleAbbr, titleFullName } from './player-titles.js';
 import { buildProfileIdentity } from './profile.js';
-import { buildUserCard, type UserCardProfile } from './user-card.js';
+import { buildUserCard, type UserCardProfile } from './profile-summary-card.js';
 
 describe('player titles', () => {
   it('builds a badge with the abbreviation and the localized full name tooltip', () => {
@@ -34,7 +34,9 @@ describe('player titles', () => {
 describe('title badge on the user card', () => {
   it('shows the gold abbreviation before a titled player name and skips untitled ones', () => {
     const titled = buildUserCard(cardProfile({ title: 'xgm' }));
-    expect(titled.querySelector('.user-card-header .title-badge')?.textContent).toBe('XGM');
+    expect(titled.querySelector('.profile-summary-card-header .title-badge')?.textContent).toBe(
+      'XGM',
+    );
 
     const untitled = buildUserCard(cardProfile({ title: null }));
     expect(untitled.querySelector('.title-badge')).toBeNull();

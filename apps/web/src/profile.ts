@@ -9,7 +9,14 @@ import type { FeaturedGame } from './game-display.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
 import { buildTitleBadge, isPlayerTitle, titleFullName } from './player-titles.js';
-import { buildProfileGameRow, profileGameSpecLabel, profileResultTone } from './profile-ui.js';
+import {
+  buildProfileDashboard,
+  buildProfileGameRow,
+  buildProfileOverviewShell,
+  buildProfileTabsShell,
+  profileGameSpecLabel,
+  profileResultTone,
+} from './profile-ui.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { attachUserCard } from './user-card.js';
 import { renderVariantMarker } from './variant-markers.js';
@@ -217,10 +224,6 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
   const overview = buildProfileOverview(profile, spotlight, locale);
   void hydrateProfilePresence(overview, profile.user.handle, locale);
 
-  const center = document.createElement('div');
-  center.className = 'profile-center';
-  center.append(overview, buildProfileTabs(profile, locale));
-
   const ratings = buildProfileRatings(profile.ratings, locale, {
     selectedVariant,
     onSelect: (variant) => {
@@ -233,11 +236,7 @@ export async function mountProfile(root: HTMLElement, handle: string): Promise<v
   });
   appendProfilePuzzleRatings(ratings, profile.puzzleRatings ?? [], locale);
 
-  const body = document.createElement('div');
-  body.className = 'profile-body';
-  body.append(ratings, center);
-
-  shell.append(body);
+  shell.append(buildProfileDashboard(ratings, overview, buildProfileTabs(profile, locale)));
 }
 
 // Static frame of the players page: community rail, twin headings (Online
@@ -751,21 +750,13 @@ export function buildProfileOverview(
   spotlight: HTMLElement,
   locale: Locale = currentLocale(),
 ): HTMLElement {
-  const card = document.createElement('section');
-  card.className = 'profile-overview';
-
-  const top = document.createElement('div');
-  top.className = 'profile-overview-top';
-  top.append(buildProfileIdentity(profile, locale));
   const actions = buildProfileActions(profile, locale);
-  if (actions) top.append(actions);
-
-  const body = document.createElement('div');
-  body.className = 'profile-overview-body';
-  body.append(spotlight, buildProfileSideInfo(profile, locale));
-
-  card.append(top, body);
-  return card;
+  return buildProfileOverviewShell({
+    identity: buildProfileIdentity(profile, locale),
+    actions,
+    primary: spotlight,
+    side: buildProfileSideInfo(profile, locale),
+  });
 }
 
 // Identity block for the overview top strip: the handle heading (presence dot +
@@ -1506,13 +1497,6 @@ function chartDateLabel(
 // keeps bookmarks under its games area instead of making them a peer of
 // Activity.
 function buildProfileTabs(profile: UserProfile, locale: Locale = currentLocale()): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'profile-tabs';
-
-  const tabList = document.createElement('div');
-  tabList.className = 'profile-tab-list';
-  tabList.setAttribute('role', 'tablist');
-
   const activityPanel = buildProfileActivity(profile, locale);
   const gamesPanel = buildProfileGames(profile, locale);
   const saved = profile.isViewer ? buildSavedGamesPanel(locale) : null;
@@ -1522,22 +1506,7 @@ function buildProfileTabs(profile: UserProfile, locale: Locale = currentLocale()
   gamesGroup.id = `profile-games-${profile.user.handle}`;
   gamesPanel.id = `profile-games-all-${profile.user.handle}`;
   if (saved) saved.panel.id = `profile-saved-${profile.user.handle}`;
-  gamesGroup.hidden = true;
   if (saved) saved.panel.hidden = true;
-
-  const activityTab = buildProfileTabButton(
-    t('profile.activity', {}, locale),
-    activityPanel.id,
-    true,
-  );
-  // The Games tab carries the total game count (lichess angle-tab parity).
-  const gamesTab = buildProfileTabButton(
-    t('profile.games', {}, locale),
-    gamesGroup.id,
-    false,
-    profile.gamesTotal > 0 ? profile.gamesTotal : undefined,
-  );
-  tabList.append(activityTab, gamesTab);
 
   let loadSaved: (() => void) | null = null;
   if (saved) {
@@ -1574,21 +1543,15 @@ function buildProfileTabs(profile: UserProfile, locale: Locale = currentLocale()
     gamesGroup.append(gamesPanel);
   }
 
-  const activate = (button: HTMLButtonElement, showGames: boolean) => {
-    for (const tab of [activityTab, gamesTab]) {
-      tab.setAttribute('aria-selected', String(tab === button));
-    }
-    activityPanel.hidden = showGames;
-    gamesGroup.hidden = !showGames;
-  };
-  activityTab.addEventListener('click', () => activate(activityTab, false));
-  gamesTab.addEventListener('click', () => {
-    activate(gamesTab, true);
-    loadSaved?.();
-  });
-
-  section.append(tabList, activityPanel, gamesGroup);
-  return section;
+  return buildProfileTabsShell([
+    { label: t('profile.activity', {}, locale), panel: activityPanel },
+    {
+      label: t('profile.games', {}, locale),
+      panel: gamesGroup,
+      count: profile.gamesTotal > 0 ? profile.gamesTotal : undefined,
+      onActivate: () => loadSaved?.(),
+    },
+  ]);
 }
 
 function setProfileGamesSubtabCount(button: HTMLButtonElement, count: number): void {
@@ -1680,28 +1643,6 @@ async function fetchFavoriteGamesPage(
   const response = await fetch(`/api/games/favorites?offset=${offset}&limit=${limit}`);
   if (!response.ok) throw new Error(`failed to load saved games: ${response.status}`);
   return (await response.json()) as { games: FeaturedGame[]; total: number };
-}
-
-function buildProfileTabButton(
-  label: string,
-  controls: string,
-  selected: boolean,
-  count?: number,
-): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'profile-tab';
-  button.setAttribute('role', 'tab');
-  button.setAttribute('aria-controls', controls);
-  button.setAttribute('aria-selected', String(selected));
-  button.textContent = label;
-  if (count != null) {
-    const badge = document.createElement('span');
-    badge.className = 'profile-tab-count';
-    badge.textContent = String(count);
-    button.append(document.createTextNode(' '), badge);
-  }
-  return button;
 }
 
 function buildProfileGamesSubtab(
