@@ -23,6 +23,11 @@ import type { SerializedTree } from './review/tree-serialize.js';
 import { mountXiangqiGamebook } from './review/xiangqi-gamebook.js';
 import { buildNav } from './site-shell.js';
 import {
+  createStudyAutosave,
+  type StudyAutosave,
+  type StudyAutosaveState,
+} from './study-autosave.js';
+import {
   DEFAULT_STUDY_VARIANT,
   isStudyVariantId,
   type StudyVariantId,
@@ -37,6 +42,7 @@ import {
   clearTreeAnnotations,
   keepTreeMainline,
   openChapterSettingsDialog,
+  openStudySaveRecoveryDialog,
   openStudySettingsDialog,
   type StudySettingsPatch,
   type StudyVisibility,
@@ -71,16 +77,24 @@ type LoadResult =
   | { ok: false; status: number };
 
 const EMPTY_TREE: SerializedTree = { version: 1, root: { children: [] } };
+const studyMountTokens = new WeakMap<HTMLElement, object>();
+const studyMountCleanups = new WeakMap<HTMLElement, () => void>();
 
 export function mountStudy(root: HTMLElement, studyId: string, initialChapterId?: string): void {
+  studyMountCleanups.get(root)?.();
+  const token = {};
+  studyMountTokens.set(root, token);
   root.classList.add('landing-page', 'xiangqi-postgame-route');
   root.replaceChildren(buildNav(), notice('Loading study'));
   void loadStudy(studyId)
     .then((result) => {
+      if (studyMountTokens.get(root) !== token) return;
       if (result.ok) renderStudy(root, result.study, result.chapters, initialChapterId);
       else renderError(root, result.status);
     })
-    .catch(() => renderError(root, 0));
+    .catch(() => {
+      if (studyMountTokens.get(root) === token) renderError(root, 0);
+    });
 }
 
 async function loadStudy(studyId: string): Promise<LoadResult> {
@@ -108,7 +122,18 @@ function renderStudy(
   // Bumped on every render so an in-flight async board mount knows it is stale.
   let mountSeq = 0;
   let activeHandle: TreeReviewHandle | null = null;
-  let cancelActiveSave: (() => void) | null = null;
+  let activeAutosave: StudyAutosave | null = null;
+
+  const flushActive = async (): Promise<boolean> => {
+    if (!activeAutosave) return true;
+    return activeAutosave.flush();
+  };
+
+  const disposeActive = (): void => {
+    activeAutosave?.dispose();
+    activeAutosave = null;
+    activeHandle = null;
+  };
 
   const updateChapterUrl = (id: string, mode: 'push' | 'replace'): void => {
     const nextPath = studyChapterPath(study.id, id, window.location.pathname);
@@ -119,10 +144,17 @@ function renderStudy(
     else window.history.replaceState({ studyId: study.id, chapterId: id }, '', nextUrl);
   };
 
-  const switchTo = (id: string, historyMode: 'push' | 'replace' = 'push'): void => {
+  const switchTo = async (id: string, historyMode: 'push' | 'replace' = 'push'): Promise<void> => {
     // No-op when already active — otherwise a double-click (two clicks) would
     // re-render and detach the tab label before its dblclick-to-rename fires.
     if (id === activeId) return;
+    if (!(await flushActive())) {
+      // Back/Forward changes the URL before popstate. Restore the still-active
+      // chapter when its local draft could not be safely flushed.
+      updateChapterUrl(activeId, 'replace');
+      return;
+    }
+    disposeActive();
     activeId = id;
     updateChapterUrl(id, historyMode);
     // renderActive() rebuilds the whole page and the board mounts async, so the
@@ -148,11 +180,20 @@ function renderStudy(
     ) {
       return;
     }
-    activeId = chapterId;
-    preserveScroll();
-    renderActive();
+    void switchTo(chapterId, 'replace');
   };
   window.addEventListener('popstate', onPopState);
+  const onBeforeUnload = (event: BeforeUnloadEvent): void => {
+    if (!activeAutosave?.hasPending()) return;
+    event.preventDefault();
+    event.returnValue = '';
+  };
+  window.addEventListener('beforeunload', onBeforeUnload);
+  studyMountCleanups.set(root, () => {
+    window.removeEventListener('popstate', onPopState);
+    window.removeEventListener('beforeunload', onBeforeUnload);
+    disposeActive();
+  });
 
   // Keep the page from jumping to the top on a chapter switch. Capture the
   // scroll now and restore it across the re-render + async board mount, until a
@@ -192,6 +233,7 @@ function renderStudy(
     rootFen?: string,
     sourceRoot?: SerializedTree,
   ): Promise<string | null> => {
+    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
     // rootFen rides inside the tree blob (SerializedTree.rootFen). Duplicating a
     // chapter supplies the whole source tree instead.
     const chapterRoot: SerializedTree = sourceRoot
@@ -210,7 +252,7 @@ function renderStudy(
     if (!response.ok) return responseError(response, 'Could not create the chapter.');
     const { chapter } = (await response.json()) as { chapter: ChapterDto };
     chapters.push(chapter);
-    switchTo(chapter.id);
+    await switchTo(chapter.id);
     return null;
   };
 
@@ -220,6 +262,7 @@ function renderStudy(
     );
 
   const removeChapter = async (id: string): Promise<string | null> => {
+    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
     const response = await fetch(`/api/studies/${study.id}/chapters/${id}`, { method: 'DELETE' });
     if (!response.ok) return responseError(response, 'Could not delete the chapter.');
     const index = chapters.findIndex((chapter) => chapter.id === id);
@@ -228,11 +271,13 @@ function renderStudy(
       activeId = chapters[Math.min(index, chapters.length - 1)]?.id ?? activeId;
       updateChapterUrl(activeId, 'replace');
     }
+    disposeActive();
     renderActive();
     return null;
   };
 
   const reorderChapters = async (nextIds: string[]): Promise<string | null> => {
+    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
     const response = await fetch(`/api/studies/${study.id}/chapters`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -247,6 +292,7 @@ function renderStudy(
     if (reordered.length !== chapters.length)
       return 'The chapter list changed. Reload and try again.';
     chapters.splice(0, chapters.length, ...reordered);
+    disposeActive();
     renderActive();
     return null;
   };
@@ -262,6 +308,7 @@ function renderStudy(
   ): Promise<string | null> => {
     const chapter = chapters.find((entry) => entry.id === chapterId);
     if (!chapter) return 'Chapter not found.';
+    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
     const response = await fetch(`/api/studies/${study.id}/chapters/${chapterId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -270,16 +317,24 @@ function renderStudy(
     if (!response.ok) return responseError(response, 'Could not update lesson mode.');
     chapter.gamebook = on;
     if (!on) previewMode = false;
-    if (rerender) renderActive();
+    if (rerender) {
+      disposeActive();
+      renderActive();
+    }
     return null;
   };
 
   const setPreview = (on: boolean): void => {
-    previewMode = on;
-    renderActive();
+    void flushActive().then((saved) => {
+      if (!saved) return;
+      previewMode = on;
+      disposeActive();
+      renderActive();
+    });
   };
 
   const saveStudySettings = async (patch: StudySettingsPatch): Promise<string | null> => {
+    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
     const response = await fetch(`/api/studies/${study.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -289,6 +344,7 @@ function renderStudy(
     study.name = patch.name;
     study.description = patch.description;
     study.visibility = patch.visibility;
+    disposeActive();
     renderActive();
     return null;
   };
@@ -296,6 +352,8 @@ function renderStudy(
   const deleteStudy = async (): Promise<string | null> => {
     const response = await fetch(`/api/studies/${study.id}`, { method: 'DELETE' });
     if (!response.ok) return responseError(response, 'Could not delete the study.');
+    activeAutosave?.discard();
+    disposeActive();
     window.location.href = localizedHref('/study?tab=mine');
     return null;
   };
@@ -304,6 +362,7 @@ function renderStudy(
     chapter: ChapterDto,
     patch: ChapterSettingsPatch,
   ): Promise<string | null> => {
+    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
     if (patch.name !== chapter.name) {
       const response = await fetch(`/api/studies/${study.id}/chapters/${chapter.id}`, {
         method: 'PATCH',
@@ -317,6 +376,7 @@ function renderStudy(
       const error = await setGamebook(chapter.id, patch.gamebook, false);
       if (error) return error;
     }
+    disposeActive();
     renderActive();
     return null;
   };
@@ -325,6 +385,7 @@ function renderStudy(
     chapter: ChapterDto,
     nextRoot: SerializedTree,
   ): Promise<string | null> => {
+    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
     const response = await fetch(`/api/studies/${study.id}/chapters/${chapter.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -338,6 +399,7 @@ function renderStudy(
     const body = (await response.json()) as { chapter: { version: number } };
     chapter.root = nextRoot;
     chapter.version = body.chapter.version;
+    disposeActive();
     renderActive();
     return null;
   };
@@ -352,28 +414,27 @@ function renderStudy(
   const openChapterSettings = (model: ChapterControlModel): void => {
     const chapter = chapters.find((entry) => entry.id === model.id);
     if (!chapter) return;
-    const snapshotActive = (cancelPending: boolean): void => {
+    const snapshotActive = (): void => {
       if (chapter.id === activeId && activeHandle) chapter.root = activeHandle.serialize();
-      if (cancelPending) cancelActiveSave?.();
     };
     openChapterSettingsDialog(chapter, {
       canUseGamebook: studyVariantSupportsGamebook(studyVariant()),
       canDelete: chapters.length > 1,
       onSave: (patch) => saveChapterSettings(chapter, patch),
       onDuplicate: () => {
-        snapshotActive(false);
+        snapshotActive();
         return createChapter(`${chapter.name} copy`, undefined, chapter.root);
       },
       onClearAnnotations: () => {
-        snapshotActive(true);
+        snapshotActive();
         return saveChapterRoot(chapter, clearTreeAnnotations(chapter.root));
       },
       onClearVariations: () => {
-        snapshotActive(true);
+        snapshotActive();
         return saveChapterRoot(chapter, keepTreeMainline(chapter.root));
       },
       onDelete: () => {
-        snapshotActive(true);
+        snapshotActive();
         return removeChapter(chapter.id);
       },
     });
@@ -429,39 +490,60 @@ function renderStudy(
       return;
     }
 
-    let version = chapter.version;
     let handle: TreeReviewHandle | null = null;
     activeHandle = null;
-    cancelActiveSave = null;
     const status = statusSpan();
-
-    const save = debounce(() => {
-      if (!handle) return;
-      status.textContent = 'Saving…';
-      status.dataset.state = 'saving';
-      const tree = handle.serialize();
-      void fetch(`/api/studies/${study.id}/chapters/${chapter.id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ root: tree, baseVersion: version }),
-      })
-        .then(async (response) => {
-          if (response.ok) {
-            const body = (await response.json()) as { chapter: { version: number } };
-            version = body.chapter.version;
-            chapter.version = version;
-            setStatus(status, 'saved', 'Saved');
-            return;
-          }
-          if (response.status === 409) {
-            setStatus(status, 'conflict', 'Edited in another tab, reload to continue');
-            return;
-          }
-          setStatus(status, 'error', 'Save failed');
-        })
-        .catch(() => setStatus(status, 'error', 'Save failed'));
-    }, 700);
-    cancelActiveSave = save.cancel;
+    let autosave: StudyAutosave | null = null;
+    if (study.isOwner) {
+      const updateStatus = (state: StudyAutosaveState, message: string): void => {
+        setStatus(status, state, message);
+        const actionable = state === 'conflict' || state === 'error';
+        status.classList.toggle('is-actionable', actionable);
+        if (actionable) {
+          status.setAttribute('role', 'button');
+          status.tabIndex = 0;
+          status.title =
+            state === 'conflict' ? 'Choose which chapter copy to keep' : 'Retry saving this draft';
+        } else {
+          status.removeAttribute('role');
+          status.removeAttribute('tabindex');
+          status.removeAttribute('title');
+        }
+      };
+      autosave = createStudyAutosave({
+        studyId: study.id,
+        chapterId: chapter.id,
+        initialTree: chapter.root,
+        initialVersion: chapter.version,
+        onStatus: updateStatus,
+        onSaved: (tree, version) => {
+          chapter.root = tree;
+          chapter.version = version;
+        },
+      });
+      chapter.root = autosave.initialTree;
+      activeAutosave = autosave;
+      const resolveOrRetry = (): void => {
+        if (!autosave) return;
+        if (!autosave.hasConflict()) {
+          void autosave.flush();
+          return;
+        }
+        openStudySaveRecoveryDialog({
+          onKeepLocal: () => autosave?.overwriteRemote() ?? Promise.resolve(false),
+          onUseServer: () => {
+            autosave?.discard();
+            window.location.reload();
+          },
+        });
+      };
+      status.addEventListener('click', resolveOrRetry);
+      status.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        resolveOrRetry();
+      });
+    }
 
     // The board stacks are code-split per variant, so the mount is async: the
     // page renders its nav, then the board lands. A stale mount (the reader
@@ -487,7 +569,7 @@ function renderStudy(
       // A study is read forward. Landing on the final position of a 60-ply
       // annotated game means rewinding before you can start.
       initialPosition: 'start',
-      initialTree: chapter.root,
+      initialTree: autosave?.initialTree ?? chapter.root,
       // A composition chapter (SerializedTree.rootFen) roots the board at its
       // hand-set position; an invalid FEN degrades to the standard start, same
       // posture as a corrupt blob.
@@ -496,10 +578,9 @@ function renderStudy(
         ? () => {
             // Keep the in-memory chapter tree fresh so switching tabs never drops an
             // edit that has not been flushed to the server yet.
-            if (handle) chapter.root = handle.serialize();
-            status.textContent = 'Editing…';
-            status.dataset.state = 'dirty';
-            save.run();
+            if (!handle || !autosave) return;
+            chapter.root = handle.serialize();
+            autosave.markDirty(chapter.root);
           }
         : undefined,
     })
@@ -707,20 +788,6 @@ async function responseError(response: Response, fallback: string): Promise<stri
 function setStatus(el: HTMLElement, state: string, text: string): void {
   el.dataset.state = state;
   el.textContent = text;
-}
-
-function debounce(fn: () => void, ms: number): { run(): void; cancel(): void } {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  return {
-    run: () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(fn, ms);
-    },
-    cancel: () => {
-      if (timer) clearTimeout(timer);
-      timer = null;
-    },
-  };
 }
 
 function notice(text: string): HTMLElement {

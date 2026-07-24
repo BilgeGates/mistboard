@@ -5,6 +5,7 @@ import {
   clearTreeAnnotations,
   keepTreeMainline,
   moveChapterId,
+  openStudySaveRecoveryDialog,
 } from './study-controls.js';
 
 const tree: SerializedTree = {
@@ -141,5 +142,27 @@ describe('study chapter rail', () => {
     expect(rail.querySelector('.study-chapters__chapter-settings')).toBeNull();
     expect(rail.querySelector('.study-chapters__drag')).toBeNull();
     expect(rail.querySelector('.study-chapters__add')).toBeNull();
+  });
+});
+
+describe('study save recovery', () => {
+  it('requires an explicit choice before replacing either chapter copy', async () => {
+    const onKeepLocal = vi.fn(async () => true);
+    const onUseServer = vi.fn();
+
+    openStudySaveRecoveryDialog({ onKeepLocal, onUseServer });
+    const dialog = document.querySelector<HTMLDialogElement>(
+      'dialog[data-study-dialog="save-recovery"]',
+    );
+    expect(dialog?.textContent).toContain('Your local edits are safe on this device.');
+    expect(dialog?.textContent).toContain('Keep my draft');
+    expect(dialog?.textContent).toContain('Use server copy');
+
+    [...(dialog?.querySelectorAll<HTMLButtonElement>('button') ?? [])]
+      .find((button) => button.textContent === 'Keep my draft')
+      ?.click();
+    await vi.waitFor(() => expect(onKeepLocal).toHaveBeenCalledOnce());
+    expect(onUseServer).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(dialog?.isConnected).toBe(false));
   });
 });

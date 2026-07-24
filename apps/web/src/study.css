@@ -288,6 +288,17 @@
 .study-actions__status[data-state="conflict"] {
   color: #b91c1c;
 }
+.study-actions__status.is-actionable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 0.2em;
+}
+.study-actions__status.is-actionable:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--site-accent);
+  outline-offset: 3px;
+}
 
 /* Errata invitation, below the chapter list on public studies. Deliberately
  * quiet: it is an admission that the transcriptions can be wrong, which belongs
@@ -468,6 +479,19 @@
   min-height: 7rem;
   resize: vertical;
   line-height: 1.45;
+}
+.study-save-recovery {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.study-save-recovery p {
+  margin: 0;
+  line-height: 1.5;
+}
+.study-save-recovery__guidance {
+  color: var(--site-muted);
+  font-size: 0.86rem;
 }
 .study-settings__check {
   display: flex;

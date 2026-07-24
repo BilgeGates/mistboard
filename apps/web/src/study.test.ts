@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { chapterIdFromStudyPath, mountStudy, studyChapterPath } from './study.js';
+import { studyDraftKey } from './study-autosave.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -152,6 +153,88 @@ describe('study chapter permalinks', () => {
       expect(root.querySelector('.study-chapters__row.is-active')?.textContent).toContain('First'),
     );
   });
+
+  it('flushes a recovered local draft before switching chapters or closing', async () => {
+    const storage = memoryStorage();
+    const pendingSave = deferred<Response>();
+    storage.setItem(
+      studyDraftKey('study1', 'chapter1'),
+      JSON.stringify({
+        schemaVersion: 1,
+        baseVersion: 1,
+        tree: {
+          version: 1,
+          root: { children: [{ uci: 'h2e2', children: [] }] },
+        },
+        updatedAt: 123,
+      }),
+    );
+    vi.stubGlobal('localStorage', storage);
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input.toString();
+      if (url === '/api/studies/study1' && !init?.method) {
+        return jsonResponse({
+          study: {
+            id: 'study1',
+            name: 'Cannon manual',
+            description: '',
+            visibility: 'private',
+            isOwner: true,
+            likeCount: 0,
+            likedByViewer: false,
+          },
+          chapters: [
+            {
+              id: 'chapter1',
+              name: 'First',
+              variant: 'xiangqi',
+              orientation: 'red',
+              root: { version: 1, root: { children: [] } },
+              version: 1,
+              gamebook: false,
+            },
+            {
+              id: 'chapter2',
+              name: 'Second',
+              variant: 'xiangqi',
+              orientation: 'red',
+              root: { version: 1, root: { children: [] } },
+              version: 1,
+              gamebook: false,
+            },
+          ],
+        });
+      }
+      if (url === '/api/chat/study/study1') return jsonResponse({ lines: [] });
+      if (url === '/api/studies/study1/chapters/chapter1' && init?.method === 'PATCH') {
+        return pendingSave.promise;
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const root = document.createElement('div');
+    document.body.append(root);
+
+    mountStudy(root, 'study1', 'chapter1');
+    await vi.waitFor(() => expect(root.querySelector('.review-shell--study')).not.toBeNull());
+    expect(root.querySelector('.study-actions__status')?.textContent).toBe('Recovered local draft');
+
+    root.querySelectorAll<HTMLAnchorElement>('.study-chapters__link')[1]?.click();
+    await vi.waitFor(() =>
+      expect(fetcher).toHaveBeenCalledWith(
+        '/api/studies/study1/chapters/chapter1',
+        expect.objectContaining({ method: 'PATCH' }),
+      ),
+    );
+    expect(window.location.pathname).toBe('/study/study1/chapter1');
+    const unload = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(unload);
+    expect(unload.defaultPrevented).toBe(true);
+
+    pendingSave.resolve(jsonResponse({ chapter: { version: 2 } }));
+    await vi.waitFor(() => expect(window.location.pathname).toBe('/study/study1/chapter2'));
+    expect(storage.getItem(studyDraftKey('study1', 'chapter1'))).toBeNull();
+  });
 });
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -159,4 +242,33 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { 'content-type': 'application/json' },
   });
+}
+
+function deferred<T>(): {
+  promise: Promise<T>;
+  resolve(value: T): void;
+} {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+function memoryStorage(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: () => values.clear(),
+    getItem: (key) => values.get(key) ?? null,
+    key: (index) => [...values.keys()][index] ?? null,
+    removeItem: (key) => {
+      values.delete(key);
+    },
+    setItem: (key, value) => {
+      values.set(key, value);
+    },
+  };
 }

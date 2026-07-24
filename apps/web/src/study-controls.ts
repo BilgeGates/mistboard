@@ -422,6 +422,69 @@ export function openChapterSettingsDialog(
   showDialog(dialog, name);
 }
 
+export type StudySaveRecoveryActions = {
+  onKeepLocal(): Promise<boolean>;
+  onUseServer(): void;
+};
+
+export function openStudySaveRecoveryDialog(actions: StudySaveRecoveryActions): void {
+  closeExistingDialog('save-recovery');
+  const dialog = baseDialog('save-recovery', 'Choose which chapter to keep');
+
+  const body = document.createElement('div');
+  body.className = 'study-save-recovery';
+  const explanation = document.createElement('p');
+  explanation.textContent =
+    'This chapter changed in another tab. Your local edits are safe on this device.';
+  const guidance = document.createElement('p');
+  guidance.className = 'study-save-recovery__guidance';
+  guidance.textContent =
+    'Keep your draft to replace the newer server copy, or use the server copy to discard this local draft.';
+  body.append(explanation, guidance);
+
+  const feedback = feedbackLine();
+  const actionsRow = document.createElement('div');
+  actionsRow.className = 'study-create-dialog__actions';
+  const useServer = actionButton('Use server copy', 'study-settings__danger-action');
+  useServer.addEventListener('click', () => {
+    actions.onUseServer();
+    dialog.close('server');
+  });
+  const keepLocal = actionButton('Keep my draft', 'study-create-dialog__start');
+  keepLocal.addEventListener('click', () => {
+    setPending(keepLocal, 'Saving…');
+    useServer.disabled = true;
+    void actions
+      .onKeepLocal()
+      .then((saved) => {
+        if (saved) {
+          dialog.close('local');
+          return;
+        }
+        setFeedback(
+          feedback,
+          'The draft is still safe locally. Check your connection and retry.',
+          'error',
+        );
+        restoreButton(keepLocal, 'Keep my draft');
+        useServer.disabled = false;
+      })
+      .catch(() => {
+        setFeedback(
+          feedback,
+          'The draft is still safe locally. Check your connection and retry.',
+          'error',
+        );
+        restoreButton(keepLocal, 'Keep my draft');
+        useServer.disabled = false;
+      });
+  });
+  actionsRow.append(useServer, keepLocal);
+  body.append(feedback, actionsRow);
+  dialog.append(body);
+  showDialog(dialog, keepLocal);
+}
+
 export function clearTreeAnnotations(tree: SerializedTree): SerializedTree {
   return {
     ...tree,
