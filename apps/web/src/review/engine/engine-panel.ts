@@ -6,12 +6,14 @@
 // Before a flip game binds ink ownership, the same seat is labelled P1 instead.
 import { gearIconSvg } from '../../theme.js';
 import {
+  type CevalEffort,
   type CevalHandle,
   type CevalLine,
   type CevalUpdate,
   type CevalVariant,
   cevalEngineName,
   cevalSupported,
+  cevalSupportsInfinite,
   createCeval,
 } from './ceval.js';
 import './engine-panel.css';
@@ -78,7 +80,10 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   const engineName = cevalEngineName(opts.variant);
   // Mutable so the settings popover can retune them live.
   let multiPv = opts.multiPv ?? 3;
-  let maxDepth = opts.maxDepth ?? 18;
+  const effortOptions: readonly CevalEffort[] = cevalSupportsInfinite(opts.variant)
+    ? ['quick', 'standard', 'deep', 'max', 'infinite']
+    : ['quick', 'standard', 'deep', 'max'];
+  let effort: CevalEffort = effortForInitialDepth(opts.maxDepth);
   const formatMove = opts.formatPvMove ?? ((uci: string) => uci);
 
   const el = document.createElement('section');
@@ -150,11 +155,16 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
       },
     ),
     sliderRow(
-      'Depth',
-      { min: 14, max: 26, step: 4, value: maxDepth },
-      (value) => String(value),
+      'Search effort',
+      {
+        min: 0,
+        max: effortOptions.length - 1,
+        step: 1,
+        value: effortOptions.indexOf(effort),
+      },
+      (value) => effortLabel(effortOptions[value] ?? 'standard'),
       (value) => {
-        maxDepth = value;
+        effort = effortOptions[value] ?? 'standard';
         if (on) evaluateNow();
       },
     ),
@@ -224,7 +234,10 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     const status = update.depth
       ? `Depth ${update.depth}${update.nps ? ` · ${formatKnps(update.nps)}` : ''}`
       : 'thinking…';
-    sub.textContent = topFlipsTied(update.lines) ? `${status} · Top flips tied` : status;
+    const activeStatus = effort === 'infinite' ? `${status} · analyzing` : status;
+    sub.textContent = topFlipsTied(update.lines)
+      ? `${activeStatus} · Top flips tied`
+      : activeStatus;
     lines.replaceChildren(
       ...update.lines.map((line) => renderLine(line, side, formatMove, opts.variant, firstPlayer)),
     );
@@ -243,7 +256,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
         movesUci: moves,
         initialFen: currentFen,
         multiPv,
-        maxDepth,
+        effort,
         onUpdate: (update) => render(update, side),
       })
       .catch((err: unknown) => {
@@ -307,6 +320,16 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     opts.evalBar?.setIdle(true);
   }
 
+  function onVisibilityChange(): void {
+    if (!on || effort !== 'infinite') return;
+    if (document.hidden) {
+      handle?.stop();
+      sub.textContent = 'Paused while tab inactive';
+      return;
+    }
+    evaluateNow();
+  }
+
   if (!supported) {
     toggle.disabled = true;
     sub.textContent = 'Local engine needs a cross-origin-isolated reload.';
@@ -317,6 +340,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   clearOutput();
   // The panel starts engine-off; the eval bar reads inactive until turnOn.
   opts.evalBar?.setIdle(true);
+  document.addEventListener('visibilitychange', onVisibilityChange);
 
   return {
     el,
@@ -329,9 +353,32 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     },
     dispose() {
       clearTimeout(debounceId);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       handle?.dispose();
     },
   };
+}
+
+function effortForInitialDepth(maxDepth?: number): CevalEffort {
+  if (maxDepth === undefined || maxDepth === 18) return 'standard';
+  if (maxDepth <= 14) return 'quick';
+  if (maxDepth <= 22) return 'deep';
+  return 'max';
+}
+
+function effortLabel(effort: CevalEffort): string {
+  switch (effort) {
+    case 'quick':
+      return 'Quick';
+    case 'standard':
+      return 'Standard';
+    case 'deep':
+      return 'Deep';
+    case 'max':
+      return 'Max';
+    case 'infinite':
+      return '∞';
+  }
 }
 
 // One settings row: label · range slider · live value readout. The readout

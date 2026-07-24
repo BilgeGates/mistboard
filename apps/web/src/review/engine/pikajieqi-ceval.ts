@@ -8,6 +8,7 @@ import type {
   CevalUpdate,
   CevalVariant,
 } from './ceval-types.js';
+import { depthForEffort } from './ceval-types.js';
 import { parseInfo } from './uci-info.js';
 
 const ENGINE_BASE = '/engine/pikafish-jieqi/';
@@ -129,6 +130,7 @@ export class PikaJieQiCeval implements CevalHandle {
     const stopped = this.waitFor((line) => line.startsWith('bestmove'));
     this.send('stop');
     await stopped;
+    this.searching = false;
   }
 
   async evaluate(req: CevalRequest): Promise<CevalUpdate> {
@@ -142,7 +144,8 @@ export class PikaJieQiCeval implements CevalHandle {
       throw new Error('pikajieqi-ceval: initialFen required');
     }
     const multiPv = req.multiPv ?? 1;
-    const maxDepth = req.maxDepth ?? 18;
+    const maxDepth = req.maxDepth ?? depthForEffort(req.effort);
+    const infinite = req.maxDepth === undefined && req.effort === 'infinite';
     this.send(`setoption name MultiPV value ${multiPv}`);
     this.send(
       req.movesUci.length
@@ -191,6 +194,7 @@ export class PikaJieQiCeval implements CevalHandle {
         }
         if (!line.startsWith('bestmove')) return;
         off();
+        this.searching = false;
         if (this.token !== myToken) {
           resolve(EMPTY_UPDATE);
           return;
@@ -200,7 +204,7 @@ export class PikaJieQiCeval implements CevalHandle {
         resolve(update);
       });
       this.searching = true;
-      this.send(`go depth ${maxDepth}`);
+      this.send(infinite ? 'go infinite' : `go depth ${maxDepth}`);
     });
   }
 

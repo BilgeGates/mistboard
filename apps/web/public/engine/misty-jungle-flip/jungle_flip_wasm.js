@@ -1,6 +1,64 @@
 /* @ts-self-types="./jungle_flip_wasm.d.ts" */
 
 /**
+ * Stateful, incrementally advanced analysis for the browser's continuous mode.
+ *
+ * JavaScript calls `step` with bounded node slices and yields to the worker event loop
+ * between calls. Dropping this object cancels the search without an unbounded wasm call.
+ */
+export class AnalysisSession {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        AnalysisSessionFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_analysissession_free(ptr, 0);
+    }
+    /**
+     * @returns {number}
+     */
+    get depth() {
+        const ret = wasm.analysissession_depth(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {string} fen
+     * @param {number} multipv
+     */
+    constructor(fen, multipv) {
+        const ptr0 = passStringToWasm0(fen, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.analysissession_new(ptr0, len0, multipv);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0];
+        AnalysisSessionFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * @param {number} nodes
+     * @returns {string}
+     */
+    step(nodes) {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.analysissession_step(this.__wbg_ptr, nodes);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+}
+if (Symbol.dispose) AnalysisSession.prototype[Symbol.dispose] = AnalysisSession.prototype.free;
+
+/**
  * Evaluate a redacted Flip Jungle FEN and return the top-`multipv` legal moves as JSON,
  * ranked best-first, each with an exact side-to-move centipawn score.
  *
@@ -29,6 +87,14 @@ export function analyze(fen, nodes, multipv) {
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,
+        __wbg___wbindgen_throw_344f42d3211c4765: function(arg0, arg1) {
+            throw new Error(getStringFromWasm0(arg0, arg1));
+        },
+        __wbindgen_cast_0000000000000001: function(arg0, arg1) {
+            // Cast intrinsic for `Ref(String) -> Externref`.
+            const ret = getStringFromWasm0(arg0, arg1);
+            return ret;
+        },
         __wbindgen_init_externref_table: function() {
             const table = wasm.__wbindgen_externrefs;
             const offset = table.grow(4);
@@ -44,6 +110,10 @@ function __wbg_get_imports() {
         "./jungle_flip_wasm_bg.js": import0,
     };
 }
+
+const AnalysisSessionFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_analysissession_free(ptr, 1));
 
 function getStringFromWasm0(ptr, len) {
     return decodeText(ptr >>> 0, len);
@@ -92,6 +162,12 @@ function passStringToWasm0(arg, malloc, realloc) {
 
     WASM_VECTOR_LEN = offset;
     return ptr;
+}
+
+function takeFromExternrefTable0(idx) {
+    const value = wasm.__wbindgen_externrefs.get(idx);
+    wasm.__externref_table_dealloc(idx);
+    return value;
 }
 
 let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });

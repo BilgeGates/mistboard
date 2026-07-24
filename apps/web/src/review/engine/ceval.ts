@@ -12,18 +12,29 @@
 // without a circular import); imported for local use and re-exported below for existing
 // `from './ceval.js'` importers.
 import type {
+  CevalEffort,
   CevalHandle,
   CevalLine,
   CevalRequest,
   CevalUpdate,
   CevalVariant,
 } from './ceval-types.js';
+import { cevalSupportsInfinite, depthForEffort } from './ceval-types.js';
 import { isMistyCevalVariant, MistyCeval, mistyEngineName } from './misty-ceval.js';
 import { isPikaJieqiCevalVariant, PikaJieQiCeval, pikaJieqiEngineName } from './pikajieqi-ceval.js';
 import { parseInfo } from './uci-info.js';
 
 export { type InfoFields, parseInfo } from './uci-info.js';
-export type { CevalHandle, CevalLine, CevalRequest, CevalUpdate, CevalVariant };
+export {
+  type CevalEffort,
+  type CevalHandle,
+  type CevalLine,
+  type CevalRequest,
+  type CevalUpdate,
+  type CevalVariant,
+  cevalSupportsInfinite,
+  depthForEffort,
+};
 
 const ENGINE_BASE = '/engine/fairy-stockfish/';
 // The vendored FSF assets live in public/ and are NOT content-hashed like the Vite
@@ -201,7 +212,8 @@ class Ceval implements CevalHandle {
     this.stop(); // supersede any in-flight search
     const myToken = ++this.token;
     const multiPv = req.multiPv ?? 1;
-    const maxDepth = req.maxDepth ?? 18;
+    const maxDepth = req.maxDepth ?? depthForEffort(req.effort);
+    const infinite = req.maxDepth === undefined && req.effort === 'infinite';
 
     core.send('stop');
     core.send(`setoption name UCI_Variant value ${this.variant}`);
@@ -266,7 +278,7 @@ class Ceval implements CevalHandle {
       void ready.then(() => {
         if (this.token !== myToken) return;
         started = true;
-        core.send(`go depth ${maxDepth}`);
+        core.send(infinite ? 'go infinite' : `go depth ${maxDepth}`);
       });
     });
   }

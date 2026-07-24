@@ -42,6 +42,15 @@ class FakeWorker {
         });
         this.emit({ type: 'line', line: 'bestmove a0a1' });
       });
+    } else if (message.command === 'go infinite') {
+      queueMicrotask(() => {
+        this.emit({
+          type: 'line',
+          line: 'info depth 5 seldepth 8 multipv 1 score cp 33 nodes 1200 nps 450000 pv a0a1',
+        });
+      });
+    } else if (message.command === 'stop') {
+      queueMicrotask(() => this.emit({ type: 'line', line: 'bestmove a0a1' }));
     }
   }
 
@@ -117,6 +126,25 @@ describe('PikaJieQi ceval dispatch', () => {
     expect(FakeWorker.latest?.commands).toContain('setoption name MultiPV value 2');
     expect(FakeWorker.latest?.commands).toContain('go depth 4');
     expect(updates).toEqual([4, 4]);
+    handle.dispose();
+  });
+
+  it('runs continuous analysis until stop and then resolves the superseded search', async () => {
+    vi.stubGlobal('Worker', FakeWorker);
+    const handle = new PikaJieQiCeval('jieqi');
+    const updates: number[] = [];
+    const resultPromise = handle.evaluate({
+      movesUci: [],
+      initialFen: '9/9/9/9/9/9/9/9/9/9 w R0A0C0P0N0B0r0a0c0p0n0b0 0 1',
+      effort: 'infinite',
+      onUpdate: (update) => updates.push(update.depth),
+    });
+    await vi.waitFor(() => expect(FakeWorker.latest?.commands).toContain('go infinite'));
+    await vi.waitFor(() => expect(updates).toContain(5));
+    handle.stop();
+    const result = await resultPromise;
+    expect(result.lines).toEqual([]);
+    expect(FakeWorker.latest?.commands).toContain('stop');
     handle.dispose();
   });
 });

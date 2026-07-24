@@ -8,12 +8,13 @@
 // Key differences from the FSF backend:
 //  - SINGLE-THREADED wasm: no SharedArrayBuffer, so NO cross-origin isolation needed
 //    (cevalSupported() is unconditionally true for these variants).
-//  - SINGLE-SHOT, not iterative-deepening: the search runs once against a node budget and
-//    returns the top-K root moves (MistyBanqi's `root_move_values` — exact per-move evals),
-//    so evaluate() resolves with one update rather than streaming depth-by-depth.
+//  - NODE-BUDGETED: finite searches return one update. Flip Jungle additionally exposes
+//    a stateful incremental session for continuous analysis, yielding between bounded
+//    slices while retaining its TT and move-ordering state.
 //  - FEN-per-position, not moves-from-startpos: a flip variant's position is fed as a
 //    redacted FEN (face-down tiles as X); the panel supplies initialFen, movesUci is empty.
 import type {
+  CevalEffort,
   CevalHandle,
   CevalLine,
   CevalRequest,
@@ -27,7 +28,7 @@ import type {
 // edge cache keys for the worker script, the JS glue, AND the wasm.
 // -coep1: the 0.2.4-2 keys were edge-cached before the server started sending
 // COEP/CORP on /engine/<pkg>/ assets (2026-07-16); fresh keys pick the headers up.
-const MISTY_ASSET_VERSION = '0.2.4-coep1';
+const MISTY_ASSET_VERSION = '0.2.5-continuous1';
 
 interface MistyEngineConfig {
   /** Public base path of the vendored wasm build. */
@@ -36,32 +37,41 @@ interface MistyEngineConfig {
   moduleName: string;
   /** Human label shown in the panel. */
   engineName: string;
-  /** Depth-selector value (14/18/22/26) → search node budget. A Misty engine searches to a
-   *  node budget, not a fixed depth, so we translate the panel's "Depth" knob into nodes. */
-  nodesForDepth: (maxDepth: number) => number;
+  /** Product effort → node budget. Misty searches by nodes rather than a fixed depth. */
+  nodesForEffort: Record<Exclude<CevalEffort, 'infinite'>, number>;
+  /** Whether this vendored wasm exposes the stateful AnalysisSession API. */
+  incremental: boolean;
 }
+
+const MISTY_EFFORT_NODES: Record<Exclude<CevalEffort, 'infinite'>, number> = {
+  quick: 360_000,
+  standard: 2_000_000,
+  deep: 10_000_000,
+  max: 20_000_000,
+};
+const CONTINUOUS_SLICE_NODES = 2_000_000;
 
 const MISTY_CONFIGS: Record<string, MistyEngineConfig> = {
   banqi: {
     base: '/engine/misty-banqi/',
     moduleName: 'banqi_wasm',
     engineName: 'MistyBanqi',
-    // 14→280k … 26→520k: a review-board-appropriate budget (~100-400ms/position).
-    nodesForDepth: (maxDepth) => Math.max(80_000, maxDepth * 20_000),
+    nodesForEffort: MISTY_EFFORT_NODES,
+    incremental: false,
   },
   jungleflip: {
     base: '/engine/misty-jungle-flip/',
     moduleName: 'jungle_flip_wasm',
     engineName: 'MistyJungleFlip',
-    // Same budget shape as banqi; the 4×4 flip board resolves comparably fast per position.
-    nodesForDepth: (maxDepth) => Math.max(80_000, maxDepth * 20_000),
+    nodesForEffort: MISTY_EFFORT_NODES,
+    incremental: true,
   },
   jungle: {
     base: '/engine/misty-jungle/',
     moduleName: 'jungle_wasm',
     engineName: 'MistyJungle',
-    // Same budget shape; the 7×9 perfect-info board reaches ~depth 6-8 in this range.
-    nodesForDepth: (maxDepth) => Math.max(80_000, maxDepth * 20_000),
+    nodesForEffort: MISTY_EFFORT_NODES,
+    incremental: false,
   },
 };
 
@@ -86,6 +96,8 @@ export class MistyCeval implements CevalHandle {
   private nextId = 1;
   private pending = new Map<number, PendingAnalyze>();
   private token = 0;
+  private nextSessionId = 1;
+  private activeSessionId: number | null = null;
   private readonly config: MistyEngineConfig;
 
   constructor(readonly variant: CevalVariant) {
@@ -144,7 +156,14 @@ export class MistyCeval implements CevalHandle {
       throw new Error('misty-ceval: initialFen required (flip variants have no startpos)');
     }
     const multiPv = req.multiPv ?? 1;
-    const nodes = this.config.nodesForDepth(req.maxDepth ?? 18);
+    const effort = req.effort ?? 'standard';
+    const nodes =
+      req.maxDepth !== undefined
+        ? Math.max(80_000, req.maxDepth * 20_000)
+        : this.config.nodesForEffort[effort === 'infinite' ? 'standard' : effort];
+    if (effort === 'infinite' && this.config.incremental) {
+      return await this.evaluateContinuous(req, fen, multiPv, myToken);
+    }
     const json = await this.send(fen, nodes, multiPv);
     if (this.token !== myToken) {
       // A newer evaluate superseded us; return an empty update rather than stale lines.
@@ -153,6 +172,42 @@ export class MistyCeval implements CevalHandle {
     const update = parseMistyUpdate(json, nodes);
     req.onUpdate?.(update);
     return update;
+  }
+
+  private async evaluateContinuous(
+    req: CevalRequest,
+    fen: string,
+    multiPv: number,
+    token: number,
+  ): Promise<CevalUpdate> {
+    const sessionId = this.nextSessionId++;
+    this.activeSessionId = sessionId;
+    let reset = true;
+    let latest: CevalUpdate = {
+      depth: 0,
+      seldepth: 0,
+      nodes: 0,
+      nps: 0,
+      lines: [],
+    };
+    try {
+      while (this.token === token) {
+        const json = await this.sendStep(
+          sessionId,
+          reset ? fen : undefined,
+          CONTINUOUS_SLICE_NODES,
+          multiPv,
+        );
+        reset = false;
+        if (this.token !== token) break;
+        latest = parseMistyUpdate(json, latest.nodes + CONTINUOUS_SLICE_NODES);
+        req.onUpdate?.(latest);
+      }
+      return this.token === token ? latest : { ...latest, lines: [] };
+    } finally {
+      this.worker?.postMessage({ type: 'cancel', sessionId });
+      if (this.activeSessionId === sessionId) this.activeSessionId = null;
+    }
   }
 
   private send(fen: string, nodes: number, multipv: number): Promise<string> {
@@ -165,11 +220,29 @@ export class MistyCeval implements CevalHandle {
     });
   }
 
+  private sendStep(
+    sessionId: number,
+    fen: string | undefined,
+    nodes: number,
+    multipv: number,
+  ): Promise<string> {
+    const worker = this.worker;
+    if (!worker) return Promise.reject(new Error('misty-ceval: worker not ready'));
+    const id = this.nextId++;
+    return new Promise<string>((resolve, reject) => {
+      this.pending.set(id, { resolve, reject });
+      worker.postMessage({ type: 'step', id, sessionId, fen, nodes, multipv });
+    });
+  }
+
   stop(): void {
-    // The wasm search is synchronous in the worker and can't be interrupted mid-run; a
-    // bumped token makes any in-flight result resolve to an empty update, and the bounded
-    // node budget keeps a single search short.
+    // A wasm slice is synchronous inside the worker, so cancellation takes effect at the
+    // next bounded slice boundary. The token suppresses any stale result in the meantime.
     this.token++;
+    if (this.activeSessionId !== null) {
+      this.worker?.postMessage({ type: 'cancel', sessionId: this.activeSessionId });
+      this.activeSessionId = null;
+    }
   }
 
   dispose(): void {
@@ -186,7 +259,11 @@ export class MistyCeval implements CevalHandle {
 
 /** Parse the worker's `{"lines":[{uci,cp,depth}]}` JSON into a single-shot CevalUpdate. */
 export function parseMistyUpdate(json: string, nodeBudget: number): CevalUpdate {
-  let parsed: { lines?: Array<{ uci: string; cp: number; depth: number }>; error?: string };
+  let parsed: {
+    nodes?: number;
+    lines?: Array<{ uci: string; cp: number; depth: number }>;
+    error?: string;
+  };
   try {
     parsed = JSON.parse(json);
   } catch {
@@ -201,5 +278,5 @@ export function parseMistyUpdate(json: string, nodeBudget: number): CevalUpdate 
     pvUci: [line.uci],
   }));
   const depth = lines[0]?.depth ?? 0;
-  return { depth, seldepth: depth, nodes: nodeBudget, nps: 0, lines };
+  return { depth, seldepth: depth, nodes: parsed.nodes ?? nodeBudget, nps: 0, lines };
 }

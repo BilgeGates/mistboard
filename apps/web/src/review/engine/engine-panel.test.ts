@@ -202,3 +202,43 @@ describe('createEnginePanel arrow toggle', () => {
     panel.dispose();
   });
 });
+
+describe('createEnginePanel search effort', () => {
+  const effortRow = (panel: { el: HTMLElement }): HTMLElement =>
+    [...panel.el.querySelectorAll<HTMLElement>('.engine-panel__setting')].find((row) =>
+      row.textContent?.includes('Search effort'),
+    )!;
+
+  it('shows truthful effort labels and continuous analysis where supported', () => {
+    const panel = createEnginePanel({ variant: 'jungleflip' });
+    const row = effortRow(panel);
+    const slider = row.querySelector<HTMLInputElement>('input[type="range"]')!;
+    expect(row.textContent).toContain('Standard');
+    slider.value = slider.max;
+    slider.dispatchEvent(new Event('input'));
+    expect(row.textContent).toContain('∞');
+    expect(row.textContent).not.toContain('Depth');
+    panel.dispose();
+  });
+
+  it('keeps a finite maximum for Misty engines that are not incrementally cancellable yet', () => {
+    const panel = createEnginePanel({ variant: 'banqi' });
+    const row = effortRow(panel);
+    const slider = row.querySelector<HTMLInputElement>('input[type="range"]')!;
+    slider.value = slider.max;
+    slider.dispatchEvent(new Event('input'));
+    expect(row.textContent).toContain('Max');
+    expect(row.textContent).not.toContain('∞');
+    panel.dispose();
+  });
+
+  it('preserves an explicit fixed-depth maximum before the continuous endpoint', () => {
+    const panel = createEnginePanel({ variant: 'xiangqi', maxDepth: 26 });
+    const row = effortRow(panel);
+    expect(row.textContent).toContain('Max');
+    const slider = row.querySelector<HTMLInputElement>('input[type="range"]')!;
+    expect(slider.value).toBe('3');
+    expect(slider.max).toBe('4');
+    panel.dispose();
+  });
+});

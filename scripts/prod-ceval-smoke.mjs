@@ -180,12 +180,13 @@ async function checkMistyJungleFlip(browser) {
     await waitForEvalAndLines(page);
     await waitForBestMoveIndicator(page);
     const result = await readPanel(page);
+    const continuous = await exerciseContinuousAnalysis(page);
     const engineNamed = await page.evaluate(() =>
       (document.querySelector('.engine-panel')?.textContent ?? '').includes('MistyJungleFlip'),
     );
     if (!engineNamed) throw new Error('engine panel did not name MistyJungleFlip');
     assertNoFatalErrors(errors);
-    return { url, engine: 'MistyJungleFlip', ...result };
+    return { url, engine: 'MistyJungleFlip', ...result, continuous };
   } finally {
     await page.close();
   }
@@ -449,6 +450,35 @@ async function waitForBestMoveIndicator(page) {
     .locator('.xq-arrow--pv1, .engine-marker--pv1')
     .first()
     .waitFor({ state: 'attached', timeout: timeoutMs });
+}
+
+async function exerciseContinuousAnalysis(page) {
+  await page.locator('.engine-panel__gear').click();
+  const row = page.locator('.engine-panel__setting').filter({ hasText: 'Search effort' });
+  const slider = row.locator('input[type="range"]');
+  await slider.evaluate((input) => {
+    input.value = input.max;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await page.waitForFunction(
+    () => {
+      const status = document.querySelector('.engine-panel__sub')?.textContent ?? '';
+      const depth = Number(/\bDepth\s+(\d+)/.exec(status)?.[1] ?? 0);
+      return status.includes('analyzing') && depth >= 3;
+    },
+    { timeout: timeoutMs },
+  );
+  await waitForEvalAndLines(page);
+  const result = await readPanel(page);
+  await page.locator('button.engine-panel__switch').click();
+  await page.waitForFunction(
+    () =>
+      document.querySelector('button.engine-panel__switch')?.getAttribute('aria-checked') ===
+      'false',
+    { timeout: timeoutMs },
+  );
+  return { ...result, stopped: true };
 }
 
 async function waitForEvalOrGameOver(page) {

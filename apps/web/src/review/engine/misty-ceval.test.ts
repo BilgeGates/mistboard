@@ -2,7 +2,7 @@
 // parsing, variant dispatch, and the support/name helpers. The worker+wasm path is
 // exercised by the in-browser review board, not here (happy-dom has no real Worker+wasm).
 import { describe, expect, it } from 'vitest';
-import { cevalEngineName, cevalSupported } from './ceval.js';
+import { cevalEngineName, cevalSupported, cevalSupportsInfinite, depthForEffort } from './ceval.js';
 import { isMistyCevalVariant, mistyEngineName, parseMistyUpdate } from './misty-ceval.js';
 
 describe('parseMistyUpdate', () => {
@@ -19,6 +19,15 @@ describe('parseMistyUpdate', () => {
     expect(update.lines[1]).toMatchObject({ multipv: 2, scoreCp: -50, pvUci: ['d3d3'] });
     expect(update.depth).toBe(1);
     expect(update.nodes).toBe(360_000);
+  });
+
+  it('prefers the engine-reported cumulative node count for incremental search', () => {
+    const update = parseMistyUpdate(
+      '{"nodes":6000000,"lines":[{"uci":"a0a0","cp":-194,"depth":3}]}',
+      2_000_000,
+    );
+    expect(update.nodes).toBe(6_000_000);
+    expect(update.depth).toBe(3);
   });
 
   it('returns an empty update for an engine error or malformed JSON', () => {
@@ -55,5 +64,15 @@ describe('variant dispatch', () => {
     expect(cevalSupported('jungleflip')).toBe(true);
     expect(cevalSupported('jungle')).toBe(true);
     expect(cevalSupported('xiangqi')).toBe(false);
+  });
+
+  it('maps product effort without pretending Misty has a requested depth', () => {
+    expect(depthForEffort('quick')).toBe(14);
+    expect(depthForEffort('standard')).toBe(18);
+    expect(depthForEffort('deep')).toBe(22);
+    expect(depthForEffort('max')).toBe(26);
+    expect(cevalSupportsInfinite('jungleflip')).toBe(true);
+    expect(cevalSupportsInfinite('banqi')).toBe(false);
+    expect(cevalSupportsInfinite('jungle')).toBe(false);
   });
 });

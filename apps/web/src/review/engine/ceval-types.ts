@@ -15,6 +15,31 @@ export type CevalVariant =
   | 'jungleflip'
   | 'jungle';
 
+/** Product-level analysis effort. Backends translate this into their native
+ * control: UCI depth, a Misty node budget, or incremental continuous search. */
+export type CevalEffort = 'quick' | 'standard' | 'deep' | 'max' | 'infinite';
+
+const DEPTH_BY_EFFORT: Record<Exclude<CevalEffort, 'infinite'>, number> = {
+  quick: 14,
+  standard: 18,
+  deep: 22,
+  max: 26,
+};
+
+export function depthForEffort(effort: CevalEffort | undefined): number {
+  if (!effort || effort === 'infinite') return DEPTH_BY_EFFORT.standard;
+  return DEPTH_BY_EFFORT[effort];
+}
+
+export function cevalSupportsInfinite(variant: CevalVariant): boolean {
+  return (
+    variant === 'xiangqi' ||
+    variant === 'fortressxiangqi' ||
+    variant === 'jieqi' ||
+    variant === 'jungleflip'
+  );
+}
+
 export interface CevalLine {
   /** 1-based rank within MultiPV (1 = best). */
   multipv: number;
@@ -49,6 +74,9 @@ export interface CevalRequest {
   multiPv?: number;
   /** Cap search depth; the engine streams shallower updates first (default 18). */
   maxDepth?: number;
+  /** User-selected effort. `maxDepth` remains available for fixed-depth
+   * programmatic sweeps and takes precedence when supplied. */
+  effort?: CevalEffort;
   /** Progressive callback fired as depth increases (throttled). */
   onUpdate?: (update: CevalUpdate) => void;
 }
