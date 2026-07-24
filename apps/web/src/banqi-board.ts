@@ -9,12 +9,19 @@
 // Banqi is symmetric-info with a hidden deal: a face-down tile is FLIPPED by a
 // direct one-click self-move (never selected); a revealed own piece selects then
 // moves (click a target, or drag). Only revealed pieces are draggable — a flip is
-// click-only. Banqi has no client engine and the renderer has no overlay layer, so
-// setArrows/setMarkers are no-ops.
+// click-only. Engine moves render as arrows; flip recommendations render as
+// rings around their face-down destination.
 
 import type { BanqiMove, BanqiPlayerView, BanqiSeat, BanqiSquare } from '@mistboard/game';
 import { banqiClickResult } from './live-banqi-interaction.js';
-import { banqiPieceGhostSvg, renderBanqiBoardSvg } from './live-banqi-render.js';
+import {
+  type BanqiBoardArrow,
+  type BanqiBoardMarker,
+  banqiArrowSvg,
+  banqiMarkerSvg,
+  banqiPieceGhostSvg,
+  renderBanqiBoardSvg,
+} from './live-banqi-render.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 
@@ -36,8 +43,8 @@ export interface BanqiInteractiveBoardOptions {
 export interface BanqiInteractiveBoard {
   render(view: BanqiPlayerView | null, perspective: BanqiSeat): void;
   clearSelection(): void;
-  setArrows(): void;
-  setMarkers(): void;
+  setArrows(arrows: readonly BanqiBoardArrow[]): void;
+  setMarkers(markers: readonly BanqiBoardMarker[]): void;
 }
 
 export function createBanqiInteractiveBoard(
@@ -45,6 +52,8 @@ export function createBanqiInteractiveBoard(
 ): BanqiInteractiveBoard {
   let selectedSquare: BanqiSquare | null = null;
   let draggingFrom: BanqiSquare | null = null;
+  let arrows: readonly BanqiBoardArrow[] = [];
+  let markers: readonly BanqiBoardMarker[] = [];
 
   function render(view: BanqiPlayerView | null, perspective: BanqiSeat): void {
     if (!view) {
@@ -56,7 +65,21 @@ export function createBanqiInteractiveBoard(
       selectedSquare,
       legalMoves: view.legalMoves,
       draggingFrom,
+      arrows,
+      markers,
     });
+  }
+
+  function setArrows(next: readonly BanqiBoardArrow[]): void {
+    arrows = next;
+    const layer = opts.board.querySelector('.xq-live-arrows');
+    if (layer) layer.innerHTML = arrows.map(banqiArrowSvg).join('');
+  }
+
+  function setMarkers(next: readonly BanqiBoardMarker[]): void {
+    markers = next;
+    const layer = opts.board.querySelector('.xq-live-markers');
+    if (layer) layer.innerHTML = markers.map(banqiMarkerSvg).join('');
   }
 
   function rerender(): void {
@@ -144,5 +167,5 @@ export function createBanqiInteractiveBoard(
     },
   });
 
-  return { render, clearSelection, setArrows: () => {}, setMarkers: () => {} };
+  return { render, clearSelection, setArrows, setMarkers };
 }

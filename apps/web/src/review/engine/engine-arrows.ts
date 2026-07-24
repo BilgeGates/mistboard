@@ -16,6 +16,7 @@
 
 import { fsfUciToXiangqiSquares, winPercent } from '@mistboard/game';
 import type { SvgBoardArrowStyle } from '../../svg-board-arrow.js';
+import type { SvgBoardMarkerStyle } from '../../svg-board-marker.js';
 import type { XiangqiBoardArrow } from '../../xiangqi-board.js';
 import type { CevalLine } from './ceval.js';
 
@@ -24,7 +25,17 @@ export type EngineBoardArrow<Square extends string> = SvgBoardArrowStyle & {
   to: Square;
 };
 
-type ParseEngineMove<Square extends string> = (uci: string) => { from: Square; to: Square } | null;
+export type EngineBoardMarker<Square extends string> = SvgBoardMarkerStyle & {
+  square: Square;
+  kind: 'circle';
+};
+
+type ParseEngineMove<Square extends string> = (uci: string) => { from?: Square; to: Square } | null;
+
+export type EngineBoardOverlays<Square extends string> = {
+  arrows: EngineBoardArrow<Square>[];
+  markers: EngineBoardMarker<Square>[];
+};
 
 /** PV1 can also show the expected reply as a faint dashed second segment (the
  *  "length encodes strength" nod). OFF for now (2026-07-10): the dashed enemy
@@ -75,12 +86,44 @@ export function engineArrowsFromLinesWithParser<Square extends string>(
   lines: readonly CevalLine[],
   parseMove: ParseEngineMove<Square>,
 ): EngineBoardArrow<Square>[] {
+  return engineOverlaysFromLinesWithParser(lines, parseMove).arrows;
+}
+
+export function engineMarkersFromLinesWithParser<Square extends string>(
+  lines: readonly CevalLine[],
+  parseMove: ParseEngineMove<Square>,
+): EngineBoardMarker<Square>[] {
+  return engineOverlaysFromLinesWithParser(lines, parseMove).markers;
+}
+
+export function engineOverlaysFromLinesWithParser<Square extends string>(
+  lines: readonly CevalLine[],
+  parseMove: ParseEngineMove<Square>,
+): EngineBoardOverlays<Square> {
   const ranked = [...lines].sort((a, b) => a.multipv - b.multipv);
   const best = ranked[0];
-  if (!best) return [];
+  if (!best) return { arrows: [], markers: [] };
   const bestWin = lineWinPercent(best);
 
   const arrows: EngineBoardArrow<Square>[] = [];
+  const markers: EngineBoardMarker<Square>[] = [];
+  const push = (
+    move: { from?: Square; to: Square },
+    style: SvgBoardArrowStyle & { className: string },
+  ): void => {
+    if (move.from && move.from !== move.to) {
+      arrows.push({ from: move.from, to: move.to, ...style });
+    } else {
+      markers.push({
+        square: move.to,
+        kind: 'circle',
+        className: style.className.replace('xq-arrow', 'engine-marker'),
+        color: style.className === 'xq-arrow--alt' ? '#4a4a4a' : '#2b6cb8',
+        opacity: style.opacity,
+        width: Math.max(2, Math.round((style.width ?? 9) / 3)),
+      });
+    }
+  };
   // Weakest first: later entries paint over earlier ones.
   for (let rank = ranked.length - 1; rank >= 1; rank -= 1) {
     const line = ranked[rank];
@@ -92,8 +135,7 @@ export function engineArrowsFromLinesWithParser<Square extends string>(
     // drawing an alternate heavier than the best move.
     const shift = (bestWin - lineWinPercent(line)) / 100;
     if (shift < 0 || shift >= ALT_CUTOFF_SHIFT) continue;
-    arrows.push({
-      ...move,
+    push(move, {
       opacity: ALT_OPACITY,
       width: Math.max(2, Math.round(ALT_WIDTH_MAX - shift * ALT_WIDTH_SLOPE)),
       className: 'xq-arrow--alt',
@@ -101,13 +143,20 @@ export function engineArrowsFromLinesWithParser<Square extends string>(
   }
 
   const bestMove = parseMove(best.pvUci[0] ?? '');
-  if (bestMove) arrows.push({ ...bestMove, ...BEST_STYLE, className: 'xq-arrow--pv1' });
+  if (bestMove) push(bestMove, { ...BEST_STYLE, className: 'xq-arrow--pv1' });
 
   if (SHOW_PV1_REPLY_SEGMENT) {
     const reply = parseMove(best.pvUci[1] ?? '');
-    if (reply) arrows.unshift({ ...reply, ...REPLY_STYLE, className: 'xq-arrow--pv1-reply' });
+    if (reply?.from && reply.from !== reply.to) {
+      arrows.unshift({
+        from: reply.from,
+        to: reply.to,
+        ...REPLY_STYLE,
+        className: 'xq-arrow--pv1-reply',
+      });
+    }
   }
-  return arrows;
+  return { arrows, markers };
 }
 
 export function engineArrowsFromLines(lines: readonly CevalLine[]): XiangqiBoardArrow[] {
@@ -121,9 +170,41 @@ export function bestMoveArrowWithParser<Square extends string>(
   uci: string | null | undefined,
   parseMove: ParseEngineMove<Square>,
 ): EngineBoardArrow<Square>[] {
+  return bestMoveOverlaysWithParser(uci, parseMove).arrows;
+}
+
+export function bestMoveMarkerWithParser<Square extends string>(
+  uci: string | null | undefined,
+  parseMove: ParseEngineMove<Square>,
+): EngineBoardMarker<Square>[] {
+  return bestMoveOverlaysWithParser(uci, parseMove).markers;
+}
+
+export function bestMoveOverlaysWithParser<Square extends string>(
+  uci: string | null | undefined,
+  parseMove: ParseEngineMove<Square>,
+): EngineBoardOverlays<Square> {
   const move = parseMove(uci ?? '');
-  if (!move) return [];
-  return [{ ...move, ...BEST_STYLE, className: 'xq-arrow--best' }];
+  if (!move) return { arrows: [], markers: [] };
+  if (move.from && move.from !== move.to) {
+    return {
+      arrows: [{ from: move.from, to: move.to, ...BEST_STYLE, className: 'xq-arrow--best' }],
+      markers: [],
+    };
+  }
+  return {
+    arrows: [],
+    markers: [
+      {
+        square: move.to,
+        kind: 'circle',
+        className: 'engine-marker--best',
+        color: '#2b6cb8',
+        opacity: BEST_STYLE.opacity,
+        width: 5,
+      },
+    ],
+  };
 }
 
 export function bestMoveArrow(uci: string | null | undefined): XiangqiBoardArrow[] {

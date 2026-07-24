@@ -92,7 +92,7 @@ export interface TreeBoardFactoryOptions<Move, View, Color> {
 /** The injected, variant-specific presentation bundle. Arrow/Marker are OPAQUE to
  *  the controller (it only passes them from the engine/shape builders into the
  *  board handle), so they stay free type params. */
-export interface EnginePresentation<Truth, Arrow> {
+export interface EnginePresentation<Truth, Arrow, Marker> {
   /** Which ceval engine the local engine panel loads. */
   panelVariant: CevalVariant;
   /** How the panel is fed each position. `'moves'` (default): replay engine UCI from the
@@ -111,9 +111,14 @@ export interface EnginePresentation<Truth, Arrow> {
   /** On-board arrows for live MultiPV lines. Omit while a board renderer has no
    *  overlay capability; the engine panel then hides its arrow setting. */
   engineArrowsFromLines?(lines: CevalLine[]): Arrow[];
+  /** On-board point markers for engine actions without travel, such as a flip
+   *  or a reserve drop. Paired with bestMoveMarker below. */
+  engineMarkersFromLines?(lines: CevalLine[]): Marker[];
   /** Single best-move arrow from a whole-game analysis ply. Paired with
    *  engineArrowsFromLines as one board-overlay capability. */
   bestMoveArrow?(best: string | null | undefined): Arrow[];
+  /** Single best-action marker from a whole-game analysis ply. */
+  bestMoveMarker?(best: string | null | undefined): Marker[];
 }
 
 export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
@@ -122,7 +127,7 @@ export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
   /** Client-engine hooks (local ceval panel + eval gauge + engine arrows + Share
    *  FEN). Null for variants with no client engine: the panel and gauge are then
    *  omitted and the board carries no eval affordance. */
-  engine: EnginePresentation<Truth, Arrow> | null;
+  engine: EnginePresentation<Truth, Arrow, Marker> | null;
   /** Format a whole-game-analysis best move (server `evals[].best`, in the ANALYSIS
    *  engine's UCI dialect) for the "… was best" advice line. Omit to use the default
    *  xiangqi/FSF formatter (correct for xiangqi/fortress/jungle, whose display coords
@@ -579,17 +584,18 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // engine ink, so it shows only while the reader has the local engine on — an
   // engine-off board carries no derived arrows, only what the reader drew.
   let engineOn = false;
-  const engineArrowsSupported = Boolean(
-    presentation.engine?.engineArrowsFromLines && presentation.engine.bestMoveArrow,
+  const engineOverlaysSupported = Boolean(
+    (presentation.engine?.engineArrowsFromLines || presentation.engine?.engineMarkersFromLines) &&
+      (presentation.engine.bestMoveArrow || presentation.engine.bestMoveMarker),
   );
-  // "Best move arrows" (engine gear popover / `a`). Gates BOTH arrow sources
-  // below, so turning it off means no engine ink on the board at all; the user's
+  // "Best move indicators" (engine gear popover / `a`). Gates both derived
+  // overlay sources below, so turning it off means no engine ink on the board; the user's
   // own drawn shapes are unaffected (they are appended in paintOverlays).
   let showEngineArrows = readEngineArrowsEnabled();
   // Engine PV / analysis-best arrows for the current node (transient, derived).
   function engineArrows(): Arrow[] {
     const engine = presentation.engine;
-    if (!engine || !engineArrowsSupported || !showEngineArrows) return [];
+    if (!engine || !engineOverlaysSupported || !showEngineArrows) return [];
     if (engineLines?.length && engine.engineArrowsFromLines) {
       return engine.engineArrowsFromLines(engineLines);
     }
@@ -598,6 +604,21 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       if (mainlineNodes()[node.ply] === node) {
         const best = gameAnalysis.evals.find((entry) => entry.ply === node.ply)?.best;
         return engine.bestMoveArrow(best);
+      }
+    }
+    return [];
+  }
+  function engineMarkers(): Marker[] {
+    const engine = presentation.engine;
+    if (!engine || !engineOverlaysSupported || !showEngineArrows) return [];
+    if (engineLines?.length && engine.engineMarkersFromLines) {
+      return engine.engineMarkersFromLines(engineLines);
+    }
+    if (SHOW_ANALYSIS_BEST_ARROW && engineOn && gameAnalysis && engine.bestMoveMarker) {
+      const node = currentNode();
+      if (mainlineNodes()[node.ply] === node) {
+        const best = gameAnalysis.evals.find((entry) => entry.ply === node.ply)?.best;
+        return engine.bestMoveMarker(best);
       }
     }
     return [];
@@ -633,6 +654,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     // Glyph first so a user's own circle on the same point draws over it: the
     // annotation they just made should not be hidden by a derived badge.
     interactive.setMarkers([
+      ...engineMarkers(),
       ...glyphMarkers(),
       ...shapes.filter((s) => s.kind === 'circle').map(presentation.shapeToMarker),
     ]);
@@ -652,7 +674,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
             engineOn = on;
             paintOverlays();
           },
-          arrowsSupported: engineArrowsSupported,
+          arrowsSupported: engineOverlaysSupported,
           showArrows: showEngineArrows,
           onShowArrowsChange: (enabled) => {
             showEngineArrows = enabled;
@@ -1477,7 +1499,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       escape: () => closeVariationPicker(),
       // Only meaningful where an engine panel exists to hold the checkbox.
       toggleArrows:
-        enginePanel && engineArrowsSupported
+        enginePanel && engineOverlaysSupported
           ? () => enginePanel.setShowArrows(!showEngineArrows)
           : undefined,
     },

@@ -37,12 +37,25 @@ describe('createFortressXiangqiInteractiveBoard overlays', () => {
 
     expect(boardEl.querySelector('svg')).toBe(svgBefore);
     expect(boardEl.querySelector('.xq-arrow--pv1')).not.toBeNull();
+    board.setMarkers([
+      {
+        square: 'c3',
+        kind: 'circle',
+        className: 'engine-marker--pv1',
+        opacity: 0.4,
+        width: 5,
+      },
+    ]);
+    expect(boardEl.querySelector('.engine-marker--pv1')).not.toBeNull();
 
     perspective = 'black';
     board.render(view, perspective);
     expect(boardEl.querySelector('.xq-arrow--pv1')).not.toBeNull();
+    expect(boardEl.querySelector('.engine-marker--pv1')).not.toBeNull();
 
     board.setArrows([]);
+    board.setMarkers([]);
     expect(boardEl.querySelector('.xq-arrow--pv1')).toBeNull();
+    expect(boardEl.querySelector('.engine-marker--pv1')).toBeNull();
   });
 });

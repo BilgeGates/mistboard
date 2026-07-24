@@ -5,6 +5,7 @@
 // the presentation is built per-game rather than held as a module constant.
 
 import {
+  engineUciToJungleFlipMove,
   type JungleFlipDeal,
   type JungleFlipGameState,
   type JungleFlipMove,
@@ -14,7 +15,17 @@ import {
 } from '@mistboard/game';
 import { rectangularGridAspect } from '../board-metrics.js';
 import { createJungleFlipInteractiveBoard } from '../jungle-flip-board.js';
-import { JUNGLE_FLIP_BOARD_VIEW } from '../jungle-flip-render.js';
+import {
+  JUNGLE_FLIP_BOARD_VIEW,
+  type JungleFlipBoardArrow,
+  type JungleFlipBoardMarker,
+} from '../jungle-flip-render.js';
+import {
+  bestMoveArrowWithParser,
+  bestMoveMarkerWithParser,
+  engineArrowsFromLinesWithParser,
+  engineMarkersFromLinesWithParser,
+} from './engine/engine-arrows.js';
 import type { NodeShape, VariantTreeAdapter } from './game-tree.js';
 import { makeJungleFlipTreeAdapter } from './jungle-flip-tree-adapter.js';
 import { formatFlipVariantBestMove } from './move-advice.js';
@@ -55,8 +66,8 @@ function makeJungleFlipPresentation(
   JungleFlipGameState,
   JungleFlipPlayerView,
   JungleFlipSeat,
-  unknown,
-  unknown
+  JungleFlipBoardArrow,
+  JungleFlipBoardMarker
 > {
   return {
     adapter,
@@ -69,6 +80,12 @@ function makeJungleFlipPresentation(
       fen: jungleFlipStateToEngineFen,
       canEvaluatePosition: (truth) => truth.status.type === 'playing',
       formatPvMove: formatJungleFlipEngineMove,
+      engineArrowsFromLines: (lines) =>
+        engineArrowsFromLinesWithParser(lines, engineUciToJungleFlipMove),
+      engineMarkersFromLines: (lines) =>
+        engineMarkersFromLinesWithParser(lines, engineUciToJungleFlipMove),
+      bestMoveArrow: (best) => bestMoveArrowWithParser(best, engineUciToJungleFlipMove),
+      bestMoveMarker: (best) => bestMoveMarkerWithParser(best, engineUciToJungleFlipMove),
     },
     // The analysis engine's best move is 0-indexed UCI with flips as from===to; render it in
     // board coords ("b3 flip") for the "… was best" advice line, not the raw "B2-B2".
@@ -87,8 +104,16 @@ function makeJungleFlipPresentation(
     createBoard: (opts) => createJungleFlipInteractiveBoard(opts),
     // No glide animation (a flip has no travel; board re-renders on nav).
     animateMove: () => {},
-    shapeToArrow: (s: NodeShape) => s,
-    shapeToMarker: (s: NodeShape) => s,
+    shapeToArrow: (s: NodeShape): JungleFlipBoardArrow => ({
+      from: s.orig as JungleFlipBoardArrow['from'],
+      to: (s.dest ?? s.orig) as JungleFlipBoardArrow['to'],
+      className: `xq-arrow--draw xq-shape--${s.brush}`,
+    }),
+    shapeToMarker: (s: NodeShape): JungleFlipBoardMarker => ({
+      square: s.orig as JungleFlipBoardMarker['square'],
+      kind: 'circle',
+      className: `xq-shape--${s.brush}`,
+    }),
   };
 }
 

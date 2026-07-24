@@ -23,11 +23,14 @@ import { createFortressXiangqiInteractiveBoard } from '../fortress-xiangqi-board
 import {
   animateFortressXiangqiBoardMove,
   type FortressXiangqiBoardArrow,
+  type FortressXiangqiBoardMarker,
 } from '../fortress-xiangqi-render.js';
 import { fortressXiangqiMoveLabel } from '../fortress-xiangqi-view.js';
 import {
   bestMoveArrowWithParser,
+  bestMoveMarkerWithParser,
   engineArrowsFromLinesWithParser,
+  engineMarkersFromLinesWithParser,
 } from './engine/engine-arrows.js';
 import { fortressXiangqiTreeAdapter } from './fortress-xiangqi-tree-adapter.js';
 import type { NodeShape } from './game-tree.js';
@@ -48,9 +51,10 @@ function formatFortressEngineMove(uci: string): string {
 
 function parseFortressBoardMove(
   uci: string,
-): { from: FortressXiangqiBoardArrow['from']; to: FortressXiangqiBoardArrow['to'] } | null {
+): { from?: FortressXiangqiBoardArrow['from']; to: FortressXiangqiBoardArrow['to'] } | null {
   const move = fsfUciToFortressXiangqiMove(uci);
-  return move && !isFortressXiangqiDropMove(move) ? move : null;
+  if (!move) return null;
+  return isFortressXiangqiDropMove(move) ? { to: move.to } : move;
 }
 
 /** Config for a Fortress Xiangqi review mount. */
@@ -68,7 +72,7 @@ const fortressPresentation: TreePresentation<
   FortressXiangqiPlayerView,
   FortressXiangqiColor,
   FortressXiangqiBoardArrow,
-  unknown
+  FortressXiangqiBoardMarker
 > = {
   adapter: fortressXiangqiTreeAdapter,
   engine: {
@@ -77,7 +81,10 @@ const fortressPresentation: TreePresentation<
     formatPvMove: formatFortressEngineMove,
     engineArrowsFromLines: (lines) =>
       engineArrowsFromLinesWithParser(lines, parseFortressBoardMove),
+    engineMarkersFromLines: (lines) =>
+      engineMarkersFromLinesWithParser(lines, parseFortressBoardMove),
     bestMoveArrow: (best) => bestMoveArrowWithParser(best, parseFortressBoardMove),
+    bestMoveMarker: (best) => bestMoveMarkerWithParser(best, parseFortressBoardMove),
   },
   boardHostClassName: 'fortress-xiangqi-postgame-board fortress-xiangqi-live-board',
   boardWrapClassName: 'dxq-postgame__board-wrap review-board-host',
@@ -98,7 +105,11 @@ const fortressPresentation: TreePresentation<
     to: (s.dest ?? s.orig) as FortressXiangqiBoardArrow['to'],
     className: `xq-arrow--draw xq-shape--${s.brush}`,
   }),
-  shapeToMarker: (s: NodeShape) => s,
+  shapeToMarker: (s: NodeShape): FortressXiangqiBoardMarker => ({
+    square: s.orig as FortressXiangqiBoardMarker['square'],
+    kind: 'circle',
+    className: `xq-shape--${s.brush}`,
+  }),
   // Drop reserves are deliberately NOT rendered here (product call): drops
   // replay in the mainline instead. To turn them back on, supply the controller's
   // `material` hook — it hands you the mat-top / mat-bot rows and a per-ply

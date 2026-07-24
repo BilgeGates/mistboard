@@ -31,7 +31,7 @@ export interface EnginePanel {
 }
 
 export interface EnginePanelOptions {
-  /** Whether this variant's board can paint engine arrows. Defaults true for
+  /** Whether this variant's board can paint engine action indicators. Defaults true for
    *  direct consumers; generic review surfaces pass their explicit capability. */
   arrowsSupported?: boolean;
   variant: CevalVariant;
@@ -45,7 +45,7 @@ export interface EnginePanelOptions {
    *  whenever the output clears — toggle off, or a position change before new
    *  results arrive. Drives the on-board PV arrows. */
   onLines?: (lines: CevalLine[] | null) => void;
-  /** Initial state of the "Best move arrows" toggle in the settings popover.
+  /** Initial state of the "Best move indicators" toggle in the settings popover.
    *  The panel renders the control; the OWNER holds the flag and decides what it
    *  gates (the review surface also hides its whole-game best-move arrow). */
   showArrows?: boolean;
@@ -129,7 +129,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   settings.hidden = true;
   if (opts.arrowsSupported !== false) {
     settings.append(
-      checkboxRow('Best move arrows', showArrowsToggle, opts.showArrows ?? true, (enabled) => {
+      checkboxRow('Best move indicators', showArrowsToggle, opts.showArrows ?? true, (enabled) => {
         opts.onShowArrowsChange?.(enabled);
       }),
     );

@@ -83,14 +83,14 @@ describe('createEnginePanel arrow toggle', () => {
     const panel = createEnginePanel({ variant: 'xiangqi' });
     expect(checkbox(panel)).not.toBeNull();
     expect(checkbox(panel).checked).toBe(true);
-    expect(panel.el.textContent).toContain('Best move arrows');
+    expect(panel.el.textContent).toContain('Best move indicators');
     panel.dispose();
   });
 
   it('hides the toggle when the board has no arrow overlay capability', () => {
     const panel = createEnginePanel({ variant: 'banqi', arrowsSupported: false });
     expect(checkbox(panel)).toBeNull();
-    expect(panel.el.textContent).not.toContain('Best move arrows');
+    expect(panel.el.textContent).not.toContain('Best move indicators');
     panel.dispose();
   });
 

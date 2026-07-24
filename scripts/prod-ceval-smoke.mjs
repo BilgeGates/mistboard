@@ -8,9 +8,10 @@
 //   fsf   - Fairy-Stockfish pthread wasm on /analysis/xiangqi and
 //           /analysis/fortress-xiangqi (needs COOP/COEP cross-origin isolation
 //           + SharedArrayBuffer). ceval.ts.
-//   misty - Misty single-threaded wasm on /analysis/jungle plus MistyBanqi on a
-//           finished banqi game's review page. The game id is DISCOVERED at
-//           runtime from the public /api/watch?channel=banqi feed, never hardcoded.
+//   misty - Misty single-threaded wasm on /analysis/jungle,
+//           /analysis/jungle-flip, plus MistyBanqi on a finished banqi game's
+//           review page. The game id is DISCOVERED at runtime from the public
+//           /api/watch?channel=banqi feed, never hardcoded.
 //           Note: the review document carries COEP, so the dedicated worker
 //           script must itself be served with a compatible COEP header or
 //           Chrome blocks the load (net::ERR_BLOCKED_BY_RESPONSE) - the exact
@@ -125,10 +126,13 @@ async function checkMisty(browser) {
   // real cause instead of an opaque "worker error".
   await assertMistyAssetHeaders('misty-banqi', 'banqi_wasm');
   await assertMistyAssetHeaders('misty-jungle', 'jungle_wasm');
+  await assertMistyAssetHeaders('misty-jungle-flip', 'jungle_flip_wasm');
 
   const jungle = await checkMistyJungle(browser);
-  const banqi = await checkMistyBanqi(browser);
-  return { surfaces: { jungle, banqi } };
+  const jungleFlip = await checkMistyJungleFlip(browser);
+  const banqi = await checkMistyBanqiAnalysis(browser);
+  const banqiGame = await checkMistyBanqiGame(browser);
+  return { surfaces: { jungle, jungleFlip, banqi, banqiGame } };
 }
 
 async function checkMistyJungle(browser) {
@@ -159,7 +163,63 @@ async function checkMistyJungle(browser) {
   }
 }
 
-async function checkMistyBanqi(browser) {
+async function checkMistyJungleFlip(browser) {
+  const url = `${baseUrl}/analysis/jungle-flip`;
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  try {
+    const errors = collectErrors(page);
+    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    if (!response?.ok())
+      throw new Error(`${url} returned HTTP ${response?.status() ?? 'no response'}`);
+
+    await page
+      .locator('.jungle-flip-live-board svg')
+      .first()
+      .waitFor({ state: 'attached', timeout: timeoutMs });
+    await toggleEngineOn(page);
+    await waitForEvalAndLines(page);
+    await waitForBestMoveIndicator(page);
+    const result = await readPanel(page);
+    const engineNamed = await page.evaluate(() =>
+      (document.querySelector('.engine-panel')?.textContent ?? '').includes('MistyJungleFlip'),
+    );
+    if (!engineNamed) throw new Error('engine panel did not name MistyJungleFlip');
+    assertNoFatalErrors(errors);
+    return { url, engine: 'MistyJungleFlip', ...result };
+  } finally {
+    await page.close();
+  }
+}
+
+async function checkMistyBanqiAnalysis(browser) {
+  const url = `${baseUrl}/analysis/banqi`;
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  try {
+    const errors = collectErrors(page);
+    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    if (!response?.ok())
+      throw new Error(`${url} returned HTTP ${response?.status() ?? 'no response'}`);
+
+    await page
+      .locator('.banqi-live-board svg')
+      .first()
+      .waitFor({ state: 'attached', timeout: timeoutMs });
+    await toggleEngineOn(page);
+    await waitForEvalAndLines(page);
+    await waitForBestMoveIndicator(page);
+    const result = await readPanel(page);
+    const engineNamed = await page.evaluate(() =>
+      (document.querySelector('.engine-panel')?.textContent ?? '').includes('MistyBanqi'),
+    );
+    if (!engineNamed) throw new Error('engine panel did not name MistyBanqi');
+    assertNoFatalErrors(errors);
+    return { url, engine: 'MistyBanqi', ...result };
+  } finally {
+    await page.close();
+  }
+}
+
+async function checkMistyBanqiGame(browser) {
   const roomId = await discoverFinishedBanqiGame();
   if (!roomId) {
     // Watch feed had no finished banqi game to open (feed drained). The asset
@@ -187,6 +247,7 @@ async function checkMistyBanqi(browser) {
       await page.keyboard.press('ArrowLeft');
       await waitForEvalAndLines(page);
     }
+    await waitForBestMoveIndicator(page);
     const result = await readPanel(page);
 
     // Prove the Misty backend answered, not FSF: the panel names its engine.
@@ -383,6 +444,13 @@ async function waitForBestMoveArrow(page) {
   await page.locator('.xq-arrow--pv1').first().waitFor({ state: 'attached', timeout: timeoutMs });
 }
 
+async function waitForBestMoveIndicator(page) {
+  await page
+    .locator('.xq-arrow--pv1, .engine-marker--pv1')
+    .first()
+    .waitFor({ state: 'attached', timeout: timeoutMs });
+}
+
 async function waitForEvalOrGameOver(page) {
   return page
     .waitForFunction(
@@ -407,6 +475,7 @@ function readPanel(page) {
       lines: panel?.querySelectorAll('.engine-panel__line').length ?? 0,
       meta: panel?.querySelector('.engine-panel__sub')?.textContent?.trim() ?? null,
       arrows: document.querySelectorAll('.xq-arrow--pv1').length,
+      markers: document.querySelectorAll('.engine-marker--pv1').length,
     };
   });
 }

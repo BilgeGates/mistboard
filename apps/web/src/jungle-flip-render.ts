@@ -10,6 +10,7 @@
 // later pass can extract a shared animal-disc module both renderers import.
 
 import {
+  createGridGeometry,
   type GridBoardDescriptor,
   type GridCellRef,
   type GridGeometry,
@@ -33,6 +34,8 @@ import {
   jungleLastMoveToSvg,
   jungleShadowFilterDef,
 } from './jungle-art.js';
+import { type SvgBoardArrowStyle, svgBoardArrow } from './svg-board-arrow.js';
+import { type SvgBoardMarkerStyle, svgBoardCircleMarker } from './svg-board-marker.js';
 
 const FILES = 4;
 const RANKS = 4;
@@ -85,6 +88,8 @@ const DESCRIPTOR: GridBoardDescriptor = {
 export const JUNGLE_FLIP_BOARD_VIEW = { cell: CELL, files: FILES, ranks: RANKS } as const;
 
 export type JungleFlipRenderOptions = {
+  arrows?: readonly JungleFlipBoardArrow[];
+  markers?: readonly JungleFlipBoardMarker[];
   lastMove?: { from: JungleFlipSquare; to: JungleFlipSquare } | null;
   selected?: JungleFlipSquare | null;
   targets?: readonly JungleFlipSquare[];
@@ -95,6 +100,16 @@ export type JungleFlipRenderOptions = {
   // Drop the per-token shadow filter (markers; avoids duplicate filter ids).
   shadow?: boolean;
 };
+
+export interface JungleFlipBoardArrow extends SvgBoardArrowStyle {
+  from: JungleFlipSquare;
+  to: JungleFlipSquare;
+}
+
+export interface JungleFlipBoardMarker extends SvgBoardMarkerStyle {
+  square: JungleFlipSquare;
+  kind: 'circle';
+}
 
 function cellRef(square: JungleFlipSquare): GridCellRef {
   const { file, rank } = jungleFlipCoordOf(square);
@@ -216,7 +231,9 @@ export function renderJungleFlipBoardSvg(
     coords: false,
     renderPieces: (geom) =>
       terrain(geom, options.lastMove ?? null) +
-      pieces(board, geom, gid, shadow, options.draggingFrom ?? null),
+      pieces(board, geom, gid, shadow, options.draggingFrom ?? null) +
+      `<g class="jungle-flip-board-markers xq-live-markers" aria-hidden="true" pointer-events="none">${jungleFlipMarkerLayer(options.markers ?? [], geom)}</g>` +
+      `<g class="jungle-flip-board-arrows xq-live-arrows" aria-hidden="true" pointer-events="none">${jungleFlipArrowLayer(options.arrows ?? [], geom)}</g>`,
     // Last-move is drawn inside terrain (over the bushy board); the core's own last-move
     // layer sits under renderPieces and would be hidden by the board image.
     lastMove: null,
@@ -227,5 +244,49 @@ export function renderJungleFlipBoardSvg(
     }),
     squareName: (file, rank) => `${'abcd'[file]}${rank}`,
     interactive: options.interactive ?? false,
+  });
+}
+
+export function jungleFlipArrowSvg(arrow: JungleFlipBoardArrow): string {
+  return jungleFlipArrowSvgWithGeometry(arrow, createGridGeometry(DESCRIPTOR, false));
+}
+
+export function jungleFlipMarkerSvg(marker: JungleFlipBoardMarker): string {
+  return jungleFlipMarkerSvgWithGeometry(marker, createGridGeometry(DESCRIPTOR, false));
+}
+
+function jungleFlipArrowLayer(arrows: readonly JungleFlipBoardArrow[], geom: GridGeometry): string {
+  return arrows.map((arrow) => jungleFlipArrowSvgWithGeometry(arrow, geom)).join('');
+}
+
+function jungleFlipMarkerLayer(
+  markers: readonly JungleFlipBoardMarker[],
+  geom: GridGeometry,
+): string {
+  return markers.map((marker) => jungleFlipMarkerSvgWithGeometry(marker, geom)).join('');
+}
+
+function jungleFlipArrowSvgWithGeometry(arrow: JungleFlipBoardArrow, geom: GridGeometry): string {
+  const from = jungleFlipCoordOf(arrow.from);
+  const to = jungleFlipCoordOf(arrow.to);
+  const scaledArrow = {
+    ...arrow,
+    width: arrow.width === undefined ? undefined : arrow.width * (CELL / 72),
+  };
+  return svgBoardArrow(
+    scaledArrow,
+    geom.center(from.file, from.rank),
+    geom.center(to.file, to.rank),
+    { baseClassName: 'xq-arrow', defaultWidth: 8, startInset: 10 },
+  );
+}
+
+function jungleFlipMarkerSvgWithGeometry(
+  marker: JungleFlipBoardMarker,
+  geom: GridGeometry,
+): string {
+  const coord = jungleFlipCoordOf(marker.square);
+  return svgBoardCircleMarker(marker, geom.center(coord.file, coord.rank), geom.cell * (26 / 60), {
+    baseClassName: 'xq-marker engine-marker',
   });
 }

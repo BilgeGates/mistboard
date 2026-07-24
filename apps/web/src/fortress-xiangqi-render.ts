@@ -9,6 +9,7 @@ import { fortressXiangqiCoordOf, fortressXiangqiSquareOf } from '@mistboard/game
 import { glideSvgPiece, pieceAnimationDurationMs } from './board-anim.js';
 import { tokenPieceSize } from './board-metrics.js';
 import { type SvgBoardArrowStyle, svgBoardArrow } from './svg-board-arrow.js';
+import { type SvgBoardMarkerStyle, svgBoardCircleMarker } from './svg-board-marker.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import {
   animalTreasureMarks,
@@ -45,6 +46,7 @@ const BLACK_PALACE: Palace = { fileLo: 4, fileHi: 6, rankLo: 6, rankHi: 8 };
 
 export type FortressXiangqiBoardRenderOptions = {
   arrows?: readonly FortressXiangqiBoardArrow[];
+  markers?: readonly FortressXiangqiBoardMarker[];
   interactive?: boolean;
   selectedSquare?: FortressXiangqiSquare | null;
   // Highlighted destination squares — board-move targets for a selected piece,
@@ -60,6 +62,11 @@ export type FortressXiangqiBoardRenderOptions = {
 export interface FortressXiangqiBoardArrow extends SvgBoardArrowStyle {
   from: FortressXiangqiSquare;
   to: FortressXiangqiSquare;
+}
+
+export interface FortressXiangqiBoardMarker extends SvgBoardMarkerStyle {
+  square: FortressXiangqiSquare;
+  kind: 'circle';
 }
 
 export const FORTRESS_XIANGQI_PIECE_PX = PIECE_SIZE;
@@ -82,10 +89,31 @@ export function renderFortressXiangqiBoardSvg(
       ${options.interactive ? '' : moveHints(view, targets, perspective)}
       ${options.interactive ? '' : blockedMarks(options.blockedSquares ?? [], perspective)}
       ${pieceLayer(view, perspective, pieceSet, options.draggingFrom ?? null)}
+      <g class="fxq-board-markers xq-live-markers" aria-hidden="true" pointer-events="none">${fortressXiangqiMarkerLayer(options.markers ?? [], perspective)}</g>
       <g class="fxq-board-arrows xq-live-arrows" aria-hidden="true" pointer-events="none">${fortressXiangqiArrowLayer(options.arrows ?? [], perspective)}</g>
       ${options.interactive ? hitLayer(perspective, view, targets) : ''}
     </svg>
   `;
+}
+
+export function fortressXiangqiMarkerSvg(
+  marker: FortressXiangqiBoardMarker,
+  perspective: FortressXiangqiColor,
+): string {
+  const coord = fortressXiangqiCoordOf(marker.square);
+  return svgBoardCircleMarker(
+    marker,
+    intersection(coord.file, coord.rank, perspective),
+    RING_LAST,
+    { baseClassName: 'xq-marker engine-marker' },
+  );
+}
+
+function fortressXiangqiMarkerLayer(
+  markers: readonly FortressXiangqiBoardMarker[],
+  perspective: FortressXiangqiColor,
+): string {
+  return markers.map((marker) => fortressXiangqiMarkerSvg(marker, perspective)).join('');
 }
 
 export function fortressXiangqiArrowSvg(

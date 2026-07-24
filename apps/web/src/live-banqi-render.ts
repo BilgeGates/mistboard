@@ -9,6 +9,8 @@ import {
   banqiCoordOf,
 } from '@mistboard/game';
 import { tokenPieceSize } from './board-metrics.js';
+import { type SvgBoardArrowStyle, svgBoardArrow } from './svg-board-arrow.js';
+import { type SvgBoardMarkerStyle, svgBoardCircleMarker } from './svg-board-marker.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 
@@ -41,6 +43,8 @@ const LAST_MOVE_REVEAL_RADIUS = CELL * 0.475;
 export const BANQI_PIECE_PX = PIECE_SIZE;
 
 export type BanqiBoardRenderOptions = {
+  arrows?: readonly BanqiBoardArrow[];
+  markers?: readonly BanqiBoardMarker[];
   interactive?: boolean;
   // The selected own revealed piece (move source), if any.
   selectedSquare?: BanqiSquare | null;
@@ -51,6 +55,16 @@ export type BanqiBoardRenderOptions = {
   // While dragging, render the origin as a dim source shadow.
   draggingFrom?: BanqiSquare | null;
 };
+
+export interface BanqiBoardArrow extends SvgBoardArrowStyle {
+  from: BanqiSquare;
+  to: BanqiSquare;
+}
+
+export interface BanqiBoardMarker extends SvgBoardMarkerStyle {
+  square: BanqiSquare;
+  kind: 'circle';
+}
 
 // The standalone disc for the floating drag ghost (board-drag.ts mounts it in a
 // sized <div>). Only revealed pieces are draggable, so the entry is always known.
@@ -82,6 +96,24 @@ function point(fileLine: number, rankLine: number): { x: number; y: number } {
 function cellCenter(square: BanqiSquare): { x: number; y: number } {
   const { file, rank } = banqiCoordOf(square);
   return { x: MARGIN + (file + 0.5) * CELL, y: MARGIN + (4.5 - rank) * CELL };
+}
+
+export function banqiArrowSvg(arrow: BanqiBoardArrow): string {
+  const scaledArrow = {
+    ...arrow,
+    width: arrow.width === undefined ? undefined : arrow.width * (CELL / 72),
+  };
+  return svgBoardArrow(scaledArrow, cellCenter(arrow.from), cellCenter(arrow.to), {
+    baseClassName: 'xq-arrow',
+    defaultWidth: 8,
+    startInset: 10,
+  });
+}
+
+export function banqiMarkerSvg(marker: BanqiBoardMarker): string {
+  return svgBoardCircleMarker(marker, cellCenter(marker.square), LAST_MOVE_RING_RADIUS, {
+    baseClassName: 'xq-marker engine-marker',
+  });
 }
 
 function gridLines(): string {
@@ -212,6 +244,8 @@ export function renderBanqiBoardSvg(
       ${selectionRing(options.selectedSquare ?? null)}
       ${options.interactive ? '' : moveHints(view, moves)}
       ${pieceLayer(view, pieceSet, options.draggingFrom ?? null)}
+      <g class="banqi-board-markers xq-live-markers" aria-hidden="true" pointer-events="none">${(options.markers ?? []).map(banqiMarkerSvg).join('')}</g>
+      <g class="banqi-board-arrows xq-live-arrows" aria-hidden="true" pointer-events="none">${(options.arrows ?? []).map(banqiArrowSvg).join('')}</g>
       ${options.interactive ? hitLayerWithTargets(moves, view) : ''}
     </svg>
   `;

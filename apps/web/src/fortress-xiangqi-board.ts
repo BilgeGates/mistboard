@@ -23,7 +23,9 @@ import type {
 import {
   FORTRESS_XIANGQI_PIECE_PX,
   type FortressXiangqiBoardArrow,
+  type FortressXiangqiBoardMarker,
   fortressXiangqiArrowSvg,
+  fortressXiangqiMarkerSvg,
   fortressXiangqiPieceGhostSvg,
   installFortressXiangqiBoardStyles,
   renderFortressXiangqiBoardSvg,
@@ -45,7 +47,7 @@ export interface FortressXiangqiInteractiveBoard {
   render(view: FortressXiangqiPlayerView | null, perspective: FortressXiangqiColor): void;
   clearSelection(): void;
   setArrows(arrows: readonly FortressXiangqiBoardArrow[]): void;
-  setMarkers(): void;
+  setMarkers(markers: readonly FortressXiangqiBoardMarker[]): void;
 }
 
 export function createFortressXiangqiInteractiveBoard(
@@ -56,6 +58,7 @@ export function createFortressXiangqiInteractiveBoard(
   let selectedSquare: FortressXiangqiSquare | null = null;
   let draggingFrom: FortressXiangqiSquare | null = null;
   let arrows: readonly FortressXiangqiBoardArrow[] = [];
+  let markers: readonly FortressXiangqiBoardMarker[] = [];
 
   function render(view: FortressXiangqiPlayerView | null, perspective: FortressXiangqiColor): void {
     if (!view) {
@@ -71,7 +74,18 @@ export function createFortressXiangqiInteractiveBoard(
       targets,
       draggingFrom,
       arrows,
+      markers,
     });
+  }
+
+  function setMarkers(next: readonly FortressXiangqiBoardMarker[]): void {
+    markers = next;
+    const layer = opts.board.querySelector('.xq-live-markers');
+    if (layer) {
+      layer.innerHTML = markers
+        .map((marker) => fortressXiangqiMarkerSvg(marker, opts.getPerspective()))
+        .join('');
+    }
   }
 
   function setArrows(next: readonly FortressXiangqiBoardArrow[]): void {
@@ -168,5 +182,5 @@ export function createFortressXiangqiInteractiveBoard(
     },
   });
 
-  return { render, clearSelection, setArrows, setMarkers: () => {} };
+  return { render, clearSelection, setArrows, setMarkers };
 }

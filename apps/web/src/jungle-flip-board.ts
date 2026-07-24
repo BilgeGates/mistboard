@@ -9,8 +9,8 @@
 // A face-down tile is FLIPPED by a direct one-click self-move (present in
 // view.legalMoves as { from: X, to: X }); a revealed own piece selects then moves
 // (click a target or drag). Only revealed pieces are draggable — a flip is
-// click-only. No client engine and no overlay layer, so setArrows/setMarkers are
-// no-ops.
+// click-only. Engine moves render as arrows; flip recommendations render as
+// rings around their face-down destination.
 
 import type {
   JungleFlipMove,
@@ -20,6 +20,10 @@ import type {
 } from '@mistboard/game';
 import {
   JUNGLE_FLIP_BOARD_VIEW,
+  type JungleFlipBoardArrow,
+  type JungleFlipBoardMarker,
+  jungleFlipArrowSvg,
+  jungleFlipMarkerSvg,
   jungleFlipPieceGhostSvg,
   renderJungleFlipBoardSvg,
 } from './jungle-flip-render.js';
@@ -38,8 +42,8 @@ export interface JungleFlipInteractiveBoardOptions {
 export interface JungleFlipInteractiveBoard {
   render(view: JungleFlipPlayerView | null, perspective: JungleFlipSeat): void;
   clearSelection(): void;
-  setArrows(): void;
-  setMarkers(): void;
+  setArrows(arrows: readonly JungleFlipBoardArrow[]): void;
+  setMarkers(markers: readonly JungleFlipBoardMarker[]): void;
 }
 
 export function createJungleFlipInteractiveBoard(
@@ -47,6 +51,8 @@ export function createJungleFlipInteractiveBoard(
 ): JungleFlipInteractiveBoard {
   let selectedSquare: JungleFlipSquare | null = null;
   let draggingFrom: JungleFlipSquare | null = null;
+  let arrows: readonly JungleFlipBoardArrow[] = [];
+  let markers: readonly JungleFlipBoardMarker[] = [];
 
   function render(view: JungleFlipPlayerView | null, _perspective: JungleFlipSeat): void {
     if (!view) {
@@ -66,7 +72,21 @@ export function createJungleFlipInteractiveBoard(
       targets,
       draggingFrom,
       interactive: true,
+      arrows,
+      markers,
     });
+  }
+
+  function setArrows(next: readonly JungleFlipBoardArrow[]): void {
+    arrows = next;
+    const layer = opts.board.querySelector('.xq-live-arrows');
+    if (layer) layer.innerHTML = arrows.map(jungleFlipArrowSvg).join('');
+  }
+
+  function setMarkers(next: readonly JungleFlipBoardMarker[]): void {
+    markers = next;
+    const layer = opts.board.querySelector('.xq-live-markers');
+    if (layer) layer.innerHTML = markers.map(jungleFlipMarkerSvg).join('');
   }
 
   function rerender(): void {
@@ -171,5 +191,5 @@ export function createJungleFlipInteractiveBoard(
     },
   });
 
-  return { render, clearSelection, setArrows: () => {}, setMarkers: () => {} };
+  return { render, clearSelection, setArrows, setMarkers };
 }

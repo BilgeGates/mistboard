@@ -13,9 +13,17 @@ import {
   type BanqiPlayerView,
   type BanqiSeat,
   banqiStateToEngineFen,
+  engineUciToBanqiMove,
 } from '@mistboard/game';
 import { createBanqiInteractiveBoard } from '../banqi-board.js';
+import type { BanqiBoardArrow, BanqiBoardMarker } from '../live-banqi-render.js';
 import { makeBanqiTreeAdapter } from './banqi-tree-adapter.js';
+import {
+  bestMoveArrowWithParser,
+  bestMoveMarkerWithParser,
+  engineArrowsFromLinesWithParser,
+  engineMarkersFromLinesWithParser,
+} from './engine/engine-arrows.js';
 import type { NodeShape, VariantTreeAdapter } from './game-tree.js';
 import { formatFlipVariantBestMove } from './move-advice.js';
 import {
@@ -52,7 +60,14 @@ function formatBanqiEngineMove(uci: string): string {
 // `perspective` never changes the render (the Flip control is a visual no-op here).
 function makeBanqiPresentation(
   adapter: VariantTreeAdapter<BanqiMove, BanqiGameState, BanqiPlayerView>,
-): TreePresentation<BanqiMove, BanqiGameState, BanqiPlayerView, BanqiSeat, unknown, unknown> {
+): TreePresentation<
+  BanqiMove,
+  BanqiGameState,
+  BanqiPlayerView,
+  BanqiSeat,
+  BanqiBoardArrow,
+  BanqiBoardMarker
+> {
   return {
     adapter,
     // Client engine: the in-browser MistyBanqi wasm (single-shot MultiPV). It is fed the
@@ -64,6 +79,12 @@ function makeBanqiPresentation(
       fen: banqiStateToEngineFen,
       canEvaluatePosition: (truth) => truth.status.type === 'playing',
       formatPvMove: formatBanqiEngineMove,
+      engineArrowsFromLines: (lines) =>
+        engineArrowsFromLinesWithParser(lines, engineUciToBanqiMove),
+      engineMarkersFromLines: (lines) =>
+        engineMarkersFromLinesWithParser(lines, engineUciToBanqiMove),
+      bestMoveArrow: (best) => bestMoveArrowWithParser(best, engineUciToBanqiMove),
+      bestMoveMarker: (best) => bestMoveMarkerWithParser(best, engineUciToBanqiMove),
     },
     // The analysis engine's best move is 0-indexed UCI with flips as from===to; render it in
     // board coords ("b3 flip") for the "… was best" advice line, not the raw "B2-B2".
@@ -85,8 +106,16 @@ function makeBanqiPresentation(
     createBoard: (opts) => createBanqiInteractiveBoard(opts),
     // No glide animation for banqi (a flip has no travel; board re-renders on nav).
     animateMove: () => {},
-    shapeToArrow: (s: NodeShape) => s,
-    shapeToMarker: (s: NodeShape) => s,
+    shapeToArrow: (s: NodeShape): BanqiBoardArrow => ({
+      from: s.orig as BanqiBoardArrow['from'],
+      to: (s.dest ?? s.orig) as BanqiBoardArrow['to'],
+      className: `xq-arrow--draw xq-shape--${s.brush}`,
+    }),
+    shapeToMarker: (s: NodeShape): BanqiBoardMarker => ({
+      square: s.orig as BanqiBoardMarker['square'],
+      kind: 'circle',
+      className: `xq-shape--${s.brush}`,
+    }),
   };
 }
 

@@ -4,8 +4,10 @@ import type { CevalLine } from './ceval.js';
 import {
   bestMoveArrow,
   bestMoveArrowWithParser,
+  bestMoveMarkerWithParser,
   engineArrowsFromLines,
   engineArrowsFromLinesWithParser,
+  engineMarkersFromLinesWithParser,
   SHOW_PV1_REPLY_SEGMENT,
 } from './engine-arrows.js';
 
@@ -169,5 +171,34 @@ describe('variant-specific engine move parsers', () => {
     expect(bestMoveArrowWithParser('e3e4', pikafishUciToJieqiMove)).toEqual([
       { from: 'e4', to: 'e5', opacity: 0.4, width: 14, className: 'xq-arrow--best' },
     ]);
+  });
+
+  it('uses a point marker for a same-square flip and an arrow for travel', () => {
+    const parse = (uci: string) => {
+      const match = /^([a-d][1-4])([a-d][1-4])$/.exec(uci);
+      return match ? { from: match[1] as `a${number}`, to: match[2] as `a${number}` } : null;
+    };
+    const lines = [line(1, ['a1a1']), line(2, ['a2a3'])];
+
+    expect(engineArrowsFromLinesWithParser(lines, parse)).toEqual([
+      expect.objectContaining({ from: 'a2', to: 'a3', className: 'xq-arrow--alt' }),
+    ]);
+    expect(engineMarkersFromLinesWithParser(lines, parse)).toEqual([
+      expect.objectContaining({
+        square: 'a1',
+        kind: 'circle',
+        className: 'engine-marker--pv1',
+      }),
+    ]);
+    expect(bestMoveMarkerWithParser('a1a1', parse)).toEqual([
+      expect.objectContaining({
+        square: 'a1',
+        kind: 'circle',
+        className: 'engine-marker--best',
+      }),
+    ]);
+    expect(
+      bestMoveMarkerWithParser('drop', (uci) => (uci === 'drop' ? { to: 'a4' } : null)),
+    ).toEqual([expect.objectContaining({ square: 'a4', className: 'engine-marker--best' })]);
   });
 });
