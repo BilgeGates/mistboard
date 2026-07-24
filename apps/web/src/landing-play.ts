@@ -1,3 +1,4 @@
+import { PIECE_SVGS } from '@mistboard/board-render';
 import {
   BANQI_SPEC_ID,
   CORRESPONDENCE_ELIGIBLE_SPEC_IDS,
@@ -71,7 +72,6 @@ type LandingPlayChoice = {
   // instead of real time. The Correspondence tab's own CTA uses it so the dialog
   // it opens matches the tab the player clicked from.
   initialTimeMode?: 'realtime' | 'correspondence';
-  title: string;
 };
 type LandingPlayMode = 'lobby' | 'pvp' | 'pve';
 type LandingGameSpecId =
@@ -171,12 +171,9 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
 
 // Lichess pairs every quick-pairing pool with its speed category (Bullet / Blitz /
 // Rapid) under the clock. English-for-now, matching the rest of the lobby board.
-// Which time-control presets the picker offers, per variant. Dark chess and DMX
-// are scoped to bullet + blitz: 5+5 is hidden because dark/fog games are
-// low-calc and decisive, and fewer TCs merge players into fewer pools.
-// Crossroads gets 5+5 because it is perfect-information. Full
-// Dark Xiangqi keeps its prior single option until it has a live runtime. Used
-// for PvE AND PvP/lobby alike.
+// Which time-control presets the picker offers, per variant. Tenant variants
+// declare their own choices in the web registry. Fog Chess uses all three
+// official live controls; rated play still collapses to the public 3+2 bucket.
 function allowedTimePresetIds(
   gameSpecId: LandingGameSpecId,
   rated: boolean,
@@ -184,7 +181,7 @@ function allowedTimePresetIds(
   if (rated) return new Set<LandingTimePresetId>(['3m2']);
   const tenantLanding = webVariantTenantForSpecId(gameSpecId)?.landing;
   if (tenantLanding) return new Set<LandingTimePresetId>(tenantLanding.timePresetIds);
-  return new Set<LandingTimePresetId>(['1m1', '3m2']);
+  return new Set<LandingTimePresetId>(['1m1', '3m2', '5m5']);
 }
 // Dark chess is always offered. Integrated tenant variants join the normal play
 // entry points through their registry landing config.
@@ -346,7 +343,6 @@ export function buildLandingPlayPanel(
       locale,
       mode: 'pve',
       modeSwitcher: true,
-      title: t('play.playEngine', {}, locale),
     });
   });
   panel.append(playButton);
@@ -1082,7 +1078,6 @@ function correspondenceEmptyState(locale: Locale): HTMLElement {
     openLandingSetupDialog({
       locale,
       mode: 'lobby',
-      title: t('play.findOpponent', {}, locale),
       initialGameSpecId: defaultCorrespondenceGameSpecId(locale),
       initialTimeMode: 'correspondence',
       // Correspondence is casual-only, so the rated toggle never applies here.
@@ -1327,7 +1322,6 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
         locale,
         mode: 'lobby',
         modeSwitcher: true,
-        title: t('play.findOpponent', {}, locale),
         ratedDisabled: !isRatedModeEnabled() || !isLikelySignedIn(),
       });
       break;
@@ -1342,7 +1336,6 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
         locale,
         mode: 'pvp',
         modeSwitcher: true,
-        title: t('play.challengeFriend', {}, locale),
         ratedDisabled: true,
       });
       break;
@@ -1358,7 +1351,6 @@ export function maybeOpenPlayDeepLink(engines: PlayableEngine[]): void {
         locale,
         mode: 'pve',
         modeSwitcher: true,
-        title: t('play.playEngine', {}, locale),
       });
       break;
     default:
@@ -1474,7 +1466,7 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const heading = document.createElement('strong');
   heading.className = 'landing-setup-title';
   heading.id = 'landing-setup-title';
-  heading.textContent = choice.title;
+  heading.textContent = t('play.playGame', {}, locale);
 
   const closeButton = document.createElement('button');
   closeButton.type = 'button';
@@ -1486,10 +1478,10 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   header.className = 'landing-setup-header';
   header.append(heading, closeButton);
 
-  // Unified-entry opponent switcher (Computer / A friend / Anyone). Each mode
-  // renders a different section set, so switching closes this dialog and
-  // reopens it in the picked mode, carrying the live variant selection and the
-  // engine roster over.
+  // Unified-entry opponent picker (Bot / A friend / Lobby). It lives in
+  // the setup row sequence near the end, after game type. Each mode renders a
+  // different section set, so switching closes this dialog and reopens it in
+  // the picked mode, carrying the live variant selection and engine roster over.
   let modeSwitcher: HTMLElement | null = null;
   if (choice.modeSwitcher) {
     modeSwitcher = document.createElement('div');
@@ -1847,21 +1839,24 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   });
   document.addEventListener('keydown', onKeyDown);
 
-  const ratingSection =
-    choice.mode === 'pvp' || choice.mode === 'lobby'
-      ? buildRatedToggleSection(
-          () => rated,
-          (v) => {
-            rated = v;
-          },
-          choice.ratedDisabled,
-          () => {
-            syncTimeControls();
-            openNextSetupSection('gameType');
-          },
-          locale,
-        )
-      : null;
+  // Keep game type visible in the bot flow too. Bot games are always
+  // casual, so Rated is present but unavailable; human modes retain their
+  // existing launch and sign-in gates.
+  const ratingSection = buildRatedToggleSection(
+    () => rated,
+    (v) => {
+      rated = v;
+    },
+    () =>
+      choice.mode === 'pve' ||
+      Boolean(choice.ratedDisabled) ||
+      !landingGameSpecCapabilities(selectedGameSpecId).supportsRated,
+    () => {
+      syncTimeControls();
+      openNextSetupSection('gameType');
+    },
+    locale,
+  );
 
   // Color picker shows for PvE and Challenge-a-friend. Hidden for casual/rated
   // lobby matchmaking — color is server-assigned there so the pool stays unified.
@@ -1903,15 +1898,13 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       colorSection.style.display = hideColorPicker ? 'none' : '';
     }
     if (startGroup) startGroup.hidden = !capabilities.supportsStartFormat;
-    if (ratingSection) ratingSection.hidden = !capabilities.supportsRated;
+    ratingSection.sync();
     if (engineSection) {
       engineSection.sync(
         selectedGameSpecId,
         engineByGameSpec.get(selectedGameSpecId) ?? selectedEngineId,
       );
-      engineSection.section.hidden =
-        selectedGameSpecId !== DARK_CHESS_SPEC_ID &&
-        !webVariantTenantForSpecId(selectedGameSpecId)?.landing?.engineOptions;
+      engineSection.section.hidden = !engineSection.hasMultipleChoices();
     }
     timeSection.hidden = !capabilities.supportsTimeControl;
     syncTimeControls(); // re-scope the preset picker to the selected variant
@@ -1931,6 +1924,12 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   };
   const gameTypeSummary = () =>
     rated && !choice.ratedDisabled ? t('play.rated', {}, locale) : t('play.casual', {}, locale);
+  const opponentSummary = () =>
+    choice.mode === 'pve'
+      ? t('play.opponentEngine', {}, locale)
+      : choice.mode === 'pvp'
+        ? t('play.opponentFriend', {}, locale)
+        : t('play.opponentLobby', {}, locale);
   const variantSummary = () =>
     selectedGameSpecId === DARK_CHESS_SPEC_ID && startFormat === 'draft960'
       ? t('setup.darkDraft960', {}, locale)
@@ -1968,13 +1967,29 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
       timeSection,
       timeSummary,
     ),
-    ...(ratingSection
+    ...(colorSection
       ? [
           buildSetupAccordionSection(
-            'gameType',
-            t('setup.gameType', {}, locale),
-            ratingSection,
-            gameTypeSummary,
+            'side',
+            t('setup.side', {}, locale),
+            colorSection,
+            colorSummary,
+          ),
+        ]
+      : []),
+    buildSetupAccordionSection(
+      'gameType',
+      t('setup.gameType', {}, locale),
+      ratingSection.section,
+      gameTypeSummary,
+    ),
+    ...(modeSwitcher
+      ? [
+          buildSetupAccordionSection(
+            'opponent',
+            t('play.opponentLabel', {}, locale),
+            modeSwitcher,
+            opponentSummary,
           ),
         ]
       : []),
@@ -1985,16 +2000,6 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
             t('setup.engine', {}, locale),
             engineSection.section,
             engineSummary,
-          ),
-        ]
-      : []),
-    ...(colorSection
-      ? [
-          buildSetupAccordionSection(
-            'side',
-            t('setup.side', {}, locale),
-            colorSection,
-            colorSummary,
           ),
         ]
       : []),
@@ -2044,14 +2049,13 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   }
   syncSetupAccordion();
 
-  // Section order mirrors PlayStrategy's compact setup: variant → time control →
-  // game type → engine strength → side/color → actions.
+  // The decision sequence closes with game type and opponent. Computer adds one
+  // final engine row after the opponent choice.
   const accordion = document.createElement('div');
   accordion.className = 'landing-setup-accordion';
   accordion.append(...setupSections.map((section) => section.wrapper));
   actions.append(startButton);
   dialog.append(header);
-  if (modeSwitcher) dialog.append(modeSwitcher);
   dialog.append(accordion);
   dialog.append(status, actions);
   overlay.append(dialog);
@@ -2064,9 +2068,8 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
 }
 
 // Close the open setup dialog and reopen it in another mode, keeping the
-// current variant selection and the caller's engine roster. Title and
-// rated-availability are recomputed per mode (they were baked into the original
-// choice for the mode it opened in).
+// current variant selection and the caller's engine roster. Rated availability
+// is recomputed per mode.
 function reopenSetupDialogInMode(
   choice: LandingPlayChoice,
   mode: LandingPlayMode,
@@ -2087,12 +2090,6 @@ function reopenSetupDialogInMode(
         : mode === 'lobby'
           ? !isRatedModeEnabled() || !isLikelySignedIn()
           : undefined,
-    title:
-      mode === 'pve'
-        ? t('play.playEngine', {}, locale)
-        : mode === 'pvp'
-          ? t('play.challengeFriend', {}, locale)
-          : t('play.findOpponent', {}, locale),
   });
 }
 
@@ -2257,6 +2254,7 @@ function buildEngineSetupSection(
   onSelect: (engineId: string, gameSpecId: LandingGameSpecId) => void,
   locale: Locale,
 ): {
+  hasMultipleChoices(): boolean;
   section: HTMLElement;
   sync(gameSpecId: LandingGameSpecId, selectedEngineId: string | undefined): void;
 } {
@@ -2265,6 +2263,7 @@ function buildEngineSetupSection(
   section.append(setupSectionLabel(t('setup.engine', {}, locale)));
   const body = document.createElement('div');
   section.append(body);
+  let choiceCount = 0;
 
   const sync = (gameSpecId: LandingGameSpecId, currentEngineId: string | undefined) => {
     body.replaceChildren();
@@ -2274,20 +2273,16 @@ function buildEngineSetupSection(
       : engines.length > 0
         ? engines
         : fallbackPlayableEngines();
+    choiceCount = availableEngines.length;
     const selected =
       currentEngineId && availableEngines.some((engine) => engine.id === currentEngineId)
         ? currentEngineId
         : defaultEngineIdForGameSpec(gameSpecId, availableEngines);
     if (selected) onSelect(selected, gameSpecId);
 
-    // Streamlined release: a single player-facing dark-chess engine (Misty).
-    // Show it as a static label; Crossroads has three strengths, so it renders a
-    // real select.
+    // A single bot is implicit in the opponent choice, so only variants with a
+    // real bot roster need a dedicated selection row.
     if (availableEngines.length <= 1) {
-      const label = document.createElement('div');
-      label.className = 'landing-variant-control';
-      label.textContent = availableEngines[0]?.name ?? 'Misty';
-      body.append(label);
       return;
     }
 
@@ -2306,7 +2301,7 @@ function buildEngineSetupSection(
   };
 
   sync(DARK_CHESS_SPEC_ID, selectedEngineId);
-  return { section, sync };
+  return { hasMultipleChoices: () => choiceCount > 1, section, sync };
 }
 
 function defaultEngineIdForGameSpec(
@@ -2321,10 +2316,10 @@ function defaultEngineIdForGameSpec(
 function buildRatedToggleSection(
   get: () => boolean,
   set: (v: boolean) => void,
-  ratedDisabled = false,
+  isRatedDisabled: () => boolean = () => false,
   onChange: () => void = () => undefined,
   locale: Locale = currentLocale(),
-): HTMLElement {
+): { section: HTMLElement; sync(): void } {
   const section = document.createElement('div');
   section.className = 'landing-setup-section';
   section.append(setupSectionLabel(t('setup.gameType', {}, locale)));
@@ -2334,31 +2329,29 @@ function buildRatedToggleSection(
   group.setAttribute('role', 'radiogroup');
   group.setAttribute('aria-label', t('setup.gameType', {}, locale));
 
-  const ratedButton = startOptionButton(
-    ratedDisabled ? t('setup.ratedComingSoon', {}, locale) : t('play.rated', {}, locale),
-    true,
-  );
+  const ratedButton = startOptionButton(t('play.rated', {}, locale), true);
   const casualButton = startOptionButton(t('play.casual', {}, locale), false);
 
-  if (ratedDisabled) {
-    ratedButton.disabled = true;
-    ratedButton.classList.add('disabled');
-  }
-
   const sync = () => {
+    const ratedDisabled = isRatedDisabled();
     const isRated = get();
+    updateStartOptionButtonLabel(
+      ratedButton,
+      ratedDisabled ? t('setup.ratedComingSoon', {}, locale) : t('play.rated', {}, locale),
+    );
+    ratedButton.disabled = ratedDisabled;
+    ratedButton.classList.toggle('disabled', ratedDisabled);
     ratedButton.classList.toggle('selected', isRated && !ratedDisabled);
     ratedButton.setAttribute('aria-checked', isRated && !ratedDisabled ? 'true' : 'false');
     casualButton.classList.toggle('selected', !isRated || ratedDisabled);
     casualButton.setAttribute('aria-checked', !isRated || ratedDisabled ? 'true' : 'false');
   };
-  if (!ratedDisabled) {
-    ratedButton.addEventListener('click', () => {
-      set(true);
-      sync();
-      onChange();
-    });
-  }
+  ratedButton.addEventListener('click', () => {
+    if (isRatedDisabled()) return;
+    set(true);
+    sync();
+    onChange();
+  });
   casualButton.addEventListener('click', () => {
     set(false);
     sync();
@@ -2370,7 +2363,7 @@ function buildRatedToggleSection(
   // The Rated segment's own "COMING SOON" badge already signals the beta state,
   // so the explanatory helper paragraph is dropped to keep the dialog compact.
   section.append(group);
-  return section;
+  return { section, sync };
 }
 
 const COLOR_PREFERENCE_STORAGE_KEY = 'mistboard:setup:preferredColor';
@@ -2622,6 +2615,12 @@ function colorGlyphNodes(
   value: LandingColorPreference,
   gameSpecId: LandingGameSpecId = DARK_CHESS_SPEC_ID,
 ): Node[] {
+  if (gameSpecId === JUNGLE_SPEC_ID) {
+    return jungleElephantGlyphNodes(value);
+  }
+  if (gameSpecId === DARK_CHESS_SPEC_ID) {
+    return chessKingGlyphNodes(value);
+  }
   const capabilities = landingGameSpecCapabilities(gameSpecId);
   if (value === 'random') {
     const first = document.createElement('span');
@@ -2637,6 +2636,30 @@ function colorGlyphNodes(
       value === capabilities.secondColor ? capabilities.secondGlyph : capabilities.firstGlyph,
     ),
   ];
+}
+
+function jungleElephantGlyphNodes(value: LandingColorPreference): Node[] {
+  const elephant = (color: 'red' | 'black') => {
+    const image = document.createElement('img');
+    image.className = `landing-color-piece jungle ${color}`;
+    image.src = `/piece-sets/jungle/dobutsu/${color}-elephant.png`;
+    image.alt = '';
+    return image;
+  };
+  if (value === 'random') return [elephant('red'), elephant('black')];
+  return [elephant(value === 'black' ? 'black' : 'red')];
+}
+
+function chessKingGlyphNodes(value: LandingColorPreference): Node[] {
+  const king = (color: 'white' | 'black') => {
+    const piece = document.createElement('span');
+    piece.className = `landing-color-piece chess ${color}`;
+    piece.innerHTML = PIECE_SVGS[`${color}:king`] ?? '';
+    piece.querySelector('svg')?.setAttribute('viewBox', '0 0 45 45');
+    return piece;
+  };
+  if (value === 'random') return [king('white'), king('black')];
+  return [king(value === 'black' ? 'black' : 'white')];
 }
 
 function landingGameSpecCapabilities(gameSpecId: LandingGameSpecId): LandingGameSpecCapabilities {
@@ -2732,6 +2755,12 @@ function startOptionButton(label: string, selected: boolean): HTMLButtonElement 
   button.className = `landing-start-option${selected ? ' selected' : ''}`;
   button.setAttribute('role', 'radio');
   button.setAttribute('aria-checked', selected ? 'true' : 'false');
+  updateStartOptionButtonLabel(button, label);
+  return button;
+}
+
+function updateStartOptionButtonLabel(button: HTMLButtonElement, label: string): void {
+  button.replaceChildren();
   // Split a trailing parenthetical ("3 + 2 (coming soon)") into a muted hint badge so
   // the live label stays prominent and the not-yet-available note de-emphasizes.
   const hintMatch = label.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
@@ -2746,7 +2775,6 @@ function startOptionButton(label: string, selected: boolean): HTMLButtonElement 
   } else {
     button.textContent = label;
   }
-  return button;
 }
 
 async function createRoomFromPlay(

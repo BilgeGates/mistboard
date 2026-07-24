@@ -29,7 +29,6 @@ export const maxRoomClockIncrementMs = 60_000;
 // offers the full three official controls (including rapid 5+5) in its picker,
 // so they share the full allowlist; a lobby's allowlist must accept exactly what
 // its variant's picker offers, or a menu-listed control 400s at join time.
-const ALLOWED_DARK_CHESS_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set(['1m1', '3m2']);
 const ALLOWED_FULL_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set(['1m1', '3m2', '5m5']);
 const ALLOWED_RATED_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set(['3m2']);
 
@@ -249,12 +248,10 @@ export function parseHiddenDraft960(value: unknown): boolean {
 
 export function isAllowedTimeControl(tc: RoomTimeControl): boolean {
   const spec = findTimeControl(tc.initialMs, tc.incrementMs);
-  return spec !== null && ALLOWED_DARK_CHESS_TIME_CONTROL_IDS.has(spec.id);
+  return spec !== null && ALLOWED_FULL_TIME_CONTROL_IDS.has(spec.id);
 }
 
-// The full three-control allowlist for every non-dark-chess live variant
-// (perfect-information chess/xiangqi families plus the flip/fog xiangqi variants
-// whose pickers all list rapid 5+5). Crossroads Chess was the first caller.
+// The full three-control allowlist shared by Fog Chess and live tenant variants.
 export function isAllowedFullTimeControl(tc: RoomTimeControl): boolean {
   const spec = findTimeControl(tc.initialMs, tc.incrementMs);
   return spec !== null && ALLOWED_FULL_TIME_CONTROL_IDS.has(spec.id);

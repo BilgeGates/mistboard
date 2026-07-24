@@ -128,7 +128,7 @@ export async function tryHandle(
       response.end(JSON.stringify({ error: 'invalid_engine' }));
       return true;
     }
-    // Dark-chess (PvE + PvP) is scoped to the official playable TCs (1+1 / 3+2):
+    // Dark-chess (PvE + PvP) is scoped to the three official live time controls:
     // server-side defense in depth so a hand-crafted POST can't create an
     // off-menu pace or matchmaking/rating bucket; the UI picker mirrors it.
     // (Xiangqi variants are delegated above, so this only sees dark-chess.)

@@ -506,7 +506,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         firstColor: 'red',
         firstGlyph: '象',
         firstLabel: 'Red',
-        glyphClass: 'xiangqi',
+        glyphClass: 'jungle',
         // Internal id stays 'black'; the Jungle family brands its navy side
         // "Blue" (see variant-seat-label.ts), so the picker/seat label reads Blue.
         secondColor: 'black',
@@ -786,7 +786,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
         supportsStartFormat: false,
         supportsTimeControl: true,
       },
-      timePresetIds: ['3m2', '5m5'],
+      timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: fortressXiangqiEnabled,
       acceptsDeepLink: fortressXiangqiEnabled,
       // Eight-level ladder (bot-consolidation 2026-07-21) mirroring the

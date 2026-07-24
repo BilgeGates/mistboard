@@ -58,20 +58,18 @@ describe('landing play panel', () => {
     expect(variantPickerSpecs()).toEqual(BASELINE_PICKER_SPECS);
   });
 
-  it('shows the Misty brand placeholder, not a built-in engine name, before the roster loads', () => {
+  it('hides the bot row when only one bot is available', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
     );
-    // Empty roster → the panel falls back to the loading placeholder. It must read
-    // as the real product, never the old "Random Legal v1" built-in name.
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
 
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
     const overlay = document.querySelector('.landing-setup-overlay');
 
-    expect(overlay?.textContent).toContain('Misty');
+    expect(document.querySelector<HTMLElement>('[data-setup-section="engine"]')?.hidden).toBe(true);
     expect(overlay?.textContent).not.toContain('Random Legal');
   });
 
@@ -87,11 +85,11 @@ describe('landing play panel', () => {
     // The panel is the single unified Play button; the per-opponent choices
     // localize inside the dialog's switcher.
     expect(panel.textContent).toContain('開始對局');
-    openPlaySetup(panel, '對戰引擎');
+    openPlaySetup(panel, '對戰機器人');
     const switcher = document.querySelector('.landing-setup-mode-switcher');
-    expect(switcher?.textContent).toContain('電腦');
+    expect(switcher?.textContent).toContain('機器人');
     expect(switcher?.textContent).toContain('好友');
-    expect(switcher?.textContent).toContain('任何人');
+    expect(switcher?.textContent).toContain('大廳');
   });
 
   it('localizes the play setup dialog shell', () => {
@@ -105,8 +103,8 @@ describe('landing play panel', () => {
 
     openPlaySetup(panel, '挑戰好友');
 
-    expect(document.querySelector('.landing-setup-title')?.textContent).toBe('挑戰好友');
-    expect(document.querySelector('[aria-label="遊戲類別"]')).toBeNull();
+    expect(document.querySelector('.landing-setup-title')?.textContent).toBe('開始對局');
+    expect(document.querySelector('[aria-label="對局類型"]')).not.toBeNull();
     expect(document.querySelector('[aria-label="變體"]')).not.toBeNull();
     expect(document.querySelector('[aria-label="用時"]')).not.toBeNull();
     // Xiangqi pivot: DMX is hidden from the picker; assert a still-visible
@@ -116,6 +114,82 @@ describe('landing play panel', () => {
     expect(document.querySelector('.landing-setup-close')?.getAttribute('aria-label')).toBe(
       '關閉設定',
     );
+  });
+
+  it('puts opponent near the end and only shows Bot when there are multiple choices', () => {
+    vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Play a bot');
+    expect(document.querySelector('.landing-setup-title')?.textContent).toBe('Play a game');
+    expect(setupSectionOrder()).toEqual(['variant', 'time', 'side', 'gameType', 'opponent']);
+    selectModalVariant('dark-xiangqi');
+    expect(document.querySelector<HTMLElement>('[data-setup-section="gameType"]')?.hidden).toBe(
+      false,
+    );
+    expect(
+      [...document.querySelectorAll<HTMLButtonElement>('.landing-start-option')].find(
+        (button) => button.textContent === 'Ratedcoming soon',
+      )?.disabled,
+    ).toBe(true);
+    selectModalVariant('crossroads-chess');
+    expect(setupSectionOrder()).toEqual([
+      'variant',
+      'time',
+      'side',
+      'gameType',
+      'opponent',
+      'engine',
+    ]);
+
+    openPlaySetup(panel, 'Challenge a friend');
+    expect(setupSectionOrder()).toEqual(['variant', 'time', 'side', 'gameType', 'opponent']);
+
+    openPlaySetup(panel, 'Find opponent');
+    expect(setupSectionOrder()).toEqual(['variant', 'time', 'gameType', 'opponent']);
+  });
+
+  it('uses chess kings for Fog Chess and red/blue elephants for Jungle sides', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Challenge a friend');
+    const kings = document.querySelectorAll('.landing-color-piece.chess svg');
+    expect(kings).toHaveLength(4);
+    expect([...kings].every((king) => king.getAttribute('viewBox') === '0 0 45 45')).toBe(true);
+
+    selectModalVariant('jungle');
+    const options = [...document.querySelectorAll<HTMLElement>('.landing-color-option')];
+    expect(
+      options.map((option) => option.querySelector('.landing-color-label')?.textContent),
+    ).toEqual(['Red', 'Random', 'Blue']);
+    expect(
+      [...options[0]!.querySelectorAll<HTMLImageElement>('.landing-color-piece.jungle')].map(
+        (image) => image.getAttribute('src'),
+      ),
+    ).toEqual(['/piece-sets/jungle/dobutsu/red-elephant.png']);
+    expect(
+      [...options[1]!.querySelectorAll<HTMLImageElement>('.landing-color-piece.jungle')].map(
+        (image) => image.getAttribute('src'),
+      ),
+    ).toEqual([
+      '/piece-sets/jungle/dobutsu/red-elephant.png',
+      '/piece-sets/jungle/dobutsu/black-elephant.png',
+    ]);
+    expect(
+      [...options[2]!.querySelectorAll<HTMLImageElement>('.landing-color-piece.jungle')].map(
+        (image) => image.getAttribute('src'),
+      ),
+    ).toEqual(['/piece-sets/jungle/dobutsu/black-elephant.png']);
   });
 
   it('localizes the open lobby requests window', async () => {
@@ -166,7 +240,7 @@ describe('landing play panel', () => {
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
 
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
 
     expect(variantPickerPresent()).toBe(true);
     expect(variantPickerSpecs()).toEqual(BASELINE_PICKER_SPECS);
@@ -216,7 +290,7 @@ describe('landing play panel', () => {
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
 
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
 
     expect(document.querySelector('[aria-label="Game group"]')).toBeNull();
     expect(variantPickerSpecs()).toContain('dark-chess');
@@ -271,7 +345,7 @@ describe('landing play panel', () => {
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
 
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
     clickModalButton('1 + 1');
     clickModalColor('Black');
     clickModalButton('Start game');
@@ -294,7 +368,7 @@ describe('landing play panel', () => {
     await flushPromises();
     document.querySelector('.landing-setup-overlay')?.remove();
 
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
     expect(selectedModalTimeControl()).toBe('1 + 1');
     expect(selectedModalColor()).toBe('Black');
     document.querySelector('.landing-setup-overlay')?.remove();
@@ -506,9 +580,9 @@ describe('landing play panel', () => {
     ]);
     document.body.append(panel);
 
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
     selectModalVariant('crossroads-chess');
-    const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]');
+    const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Bot"]');
     expect(engineSelect).not.toBeNull();
     // Strongest-first ordering: toughest opponent sits at the top of the picker.
     expect([...engineSelect!.options].map((option) => [option.value, option.textContent])).toEqual([
@@ -546,7 +620,7 @@ describe('landing play panel', () => {
     window.history.replaceState(null, '', '/?play=computer&gameSpecId=drop-mini-xiangqi');
     maybeOpenPlayDeepLink([]);
     expect(softLinkedVariantLabel()).toBe('Drop Mini Xiangqi');
-    const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]');
+    const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Bot"]');
     expect(engineSelect).not.toBeNull();
     expect([...engineSelect!.options].map((option) => [option.value, option.textContent])).toEqual([
       ['fairy-stockfish-drop-mini-xiangqi-very-strong', 'Fairy Stockfish - Strongest'],
@@ -579,17 +653,20 @@ describe('landing play panel', () => {
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
 
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
     // Pick the strongest Crossroads engine (the default is the middle tier)...
     selectModalVariant('crossroads-chess');
     selectModalEngine('fairy-stockfish-crossroads-very-strong');
-    // ...then visit Jieqi (one public engine since the bot consolidation, so
-    // the dialog renders a static control instead of a select)...
+    // ...then visit Jieqi (one public bot since consolidation, so the bot row
+    // disappears entirely)...
     selectModalVariant('jieqi');
-    expect(document.querySelector('.landing-variant-control')?.textContent).toBe('Pikafish');
+    expect(document.querySelector<HTMLElement>('[data-setup-section="engine"]')?.hidden).toBe(true);
     // ...and back to Crossroads: the earlier pick must survive the round-trip.
     selectModalVariant('crossroads-chess');
-    expect(document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]')!.value).toBe(
+    expect(document.querySelector<HTMLElement>('[data-setup-section="engine"]')?.hidden).toBe(
+      false,
+    );
+    expect(document.querySelector<HTMLSelectElement>('select[aria-label="Bot"]')!.value).toBe(
       'fairy-stockfish-crossroads-very-strong',
     );
   });
@@ -605,7 +682,7 @@ describe('landing play panel', () => {
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
 
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
     selectModalVariant('crossroads-chess');
     selectModalEngine('fairy-stockfish-crossroads-very-strong');
     clickModalColor('Black');
@@ -613,9 +690,9 @@ describe('landing play panel', () => {
     await flushPromises();
 
     // Reopen: the strongest tier (a non-default pick) should be preselected.
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
     selectModalVariant('crossroads-chess');
-    expect(document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]')!.value).toBe(
+    expect(document.querySelector<HTMLSelectElement>('select[aria-label="Bot"]')!.value).toBe(
       'fairy-stockfish-crossroads-very-strong',
     );
   });
@@ -659,7 +736,7 @@ describe('landing play panel', () => {
     expect(variantPickerSpecs()).toContain('crossroads-chess');
   });
 
-  it('keeps 5+5 hidden for fog variants in the setup modal', () => {
+  it('restores 5+5 for Fog Chess while keeping DMX scoped to its two controls', () => {
     vi.stubEnv('VITE_DARK_MINI_XIANGQI_ENABLED', 'true');
     vi.stubGlobal(
       'fetch',
@@ -669,7 +746,7 @@ describe('landing play panel', () => {
     document.body.append(panel);
 
     openPlaySetup(panel, 'Challenge a friend');
-    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2']);
+    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
     document.querySelector('.landing-setup-overlay')?.remove();
 
     // DMX is hidden from the picker; reach it by deep link and confirm it also
@@ -678,6 +755,20 @@ describe('landing play panel', () => {
     maybeOpenPlayDeepLink([]);
     expect(softLinkedVariantLabel()).toBe('Dark Mini Xiangqi');
     expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2']);
+  });
+
+  it('offers 1+1 for Fortress Xiangqi', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Challenge a friend');
+    selectModalVariant('fortress-xiangqi');
+
+    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
   });
 
   it('offers correspondence days for casual dark chess in both friend challenge and find opponent', () => {
@@ -727,7 +818,7 @@ describe('landing play panel', () => {
     expect(visibleModalTimeControls()).toEqual(['3 + 2']);
 
     clickModalButton('Casual');
-    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2']);
+    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
 
     clickModalButton('Rated');
     expect(visibleModalTimeControls()).toEqual(['3 + 2']);
@@ -746,7 +837,7 @@ describe('landing play panel', () => {
     openPlaySetup(panel, 'Find opponent');
 
     expect(document.body.textContent).toContain('Ratedcoming soon');
-    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2']);
+    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
   });
 
   it('offers Crossroads Chess for engine and lobby play', () => {
@@ -758,7 +849,7 @@ describe('landing play panel', () => {
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
 
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
     expect(variantPickerSpecs()).toContain('crossroads-chess');
     document.querySelector('.landing-setup-overlay')?.remove();
 
@@ -850,8 +941,7 @@ describe('landing play panel', () => {
       { id: 'python-v2-v1.0', name: 'Misty', familyName: 'Misty', kind: 'fog-chess' },
     ]);
     expect(softLinkedVariantLabel()).toBe('Dark Mini Xiangqi');
-    // In the engine flow the bot control sits alongside the variant control.
-    expect(variantControlLabels()).toContain('Misty DMX 1.0');
+    expect(document.querySelector<HTMLElement>('[data-setup-section="engine"]')?.hidden).toBe(true);
     clickModalColor('Black');
     clickModalButton('Start game');
     await flushPromises();
@@ -890,9 +980,9 @@ describe('landing play panel', () => {
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
 
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
     selectModalVariant('dark-xiangqi');
-    expect(document.querySelector('.landing-variant-control')?.textContent).toBe('Misty');
+    expect(document.querySelector<HTMLElement>('[data-setup-section="engine"]')?.hidden).toBe(true);
     clickModalColor('Black');
     clickModalButton('Start game');
     await flushPromises();
@@ -910,9 +1000,7 @@ describe('landing play panel', () => {
 
     maybeOpenPlayDeepLink([]);
 
-    expect(document.querySelector('.landing-setup-dialog')?.textContent).toContain(
-      'Play the engine',
-    );
+    expect(document.querySelector('.landing-setup-title')?.textContent).toBe('Play a game');
     expect(window.location.search).toBe('');
   });
 
@@ -1028,7 +1116,7 @@ describe('landing play panel', () => {
     );
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
 
     // Dark Xiangqi stays a live browse-grid card and is selectable.
     const dxq = document.querySelector<HTMLButtonElement>(
@@ -1059,7 +1147,7 @@ describe('landing play panel', () => {
     maybeOpenPlayDeepLink([]);
 
     expect(softLinkedVariantLabel()).toBe('Mini Xiangqi');
-    const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]');
+    const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Bot"]');
     expect(engineSelect).not.toBeNull();
     expect([...engineSelect!.options].map((option) => option.value)).toEqual([
       'fairy-stockfish-mini-xiangqi-very-strong',
@@ -1078,7 +1166,7 @@ describe('landing play panel', () => {
     );
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
-    openPlaySetup(panel, 'Play the engine');
+    openPlaySetup(panel, 'Play a bot');
 
     const card = document.querySelector<HTMLButtonElement>(
       '.landing-variant-card[data-game-spec="dark-crossroads-chess"]',
@@ -1243,8 +1331,8 @@ function openLobbySetup(panel: HTMLElement): void {
 // The panel is a single unified Play button since the homepage rework; the
 // old per-mode entry labels map onto the dialog's opponent switcher segments.
 const PLAY_SETUP_MODE_BY_LABEL: Record<string, 'pve' | 'pvp' | 'lobby'> = {
-  'Play the engine': 'pve',
-  對戰引擎: 'pve',
+  'Play a bot': 'pve',
+  對戰機器人: 'pve',
   'Challenge a friend': 'pvp',
   挑戰好友: 'pvp',
   'Find opponent': 'lobby',
@@ -1312,6 +1400,12 @@ function activeSetupSection(): string | undefined {
     .setupSection;
 }
 
+function setupSectionOrder(): string[] {
+  return [...document.querySelectorAll<HTMLElement>('.landing-setup-accordion-section')]
+    .filter((section) => !section.hidden)
+    .map((section) => section.dataset.setupSection ?? '');
+}
+
 function variantPickerPresent(): boolean {
   return document.querySelector('.landing-variant-grid') !== null;
 }
@@ -1324,14 +1418,8 @@ function softLinkedVariantLabel(): string | undefined {
   return document.querySelector<HTMLElement>('.landing-variant-control')?.textContent?.trim();
 }
 
-function variantControlLabels(): string[] {
-  return [...document.querySelectorAll<HTMLElement>('.landing-variant-control')].map(
-    (el) => el.textContent?.trim() ?? '',
-  );
-}
-
 function selectModalEngine(engineId: string): void {
-  const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Engine"]');
+  const engineSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Bot"]');
   expect(engineSelect).not.toBeNull();
   engineSelect!.value = engineId;
   engineSelect!.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1437,7 +1525,7 @@ describe('roomCreationRequestBody — jungle PvE bots', () => {
     };
   }
 
-  // Regression: the flip body hardcoded `mode: 'pvp'`, so "Play the engine"
+  // Regression: the flip body hardcoded `mode: 'pvp'`, so "Play a bot"
   // created a PvP invite link instead of a bot game.
   it('sends mode=pve and the picked engine id for Flip Jungle', () => {
     const body = roomCreationRequestBody('pve', setupFor('jungle-flip'), 'misty-jungle-flip');

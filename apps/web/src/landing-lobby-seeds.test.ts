@@ -52,7 +52,7 @@ describe('landing lobby bot seeks', () => {
     const seeds = [...panel.querySelectorAll<HTMLElement>('.landing-lobby-seed')];
     expect(seeds.length).toBeGreaterThan(0);
     for (const seed of seeds) {
-      expect(seed.getAttribute('aria-label')?.startsWith('Play the engine')).toBe(true);
+      expect(seed.getAttribute('aria-label')?.startsWith('Play a bot')).toBe(true);
       const opponent = seed.querySelector('.landing-lobby-seed-opponent');
       // A bot icon plus a non-empty engine name is the honesty signal.
       expect(opponent?.querySelector('.landing-lobby-seed-boticon')).not.toBeNull();

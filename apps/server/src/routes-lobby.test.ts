@@ -218,8 +218,8 @@ test('lobby: two matching chess requests create one dark-chess room with the exa
 test('lobby: chess requests with different time controls do not match', async () => {
   const { ctx, chessCalls } = testContext();
   await post(ctx, { timeControl: tc }); // 3+2
-  // 1+1 is a different allowed bucket (the allowlist now scopes chess matchmaking
-  // to 1+1 / 3+2; an off-menu TC like 1+0 is rejected — see the allowlist test).
+  // 1+1 is a different allowed bucket. An off-menu TC like 1+0 is rejected
+  // while the official 1+1 / 3+2 / 5+5 controls remain available.
   const other = await post(ctx, { timeControl: { initialMs: 60000, incrementMs: 1000 } });
   assert.equal(other.status, 202);
   assert.equal(chessCalls.length, 0);
@@ -233,6 +233,15 @@ test('lobby: chess request with an off-menu time control is rejected', async () 
   const res = await post(ctx, { timeControl: { initialMs: 60000, incrementMs: 0 } });
   assert.equal(res.status, 400);
   assert.equal(ctx.lobbyQueue.length, 0);
+});
+
+test('lobby: Fog Chess accepts the restored 5+5 time control', async () => {
+  const { ctx } = testContext();
+  const res = await post(ctx, {
+    timeControl: { initialMs: 300_000, incrementMs: 5_000 },
+  });
+  assert.equal(res.status, 202);
+  assert.equal(ctx.lobbyQueue.length, 1);
 });
 
 test('lobby: rated chess request from a guest is rejected', async () => {
