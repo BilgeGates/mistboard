@@ -74,7 +74,7 @@ Edit task → find file → open only that file.
 | `server-http.ts` | HTTP entry routing: `/health`, admin drain handoff, API context dispatch, OG/static page routes, robots/sitemap, article/game shell fallbacks, and SPA static fallback. |
 | `server-lifecycle.ts` | Server shutdown/test-teardown mechanics: pause active rooms, clear room timers, close room sockets, wait for room writes, and close HTTP/WebSocket servers. |
 | `server-static-pages.ts` | Static page helpers for non-API HTTP routes: per-game/article page-meta injection, article shell/prerender serving, articles index shell, sitemap generation, and SPA-shell route preload injection (`routePreloadLinksForPath`/`serveSpaShellWithRoutePreloads` bake the matched route's modulepreload/CSS links from `dist/route-preload-manifest.json` into the shell head, #31; a missing/malformed manifest degrades to the plain shell). |
-| `server-drain.ts` | Admin drain controller: drain deadline state, active-game counting, rate limiting, token-gated drain/cancel HTTP handling, and restart/cancel WebSocket broadcasts. |
+| `server-drain.ts` | Admin drain controller: pending/restarting phase state, active-game counting, rate limiting, token-gated drain/restart-commit/cancel HTTP handling, and phase/cancel WebSocket broadcasts. Restart commit fails closed while any game remains. |
 | `server-ws-connection.ts` | WebSocket edge handling: connection handshake, game-spec gate, account/session lookup, seat assignment, hello snapshot, message dispatch, rate limiting, debug auth, rematch messages, and disconnect behavior. Injects room lifecycle/game-flow callbacks from `index.ts`. |
 | `server-ws-dark-xiangqi.ts` | Thin adapter over the generic tenant WebSocket runtime (`variant-tenant/ws.ts`) for hidden Dark Xiangqi — the last tenant to converge off a hand-rolled handler at the registry dispatch collapse (2026-06-11). Its quirks (latency-sample, unknown-message logging, strict client-id regex, sync expiry-on-move) moved into the generic runtime; re-exports the bound functions under their pre-migration names. |
 | `dark-xiangqi-tenant.ts` | Hidden Dark Xiangqi `VariantTenant` (P1 near-copy migration): looser-than-DMX event redaction, shrouded-piece wire board, seat-vacated acceptance, legacy GameSummary shape, no snapshot extras. The `dark-xiangqi-runtime` (types-only) + `server-dark-xiangqi-room-factory` + `server-ws-dark-xiangqi` files bind the generic `variant-tenant/` functions (events/seat-session/lifecycle/transport adapters removed 2026-07-01; callers call the generic `tenant*` directly). |
@@ -461,7 +461,7 @@ Edit task → find file → open only that file.
 |------|------|
 | `harness.ts` | `startTestServer({seatVacateGraceMs})`, `connectClient({url, room, seatToken})`, `TestClient` with `waitFor` / `expectMessage`, `waitUntil`, `sleep`, `uniqueRoomId` |
 | `core-loop.test.ts` | 9 scenarios: resign+winner, rematch round-trip, redirect replay on reconnect, pregame grace (in/out), presence, seat-token reseat, one-sided offer, move broadcast |
-| `drain.test.ts` | Drain endpoint + WS-broadcast tests |
+| `drain.test.ts` | Drain endpoint, two-phase restart commit/status, matchmaking gate, and WS-broadcast tests |
 | `loadtest-smoke.test.ts` | Builtin-engine load smoke |
 | `persist-resign.test.ts` | Postgres-on resign-termination integration test |
 
@@ -624,8 +624,8 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `dark-xiangqi-room-actions.ts` | Flagged Dark Xiangqi room creation/action helpers |
 | `account-nav.ts` | Top-nav account menu + sign-in state. Loads `account-nav.css` |
 | `account-nav.css` | Top-nav account/auth slot styles loaded by `account-nav.ts` |
-| `restart-banner.ts` | Boot-fetch + WS-driven drain banner. Loads `restart-banner.css` |
-| `restart-banner.css` | Server restart countdown banner styles loaded by `restart-banner.ts` |
+| `restart-banner.ts` | Boot-fetch + WS-driven two-phase update banner: “Update pending” during drain, then “Server restarting now” immediately before deploy. Loads `restart-banner.css` |
+| `restart-banner.css` | Server restart banner styles loaded by `restart-banner.ts` |
 | `theme.ts` | Applied-theme bootstrap + appearance/sound settings facade: localStorage readers, change events, and the high-level preference setters. The settings-panel UI itself lives in `theme-settings-panel.ts`, dynamically imported at most once on first gear interaction. Loads `theme.css` for settings controls and dark-mode overrides |
 | `theme-settings-panel.ts` | The appearance/sound settings-panel UI (lichess-style drill-in menu shared by the signed-out nav gear and the signed-in account dropdown): board/piece/sound tile pickers + previews. Loaded LAZILY from `theme.ts` so the pickers stay out of the entry chunk; a dumb view over theme.ts's storage/preference API |
 | `theme.css` | Site appearance/settings control styles and dark-mode overrides loaded by `theme.ts` |
@@ -969,7 +969,7 @@ Numbered raw SQL files starting at `001_init.sql`; the count moves fast (105+ as
 
 | Group | Files |
 |-------|-------|
-| Build/start | `build.mjs`, `start.mjs`, `safe-deploy.mjs`, `release-prod.mjs` |
+| Build/start | `build.mjs`, `start.mjs`; `release-prod.mjs` is the sole main-push path and runs CI → drain-to-zero → restart notice → push/deploy → smoke; `safe-deploy.mjs` owns the fail-closed drain helper, tested by `safe-deploy.test.mjs` |
 | Agent/dev loop | `agent-scan.mjs`, `dev.mjs`, `product-profile.mjs`, `worktree-role.mjs`, `worktree-local-files.mjs`, `ci-browser-smoke-plan.mjs`, `ci-checks.mjs`, `drift-check.mjs`, `gate-evidence.mjs`, `i18n-check-lib.mjs`, `verify.mjs`, `worktree-new.mjs`, `worktree-prepare.mjs`, `mobile-loop.mjs`, `visual-check.mjs`; `config/product-profile.json` is the product-shaped local variant list shared by dev and QA seeding |
 | Engine artifacts | `archive-engine-artifact.mjs`, `engine-artifact-{audit,closeout}.mjs`, `capture-belief-artifacts.mjs`, `generate-fow-corpus.mjs` |
 | Variant labs | `variant-lab/drop-mini-xiangqi-{fsf-play,hotseat,scenarios}.ts` plus `drop-mini-xiangqi-fsf.ini`; Drop Mini Xiangqi policy pressure tests, terminal hotseat, scenario audit, and optional `--html` FSF self-play replay export. `variant-lab/fortress-xiangqi-fsf-play.ts` FSF⟷kernel parity harness; `variant-lab/fortress-xiangqi-sample-game.ts` kernel-validated FSF self-play generator for the rules-article replay. `variant-lab/xiangqi-puzzle-miner.ts` lichess-style standard-xiangqi puzzle miner over real games (historical DB or a directory): Pikafish MultiPV scan/verify, kernel re-validation; output is #183-shaped: `--emit-seed` rewrites the mined section of `packages/game/seed/puzzles/xiangqi.json` (commit = deploy via the boot-time seed sync) or `--insert-db` upserts `source_kind='mined'` rows straight into the `puzzles` table, plus a JSONL sidecar + metrics JSON. `variant-lab/xiangqi-pikafish-uci.ts` shared Pikafish UCI layer for the miner AND `variant-lab/xiangqi-puzzle-uniqueness-audit.ts` (per-ply re-verification of the shipped corpus): one engine driver, one `info`-line parser, shared score normalization, gate defaults, and `analyzeXiangqiSolverPly` (history-free FEN + MultiPV 2 + `isXiangqiSolverMoveUnique`), so miner and audit verdicts cannot drift (#185); contract pinned by `variant-lab/xiangqi-uniqueness-gate.test.ts` (engine-free, rides `npm run test:tooling`) |

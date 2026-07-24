@@ -1,18 +1,13 @@
 #!/bin/sh
 set -eu
 
-# Runs a path-aware local gate before allowing a push to main.
+# Allows production pushes only through release:prod, then runs its path-aware
+# local gate when release:prod was asked to skip its own ci:quick pass.
 # Catches the failure modes that bit us on 2026-05-13: a new internal
 # workspace missing from scripts/build.mjs' order (board-render), and an
 # entrypoint refactor that broke a spawn-based test (privacy-ws).
 #
-# Skip with: SKIP_PREPUSH=1 git push
 # Only runs for pushes that update refs/heads/main.
-
-if [ "${SKIP_PREPUSH:-}" = "1" ]; then
-  echo "pre-push: skipped via SKIP_PREPUSH=1"
-  exit 0
-fi
 
 # git feeds pre-push hooks one line per ref on stdin:
 #   <local-ref> <local-sha> <remote-ref> <remote-sha>
@@ -31,6 +26,12 @@ done
 
 if [ "$pushing_main" != "1" ]; then
   exit 0
+fi
+
+if [ "${MISTBOARD_RELEASE_PUSH:-}" != "1" ]; then
+  echo "pre-push: direct pushes to main are disabled."
+  echo "Use: npm run release:prod -- --push"
+  exit 1
 fi
 
 node scripts/pre-push-check.mjs "$main_local_sha" "$main_remote_sha"

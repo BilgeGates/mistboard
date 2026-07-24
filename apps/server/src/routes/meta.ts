@@ -27,6 +27,7 @@ export async function tryHandle(
     if (!requireMethod(request, response, 'GET')) return true;
     writeJson(response, 200, {
       restartAt: ctx.drainDeadlineMs(),
+      restartPhase: ctx.restartPhase?.() ?? null,
       activeGames: ctx.activeGameCount(),
       build: getBuildInfo(),
       darkXiangqiEnabled: darkXiangqiEnabled(),

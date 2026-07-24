@@ -8,6 +8,7 @@ import { variantTenantActiveGameCount, variantTenantBroadcast } from './variant-
 export type DrainController = {
   activeGameCount(): number;
   drainDeadlineMs(): number | null;
+  restartPhase(): DrainPhase | null;
   handleRequest(
     request: IncomingMessage,
     response: ServerResponse,
@@ -23,14 +24,17 @@ export type DrainControllerOptions = {
 };
 
 type DrainState = {
+  phase: DrainPhase | null;
   restartAt: number | null;
 };
+
+export type DrainPhase = 'pending' | 'restarting';
 
 const drainRateLimit = 10;
 const drainRateWindowMs = 60_000;
 
 export function createDrainController(options: DrainControllerOptions): DrainController {
-  const drainState: DrainState = { restartAt: null };
+  const drainState: DrainState = { phase: null, restartAt: null };
   const drainRateBuckets = new Map<string, number[]>();
 
   function isDraining(): boolean {
@@ -39,6 +43,10 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
 
   function drainDeadlineMs(): number | null {
     return isDraining() ? drainState.restartAt : null;
+  }
+
+  function restartPhase(): DrainPhase | null {
+    return isDraining() ? drainState.phase : null;
   }
 
   // Number of rooms with a live in-progress game (playing state, not paused),
@@ -91,15 +99,20 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
 
     if (pathname === '/admin/drain/cancel') {
       const wasActive = isDraining();
+      const hadDrain = drainState.phase !== null;
       const cancelledAt = Date.now();
       const restartAt = drainState.restartAt;
+      const phase = drainState.phase;
+      drainState.phase = null;
       drainState.restartAt = null;
-      if (wasActive) broadcastDrainCancel(options.rooms);
+      if (hadDrain) broadcastDrainCancel(options.rooms);
       await recordRoomLifecycleAuditSafe({
         kind: 'drain_cancelled',
         atMs: cancelledAt,
         payload: {
           wasActive,
+          hadDrain,
+          phase,
           restartAt,
           rooms: options.rooms.size,
           activeGames: activeGameCount(),
@@ -110,19 +123,63 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
       return;
     }
 
+    const body = await readJsonBody(request);
+    if (body.phase === 'restarting') {
+      if (!isDraining()) {
+        writeJson(response, 409, { error: 'drain_not_active' });
+        return;
+      }
+      const activeGames = activeGameCount();
+      if (activeGames !== 0) {
+        writeJson(response, 409, { error: 'active_games_remaining', activeGames });
+        return;
+      }
+      const idempotent = drainState.phase === 'restarting';
+      drainState.phase = 'restarting';
+      if (!idempotent) broadcastRestartNow(options.rooms);
+      const committedAt = Date.now();
+      await recordRoomLifecycleAuditSafe({
+        kind: 'drain_restart_committed',
+        atMs: committedAt,
+        payload: {
+          restartAt: drainState.restartAt,
+          rooms: options.rooms.size,
+          activeGames,
+          idempotent,
+        },
+      });
+      console.log(
+        JSON.stringify({
+          level: 'info',
+          kind: 'drain_restart_committed',
+          restartAt: drainState.restartAt,
+          idempotent,
+          at: committedAt,
+        }),
+      );
+      writeJson(response, 200, {
+        ok: true,
+        draining: true,
+        phase: drainState.phase,
+        restartAt: drainState.restartAt,
+        idempotent,
+      });
+      return;
+    }
+
     // /admin/drain: idempotent activation. If already draining, return the
     // existing deadline rather than extending it.
     if (isDraining()) {
       writeJson(response, 200, {
         ok: true,
         draining: true,
+        phase: drainState.phase,
         restartAt: drainState.restartAt,
         idempotent: true,
       });
       return;
     }
 
-    const body = await readJsonBody(request);
     const requestedWindowMs =
       typeof body.windowMs === 'number'
         ? body.windowMs
@@ -135,6 +192,7 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
     }
     const windowMs = Math.min(requestedWindowMs, options.drainWindowMaxMs);
     const activatedAt = Date.now();
+    drainState.phase = 'pending';
     drainState.restartAt = activatedAt + windowMs;
     broadcastDrainSchedule(options.rooms, drainState.restartAt);
     await recordRoomLifecycleAuditSafe({
@@ -160,6 +218,7 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
     writeJson(response, 200, {
       ok: true,
       draining: true,
+      phase: drainState.phase,
       restartAt: drainState.restartAt,
       idempotent: false,
     });
@@ -170,6 +229,7 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
     drainDeadlineMs,
     handleRequest,
     isDraining,
+    restartPhase,
   };
 }
 
@@ -180,14 +240,19 @@ function bearerToken(request: IncomingMessage): string | undefined {
   return authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : undefined;
 }
 
-// Broadcast 'server_restart_scheduled' to every connected WS client — chess
-// rooms and every registered variant tenant's rooms. Triggered on drain
-// activation. Clients render a countdown banner from `restartAt`. Sending it
-// as a stand-alone message (not inside a snapshot) avoids waking up every
-// game's snapshot-broadcast path.
+// Broadcast restart phase changes to every connected WS client, both chess
+// rooms and every registered variant tenant's rooms. Stand-alone messages
+// avoid waking every game's snapshot-broadcast path.
 function broadcastDrainSchedule(rooms: Map<string, Room>, restartAt: number): void {
-  const message = JSON.stringify({ type: 'server_restart_scheduled', restartAt });
+  const message = JSON.stringify({ type: 'server_restart_scheduled', phase: 'pending', restartAt });
   sendDrainMessage(rooms, message);
+}
+
+function broadcastRestartNow(rooms: Map<string, Room>): void {
+  sendDrainMessage(
+    rooms,
+    JSON.stringify({ type: 'server_restart_scheduled', phase: 'restarting' }),
+  );
 }
 
 function broadcastDrainCancel(rooms: Map<string, Room>): void {

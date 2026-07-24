@@ -69,6 +69,7 @@ export interface HttpApiContext {
   inMemoryGameSummary(roomId: string): persistence.RecentEveGameRecord | null;
   isDraining(): boolean;
   drainDeadlineMs(): number | null;
+  restartPhase?(): 'pending' | 'restarting' | null;
   activeGameCount(): number;
   persistenceHealth?(): { count1m: number; lastAt: number | null };
 }

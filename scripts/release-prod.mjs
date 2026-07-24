@@ -47,10 +47,12 @@ const startedAt = performance.now();
 const release = {
   ciRequired: false,
   ciReason: null,
+  drainCommitted: false,
   deployRequired: false,
   headRevision: null,
   planReason: null,
   productionRevision: null,
+  pushCompleted: false,
   targetRevision: null,
 };
 
@@ -83,6 +85,12 @@ try {
   release.ciReason = ciPlan.reason;
   printHostedCiPlan(ciPlan);
 
+  if (options.push && release.deployRequired && !process.env.MISTBOARD_DRAIN_TOKEN) {
+    throw new Error(
+      'MISTBOARD_DRAIN_TOKEN is required for a production deploy. Get it from the Railway web service dashboard.',
+    );
+  }
+
   if (options.localCi) {
     runTimed('local ci:quick', ['npm', 'run', 'ci:quick']);
   } else {
@@ -90,7 +98,20 @@ try {
   }
 
   if (options.push) {
+    if (release.deployRequired) {
+      runTimed('production drain', [
+        'node',
+        'scripts/safe-deploy.mjs',
+        '--yes',
+        '--commit',
+        ...safeDeployBaseArgs(),
+      ]);
+      release.drainCommitted = true;
+    } else {
+      console.log(`skip: production drain (${release.planReason})`);
+    }
     runTimed('git push release head', pushCommand(release.headRevision));
+    release.pushCompleted = true;
   } else {
     console.log('skip: git push (pass --push to publish the current commit)');
   }
@@ -119,6 +140,7 @@ try {
   const elapsedMs = Math.round(performance.now() - startedAt);
   console.log(`release: ok in ${formatDuration(elapsedMs)}`);
 } catch (error) {
+  cancelUnpublishedDrain();
   const elapsedMs = Math.round(performance.now() - startedAt);
   console.error(`release: failed after ${formatDuration(elapsedMs)}`);
   console.error(error instanceof Error ? error.message : String(error));
@@ -434,7 +456,7 @@ function prodWaitCommand(headRevision) {
 }
 
 function pushCommand(headRevision) {
-  const command = ['git', 'push'];
+  const command = ['env', 'MISTBOARD_RELEASE_PUSH=1', 'git', 'push'];
   if (options.localCi) command.push('--no-verify');
   command.push(options.remote, `${headRevision}:refs/heads/${options.targetBranch}`);
   return command;
@@ -598,6 +620,10 @@ function baseArgs() {
   return options.baseUrl ? ['--base', options.baseUrl] : [];
 }
 
+function safeDeployBaseArgs() {
+  return options.baseUrl ? ['--base-url', options.baseUrl] : [];
+}
+
 function npmCommand(script, args = []) {
   if (args.length === 0) return ['npm', 'run', script];
   return ['npm', 'run', script, '--', ...args];
@@ -613,6 +639,16 @@ function run(command) {
   if (result.error) throw result.error;
   if (result.signal) throw new Error(`${command[0]} exited with signal ${result.signal}`);
   if (result.status !== 0) throw new Error(`${command[0]} exited with ${result.status}`);
+}
+
+function cancelUnpublishedDrain() {
+  if (!release.drainCommitted || release.pushCompleted) return;
+  console.error('release stopped before push completed; cancelling production drain');
+  const command = ['node', 'scripts/safe-deploy.mjs', '--cancel', '--yes', ...safeDeployBaseArgs()];
+  const result = spawnSync(command[0], command.slice(1), { stdio: 'inherit' });
+  if (result.status !== 0) {
+    console.error('warning: automatic drain cancellation failed; cancel /admin/drain manually');
+  }
 }
 
 function runCapture(label, command, { quiet = false } = {}) {
@@ -742,10 +778,11 @@ function printHelp() {
   node scripts/release-prod.mjs --plan-file apps/web/src/main.ts --plan-file scripts/build.mjs
 
 Order:
-  local ci:quick -> optional git push -> hosted GitHub CI when matched -> production revision wait when deploying -> smoke
+  local ci:quick -> drain and wait for zero games -> restart-now notice -> optional git push -> hosted GitHub CI when matched -> production revision wait when deploying -> smoke
 
 Options:
-  --push                   Push --head to origin/main. Without this, assume it is already pushed.
+  --push                   Drain production, then push --head to origin/main.
+                           Without this, assume it is already pushed.
   --head <ref>             Commit/ref to release, default HEAD.
   --plan                   Dry run: print the deploy plan, hosted CI plan, and
                            resolved smoke tier, then exit. No ci, push, or smoke.
@@ -763,7 +800,9 @@ Options:
   --timeout-ms <ms>        Timeout for hosted CI and revision wait, default ${DEFAULT_TIMEOUT_MS}.
 
 Use --push instead of a standalone git push when you want this command to own
-the release order. For docs-only or other non-deploy commits, the planner skips
+the release order. Deploying pushes require MISTBOARD_DRAIN_TOKEN and stop if
+active games do not finish inside the drain window. For docs-only or other
+non-deploy commits, the planner skips
 the exact-revision wait because production is not expected to serve that SHA,
 but still waits for hosted CI when the diff matches the CI workflow paths. When
 local ci:quick runs, --push uses git push --no-verify to avoid running the same

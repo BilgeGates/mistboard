@@ -7,13 +7,14 @@
  */
 
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const script = join(scriptsDir, 'pre-push-check.mjs');
+const hook = join(scriptsDir, '..', '.githooks', 'pre-push');
 
 function plan(files) {
   return execFileSync(process.execPath, [script, '--plan', '--files', ...files], {
@@ -57,4 +58,18 @@ test('unwatched files still get the drift check', () => {
   const output = plan(['.gitignore']);
   assert.match(output, /pre-push: unmapped gate/);
   assert.match(output, /npm run check:drift/);
+});
+
+test('the git hook blocks direct pushes to main in favor of the drained release path', () => {
+  const env = { ...process.env };
+  delete env.MISTBOARD_RELEASE_PUSH;
+  const result = spawnSync(hook, ['origin', 'unused'], {
+    cwd: join(scriptsDir, '..'),
+    encoding: 'utf8',
+    env,
+    input: `refs/heads/main ${'1'.repeat(40)} refs/heads/main ${'2'.repeat(40)}\n`,
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /direct pushes to main are disabled/);
+  assert.match(result.stdout, /npm run release:prod -- --push/);
 });

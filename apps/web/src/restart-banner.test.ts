@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { mountRestartBanner, setRestartBanner } from './restart-banner.js';
 
 function getBanner(): HTMLDivElement {
@@ -7,20 +7,18 @@ function getBanner(): HTMLDivElement {
   return el;
 }
 
-function getCountdownText(): string {
-  return getBanner().querySelector('[data-countdown]')?.textContent ?? '';
+function getLabelText(): string {
+  return getBanner().querySelector('[data-label]')?.textContent ?? '';
+}
+
+function getHintText(): string {
+  return getBanner().querySelector('[data-hint]')?.textContent ?? '';
 }
 
 describe('restart-banner', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-05-22T12:00:00.000Z'));
     mountRestartBanner();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   it('mounts hidden at the top of the body', () => {
@@ -35,43 +33,24 @@ describe('restart-banner', () => {
     expect(document.body.querySelectorAll('.restart-banner').length).toBe(1);
   });
 
-  it('reveals the banner and renders an mm:ss countdown when given a future restartAt', () => {
-    setRestartBanner(Date.now() + 14 * 60 * 1000 + 23 * 1000);
+  it('shows a pending update while active games finish', () => {
+    setRestartBanner('pending');
     expect(getBanner().hidden).toBe(false);
-    expect(getCountdownText()).toBe('14:23');
+    expect(getLabelText()).toBe('Update pending');
+    expect(getHintText()).toBe('Active games can finish before the restart.');
   });
 
-  it('pads the seconds field', () => {
-    setRestartBanner(Date.now() + 60_000 + 4_000);
-    expect(getCountdownText()).toBe('1:04');
+  it('shows when the restart is beginning', () => {
+    setRestartBanner('restarting');
+    expect(getBanner().hidden).toBe(false);
+    expect(getLabelText()).toBe('Server restarting now');
+    expect(getHintText()).toBe('Please reconnect in a moment.');
   });
 
-  it('ticks the countdown each second', () => {
-    setRestartBanner(Date.now() + 65_000);
-    expect(getCountdownText()).toBe('1:05');
-    vi.advanceTimersByTime(1_000);
-    expect(getCountdownText()).toBe('1:04');
-    vi.advanceTimersByTime(60_000);
-    expect(getCountdownText()).toBe('0:04');
-  });
-
-  it('hides the banner when restartAt is null', () => {
-    setRestartBanner(Date.now() + 60_000);
+  it('hides the banner when the restart is cancelled', () => {
+    setRestartBanner('pending');
     expect(getBanner().hidden).toBe(false);
     setRestartBanner(null);
     expect(getBanner().hidden).toBe(true);
-  });
-
-  it('hides the banner when restartAt is already in the past', () => {
-    setRestartBanner(Date.now() - 5_000);
-    expect(getBanner().hidden).toBe(true);
-  });
-
-  it('leaves the banner visible past T-zero with a "now" label', () => {
-    setRestartBanner(Date.now() + 2_000);
-    expect(getCountdownText()).toBe('0:02');
-    vi.advanceTimersByTime(5_000);
-    expect(getBanner().hidden).toBe(false);
-    expect(getCountdownText()).toBe('now');
   });
 });

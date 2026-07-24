@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-// Drain → poll until active games hit zero → print ready-to-deploy.
+// Drain → poll until active games hit zero → optionally announce restart now.
 //
-// Does NOT auto-run `railway up` — that's the human's call. The script's
-// job is to put the server into drain mode, wait for in-flight games to
-// finish, and either declare "go" or "window exceeded, X games still
-// active, your call". The deploy itself is one explicit command after.
+// The production release command invokes this helper immediately before its
+// push triggers Railway auto-deploy. A direct invocation only drains; it does
+// not deploy.
 //
 // Usage:
 //   MISTBOARD_DRAIN_TOKEN=… node scripts/safe-deploy.mjs [options]
@@ -13,14 +12,16 @@
 //   --base-url <url>      target server (default: https://mistboard.com)
 //   --window-ms <ms>      drain window length (default: 900_000 = 15min)
 //   --poll-ms <ms>        poll interval (default: 30_000 = 30s)
-//   --force               skip interactive confirmation
+//   --yes                 skip interactive confirmation
+//   --commit              broadcast "Server restarting now" after reaching zero
+//   --cancel              cancel an active drain
 //
 // Exit codes:
 //   0   drain complete, ready to deploy
 //   1   configuration error (missing token, bad arg)
 //   2   server unreachable / probe failed
 //   3   drain endpoint failed
-//   4   window elapsed with games still active (force-deploy is your call)
+//   4   window elapsed with games still active (drain is cancelled)
 //   130 SIGINT — drain was cancelled
 
 const DEFAULT_BASE_URL = 'https://mistboard.com';
@@ -57,7 +58,12 @@ process.on('SIGINT', async () => {
 });
 
 try {
-  await safeDeployFlow();
+  if (options.cancel) {
+    await cancelDrain();
+    console.log('drain cancelled');
+  } else {
+    await safeDeployFlow();
+  }
 } catch (err) {
   console.error(`safe-deploy failed: ${err.message}`);
   if (drainActive) {
@@ -65,7 +71,7 @@ try {
       await cancelDrain();
       console.error('drain cancelled');
     } catch (e) {
-      console.error(`drain still active — cancel manually: ${e.message}`);
+      console.error(`drain still active. Cancel manually: ${e.message}`);
     }
   }
   process.exit(err.exitCode ?? 1);
@@ -92,8 +98,8 @@ async function safeDeployFlow() {
       `drain already active (restartAt=${new Date(before.body.restartAt).toISOString()}). Reusing existing window.`,
     );
   } else {
-    if (!options.force) {
-      console.log('\nAbout to begin drain. New games blocked, in-flight games paused at restart.');
+    if (!options.yes) {
+      console.log('\nAbout to begin drain. New games will be blocked while active games finish.');
       console.log('Press Enter to continue, Ctrl-C to abort.');
       await readEnter();
     }
@@ -108,7 +114,7 @@ async function safeDeployFlow() {
     await sleep(pollMs);
     const tick = await fetchJson(new URL('/api/server-status', baseUrl), {});
     if (tick.status !== 200) {
-      console.error(`poll: status ${tick.status} — retrying next tick`);
+      console.error(`poll: status ${tick.status}. Retrying next tick.`);
       continue;
     }
     remainingActive = tick.body.activeGames;
@@ -118,28 +124,21 @@ async function safeDeployFlow() {
 
   // 4. Decide outcome.
   if (remainingActive === 0) {
+    if (options.commit) await commitRestart();
     console.log(
-      JSON.stringify({ ok: true, activeGames: 0, deployHint: 'railway up --service web' }),
+      JSON.stringify({ ok: true, activeGames: 0, restartCommitted: options.commit === true }),
     );
-    console.log('\nDrain complete. Ready to deploy. Next:');
-    console.log('  railway up --service web');
-    console.log('\nPause/resume will catch any games that started during drain.');
-    process.exit(0);
+    console.log(
+      options.commit
+        ? '\nDrain complete. Restart announced; trigger deployment now.'
+        : '\nDrain complete. Ready for the production release command.',
+    );
+    return;
   } else {
-    console.error(
-      JSON.stringify({ ok: false, activeGames: remainingActive, reason: 'window_elapsed' }),
+    throw withExit(
+      4,
+      `window elapsed with ${remainingActive} active game${remainingActive === 1 ? '' : 's'}; deployment blocked`,
     );
-    console.error(
-      `\nWindow elapsed with ${remainingActive} game${remainingActive === 1 ? '' : 's'} still active.`,
-    );
-    console.error(
-      'Deploying now will pause those games via the pause/resume system; players reconnect to a resumable state.',
-    );
-    console.error('To proceed: railway up --service web');
-    console.error(
-      'To cancel:  node scripts/safe-deploy.mjs --cancel (or POST /admin/drain/cancel)',
-    );
-    process.exit(4);
   }
 }
 
@@ -155,6 +154,27 @@ async function startDrain() {
   console.log(
     `drain started. restartAt=${new Date(res.body.restartAt ?? Date.now() + windowMs).toISOString()}`,
   );
+}
+
+async function commitRestart() {
+  const res = await fetchJson(new URL('/admin/drain', baseUrl), {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ phase: 'restarting' }),
+  });
+  if (res.status !== 200) {
+    throw withExit(
+      3,
+      `/admin/drain restart commit returned ${res.status}: ${JSON.stringify(res.body)}`,
+    );
+  }
+  if (res.body?.phase === 'restarting') {
+    console.log('restart-now notification broadcast');
+  } else {
+    console.log(
+      'restart-now notification unavailable on the current server; bootstrap release continuing',
+    );
+  }
 }
 
 async function cancelDrain() {
@@ -220,10 +240,15 @@ function parseArgs(argv) {
     if (arg === '--base-url') out.baseUrl = argv[++i];
     else if (arg === '--window-ms') out.windowMs = Number(argv[++i]);
     else if (arg === '--poll-ms') out.pollMs = Number(argv[++i]);
-    else if (arg === '--force') out.force = true;
-    else if (arg === '--help' || arg === '-h') {
+    else if (arg === '--yes') out.yes = true;
+    else if (arg === '--commit') out.commit = true;
+    else if (arg === '--cancel') out.cancel = true;
+    else if (arg === '--force') {
+      console.error('error: --force was removed. Use --yes only to skip confirmation.');
+      process.exit(1);
+    } else if (arg === '--help' || arg === '-h') {
       console.log(
-        'Usage: safe-deploy.mjs [--base-url URL] [--window-ms MS] [--poll-ms MS] [--force]',
+        'Usage: safe-deploy.mjs [--base-url URL] [--window-ms MS] [--poll-ms MS] [--yes] [--commit] [--cancel]',
       );
       console.log('Requires MISTBOARD_DRAIN_TOKEN in env.');
       process.exit(0);

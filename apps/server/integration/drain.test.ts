@@ -41,10 +41,12 @@ async function postJson(
 }
 
 test('drain: cleared baseline (server starts not draining)', async () => {
-  // /api/rooms POST should succeed before any drain is requested.
-  const res = await postJson('/api/rooms', { mode: 'pvp', variant: 'dark-chess' });
-  assert.equal(res.status, 201);
-  assert.equal(typeof res.body.roomId, 'string');
+  const res = await fetch(`${httpBase}/api/server-status`);
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as Record<string, unknown>;
+  assert.equal(body.restartAt, null);
+  assert.equal(body.restartPhase, null);
+  assert.equal(body.activeGames, 0);
 });
 
 test('drain: activation sets a deadline and is idempotent', async () => {
@@ -52,6 +54,7 @@ test('drain: activation sets a deadline and is idempotent', async () => {
   assert.equal(first.status, 200);
   assert.equal(first.body.ok, true);
   assert.equal(first.body.draining, true);
+  assert.equal(first.body.phase, 'pending');
   assert.equal(first.body.idempotent, false);
   const firstDeadline = first.body.restartAt as number;
   assert.ok(typeof firstDeadline === 'number' && firstDeadline > Date.now());
@@ -61,6 +64,17 @@ test('drain: activation sets a deadline and is idempotent', async () => {
   assert.equal(second.status, 200);
   assert.equal(second.body.idempotent, true);
   assert.equal(second.body.restartAt, firstDeadline);
+});
+
+test('drain: restart commit is exposed through the status endpoint', async () => {
+  const committed = await postJson('/admin/drain', { phase: 'restarting' });
+  assert.equal(committed.status, 200);
+  assert.equal(committed.body.phase, 'restarting');
+
+  const status = await fetch(`${httpBase}/api/server-status`);
+  assert.equal(status.status, 200);
+  const body = (await status.json()) as Record<string, unknown>;
+  assert.equal(body.restartPhase, 'restarting');
 });
 
 test('drain: matchmaking blocked while drain is active', async () => {

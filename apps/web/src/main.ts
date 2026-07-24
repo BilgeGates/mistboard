@@ -52,10 +52,26 @@ void localeReady.then(() => initializeAccountNav());
 mountRestartBanner();
 void fetch('/api/server-status')
   .then((r) => (r.ok ? r.json() : null))
-  .then((data: { restartAt: number | null; ratedEnabled?: boolean } | null) => {
-    if (data && typeof data.restartAt === 'number') setRestartBanner(data.restartAt);
-    if (data) setRatedModeEnabled(data.ratedEnabled === true);
-  })
+  .then(
+    (
+      data: {
+        restartAt: number | null;
+        restartPhase?: 'pending' | 'restarting' | null;
+        ratedEnabled?: boolean;
+      } | null,
+    ) => {
+      if (data) {
+        const phase =
+          data.restartPhase === 'pending' || data.restartPhase === 'restarting'
+            ? data.restartPhase
+            : typeof data.restartAt === 'number'
+              ? 'pending'
+              : null;
+        setRestartBanner(phase);
+      }
+      if (data) setRatedModeEnabled(data.ratedEnabled === true);
+    },
+  )
   .catch(() => {
     /* banner stays hidden; WS broadcast still covers in-game users */
   });

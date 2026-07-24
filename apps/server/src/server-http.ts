@@ -482,6 +482,7 @@ function buildApiContext(options: ServerHttpHandlerOptions): HttpApiContext {
     inMemoryGameSummary: options.inMemoryGameSummary,
     isDraining: options.drainController.isDraining,
     drainDeadlineMs: options.drainController.drainDeadlineMs,
+    restartPhase: options.drainController.restartPhase,
     activeGameCount: options.drainController.activeGameCount,
     persistenceHealth: () => currentPersistenceHealth(options.persistenceErrors),
   };

@@ -57,7 +57,11 @@ type TenantServerMessage =
   | { type: 'pong'; at: number; serverAt?: number }
   | { type: 'rematch:state' }
   | { type: 'rematch:redirect'; url: string; roomId: string; seat: unknown; seatToken: string }
-  | { type: 'server_restart_scheduled'; restartAt: number }
+  | {
+      type: 'server_restart_scheduled';
+      phase?: 'pending' | 'restarting';
+      restartAt?: number;
+    }
   | { type: 'server_restart_cancelled' };
 
 export type TenantSocketClientOptions = {
@@ -267,7 +271,7 @@ export function createTenantSocketClient(options: TenantSocketClientOptions): Te
       return;
     }
     if (message.type === 'server_restart_scheduled') {
-      setRestartBanner(message.restartAt);
+      setRestartBanner(message.phase ?? 'pending');
       return;
     }
     if (message.type === 'server_restart_cancelled') {

@@ -276,8 +276,10 @@ describe('tenant socket client', () => {
     const { client } = makeClient();
     client.connect();
     lastSocket().open();
-    lastSocket().message({ type: 'server_restart_scheduled', restartAt: 1_234 });
-    expect(setRestartBanner).toHaveBeenLastCalledWith(1_234);
+    lastSocket().message({ type: 'server_restart_scheduled', phase: 'pending', restartAt: 1_234 });
+    expect(setRestartBanner).toHaveBeenLastCalledWith('pending');
+    lastSocket().message({ type: 'server_restart_scheduled', phase: 'restarting' });
+    expect(setRestartBanner).toHaveBeenLastCalledWith('restarting');
     lastSocket().message({ type: 'server_restart_cancelled' });
     expect(setRestartBanner).toHaveBeenLastCalledWith(null);
   });

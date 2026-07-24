@@ -5,7 +5,6 @@ import type { WebSocket } from 'ws';
 import { createDrainController } from './server-drain.js';
 import { clientFixture, gameProjectionFixture, roomFixture } from './test-builders.js';
 import { registerVariantTenant } from './variant-tenant/registry.js';
-import { countActiveTenantGames } from './variant-tenant/runtime.js';
 
 type ResponseCapture = {
   body: string;
@@ -19,6 +18,8 @@ type RequestOptions = {
   method?: string;
   remoteAddress?: string;
 };
+
+let drainTestTenantActiveGames = 0;
 
 function captureResponse(): ServerResponse & ResponseCapture {
   const capture = {
@@ -98,11 +99,7 @@ test('drain controller counts only unpaused playing rooms', () => {
 });
 
 test('drain controller counts live variant-tenant games alongside chess rooms', () => {
-  const playingTenantRooms = [
-    { projection: { state: { status: { type: 'playing' } } } },
-    { projection: { state: { status: { type: 'playing' } } } },
-    { projection: { state: { status: { type: 'finished' } } } },
-  ];
+  drainTestTenantActiveGames = 2;
   registerVariantTenant({
     kind: 'drain-test-tenant',
     gameSpecId: 'drain-test-tenant',
@@ -111,7 +108,7 @@ test('drain controller counts live variant-tenant games alongside chess rooms', 
     errorPrefix: 'drain_test_tenant',
     enabled: () => true,
     rooms: new Map(),
-    activeGameCount: () => countActiveTenantGames(playingTenantRooms),
+    activeGameCount: () => drainTestTenantActiveGames,
     getOrLoadRoom: async () => null,
     attachWebSocket: async () => {
       throw new Error('unexpected ws attach in drain test');
@@ -146,6 +143,7 @@ test('drain controller counts live variant-tenant games alongside chess rooms', 
   // Without the tenant sum, a deploy gated on activeGames==0 can land over a
   // live DMX/Crossroads game.
   assert.equal(drain.activeGameCount(), 3);
+  drainTestTenantActiveGames = 0;
 });
 
 test('drain controller activates idempotently and broadcasts restart schedule', async () => {
@@ -173,9 +171,11 @@ test('drain controller activates idempotently and broadcasts restart schedule', 
   assert.equal(typeof firstBody.restartAt, 'number');
   assert.equal(drain.isDraining(), true);
   assert.equal(drain.drainDeadlineMs(), firstBody.restartAt);
+  assert.equal(drain.restartPhase(), 'pending');
   assert.equal(sent.length, 1);
   assert.deepEqual(JSON.parse(sent[0]!) as Record<string, unknown>, {
     type: 'server_restart_scheduled',
+    phase: 'pending',
     restartAt: firstBody.restartAt,
   });
 
@@ -187,6 +187,52 @@ test('drain controller activates idempotently and broadcasts restart schedule', 
   assert.equal(secondBody.idempotent, true);
   assert.equal(secondBody.restartAt, firstBody.restartAt);
   assert.equal(sent.length, 1, 'idempotent drain activation should not rebroadcast');
+});
+
+test('restart commit requires zero active games and broadcasts immediately before deploy', async () => {
+  const sent: string[] = [];
+  const socket = {
+    send(message: string) {
+      sent.push(message);
+    },
+  } as unknown as WebSocket;
+  const room = roomFixture({
+    clients: [clientFixture({ socket })],
+    projection: gameProjectionFixture({
+      state: { status: { type: 'playing', turn: 'white' } },
+    }),
+  });
+  const drain = createDrainController({
+    drainWindowDefaultMs: 1000,
+    drainWindowMaxMs: 2000,
+    rooms: new Map([[room.id, room]]),
+  });
+
+  await drain.handleRequest(
+    request({ body: { windowMs: 1500 } }),
+    captureResponse(),
+    '/admin/drain',
+  );
+  const blocked = captureResponse();
+  await drain.handleRequest(request({ body: { phase: 'restarting' } }), blocked, '/admin/drain');
+  assert.equal(blocked.status, 409);
+  assert.deepEqual(responseJson(blocked), { error: 'active_games_remaining', activeGames: 1 });
+  assert.equal(drain.restartPhase(), 'pending');
+
+  room.projection.state.status = {
+    type: 'finished',
+    winner: 'white',
+    reason: 'checkmate',
+  };
+  const committed = captureResponse();
+  await drain.handleRequest(request({ body: { phase: 'restarting' } }), committed, '/admin/drain');
+  assert.equal(committed.status, 200);
+  assert.equal(responseJson(committed).phase, 'restarting');
+  assert.equal(drain.restartPhase(), 'restarting');
+  assert.deepEqual(JSON.parse(sent[1]!) as Record<string, unknown>, {
+    type: 'server_restart_scheduled',
+    phase: 'restarting',
+  });
 });
 
 test('drain controller cancels active drains and broadcasts cancellation', async () => {
@@ -217,6 +263,7 @@ test('drain controller cancels active drains and broadcasts cancellation', async
   assert.equal(responseJson(cancel).draining, false);
   assert.equal(drain.isDraining(), false);
   assert.equal(drain.drainDeadlineMs(), null);
+  assert.equal(drain.restartPhase(), null);
   assert.deepEqual(JSON.parse(sent[1]!) as Record<string, unknown>, {
     type: 'server_restart_cancelled',
   });
