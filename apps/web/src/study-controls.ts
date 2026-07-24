@@ -9,6 +9,8 @@ export type StudyControlModel = {
   description: string;
   visibility: StudyVisibility;
   isOwner: boolean;
+  featuredAt: string | null;
+  canFeature: boolean;
 };
 
 export type ChapterControlModel = {
@@ -23,6 +25,7 @@ export type StudyRailActions = {
   onAdd(): void;
   chapterHref(id: string): string;
   onReorder(ids: string[]): Promise<string | null>;
+  onToggleFeatured(featured: boolean): Promise<string | null>;
   onOpenStudySettings(): void;
   onOpenChapterSettings(chapter: ChapterControlModel): void;
 };
@@ -46,9 +49,50 @@ export function buildStudyRail(
 
   const tools = document.createElement('span');
   tools.className = 'study-chapters__tools';
-  if (study.isOwner) {
+  if (study.isOwner || study.canFeature) {
     status.classList.add('study-chapters__status');
     tools.append(status);
+  }
+  if (study.canFeature) {
+    const renderFeatured = (button: HTMLButtonElement): void => {
+      const featured = !!study.featuredAt;
+      button.textContent = featured ? '★' : '☆';
+      button.title =
+        study.visibility !== 'public' && !featured
+          ? 'Make this study public before featuring it'
+          : featured
+            ? 'Remove from Staff picks'
+            : 'Feature in Staff picks';
+      button.setAttribute('aria-label', button.title);
+      button.setAttribute('aria-pressed', String(featured));
+      button.disabled = study.visibility !== 'public' && !featured;
+    };
+    const featured = iconButton('☆', 'Feature in Staff picks', 'study-chapters__featured');
+    renderFeatured(featured);
+    featured.addEventListener('click', () => {
+      const next = !study.featuredAt;
+      featured.disabled = true;
+      setRailStatus(status, 'saving', next ? 'Featuring…' : 'Removing…');
+      void actions
+        .onToggleFeatured(next)
+        .then((error) => {
+          if (error) {
+            setRailStatus(status, 'error', error);
+            renderFeatured(featured);
+            return;
+          }
+          study.featuredAt = next ? new Date().toISOString() : null;
+          setRailStatus(status, 'saved', next ? 'Featured' : 'Removed');
+          renderFeatured(featured);
+        })
+        .catch(() => {
+          setRailStatus(status, 'error', 'Curation failed');
+          renderFeatured(featured);
+        });
+    });
+    tools.append(featured);
+  }
+  if (study.isOwner) {
     const settings = iconButton('☰', 'Study settings', 'study-chapters__settings');
     settings.addEventListener('click', actions.onOpenStudySettings);
     tools.append(settings);

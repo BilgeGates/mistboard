@@ -8,11 +8,13 @@ import {
   getStudyById,
   getStudyLikeState,
   listFavoriteStudies,
+  listFeaturedStudies,
   listStudiesForOwner,
   listTopPublicStudies,
   renameChapter,
   reorderStudyChapters,
   setChapterGamebook,
+  setStudyFeatured,
   setStudyLike,
   updateChapterTree,
   updateStudyMeta,
@@ -208,6 +210,41 @@ definePersistenceTests('studies', () => {
       'Cannon Endgames',
       'Cannon Openings',
     ]);
+  });
+
+  test('curates only public studies and clears the pick when visibility closes', async () => {
+    const owner = await makeUser('featured-owner');
+    const study = await makeStudy(owner.id, 'Featured Cannon Manual');
+    assert.ok(study);
+
+    assert.deepEqual(await setStudyFeatured(study.id, true), {
+      ok: false,
+      error: 'not_public',
+    });
+
+    await updateStudyMeta(study.id, owner.id, { visibility: 'public' });
+    const selected = await setStudyFeatured(study.id, true);
+    assert.ok(selected.ok && selected.featuredAt instanceof Date);
+    const selectedAgain = await setStudyFeatured(study.id, true);
+    assert.ok(selectedAgain.ok);
+    assert.equal(
+      selectedAgain.featuredAt?.toISOString(),
+      selected.featuredAt.toISOString(),
+      'idempotent selection should preserve staff ordering',
+    );
+
+    const featured = await listFeaturedStudies(30, 'featured cannon');
+    assert.deepEqual(
+      featured.map((entry) => entry.id),
+      [study.id],
+    );
+
+    await updateStudyMeta(study.id, owner.id, { visibility: 'unlisted' });
+    assert.equal((await getStudyById(study.id))?.featuredAt, null);
+    assert.deepEqual(
+      (await listFeaturedStudies(30, 'featured cannon')).map((entry) => entry.id),
+      [],
+    );
   });
 
   test('adds, renames, and deletes chapters (owner only, keeps at least one)', async () => {

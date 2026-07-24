@@ -56,6 +56,8 @@ type StudyDto = {
   i18n?: unknown;
   visibility: StudyVisibility;
   isOwner: boolean;
+  featuredAt: string | null;
+  canFeature: boolean;
   likeCount: number;
   likedByViewer: boolean;
 };
@@ -358,6 +360,18 @@ function renderStudy(
     return null;
   };
 
+  const toggleFeatured = async (featured: boolean): Promise<string | null> => {
+    const response = await fetch(`/api/admin/studies/${study.id}/featured`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ featured }),
+    });
+    if (!response.ok) return responseError(response, 'Could not update Staff picks.');
+    const body = (await response.json()) as { featuredAt: string | null };
+    study.featuredAt = body.featuredAt;
+    return null;
+  };
+
   const saveChapterSettings = async (
     chapter: ChapterDto,
     patch: ChapterSettingsPatch,
@@ -459,6 +473,7 @@ function renderStudy(
         onAdd: addChapter,
         chapterHref: (id) => studyChapterPath(study.id, id, window.location.pathname),
         onReorder: reorderChapters,
+        onToggleFeatured: toggleFeatured,
         onOpenStudySettings: openStudySettings,
         onOpenChapterSettings: openChapterSettings,
       });

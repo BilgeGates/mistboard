@@ -52,6 +52,7 @@
 }
 
 .study-chapters__settings,
+.study-chapters__featured,
 .study-chapters__chapter-settings,
 .study-chapters__drag {
   display: inline-flex;
@@ -76,6 +77,25 @@
 .study-chapters__settings:focus-visible {
   background: color-mix(in srgb, var(--site-accent) 10%, transparent);
   opacity: 1;
+}
+
+.study-chapters__featured {
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border-radius: 4px;
+  color: var(--site-accent-strong);
+  font-size: 1rem;
+}
+
+.study-chapters__featured:hover,
+.study-chapters__featured:focus-visible {
+  background: color-mix(in srgb, var(--site-accent) 12%, transparent);
+}
+
+.study-chapters__featured:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 
 .study-chapters__status {

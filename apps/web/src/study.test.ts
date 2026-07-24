@@ -85,6 +85,59 @@ describe('study creator workspace', () => {
     expect(chapterDialog?.textContent).toContain('Duplicate chapter');
     expect(chapterDialog?.textContent).not.toContain('Delete chapter');
   });
+
+  it('lets an admin add a public study to Staff picks without owner controls', async () => {
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input.toString();
+      if (url === '/api/studies/study1') {
+        return jsonResponse({
+          study: {
+            id: 'study1',
+            name: 'Archive study',
+            description: '',
+            visibility: 'public',
+            isOwner: false,
+            featuredAt: null,
+            canFeature: true,
+            likeCount: 0,
+            likedByViewer: false,
+          },
+          chapters: [
+            {
+              id: 'chapter1',
+              name: 'First',
+              variant: 'xiangqi',
+              orientation: 'red',
+              root: { version: 1, root: { children: [] } },
+              version: 1,
+              gamebook: false,
+            },
+          ],
+        });
+      }
+      if (url === '/api/chat/study/study1') return jsonResponse({ lines: [] });
+      if (url === '/api/admin/studies/study1/featured' && init?.method === 'PUT') {
+        expect(JSON.parse(String(init.body))).toEqual({ featured: true });
+        return jsonResponse({ featuredAt: '2026-07-24T04:00:00.000Z' });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const root = document.createElement('div');
+    document.body.append(root);
+
+    mountStudy(root, 'study1');
+    await vi.waitFor(() => expect(root.querySelector('.review-shell--study')).not.toBeNull());
+
+    expect(root.querySelector('.study-chapters__settings')).toBeNull();
+    const feature = root.querySelector<HTMLButtonElement>('.study-chapters__featured');
+    expect(feature?.getAttribute('aria-label')).toBe('Feature in Staff picks');
+    feature?.click();
+
+    await vi.waitFor(() => expect(feature?.getAttribute('aria-pressed')).toBe('true'));
+    expect(feature?.getAttribute('aria-label')).toBe('Remove from Staff picks');
+    expect(root.querySelector('.study-chapters__status')?.textContent).toBe('Featured');
+  });
 });
 
 describe('study chapter permalinks', () => {

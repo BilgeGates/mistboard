@@ -43,6 +43,7 @@ export type StudyRecord = {
   /** Per-locale overrides for `name`/`description` (see migration 115). */
   i18n: Record<string, unknown>;
   visibility: StudyVisibility;
+  featuredAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -101,6 +102,7 @@ type StudyRow = {
   description: string;
   i18n: Record<string, unknown>;
   visibility: StudyVisibility;
+  featured_at: Date | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -129,6 +131,7 @@ function mapStudy(row: StudyRow): StudyRecord {
     description: row.description,
     i18n: row.i18n ?? {},
     visibility: row.visibility,
+    featuredAt: row.featured_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -152,7 +155,8 @@ function mapChapter(row: ChapterRow): StudyChapterRecord {
   };
 }
 
-const STUDY_COLS = 'id, owner_id, name, description, i18n, visibility, created_at, updated_at';
+const STUDY_COLS =
+  'id, owner_id, name, description, i18n, visibility, featured_at, created_at, updated_at';
 const CHAPTER_COLS =
   'id, study_id, ordinal, name, i18n, variant, orientation, root, denorm, version, gamebook, created_at, updated_at';
 
@@ -302,6 +306,69 @@ export async function listTopPublicStudies(limit = 5, q?: string): Promise<Publi
     params,
   );
   return rows.map(mapPublicStudy);
+}
+
+/** Staff-curated public studies, newest selection first. A pick remains invisible
+ * if its study or owner is no longer publicly listable. */
+export async function listFeaturedStudies(limit = 30, q?: string): Promise<PublicStudySummary[]> {
+  if (!isInitialized()) return [];
+  const bounded = Math.max(1, Math.min(limit, 50));
+  const filter = nameFilter(q, 2);
+  const params: unknown[] = [bounded];
+  if (filter.value !== undefined) params.push(filter.value);
+  const { rows } = await getPool().query<PublicStudyRow>(
+    `SELECT ${STUDY_COLS.split(', ')
+      .map((column) => `s.${column}`)
+      .join(', ')},
+            u.handle AS owner_handle,
+            u.display_name AS owner_display_name,
+            count(DISTINCT c.id) AS chapter_count,
+            count(DISTINCT l.user_id) AS like_count,
+            ${CHAPTER_NAMES_PREVIEW}
+       FROM studies s
+       JOIN users u ON u.id = s.owner_id
+       LEFT JOIN study_chapters c ON c.study_id = s.id
+       LEFT JOIN study_likes l ON l.study_id = s.id
+      WHERE s.visibility = 'public'
+        AND s.featured_at IS NOT NULL
+        AND u.profile_visibility IN ('public', 'unlisted')${filter.clause}
+      GROUP BY s.id, u.handle, u.display_name
+      ORDER BY s.featured_at DESC, s.updated_at DESC, s.id
+      LIMIT $1`,
+    params,
+  );
+  return rows.map(mapPublicStudy);
+}
+
+export type SetStudyFeaturedResult =
+  | { ok: true; featuredAt: Date | null }
+  | { ok: false; error: 'not_found' | 'not_public' };
+
+/** Admin-facing curation write. Re-selecting a current pick is idempotent and
+ * preserves its ordering timestamp; private/unlisted studies fail closed. */
+export async function setStudyFeatured(
+  studyId: string,
+  featured: boolean,
+): Promise<SetStudyFeaturedResult> {
+  if (!isInitialized()) return { ok: false, error: 'not_found' };
+  const existing = await getPool().query<{ visibility: StudyVisibility }>(
+    `SELECT visibility FROM studies WHERE id = $1`,
+    [studyId],
+  );
+  const study = existing.rows[0];
+  if (!study) return { ok: false, error: 'not_found' };
+  if (featured && study.visibility !== 'public') return { ok: false, error: 'not_public' };
+  const { rows } = await getPool().query<{ featured_at: Date | null }>(
+    `UPDATE studies
+        SET featured_at = CASE
+          WHEN $2::boolean THEN COALESCE(featured_at, now())
+          ELSE NULL
+        END
+      WHERE id = $1
+      RETURNING featured_at`,
+    [studyId, featured],
+  );
+  return { ok: true, featuredAt: rows[0]!.featured_at };
 }
 
 /** Public studies the signed-in user has liked (their favorites). Same shape as the
@@ -455,6 +522,10 @@ export async function updateStudyMeta(
            description = COALESCE($2, description),
            i18n = COALESCE($3::jsonb, i18n),
            visibility = COALESCE($4, visibility),
+           featured_at = CASE
+             WHEN COALESCE($4, visibility) = 'public' THEN featured_at
+             ELSE NULL
+           END,
            updated_at = now()
        WHERE id = $5
      RETURNING ${STUDY_COLS}`,

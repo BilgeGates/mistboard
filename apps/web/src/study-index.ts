@@ -1,6 +1,8 @@
-// Study browse page (/study). Two public-safe tabs:
+// Study browse page (/study). Four focused lists:
 //   • All studies (default) — the public studies index (/api/studies/public)
 //   • My studies (?tab=mine) — the signed-in owner's studies (/api/studies/mine)
+//   • Favorites (?tab=favorites) — public studies liked by the signed-in viewer
+//   • Staff picks (?tab=staff) — Mistboard-curated public studies
 // New studies are created through a metadata dialog (name + visibility) that then
 // opens the fresh study.
 
@@ -36,27 +38,32 @@ type StudySummary = {
   // Preview slice of the first few chapter names (older servers may omit it).
   chapterNames?: string[];
   updatedAt: string;
+  featuredAt?: string | null;
   // Present on public listings only (the /api/studies/public shape).
   owner?: StudyOwner;
   likeCount?: number;
 };
 
-type StudyTab = 'all' | 'mine' | 'favorites';
+type StudyTab = 'all' | 'mine' | 'favorites' | 'staff';
 
-// The left rail mirrors lichess /study. All three tabs are backed by queries:
-// All studies (public index), My studies (owner), Favorites (studies you liked).
+// The left rail mirrors lichess /study. Every tab is backed by a real query.
 const RAIL_TABS: { label: string; tab: StudyTab }[] = [
   { label: 'All studies', tab: 'all' },
   { label: 'My studies', tab: 'mine' },
   { label: 'Favorites', tab: 'favorites' },
+  { label: 'Staff picks', tab: 'staff' },
 ];
 
-// Tabs other than "all" are the signed-in user's own lists, so they need auth.
-const TAB_NEEDS_AUTH: Record<StudyTab, boolean> = { all: false, mine: true, favorites: true };
+const TAB_NEEDS_AUTH: Record<StudyTab, boolean> = {
+  all: false,
+  mine: true,
+  favorites: true,
+  staff: false,
+};
 
 function activeTab(): StudyTab {
   const tab = new URLSearchParams(window.location.search).get('tab');
-  return tab === 'mine' || tab === 'favorites' ? tab : 'all';
+  return tab === 'mine' || tab === 'favorites' || tab === 'staff' ? tab : 'all';
 }
 
 function searchQuery(): string {
@@ -72,7 +79,9 @@ function endpointFor(tab: StudyTab, q: string): string {
       ? '/api/studies/mine'
       : tab === 'favorites'
         ? '/api/studies/favorites'
-        : '/api/studies/public';
+        : tab === 'staff'
+          ? '/api/studies/staff'
+          : '/api/studies/public';
   const suffix = params.toString();
   return suffix ? `${base}?${suffix}` : base;
 }
@@ -106,6 +115,7 @@ const TAB_TITLES: Record<StudyTab, string> = {
   all: 'All studies',
   mine: 'My studies',
   favorites: 'Favorites',
+  staff: 'Staff picks',
 };
 
 function renderList(root: HTMLElement, tab: StudyTab, q: string, studies: StudySummary[]): void {
@@ -155,6 +165,7 @@ function buildContent(tab: StudyTab, q: string, studies: StudySummary[]): HTMLEl
   toolbar.className = 'study-index__toolbar';
   toolbar.append(searchForm(tab, q), newStudyButton());
   content.append(toolbar);
+  if (tab === 'staff') content.append(staffPicksIntro());
 
   if (studies.length === 0) {
     const empty = document.createElement('p');
@@ -164,7 +175,7 @@ function buildContent(tab: StudyTab, q: string, studies: StudySummary[]): HTMLEl
   } else {
     const grid = document.createElement('ul');
     grid.className = 'study-index__grid';
-    for (const study of studies) grid.append(studyCard(study));
+    for (const study of studies) grid.append(studyCard(study, tab === 'staff'));
     content.append(grid);
   }
 
@@ -177,7 +188,20 @@ function emptyMessage(tab: StudyTab, q: string): string {
     return 'No studies yet. Create one to get started.';
   }
   if (tab === 'favorites') return 'No favorites yet. Like a public study to save it here.';
+  if (tab === 'staff') return 'No staff picks yet.';
   return 'No public studies yet.';
+}
+
+function staffPicksIntro(): HTMLElement {
+  const intro = document.createElement('div');
+  intro.className = 'study-index__staff-intro';
+  const title = document.createElement('strong');
+  title.textContent = 'Curated by Mistboard';
+  const copy = document.createElement('span');
+  copy.textContent =
+    'Annotated classics, archival transcriptions, and studies chosen for careful learning.';
+  intro.append(title, copy);
+  return intro;
 }
 
 // Search by study name. Submitting navigates with ?q= (scoped to the current tab);
@@ -402,18 +426,18 @@ async function createStudy(
 // (derived glyphs read as noise); restore only as a user-picked field.
 const CHAPTER_PREVIEW_MAX = 4;
 
-function studyCard(study: StudySummary): HTMLElement {
+function studyCard(study: StudySummary, staffPick: boolean): HTMLElement {
   const item = document.createElement('li');
   const link = document.createElement('a');
   link.className = 'study-index__card';
   link.href = `/study/${study.id}`;
 
-  link.append(cardHead(study), chapterPreview(study));
+  link.append(cardHead(study, staffPick), chapterPreview(study));
   item.append(link);
   return item;
 }
 
-function cardHead(study: StudySummary): HTMLElement {
+function cardHead(study: StudySummary, staffPick: boolean): HTMLElement {
   const head = document.createElement('div');
   head.className = 'study-index__card-head';
 
@@ -428,6 +452,12 @@ function cardHead(study: StudySummary): HTMLElement {
   meta.className = 'study-index__meta';
   meta.textContent = metaLine(study);
 
+  if (staffPick) {
+    const badge = document.createElement('span');
+    badge.className = 'study-index__staff-badge';
+    badge.textContent = '★ Staff pick';
+    heading.append(badge);
+  }
   heading.append(name, meta);
   head.append(heading);
   return head;

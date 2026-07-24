@@ -144,6 +144,23 @@ a.study-index__rail-tab.is-active:hover {
   color: var(--site-muted);
 }
 
+.study-index__staff-intro {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--site-border-soft);
+  background: color-mix(in srgb, var(--site-accent) 7%, var(--site-panel));
+  color: var(--site-muted);
+  font-size: 0.82rem;
+}
+
+.study-index__staff-intro strong {
+  flex: none;
+  color: var(--site-heading);
+  font-size: 0.86rem;
+}
+
 /* Gridline card table. Each card carries a right + bottom hairline; the grid's
    negative right/bottom margin pushes the trailing edges under the panel's
    overflow:hidden so no doubled border shows. Cells stretch to equal row height
@@ -185,6 +202,15 @@ a.study-index__rail-tab.is-active:hover {
   flex-direction: column;
   gap: 0.1rem;
   min-width: 0;
+}
+
+.study-index__staff-badge {
+  width: max-content;
+  color: var(--site-accent-strong);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .study-index__name {

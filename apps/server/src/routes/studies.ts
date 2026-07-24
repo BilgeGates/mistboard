@@ -5,6 +5,7 @@
 //
 //   POST   /api/studies                       create (auth) — study + first chapter
 //   GET    /api/studies/mine                  list the signed-in owner's studies
+//   GET    /api/studies/staff                 list staff-curated public studies
 //   GET    /api/studies/:id                   read (public/unlisted: anyone; private: owner)
 //   PATCH  /api/studies/:id                   update name/description/visibility (owner)
 //   DELETE /api/studies/:id                   delete (owner)
@@ -12,6 +13,7 @@
 //   PATCH  /api/studies/:id/chapters          reorder all chapters (owner)
 //   PATCH  /api/studies/:id/chapters/:cid     save tree (version-guarded) OR rename (owner)
 //   DELETE /api/studies/:id/chapters/:cid     delete a chapter (owner; refuses the last)
+//   PUT    /api/admin/studies/:id/featured    feature/unfeature a public study (admin)
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { isStudyEligibleSpecId } from '@mistboard/game';
@@ -19,6 +21,7 @@ import { currentAccountUser } from './../account-session.js';
 import * as persistence from './../persistence.js';
 import {
   readJsonBody,
+  requireAdminSession,
   requireMethod,
   requirePersistence,
   TREE_JSON_BODY_LIMIT,
@@ -30,6 +33,7 @@ const STUDY_PATH = new RegExp(`^/api/studies/(${ID})$`);
 const CHAPTERS_PATH = new RegExp(`^/api/studies/(${ID})/chapters$`);
 const CHAPTER_PATH = new RegExp(`^/api/studies/(${ID})/chapters/(${ID})$`);
 const LIKE_PATH = new RegExp(`^/api/studies/(${ID})/like$`);
+const FEATURED_PATH = new RegExp(`^/api/admin/studies/(${ID})/featured$`);
 
 function isSerializedTree(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
@@ -57,6 +61,7 @@ function studyView(study: persistence.StudyRecord, isOwner: boolean) {
     // falls back to name/description (study-i18n.ts).
     i18n: study.i18n,
     visibility: study.visibility,
+    featuredAt: study.featuredAt?.toISOString() ?? null,
     isOwner,
     createdAt: study.createdAt.toISOString(),
     updatedAt: study.updatedAt.toISOString(),
@@ -100,7 +105,31 @@ export async function tryHandle(
   response: ServerResponse,
   pathname: string,
 ): Promise<boolean> {
-  if (pathname !== '/api/studies' && !pathname.startsWith('/api/studies/')) return false;
+  const featuredMatch = FEATURED_PATH.exec(pathname);
+  if (pathname !== '/api/studies' && !pathname.startsWith('/api/studies/') && !featuredMatch) {
+    return false;
+  }
+
+  // ── Staff curation write ──
+  if (featuredMatch) {
+    if (!requireMethod(request, response, 'PUT')) return true;
+    if (!(await requireAdminSession(request, response))) return true;
+    if (!requirePersistence(response)) return true;
+    const body = await readJsonBody(request);
+    if (typeof body.featured !== 'boolean') {
+      writeJson(response, 400, { error: 'invalid_featured' });
+      return true;
+    }
+    const result = await persistence.setStudyFeatured(featuredMatch[1]!, body.featured);
+    if (!result.ok) {
+      writeJson(response, result.error === 'not_public' ? 409 : 404, { error: result.error });
+      return true;
+    }
+    writeJson(response, 200, {
+      featuredAt: result.featuredAt?.toISOString() ?? null,
+    });
+    return true;
+  }
 
   // ── Public collection ──
   if (pathname === '/api/studies/public') {
@@ -111,6 +140,19 @@ export async function tryHandle(
     const params = new URL(request.url ?? '', 'http://localhost').searchParams;
     const studies = await persistence.listTopPublicStudies(
       parseLimit(params, 5),
+      params.get('q') ?? undefined,
+    );
+    writeJson(response, 200, { studies: studies.map(publicStudyView) });
+    return true;
+  }
+
+  // ── Staff picks: curated public studies ──
+  if (pathname === '/api/studies/staff') {
+    if (!requireMethod(request, response, 'GET')) return true;
+    if (!requirePersistence(response)) return true;
+    const params = new URL(request.url ?? '', 'http://localhost').searchParams;
+    const studies = await persistence.listFeaturedStudies(
+      parseLimit(params, 30),
       params.get('q') ?? undefined,
     );
     writeJson(response, 200, { studies: studies.map(publicStudyView) });
@@ -326,7 +368,11 @@ async function readStudy(
   }
   const likeState = await persistence.getStudyLikeState(id, user?.id);
   writeJson(response, 200, {
-    study: { ...studyView(study, isOwner), ...likeState },
+    study: {
+      ...studyView(study, isOwner),
+      ...likeState,
+      canFeature: user?.accountRole === 'admin',
+    },
     chapters: study.chapters.map(chapterView),
   });
   return true;
