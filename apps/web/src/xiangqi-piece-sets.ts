@@ -335,7 +335,7 @@ function isImagePieceSet(set: XiangqiPieceSet): set is ImageXiangqiPieceSet {
 // dobutsu-minimal swap). Bump on every animal-art change.
 const ANIMAL_ART_VERSION = 4;
 const INTERNATIONAL_ART_VERSION = 11;
-const INTERNATIONAL_FLAT_ART_VERSION = 1;
+const INTERNATIONAL_FLAT_ART_VERSION = 2;
 
 function internationalPieceHref(piece: XiangqiPiece, crossed = false): string {
   const role = crossed && piece.role === 'soldier' ? 'crossed-soldier' : piece.role;

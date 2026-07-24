@@ -96,7 +96,7 @@ describe('renderXiangqiPieceGlyphed', () => {
 
   it('renders the Chess-style prototype from the international art without a disc', () => {
     const general = renderXiangqiPieceGlyphed(redGeneral, 'international-flat', {});
-    expect(general).toContain('/piece-sets/xiangqi/international-flat/red-general.png?v=1');
+    expect(general).toContain('/piece-sets/xiangqi/international-flat/red-general.png?v=2');
     expect(general).toContain('x="-26.38" y="-26.38" width="152.76" height="152.76"');
     expect(general).toContain('style="filter:none"');
     expect(general).not.toContain('<circle');
@@ -163,7 +163,7 @@ describe('renderXiangqiPieceGlyphed', () => {
 
   it('renders the Chess-style Fortress treasure without a disc', () => {
     const treasure = internationalFlatTreasureMarks('red');
-    expect(treasure).toContain('/piece-sets/xiangqi/international-flat/red-treasure.png?v=1');
+    expect(treasure).toContain('/piece-sets/xiangqi/international-flat/red-treasure.png?v=2');
     expect(treasure).toContain('width="152.76" height="152.76"');
     expect(treasure).not.toContain('<circle');
   });
