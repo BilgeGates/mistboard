@@ -33,23 +33,6 @@
   opacity: 0.62;
 }
 
-/* Per-pawn gradations (±1..±6), faint so they read as a ruler behind the fill. */
-.review-eval-bar__ticks {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-.review-eval-bar__tick {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 1px;
-  /* Readable over both the dark track and the light/red fill. */
-  background: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.18);
-}
-
 /* Equality (zero) line at dead center — red, marking an even position. */
 .review-eval-bar::after {
   content: "";

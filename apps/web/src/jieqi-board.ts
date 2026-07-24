@@ -9,12 +9,18 @@
 // Jieqi is identity-hidden, not position-hidden: a player selects their OWN pieces
 // (dark or revealed) — dark pieces keep their color in the view, so ownership is
 // known even before the role is. Only own-color pieces with a legal move are
-// selectable/draggable. No client engine and no overlay layer, so setArrows/
-// setMarkers are no-ops.
+// selectable/draggable. Engine and user arrows share the SVG overlay layer;
+// point markers remain the next review-capability slice.
 
 import type { JieqiColor, JieqiMove, JieqiPlayerView, JieqiSquare } from '@mistboard/game';
 import { jieqiClickResult } from './live-jieqi-interaction.js';
-import { JIEQI_PIECE_PX, jieqiPieceGhostSvg, renderJieqiBoardSvg } from './live-jieqi-render.js';
+import {
+  JIEQI_PIECE_PX,
+  type JieqiBoardArrow,
+  jieqiArrowSvg,
+  jieqiPieceGhostSvg,
+  renderJieqiBoardSvg,
+} from './live-jieqi-render.js';
 import { installBoardDrag } from './variant-tenant/board-drag.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 
@@ -32,7 +38,7 @@ export interface JieqiInteractiveBoardOptions {
 export interface JieqiInteractiveBoard {
   render(view: JieqiPlayerView | null, perspective: JieqiColor): void;
   clearSelection(): void;
-  setArrows(): void;
+  setArrows(arrows: readonly JieqiBoardArrow[]): void;
   setMarkers(): void;
 }
 
@@ -41,6 +47,7 @@ export function createJieqiInteractiveBoard(
 ): JieqiInteractiveBoard {
   let selectedSquare: JieqiSquare | null = null;
   let draggingFrom: JieqiSquare | null = null;
+  let arrows: readonly JieqiBoardArrow[] = [];
 
   function render(view: JieqiPlayerView | null, perspective: JieqiColor): void {
     if (!view) {
@@ -58,7 +65,16 @@ export function createJieqiInteractiveBoard(
       selectedSquare,
       legalMoves,
       draggingFrom,
+      arrows,
     });
+  }
+
+  function setArrows(next: readonly JieqiBoardArrow[]): void {
+    arrows = next;
+    const layer = opts.board.querySelector('.xq-live-arrows');
+    if (layer) {
+      layer.innerHTML = arrows.map((arrow) => jieqiArrowSvg(arrow, opts.getPerspective())).join('');
+    }
   }
 
   function rerender(): void {
@@ -145,5 +161,5 @@ export function createJieqiInteractiveBoard(
     },
   });
 
-  return { render, clearSelection, setArrows: () => {}, setMarkers: () => {} };
+  return { render, clearSelection, setArrows, setMarkers: () => {} };
 }

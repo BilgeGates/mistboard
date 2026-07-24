@@ -45,10 +45,10 @@ function formatBanqiEngineMove(uci: string): string {
   return from === to ? from : `${from}-${to}`;
 }
 
-// The banqi renderer has no board-overlay layer, so engine arrows are omitted (the
-// engine* hooks return []); the eval gauge + MultiPV panel still light up. The shapeTo*
-// hooks are never invoked but the type requires them, so they pass the shape through
-// opaquely. Banqi is symmetric-info — the same board shows to both seats — so
+// The banqi renderer has no board-overlay layer, so the engine presentation omits
+// that capability and the panel hides its arrow setting. The eval gauge + MultiPV
+// panel still light up. The shapeTo* hooks pass shapes through opaquely. Banqi is
+// symmetric-info — the same board shows to both seats — so
 // `perspective` never changes the render (the Flip control is a visual no-op here).
 function makeBanqiPresentation(
   adapter: VariantTreeAdapter<BanqiMove, BanqiGameState, BanqiPlayerView>,
@@ -64,9 +64,6 @@ function makeBanqiPresentation(
       fen: banqiStateToEngineFen,
       canEvaluatePosition: (truth) => truth.status.type === 'playing',
       formatPvMove: formatBanqiEngineMove,
-      // No board-overlay layer in the banqi renderer → no on-board engine arrows.
-      engineArrowsFromLines: () => [],
-      bestMoveArrow: () => [],
     },
     // The analysis engine's best move is 0-indexed UCI with flips as from===to; render it in
     // board coords ("b3 flip") for the "… was best" advice line, not the raw "B2-B2".

@@ -56,4 +56,21 @@ describe('renderJieqiBoardSvg', () => {
 
     expect(svg).toContain('jieqi-piece jieqi-piece--drag-source');
   });
+
+  it('renders ranked engine arrows over the pieces and flips their geometry', () => {
+    const arrow = {
+      from: 'e4' as const,
+      to: 'e5' as const,
+      className: 'xq-arrow--pv1',
+      opacity: 0.4,
+      width: 14,
+    };
+    const red = renderJieqiBoardSvg(view, 'red', { arrows: [arrow] });
+    const black = renderJieqiBoardSvg(view, 'black', { arrows: [arrow] });
+
+    expect(red).toContain('jieqi-board-arrows xq-live-arrows');
+    expect(red).toContain('xq-arrow xq-arrow--pv1');
+    expect(red).toContain('stroke-width="14"');
+    expect(red).not.toBe(black);
+  });
 });

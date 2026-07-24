@@ -18,6 +18,7 @@ import type {
 } from '@mistboard/game';
 import { drawMarkerOnArrival, glideSvgPiece, pieceAnimationDurationMs } from './board-anim.js';
 import { tokenPieceSize } from './board-metrics.js';
+import { type SvgBoardArrowStyle, svgBoardArrow } from './svg-board-arrow.js';
 import { installBoardDrag, installBoardDraw } from './variant-tenant/board-drag.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
 import { escapeHtml } from './web-utils.js';
@@ -101,20 +102,9 @@ export interface XiangqiBoardMarker {
 /** One board arrow (engine PV hint / best-move advice). Geometry is derived from
  *  the same intersection transform the pieces use, so arrows flip with the board
  *  perspective automatically. */
-export interface XiangqiBoardArrow {
+export interface XiangqiBoardArrow extends SvgBoardArrowStyle {
   from: XiangqiSquare;
   to: XiangqiSquare;
-  /** Extra class on the arrow group (e.g. 'xq-arrow--pv1'). */
-  className?: string;
-  /** Group opacity, default 0.9. */
-  opacity?: number;
-  /** Shaft stroke width in viewBox units, default 9. */
-  width?: number;
-  /** Dashed shaft (used for the subtle PV reply segment). */
-  dashed?: boolean;
-  /** Shaft/head fill; defaults to the engine blue. Lets a non-engine arrow (the
-   *  opening-explorer hover hint) read as a different thing on the board. */
-  color?: string;
 }
 
 /** Full board SVG with interaction state. The live room (live-xiangqi.ts) calls
@@ -293,26 +283,6 @@ function lastMoveLayer(
 }
 
 // ── Arrows (engine PV hints) ─────────────────────────────────────────────────
-// Calm blue, deliberately distinct from the gold last-move ring. Presentation
-// attributes (lowest CSS precedence) so a stylesheet can still retheme them.
-const ARROW_COLOR = '#2b6cb8';
-const ARROW_START_INSET = 12; // start just off the origin piece center
-// Tip lands AT the destination intersection centre (lichess anatomy) rather than
-// stopping at the piece edge (was 24, ~r=27). The head is drawn back from the
-// tip by its own length, so the point sits on the centre without the whole head
-// burying the piece it lands on.
-const ARROW_TIP_INSET = 0;
-// Head geometry scales with the shaft, the way an SVG marker with the default
-// markerUnits="strokeWidth" would. Engine candidate arrows encode strength as
-// width (see review/engine/engine-arrows.ts); a fixed head on a hairline shaft
-// reads as a lollipop instead of a weak arrow. Ratios preserve the previous
-// fixed head (20 / 11) at the default width of 9.
-const ARROW_HEAD_LENGTH_RATIO = 20 / 9;
-const ARROW_HEAD_HALF_WIDTH_RATIO = 11 / 9;
-const ARROW_DEFAULT_WIDTH = 9;
-
-const fmt = (value: number): number => Math.round(value * 10) / 10;
-
 /** One arrow between two intersection centers: a round-capped shaft plus a
  *  triangular head, shortened at the destination so the head never covers the
  *  piece center. Pure string renderer — exported for tests. */
@@ -325,41 +295,7 @@ export function xiangqiArrowSvg(
   const to = coordOf(arrow.to);
   const a = intersection(from.file, from.rank, perspective, layout);
   const b = intersection(to.file, to.rank, perspective, layout);
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const dist = Math.hypot(dx, dy);
-  if (dist < 1) return '';
-  const ux = dx / dist;
-  const uy = dy / dist;
-  const startX = a.x + ux * ARROW_START_INSET;
-  const startY = a.y + uy * ARROW_START_INSET;
-  const tipX = b.x - ux * ARROW_TIP_INSET;
-  const tipY = b.y - uy * ARROW_TIP_INSET;
-  const width = arrow.width ?? ARROW_DEFAULT_WIDTH;
-  // A wide head on a one-step move can be longer than the span between the two
-  // insets, which would flip the shaft backwards; clamp it to what is there.
-  const span = dist - ARROW_START_INSET - ARROW_TIP_INSET;
-  const headLength = Math.min(width * ARROW_HEAD_LENGTH_RATIO, Math.max(span, 0));
-  const headHalfWidth = width * ARROW_HEAD_HALF_WIDTH_RATIO;
-  // Shaft ends at the head base so a round cap never pokes past the head sides.
-  const baseX = tipX - ux * headLength;
-  const baseY = tipY - uy * headLength;
-  const px = -uy;
-  const py = ux;
-  const opacity = arrow.opacity ?? 0.9;
-  const color = arrow.color ?? ARROW_COLOR;
-  const className = arrow.className ? `xq-arrow ${arrow.className}` : 'xq-arrow';
-  const dash = arrow.dashed ? ' stroke-dasharray="10 8"' : '';
-  const head =
-    `${fmt(tipX)},${fmt(tipY)} ` +
-    `${fmt(baseX + px * headHalfWidth)},${fmt(baseY + py * headHalfWidth)} ` +
-    `${fmt(baseX - px * headHalfWidth)},${fmt(baseY - py * headHalfWidth)}`;
-  return (
-    `<g class="${className}" opacity="${opacity}" fill="${color}" stroke="${color}" pointer-events="none">` +
-    `<line x1="${fmt(startX)}" y1="${fmt(startY)}" x2="${fmt(baseX)}" y2="${fmt(baseY)}" stroke-width="${width}" stroke-linecap="round"${dash}/>` +
-    `<polygon points="${head}" stroke="none"/>` +
-    `</g>`
-  );
+  return svgBoardArrow(arrow, a, b, { baseClassName: 'xq-arrow' });
 }
 
 function arrowLayer(
@@ -375,6 +311,7 @@ function arrowLayer(
 const STAR_OUTER_RADIUS = 22;
 const STAR_INNER_RADIUS = 9;
 const MARKER_RING_RADIUS = 29;
+const fmt = (value: number): number => Math.round(value * 10) / 10;
 
 // Judgment-glyph disc, pinned to the top-right of the point so it clears the
 // piece token instead of covering it (lila puts the same badge on the corner of

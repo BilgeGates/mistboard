@@ -44,9 +44,9 @@ function formatJungleFlipEngineMove(uci: string): string {
   return from === to ? from : `${from}-${to}`;
 }
 
-// No board-overlay layer, so the engine* arrow hooks return [] (the eval gauge + MultiPV
-// panel still light up) and Arrow/Marker are unused — the shapeTo* hooks pass the shape
-// through opaquely. Jungle-flip is symmetric-info (both seats see the identical board), so
+// No board-overlay layer, so the engine presentation omits that capability and the
+// panel hides its arrow setting. The eval gauge + MultiPV panel still light up and
+// Arrow/Marker remain unused. Jungle-flip is symmetric-info (both seats see the identical board), so
 // `perspective` never changes the render.
 function makeJungleFlipPresentation(
   adapter: VariantTreeAdapter<JungleFlipMove, JungleFlipGameState, JungleFlipPlayerView>,
@@ -69,9 +69,6 @@ function makeJungleFlipPresentation(
       fen: jungleFlipStateToEngineFen,
       canEvaluatePosition: (truth) => truth.status.type === 'playing',
       formatPvMove: formatJungleFlipEngineMove,
-      // No board-overlay layer in the jungle-flip renderer → no on-board engine arrows.
-      engineArrowsFromLines: () => [],
-      bestMoveArrow: () => [],
     },
     // The analysis engine's best move is 0-indexed UCI with flips as from===to; render it in
     // board coords ("b3 flip") for the "… was best" advice line, not the raw "B2-B2".

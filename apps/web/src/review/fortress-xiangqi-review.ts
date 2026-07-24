@@ -7,7 +7,7 @@
 // fortress-xiangqi.ini). The eval gauge + engine panel + Share FEN are live; the
 // engine reads the tree's FSF move list (startpos + moves), so no server round-trip.
 // On-board PV arrows are deferred (the fortress board has no overlay layer yet), so
-// engineArrowsFromLines/bestMoveArrow return []. Drop reserves and the drop gesture
+// the engine presentation omits that capability. Drop reserves and the drop gesture
 // are both absent here by choice — drops replay in the mainline. (The live room
 // does show reserves; see the `material` note on the presentation below.)
 
@@ -62,10 +62,6 @@ const fortressPresentation: TreePresentation<
     panelVariant: 'fortressxiangqi',
     fen: fortressXiangqiEngineFen,
     formatPvMove: formatFortressEngineMove,
-    // No board overlay layer yet, so PV lines are not drawn as on-board arrows; the
-    // eval gauge + engine panel still read from the ceval search.
-    engineArrowsFromLines: () => [],
-    bestMoveArrow: () => [],
   },
   boardHostClassName: 'fortress-xiangqi-postgame-board fortress-xiangqi-live-board',
   boardWrapClassName: 'dxq-postgame__board-wrap review-board-host',

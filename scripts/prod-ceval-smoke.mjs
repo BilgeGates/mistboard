@@ -97,6 +97,7 @@ async function checkFsf(browser) {
 
     await toggleEngineOn(page);
     await waitForEvalAndLines(page);
+    await waitForBestMoveArrow(page);
     const result = await readPanel(page);
     assertNoFatalErrors(errors);
     return { url, ...result };
@@ -188,6 +189,7 @@ async function checkPika(browser) {
       .waitFor({ state: 'attached', timeout: timeoutMs });
     await toggleEngineOn(page);
     await waitForEvalAndLines(page);
+    await waitForBestMoveArrow(page);
     const result = await readPanel(page);
     const engineNamed = await page.evaluate(() =>
       (document.querySelector('.engine-panel')?.textContent ?? '').includes('PikaJieQi'),
@@ -325,6 +327,10 @@ async function waitForEvalAndLines(page) {
   );
 }
 
+async function waitForBestMoveArrow(page) {
+  await page.locator('.xq-arrow--pv1').first().waitFor({ state: 'attached', timeout: timeoutMs });
+}
+
 async function waitForEvalOrGameOver(page) {
   return page
     .waitForFunction(
@@ -348,6 +354,7 @@ function readPanel(page) {
       eval: panel?.querySelector('.engine-panel__eval')?.textContent?.trim() ?? null,
       lines: panel?.querySelectorAll('.engine-panel__line').length ?? 0,
       meta: panel?.querySelector('.engine-panel__sub')?.textContent?.trim() ?? null,
+      arrows: document.querySelectorAll('.xq-arrow--pv1').length,
     };
   });
 }

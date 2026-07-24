@@ -1,6 +1,13 @@
+import { pikafishUciToJieqiMove } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import type { CevalLine } from './ceval.js';
-import { bestMoveArrow, engineArrowsFromLines, SHOW_PV1_REPLY_SEGMENT } from './engine-arrows.js';
+import {
+  bestMoveArrow,
+  bestMoveArrowWithParser,
+  engineArrowsFromLines,
+  engineArrowsFromLinesWithParser,
+  SHOW_PV1_REPLY_SEGMENT,
+} from './engine-arrows.js';
 
 function line(multipv: number, pvUci: string[], scoreCp = 30 - multipv * 10): CevalLine {
   return { multipv, depth: 18, scoreCp, mate: null, pvUci };
@@ -145,5 +152,22 @@ describe('bestMoveArrow', () => {
   it('is empty for a missing or unparseable move', () => {
     expect(bestMoveArrow(null)).toEqual([]);
     expect(bestMoveArrow('zz99')).toEqual([]);
+  });
+});
+
+describe('variant-specific engine move parsers', () => {
+  it('maps PikaJieQi zero-indexed ranks into board arrows', () => {
+    expect(
+      engineArrowsFromLinesWithParser(
+        [line(1, ['e3e4']), line(2, ['b0c2'])],
+        pikafishUciToJieqiMove,
+      ),
+    ).toEqual([
+      expect.objectContaining({ from: 'b1', to: 'c3', className: 'xq-arrow--alt' }),
+      expect.objectContaining({ from: 'e4', to: 'e5', className: 'xq-arrow--pv1' }),
+    ]);
+    expect(bestMoveArrowWithParser('e3e4', pikafishUciToJieqiMove)).toEqual([
+      { from: 'e4', to: 'e5', opacity: 0.4, width: 14, className: 'xq-arrow--best' },
+    ]);
   });
 });

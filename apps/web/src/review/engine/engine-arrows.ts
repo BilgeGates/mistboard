@@ -15,8 +15,16 @@
 // into a third apparent weight, which would read as a strength no line has.
 
 import { fsfUciToXiangqiSquares, winPercent } from '@mistboard/game';
+import type { SvgBoardArrowStyle } from '../../svg-board-arrow.js';
 import type { XiangqiBoardArrow } from '../../xiangqi-board.js';
 import type { CevalLine } from './ceval.js';
+
+export type EngineBoardArrow<Square extends string> = SvgBoardArrowStyle & {
+  from: Square;
+  to: Square;
+};
+
+type ParseEngineMove<Square extends string> = (uci: string) => { from: Square; to: Square } | null;
 
 /** PV1 can also show the expected reply as a faint dashed second segment (the
  *  "length encodes strength" nod). OFF for now (2026-07-10): the dashed enemy
@@ -63,18 +71,21 @@ function lineWinPercent(line: CevalLine): number {
  *  near-equal moves draw five arrows, a forcing position draws one. When
  *  enabled, PV1's reply move is prepended as a faint dashed segment (bottom of
  *  the stack). */
-export function engineArrowsFromLines(lines: readonly CevalLine[]): XiangqiBoardArrow[] {
+export function engineArrowsFromLinesWithParser<Square extends string>(
+  lines: readonly CevalLine[],
+  parseMove: ParseEngineMove<Square>,
+): EngineBoardArrow<Square>[] {
   const ranked = [...lines].sort((a, b) => a.multipv - b.multipv);
   const best = ranked[0];
   if (!best) return [];
   const bestWin = lineWinPercent(best);
 
-  const arrows: XiangqiBoardArrow[] = [];
+  const arrows: EngineBoardArrow<Square>[] = [];
   // Weakest first: later entries paint over earlier ones.
   for (let rank = ranked.length - 1; rank >= 1; rank -= 1) {
     const line = ranked[rank];
     if (!line) continue;
-    const move = fsfUciToXiangqiSquares(line.pvUci[0] ?? '');
+    const move = parseMove(line.pvUci[0] ?? '');
     if (!move) continue;
     // Negative shift = this line currently looks better than PV1, which happens
     // transiently mid-search before the ordering settles. Drop it rather than
@@ -89,21 +100,32 @@ export function engineArrowsFromLines(lines: readonly CevalLine[]): XiangqiBoard
     });
   }
 
-  const bestMove = fsfUciToXiangqiSquares(best.pvUci[0] ?? '');
+  const bestMove = parseMove(best.pvUci[0] ?? '');
   if (bestMove) arrows.push({ ...bestMove, ...BEST_STYLE, className: 'xq-arrow--pv1' });
 
   if (SHOW_PV1_REPLY_SEGMENT) {
-    const reply = fsfUciToXiangqiSquares(best.pvUci[1] ?? '');
+    const reply = parseMove(best.pvUci[1] ?? '');
     if (reply) arrows.unshift({ ...reply, ...REPLY_STYLE, className: 'xq-arrow--pv1-reply' });
   }
   return arrows;
 }
 
+export function engineArrowsFromLines(lines: readonly CevalLine[]): XiangqiBoardArrow[] {
+  return engineArrowsFromLinesWithParser(lines, fsfUciToXiangqiSquares);
+}
+
 /** Single best-move arrow from a whole-game analysis ply (server Pikafish path
  *  or the client sweep — both hand back our square notation). Empty when the
  *  move does not parse. */
-export function bestMoveArrow(uci: string | null | undefined): XiangqiBoardArrow[] {
-  const move = fsfUciToXiangqiSquares(uci ?? '');
+export function bestMoveArrowWithParser<Square extends string>(
+  uci: string | null | undefined,
+  parseMove: ParseEngineMove<Square>,
+): EngineBoardArrow<Square>[] {
+  const move = parseMove(uci ?? '');
   if (!move) return [];
   return [{ ...move, ...BEST_STYLE, className: 'xq-arrow--best' }];
+}
+
+export function bestMoveArrow(uci: string | null | undefined): XiangqiBoardArrow[] {
+  return bestMoveArrowWithParser(uci, fsfUciToXiangqiSquares);
 }

@@ -11,8 +11,14 @@ import {
   type JieqiMove,
   type JieqiPlayerView,
   jieqiStateToPikafishFen,
+  pikafishUciToJieqiMove,
 } from '@mistboard/game';
 import { createJieqiInteractiveBoard } from '../jieqi-board.js';
+import type { JieqiBoardArrow } from '../live-jieqi-render.js';
+import {
+  bestMoveArrowWithParser,
+  engineArrowsFromLinesWithParser,
+} from './engine/engine-arrows.js';
 import type { NodeShape, VariantTreeAdapter } from './game-tree.js';
 import { makeJieqiTreeAdapter } from './jieqi-tree-adapter.js';
 import { formatJieqiBestMove } from './move-advice.js';
@@ -29,12 +35,16 @@ export type JieqiReviewConfig = TreeReviewConfig<JieqiMove>;
 /** Handle returned by mountJieqiReview: snapshot the current tree to persist it. */
 export type JieqiReviewHandle = TreeReviewHandle;
 
-// The renderer has no overlay layer, so Arrow/Marker are unused; the engine arrow
-// hooks return [] and the shape hooks pass through opaquely. Unlike
-// banqi/jungle-flip, jieqi is on the 9×10 xiangqi board and DOES orient per side.
 function makeJieqiPresentation(
   adapter: VariantTreeAdapter<JieqiMove, JieqiGameState, JieqiPlayerView>,
-): TreePresentation<JieqiMove, JieqiGameState, JieqiPlayerView, JieqiColor, unknown, unknown> {
+): TreePresentation<
+  JieqiMove,
+  JieqiGameState,
+  JieqiPlayerView,
+  JieqiColor,
+  JieqiBoardArrow,
+  unknown
+> {
   return {
     adapter,
     engine: {
@@ -43,8 +53,9 @@ function makeJieqiPresentation(
       fen: jieqiStateToPikafishFen,
       canEvaluatePosition: (truth) => truth.status.type === 'playing',
       formatPvMove: formatJieqiBestMove,
-      engineArrowsFromLines: () => [],
-      bestMoveArrow: () => [],
+      engineArrowsFromLines: (lines) =>
+        engineArrowsFromLinesWithParser(lines, pikafishUciToJieqiMove),
+      bestMoveArrow: (best) => bestMoveArrowWithParser(best, pikafishUciToJieqiMove),
     },
     // The analysis engine's best move is Pikafish UCI (0-indexed ranks, no flips); render it in
     // board coords ("e8-a8") for the "… was best" advice line, not the raw "e7a7".
@@ -63,7 +74,11 @@ function makeJieqiPresentation(
     createBoard: (opts) => createJieqiInteractiveBoard(opts),
     // No glide animation wired for jieqi yet; the board re-renders on nav.
     animateMove: () => {},
-    shapeToArrow: (s: NodeShape) => s,
+    shapeToArrow: (s: NodeShape): JieqiBoardArrow => ({
+      from: s.orig as JieqiBoardArrow['from'],
+      to: (s.dest ?? s.orig) as JieqiBoardArrow['to'],
+      className: `xq-arrow--draw xq-shape--${s.brush}`,
+    }),
     shapeToMarker: (s: NodeShape) => s,
   };
 }

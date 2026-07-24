@@ -108,10 +108,12 @@ export interface EnginePresentation<Truth, Arrow> {
   canEvaluatePosition?(truth: Truth): boolean;
   /** Prettify a PV move (engine UCI) for the engine panel. */
   formatPvMove(uci: string): string;
-  /** On-board arrows for live MultiPV lines. */
-  engineArrowsFromLines(lines: CevalLine[]): Arrow[];
-  /** Single best-move arrow from a whole-game analysis ply; empty when absent. */
-  bestMoveArrow(best: string | null | undefined): Arrow[];
+  /** On-board arrows for live MultiPV lines. Omit while a board renderer has no
+   *  overlay capability; the engine panel then hides its arrow setting. */
+  engineArrowsFromLines?(lines: CevalLine[]): Arrow[];
+  /** Single best-move arrow from a whole-game analysis ply. Paired with
+   *  engineArrowsFromLines as one board-overlay capability. */
+  bestMoveArrow?(best: string | null | undefined): Arrow[];
 }
 
 export interface TreePresentation<Move, Truth, View, Color, Arrow, Marker> {
@@ -577,6 +579,9 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // engine ink, so it shows only while the reader has the local engine on — an
   // engine-off board carries no derived arrows, only what the reader drew.
   let engineOn = false;
+  const engineArrowsSupported = Boolean(
+    presentation.engine?.engineArrowsFromLines && presentation.engine.bestMoveArrow,
+  );
   // "Best move arrows" (engine gear popover / `a`). Gates BOTH arrow sources
   // below, so turning it off means no engine ink on the board at all; the user's
   // own drawn shapes are unaffected (they are appended in paintOverlays).
@@ -584,9 +589,11 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // Engine PV / analysis-best arrows for the current node (transient, derived).
   function engineArrows(): Arrow[] {
     const engine = presentation.engine;
-    if (!engine || !showEngineArrows) return [];
-    if (engineLines?.length) return engine.engineArrowsFromLines(engineLines);
-    if (SHOW_ANALYSIS_BEST_ARROW && engineOn && gameAnalysis) {
+    if (!engine || !engineArrowsSupported || !showEngineArrows) return [];
+    if (engineLines?.length && engine.engineArrowsFromLines) {
+      return engine.engineArrowsFromLines(engineLines);
+    }
+    if (SHOW_ANALYSIS_BEST_ARROW && engineOn && gameAnalysis && engine.bestMoveArrow) {
       const node = currentNode();
       if (mainlineNodes()[node.ply] === node) {
         const best = gameAnalysis.evals.find((entry) => entry.ply === node.ply)?.best;
@@ -645,6 +652,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
             engineOn = on;
             paintOverlays();
           },
+          arrowsSupported: engineArrowsSupported,
           showArrows: showEngineArrows,
           onShowArrowsChange: (enabled) => {
             showEngineArrows = enabled;
@@ -1468,7 +1476,10 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
       flip: () => flipBoard(),
       escape: () => closeVariationPicker(),
       // Only meaningful where an engine panel exists to hold the checkbox.
-      toggleArrows: enginePanel ? () => enginePanel.setShowArrows(!showEngineArrows) : undefined,
+      toggleArrows:
+        enginePanel && engineArrowsSupported
+          ? () => enginePanel.setShowArrows(!showEngineArrows)
+          : undefined,
     },
     keyboardAbort.signal,
   );

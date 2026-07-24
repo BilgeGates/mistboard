@@ -37,9 +37,9 @@ function formatJungleEngineMove(uci: string): string {
   return `${uci.slice(0, 2)}-${uci.slice(2, 4)}`;
 }
 
-// Jungle has no board overlay layer, so the engine* arrow hooks return [] (the eval gauge +
-// MultiPV panel still light up) and Arrow/Marker are unused — the shapeTo* hooks pass the
-// shape through opaquely.
+// Jungle has no board overlay layer, so its engine presentation omits that capability
+// and the panel hides its arrow setting. The eval gauge + MultiPV panel still light up;
+// Arrow/Marker remain unused and the shapeTo* hooks pass shapes through opaquely.
 const junglePresentation: TreePresentation<
   JungleMove,
   JungleGameState,
@@ -58,9 +58,6 @@ const junglePresentation: TreePresentation<
     fen: jungleStateToEngineFen,
     canEvaluatePosition: (truth) => truth.status.type === 'playing',
     formatPvMove: formatJungleEngineMove,
-    // No board-overlay layer in the jungle renderer → no on-board engine arrows.
-    engineArrowsFromLines: () => [],
-    bestMoveArrow: () => [],
   },
   formatBestMove: formatJungleEngineMove,
   boardHostClassName: 'jungle-postgame-board jungle-live-board',

@@ -31,6 +31,9 @@ export interface EnginePanel {
 }
 
 export interface EnginePanelOptions {
+  /** Whether this variant's board can paint engine arrows. Defaults true for
+   *  direct consumers; generic review surfaces pass their explicit capability. */
+  arrowsSupported?: boolean;
   variant: CevalVariant;
   multiPv?: number;
   maxDepth?: number;
@@ -124,10 +127,16 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   const settings = document.createElement('div');
   settings.className = 'engine-panel__settings';
   settings.hidden = true;
+  if (opts.arrowsSupported !== false) {
+    settings.append(
+      checkboxRow('Best move arrows', showArrowsToggle, opts.showArrows ?? true, (enabled) => {
+        opts.onShowArrowsChange?.(enabled);
+      }),
+    );
+  } else {
+    showArrowsToggle.checked = opts.showArrows ?? true;
+  }
   settings.append(
-    checkboxRow('Best move arrows', showArrowsToggle, opts.showArrows ?? true, (enabled) => {
-      opts.onShowArrowsChange?.(enabled);
-    }),
     sliderRow(
       'Multiple lines',
       { min: 1, max: 5, step: 1, value: multiPv },
@@ -298,6 +307,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     el,
     setPosition,
     setShowArrows(next: boolean) {
+      if (opts.arrowsSupported === false) return;
       if (showArrowsToggle.checked === next) return;
       showArrowsToggle.checked = next;
       opts.onShowArrowsChange?.(next);

@@ -1,5 +1,6 @@
 import type { JieqiColor, JieqiMove, JieqiPlayerView, JieqiSquare } from '@mistboard/game';
 import { tokenPieceSize } from './board-metrics.js';
+import { type SvgBoardArrowStyle, svgBoardArrow } from './svg-board-arrow.js';
 import { readStoredXiangqiPieceSet } from './xiangqi-appearance-storage.js';
 import { renderXiangqiPieceGlyphed, type XiangqiPieceSet } from './xiangqi-piece-sets.js';
 
@@ -26,6 +27,7 @@ const RIVER_TOP = MARGIN + 4 * CELL;
 const RIVER_BOTTOM = MARGIN + 5 * CELL;
 
 export type JieqiBoardRenderOptions = {
+  arrows?: readonly JieqiBoardArrow[];
   interactive?: boolean;
   selectedSquare?: JieqiSquare | null;
   legalMoves?: readonly JieqiMove[];
@@ -33,6 +35,11 @@ export type JieqiBoardRenderOptions = {
   // While dragging, render the origin as a dim source shadow.
   draggingFrom?: JieqiSquare | null;
 };
+
+export interface JieqiBoardArrow extends SvgBoardArrowStyle {
+  from: JieqiSquare;
+  to: JieqiSquare;
+}
 
 function jieqiCoordOf(square: JieqiSquare): { file: number; rank: number } {
   return { file: square.charCodeAt(0) - 97, rank: Number(square.slice(1)) };
@@ -70,9 +77,25 @@ export function renderJieqiBoardSvg(
       ${selectionRing(options.selectedSquare ?? null, perspective)}
       ${options.interactive ? '' : moveHints(view, legalMoves, perspective)}
       ${pieceLayer(view, perspective, pieceSet, options.draggingFrom ?? null)}
+      <g class="jieqi-board-arrows xq-live-arrows" aria-hidden="true" pointer-events="none">${jieqiArrowLayer(options.arrows ?? [], perspective)}</g>
       ${options.interactive ? hitLayer(perspective, view, legalMoves) : ''}
     </svg>
   `;
+}
+
+export function jieqiArrowSvg(arrow: JieqiBoardArrow, perspective: JieqiColor): string {
+  const from = jieqiCoordOf(arrow.from);
+  const to = jieqiCoordOf(arrow.to);
+  return svgBoardArrow(
+    arrow,
+    intersection(from.file, from.rank, perspective),
+    intersection(to.file, to.rank, perspective),
+    { baseClassName: 'xq-arrow' },
+  );
+}
+
+function jieqiArrowLayer(arrows: readonly JieqiBoardArrow[], perspective: JieqiColor): string {
+  return arrows.map((arrow) => jieqiArrowSvg(arrow, perspective)).join('');
 }
 
 export const JIEQI_PIECE_PX = PIECE_SIZE;
