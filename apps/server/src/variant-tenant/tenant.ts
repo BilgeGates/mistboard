@@ -282,6 +282,11 @@ export type VariantTenant<
   engine?: {
     isEngineClientId(clientId: string | undefined): boolean;
     displayName(engineId: string): string;
+    // External engine-service tenants must reacquire their per-game compute
+    // reservation after process hydration. Omit for in-process engines. The
+    // engine protocol names the first-mover slot `white`, even for red/black
+    // variants, so the tenant owns that mapping explicitly.
+    reservationColor?(color: C): 'white' | 'black';
     // Engine BUILD version for this engine id (e.g. '0.2.0'), recorded per game so PvE games
     // are queryable by build. Optional: only the variant-tenant UCI engines whose subject_id
     // is version-less (jieqi/banqi/crossroads) implement it; returns null for unknown ids.

@@ -347,6 +347,7 @@ export const darkXiangqiTenant: DarkXiangqiTenant = {
   engine: {
     isEngineClientId: isDarkXiangqiEngineClientId,
     displayName: engineVersionDisplayName,
+    reservationColor: (color) => (color === 'red' ? 'white' : 'black'),
     reservationReleaseTag: 'dxq',
   },
   wire: {

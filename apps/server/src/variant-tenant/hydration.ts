@@ -9,6 +9,7 @@
 
 import { logger } from '../obs.js';
 import * as persistence from '../persistence.js';
+import { reserveHydratedLiveEngineSeat } from '../server-live-engine-reservations.js';
 import { recordTenantPersistenceError } from './events.js';
 import { createTenantRuntimeRoomFromEvents, isTenantEventLog } from './runtime.js';
 import type {
@@ -70,8 +71,58 @@ export async function getOrLoadTenantRoom<
   room.seatTokens = tenantSeatTokenStatesFromPersistence<C>(
     await persistence.loadRoomSeatTokens<C>(roomId),
   );
+  const engineReservationReady = await restoreHydratedTenantEngineReservation(
+    tenant,
+    room,
+    reserveHydratedLiveEngineSeat,
+  );
+  if (!engineReservationReady) {
+    logger.warn(
+      {
+        kind: `${tenant.persistence.logKindPrefix}_engine_reservation_hydrate_unavailable`,
+        room_id: roomId,
+      },
+      `${tenant.persistence.logLabel} engine reservation unavailable during hydration`,
+    );
+    return null;
+  }
   rooms.set(roomId, room);
   return room;
+}
+
+export async function restoreHydratedTenantEngineReservation<
+  Kind extends string,
+  C extends string,
+  M,
+  State extends TenantGameStateLike<C>,
+  View,
+  Spec extends string,
+>(
+  tenant: VariantTenant<Kind, C, M, State, View, Spec>,
+  room: TenantRuntimeRoom<Kind, C, M, State, Spec>,
+  reserve: (reservation: {
+    color: 'white' | 'black';
+    engineId: string;
+    roomId: string;
+  }) => Promise<string | null>,
+): Promise<boolean> {
+  const reservationColor = tenant.engine?.reservationColor;
+  const status = room.projection.state.status;
+  if (!reservationColor || status.type === 'finished' || status.type === 'aborted') return true;
+
+  for (const color of tenant.colors) {
+    const engineId = room.projection.seats[color];
+    if (!engineId || !tenant.engine?.isEngineClientId(engineId)) continue;
+    const reservationId = await reserve({
+      color: reservationColor(color),
+      engineId,
+      roomId: room.id,
+    });
+    if (!reservationId) return false;
+    room.engineReservationId = reservationId;
+    return true;
+  }
+  return true;
 }
 
 export function tenantSeatTokenStatesFromPersistence<C extends persistence.RoomSeatTokenSeat>(
