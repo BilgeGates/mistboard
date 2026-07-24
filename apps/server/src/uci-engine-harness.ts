@@ -330,26 +330,39 @@ export function runUciBestmove(args: RunUciBestmoveArgs): Promise<string | null>
  * score is from the side-to-move POV, exactly as the engine reports it. `pv` is
  * the principal variation's moves (engine UCI), empty when the line carries none.
  */
-export function parseInfoScore(
-  line: string,
-): { depth: number; cp: number | null; mate: number | null; pv: string[] } | undefined {
+export function parseInfoScore(line: string):
+  | {
+      depth: number;
+      cp: number | null;
+      mate: number | null;
+      pv: string[];
+      nodes: number | null;
+      timeMs: number | null;
+    }
+  | undefined {
   if (!line.startsWith('info ') || !line.includes(' score ')) return undefined;
   const tokens = line.split(/\s+/);
   let depth = 0;
   let cp: number | null = null;
   let mate: number | null = null;
   let pv: string[] = [];
+  // `nodes`/`time` power the search-truncation telemetry (banqi-engine): a move that
+  // reports far fewer than its node budget, or a `time` at the movetime cap, was cut short.
+  let nodes: number | null = null;
+  let timeMs: number | null = null;
   for (let i = 1; i < tokens.length; i += 1) {
     if (tokens[i] === 'depth') depth = Number(tokens[i + 1]);
+    else if (tokens[i] === 'nodes') nodes = Number(tokens[i + 1]);
+    else if (tokens[i] === 'time') timeMs = Number(tokens[i + 1]);
     else if (tokens[i] === 'score') {
       if (tokens[i + 1] === 'cp') cp = Number(tokens[i + 2]);
       else if (tokens[i + 1] === 'mate') mate = Number(tokens[i + 2]);
     } else if (tokens[i] === 'pv') {
-      pv = tokens.slice(i + 1); // the pv is the rest of the line
+      pv = tokens.slice(i + 1); // the pv is the rest of the line (nodes/time precede it)
       break;
     }
   }
-  return { depth, cp, mate, pv };
+  return { depth, cp, mate, pv, nodes, timeMs };
 }
 
 export type UciEval = {
@@ -364,6 +377,11 @@ export type UciEval = {
   /** Principal variation of the last scored line (engine UCI); absent/empty when
    *  the engine emitted none. Feeds inline best-play lines in postgame analysis. */
   pv?: string[];
+  /** Nodes searched, from the last scored info line; absent when the engine emits none.
+   *  Powers search-truncation telemetry (a move well under its node budget was cut short). */
+  nodes?: number;
+  /** Search time (ms) from the last scored info line; absent when the engine emits none. */
+  timeMs?: number;
 };
 
 /**
@@ -421,6 +439,8 @@ export function runUciEval(args: RunUciBestmoveArgs): Promise<UciEval> {
                 mate: latest?.mate ?? null,
                 depth: latest?.depth ?? 0,
                 pv: latest?.pv,
+                nodes: latest?.nodes ?? undefined,
+                timeMs: latest?.timeMs ?? undefined,
               });
             } catch (err) {
               reject(err);
@@ -641,6 +661,8 @@ export class UciEngineSession {
                 mate: latest?.mate ?? null,
                 depth: latest?.depth ?? 0,
                 pv: latest?.pv,
+                nodes: latest?.nodes ?? undefined,
+                timeMs: latest?.timeMs ?? undefined,
               });
             }
           },

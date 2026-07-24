@@ -14,12 +14,13 @@
 
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { runUciBestmove, runUciEval, UciEnginePool, type UciEval } from './uci-engine-harness.js';
+import { logger } from './obs.js';
+import { runUciEval, UciEnginePool, type UciEval } from './uci-engine-harness.js';
 
 // Bump on every shipped eval/search change; the binary self-reports "MistyBanqi <version>"
 // over UCI, and the engines registry records it (configHash) on each game so we can always
 // tell which build played.
-export const BANQI_ENGINE_VERSION = '0.2.4';
+export const BANQI_ENGINE_VERSION = '0.2.5';
 export const BANQI_DEFAULT_ENGINE_ID = 'misty-banqi';
 
 export type BanqiEngineTier = {
@@ -40,12 +41,19 @@ export type BanqiEngineTier = {
 // to a single full-strength MistyBanqi when the cheap-strength eval shipped (v0.2.0: cover_mat +
 // king_ctx + value-aware mobility + adaptive domination + corrected value table, +16.6% vs hw3).
 // 1.5M nodes is the strongest budget; the cap keeps moves playable.
+//
+// Cap raised 5000 -> 8000 (2026-07-24): the node budget is the CPU-independent strength dial,
+// but prod's slow shared vCPU (~330K nodes/s vs ~1.5M/s on a dev Mac) needs ~4.5s to reach 1.5M
+// nodes, so a 5s cap truncated below budget under any contention — the bot played the shallow,
+// weaker move (a diagnosed banqi horizon miss: a full-budget search finds the win, a truncated
+// one doesn't). 8s gives headroom to actually reach the configured budget. `banqiEngineMove`
+// now logs a truncation warning when a move still hits the cap, so real prod behavior is visible.
 const MISTY_BANQI: BanqiEngineTier = {
   id: BANQI_DEFAULT_ENGINE_ID,
   name: 'MistyBanqi',
   version: BANQI_ENGINE_VERSION,
   nodes: 1_500_000,
-  movetimeCapMs: 5000,
+  movetimeCapMs: 8000,
 };
 
 export const BANQI_PLAYABLE_ENGINES: readonly BanqiEngineTier[] = [MISTY_BANQI];
@@ -182,7 +190,51 @@ export async function banqiLiveEngineMove(
   }
 }
 
-export function banqiEngineMove(
+// Fraction of the node budget below which a move counts as truncated (cut short by the
+// movetime cap before finishing its search), and the fraction of the cap that counts as
+// "hit the cap". A truncated move plays a shallower, weaker choice than the configured
+// strength — the failure mode behind the diagnosed banqi horizon miss (2026-07-24). We warn
+// so this is visible in prod instead of silent (the binary emitted no search stats before).
+const BANQI_TRUNCATION_NODE_FRACTION = 0.9;
+const BANQI_CAP_HIT_FRACTION = 0.95;
+
+/**
+ * Emit search-truncation telemetry for one MistyBanqi move. `nodes` reports (depth/nodes/time)
+ * come from the engine's `info` lines; older builds that emit none fall back to wall-clock
+ * `elapsedMs` (an upper bound, includes spawn + handshake). Warns only on a truncated move, so
+ * a healthy engine stays quiet and a warning is an actionable "cap too low / CPU starved" signal.
+ */
+function reportBanqiSearchTelemetry(input: {
+  result: UciEval;
+  nodeBudget: number;
+  movetimeCapMs: number;
+  elapsedMs: number;
+}): void {
+  const { result, nodeBudget, movetimeCapMs, elapsedMs } = input;
+  const reachedBudget =
+    result.nodes != null ? result.nodes >= nodeBudget * BANQI_TRUNCATION_NODE_FRACTION : null;
+  const capMs = movetimeCapMs * BANQI_CAP_HIT_FRACTION;
+  const hitCap = result.timeMs != null ? result.timeMs >= capMs : elapsedMs >= capMs;
+  // Truncated: the engine reported fewer nodes than its budget, or it ran up against the cap.
+  const truncated = reachedBudget === false || hitCap;
+  if (!truncated) return;
+  logger.warn(
+    {
+      kind: 'banqi_search_truncated',
+      nodeBudget,
+      movetimeCapMs,
+      reportedNodes: result.nodes ?? null,
+      reportedDepth: result.depth || null,
+      reportedTimeMs: result.timeMs ?? null,
+      elapsedMs: Math.round(elapsedMs),
+      // A truncated search on the slow prod vCPU plays below configured strength; if this fires
+      // steadily, raise movetimeCapMs or speed the engine (e.g. enable move ordering).
+    },
+    'MistyBanqi move truncated below node budget',
+  );
+}
+
+export async function banqiEngineMove(
   fen: string,
   opts: BanqiEngineOptions = {},
 ): Promise<string | null> {
@@ -200,12 +252,20 @@ export function banqiEngineMove(
     position,
     `go nodes ${nodes} movetime ${movetimeCapMs}`,
   ];
-  return runUciBestmove({
+  const startedAt = Date.now();
+  const result = await runUciEval({
     bin: banqiEnginePath(),
     commands,
     timeoutMs: movetimeCapMs + 4000,
     timeoutMessage: 'banqi-engine move timed out',
   });
+  reportBanqiSearchTelemetry({
+    result,
+    nodeBudget: nodes,
+    movetimeCapMs,
+    elapsedMs: Date.now() - startedAt,
+  });
+  return result.best;
 }
 
 // Whole-game ANALYSIS eval (distinct from the playable move provider above): read the
