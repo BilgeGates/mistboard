@@ -746,6 +746,26 @@ describe('standard xiangqi puzzles', () => {
     expect(root.querySelectorAll('[data-square]').length).toBe(90);
   });
 
+  it('paints a standard puzzle with the saved xiangqi piece set', async () => {
+    stubWindowLocalStorage(
+      memoryStorage({
+        'mistboard.xiangqiPieceSetVersion': '3',
+        'mistboard.xiangqiPieceSet': 'international-flat',
+      }),
+    );
+    const puzzle = minedByPlyCount(3);
+    vi.stubGlobal('fetch', xiangqiFetchMock([puzzle]));
+    const root = document.createElement('div');
+
+    await mountPuzzles(root, puzzle.id);
+
+    const hrefs = [...root.querySelectorAll('.xq-piece image')].map((image) =>
+      image.getAttribute('href'),
+    );
+    expect(hrefs.length).toBeGreaterThan(0);
+    expect(hrefs.every((href) => href?.includes('/international-flat/'))).toBe(true);
+  });
+
   it('repaints a mounted standard puzzle when the board layout changes', async () => {
     const puzzle = minedByPlyCount(3);
     vi.stubGlobal('fetch', xiangqiFetchMock([puzzle]));
