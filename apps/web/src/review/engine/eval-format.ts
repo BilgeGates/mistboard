@@ -12,6 +12,16 @@ export function formatEval(cp: number | null, mate: number | null): string {
   return `${v > 0 ? '+' : ''}${v.toFixed(1)}`;
 }
 
+/** Misty transports its normalized [-1, 1] evaluation through the shared
+ *  integer score field as value * 1000. Keep that native scale visible instead
+ *  of presenting it as a chess pawn score. */
+export function formatMistyEval(cp: number | null, mate: number | null): string {
+  if (mate != null) return formatEval(cp, mate);
+  if (cp == null) return '–';
+  const v = cp / 1000;
+  return `${v > 0 ? '+' : ''}${v.toFixed(2)}`;
+}
+
 // Rough logistic map from centipawns to Red win probability, for the gauge fill.
 // The scale constant is a display heuristic, not a calibrated model.
 export function winProbRed(cp: number | null, mate: number | null): number {

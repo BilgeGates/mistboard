@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createEnginePanel } from './engine-panel.js';
+import { createEvalBar } from './eval-bar.js';
 
 // happy-dom is not cross-origin isolated, so cevalSupported() is false here:
 // the panel mounts disabled and never touches the WASM engine. That still pins
@@ -65,8 +66,82 @@ describe('createEnginePanel onLines', () => {
       await vi.advanceTimersByTimeAsync(151);
 
       expect(panel.el.querySelector('.engine-panel__sub')?.textContent).toBe('Depth 24');
-      expect(panel.el.querySelector('.engine-panel__eval')?.textContent).toBe('+10.0');
+      expect(panel.el.querySelector('.engine-panel__eval')?.textContent).toBe('+1.00');
       expect(panel.el.querySelectorAll('.engine-panel__line')).toHaveLength(1);
+      panel.dispose();
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('createEnginePanel flip-game opening scores', () => {
+  it('uses a neutral first-player label, Misty scale, and tied-flip note before binding', async () => {
+    vi.useFakeTimers();
+    class FakeWorker extends EventTarget {
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      onerror: ((event: ErrorEvent) => void) | null = null;
+
+      postMessage(message: { type: string; id?: number }): void {
+        const data =
+          message.type === 'init'
+            ? { type: 'ready' }
+            : {
+                type: 'result',
+                id: message.id,
+                json: JSON.stringify({
+                  lines: [
+                    { uci: 'a0a0', cp: -201, depth: 2 },
+                    { uci: 'b0b0', cp: -201, depth: 2 },
+                    { uci: 'c0c0', cp: -201, depth: 2 },
+                  ],
+                }),
+              };
+        queueMicrotask(() => {
+          const event = new MessageEvent('message', { data });
+          this.onmessage?.(event);
+          this.dispatchEvent(event);
+        });
+      }
+
+      terminate(): void {}
+    }
+    vi.stubGlobal('Worker', FakeWorker);
+
+    try {
+      const evalBar = createEvalBar();
+      const panel = createEnginePanel({ variant: 'jungleflip', evalBar });
+      panel.setPosition([], 'XXXX/XXXX/XXXX/XXXX - RCDWPTLErcdwptle 0 1');
+      panel.el.querySelector<HTMLButtonElement>('.engine-panel__switch')?.click();
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(panel.el.querySelector('.engine-panel__eval')?.textContent).toBe('P1 -0.20');
+      expect(panel.el.querySelector('.engine-panel__eval')?.getAttribute('title')).toBe(
+        'First player perspective',
+      );
+      expect(panel.el.querySelector('.engine-panel__sub')?.textContent).toBe(
+        'Depth 2 · Top flips tied',
+      );
+      expect(
+        [...panel.el.querySelectorAll('.engine-panel__line-eval')].map((node) => ({
+          text: node.textContent,
+          tone: node.classList.contains('is-even'),
+        })),
+      ).toEqual([
+        { text: '-0.20', tone: true },
+        { text: '-0.20', tone: true },
+        { text: '-0.20', tone: true },
+      ]);
+      expect(evalBar.el.classList.contains('review-eval-bar--neutral')).toBe(true);
+      expect(evalBar.el.querySelector('.review-eval-bar__label')?.textContent).toBe('-0.20');
+
+      panel.setPosition([], 'XXXX/XXXX/XXXX/XXXX r RCDWPTLErcdwptle 0 2');
+      await vi.advanceTimersByTimeAsync(151);
+
+      expect(panel.el.querySelector('.engine-panel__eval')?.textContent).toBe('-0.20');
+      expect(panel.el.querySelector('.engine-panel__eval')?.hasAttribute('title')).toBe(false);
+      expect(evalBar.el.classList.contains('review-eval-bar--neutral')).toBe(false);
       panel.dispose();
     } finally {
       vi.useRealTimers();

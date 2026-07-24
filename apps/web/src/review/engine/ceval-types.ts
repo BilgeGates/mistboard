@@ -19,7 +19,8 @@ export interface CevalLine {
   /** 1-based rank within MultiPV (1 = best). */
   multipv: number;
   depth: number;
-  /** Centipawns, side-to-move POV; null when `mate` is set. */
+  /** Integer score, side-to-move POV; centipawns for chess-family engines.
+   *  Misty transports its normalized value as value * 1000. Null when `mate` is set. */
   scoreCp: number | null;
   /** Signed moves-to-mate, side-to-move POV; null otherwise. */
   mate: number | null;

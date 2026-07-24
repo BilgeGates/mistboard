@@ -143,3 +143,15 @@
 .jungle-flip-review .review-eval-bar__fill {
   background: color-mix(in srgb, #b5322b 72%, var(--site-panel, #fff));
 }
+
+/* Banqi and Flip Jungle have no ink ownership before the opening flip. Keep the
+   gauge readable without implying that either seat already owns Red or Black. */
+.review-eval-bar.review-eval-bar--neutral {
+  background: color-mix(in srgb, var(--site-muted) 72%, var(--site-panel, #fff));
+}
+.review-eval-bar--neutral .review-eval-bar__fill {
+  background: color-mix(in srgb, var(--site-muted) 24%, var(--site-panel, #fff));
+}
+.review-eval-bar--neutral::after {
+  background: color-mix(in srgb, var(--site-muted) 70%, var(--site-panel, #fff));
+}

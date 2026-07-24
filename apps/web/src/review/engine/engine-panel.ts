@@ -3,6 +3,7 @@
 // engine name + status), and up to MultiPV principal-variation lines. Position is
 // pushed in via setPosition() from the postgame's ply navigation; scores are
 // normalised to Red's POV so the eval reads the same regardless of whose turn it is.
+// Before a flip game binds ink ownership, the same seat is labelled P1 instead.
 import { gearIconSvg } from '../../theme.js';
 import {
   type CevalHandle,
@@ -15,7 +16,8 @@ import {
 } from './ceval.js';
 import './engine-panel.css';
 import type { EvalBar } from './eval-bar.js';
-import { formatEval } from './eval-format.js';
+import { formatEval, formatMistyEval } from './eval-format.js';
+import { isMistyCevalVariant } from './misty-ceval.js';
 
 export interface EnginePanel {
   el: HTMLElement;
@@ -59,6 +61,7 @@ export interface EnginePanelOptions {
 }
 
 type Side = 'red' | 'black';
+type ScorePerspective = 'bound' | 'first-player';
 
 const DEBOUNCE_MS = 150;
 
@@ -180,7 +183,9 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   // Side to move at the base position: startpos is Red, but an initialFen (a
   // mid-game puzzle position) may hand the engine a Black-to-move base. Read it
   // from the FEN's turn token so the eval normalises scores to the right POV.
+  // A '-' token is the unbound first-player seat in Banqi and Flip Jungle.
   let currentBaseSide: Side = 'red';
+  let currentPerspective: ScorePerspective = 'bound';
   let debounceId: ReturnType<typeof setTimeout> | undefined;
 
   function sideToMove(moves: string[]): Side {
@@ -199,22 +204,30 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
 
   function clearOutput(): void {
     evalLabel.textContent = '–';
+    evalLabel.removeAttribute('title');
     lines.replaceChildren();
     opts.evalBar?.reset();
     opts.onLines?.(null);
   }
 
   function render(update: CevalUpdate, side: Side): void {
+    const firstPlayer = currentPerspective === 'first-player';
     const best = update.lines[0];
     if (best) {
       const { cp, mate } = redPov(best, side);
-      evalLabel.textContent = formatEval(cp, mate);
-      opts.evalBar?.setEval(cp, mate);
+      const display = formatScore(opts.variant, cp, mate);
+      evalLabel.textContent = firstPlayer ? `P1 ${display}` : display;
+      if (firstPlayer) evalLabel.title = 'First player perspective';
+      else evalLabel.removeAttribute('title');
+      opts.evalBar?.setEval(cp, mate, display);
     }
-    sub.textContent = update.depth
+    const status = update.depth
       ? `Depth ${update.depth}${update.nps ? ` · ${formatKnps(update.nps)}` : ''}`
       : 'thinking…';
-    lines.replaceChildren(...update.lines.map((line) => renderLine(line, side, formatMove)));
+    sub.textContent = topFlipsTied(update.lines) ? `${status} · Top flips tied` : status;
+    lines.replaceChildren(
+      ...update.lines.map((line) => renderLine(line, side, formatMove, opts.variant, firstPlayer)),
+    );
     opts.onLines?.(update.lines);
   }
 
@@ -243,6 +256,8 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     currentFen = initialFen;
     currentSearchable = searchable;
     currentBaseSide = initialFen?.split(' ')[1] === 'b' ? 'black' : 'red';
+    currentPerspective = isUnboundFlipPosition(opts.variant, initialFen) ? 'first-player' : 'bound';
+    opts.evalBar?.setNeutral(currentPerspective === 'first-player');
     if (!on || !supported) return;
     // The panel keeps its last PV text until fresh results stream in, but
     // on-board arrows for a position we already left would be misleading —
@@ -375,13 +390,19 @@ function sliderRow(
   return row;
 }
 
-function renderLine(line: CevalLine, side: Side, formatMove: (uci: string) => string): HTMLElement {
+function renderLine(
+  line: CevalLine,
+  side: Side,
+  formatMove: (uci: string) => string,
+  variant: CevalVariant,
+  neutral: boolean,
+): HTMLElement {
   const li = document.createElement('li');
   li.className = 'engine-panel__line';
   const { cp, mate } = redPov(line, side);
   const score = document.createElement('span');
-  score.className = `engine-panel__line-eval ${evalTone(cp, mate)}`;
-  score.textContent = formatEval(cp, mate);
+  score.className = `engine-panel__line-eval ${neutral ? 'is-even' : evalTone(cp, mate, variant)}`;
+  score.textContent = formatScore(variant, cp, mate);
   const pv = document.createElement('span');
   pv.className = 'engine-panel__line-pv';
   pv.textContent = line.pvUci.slice(0, 8).map(formatMove).join(' ');
@@ -391,11 +412,34 @@ function renderLine(line: CevalLine, side: Side, formatMove: (uci: string) => st
 
 // Chip tone by who's ahead (Red POV), matching the on-board eval bar's palette:
 // Red-ahead reads light, Black-ahead dark, near-even neutral.
-function evalTone(cp: number | null, mate: number | null): string {
-  const value = mate != null ? (mate > 0 ? 1 : -1) : (cp ?? 0) / 100;
+function evalTone(cp: number | null, mate: number | null, variant: CevalVariant): string {
+  const scale = isMistyCevalVariant(variant) ? 1000 : 100;
+  const value = mate != null ? (mate > 0 ? 1 : -1) : (cp ?? 0) / scale;
   if (value > 0.15) return 'is-red';
   if (value < -0.15) return 'is-black';
   return 'is-even';
+}
+
+function formatScore(variant: CevalVariant, cp: number | null, mate: number | null): string {
+  return isMistyCevalVariant(variant) ? formatMistyEval(cp, mate) : formatEval(cp, mate);
+}
+
+function isUnboundFlipPosition(variant: CevalVariant, fen?: string): boolean {
+  if (variant !== 'banqi' && variant !== 'jungleflip') return false;
+  return fen?.trim().split(/\s+/)[1] === '-';
+}
+
+function topFlipsTied(lines: readonly CevalLine[]): boolean {
+  if (lines.length < 2) return false;
+  const first = lines[0];
+  if (!first || !isFlip(first.pvUci[0])) return false;
+  return lines.every(
+    (line) => isFlip(line.pvUci[0]) && line.scoreCp === first.scoreCp && line.mate === first.mate,
+  );
+}
+
+function isFlip(uci?: string): boolean {
+  return uci != null && uci.length >= 4 && uci.slice(0, 2) === uci.slice(2, 4);
 }
 
 function redPov(line: CevalLine, side: Side): { cp: number | null; mate: number | null } {

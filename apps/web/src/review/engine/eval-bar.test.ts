@@ -16,6 +16,14 @@ describe('eval bar fill', () => {
     expect(bar.el.classList.contains('review-eval-bar--idle')).toBe(false);
   });
 
+  it('uses a neutral palette when flip-game colors are unbound', () => {
+    const bar = createEvalBar();
+    bar.setNeutral(true);
+    expect(bar.el.classList.contains('review-eval-bar--neutral')).toBe(true);
+    bar.setNeutral(false);
+    expect(bar.el.classList.contains('review-eval-bar--neutral')).toBe(false);
+  });
+
   it('sits at half height for an even position', () => {
     const bar = createEvalBar();
     bar.setEval(0, null);
@@ -43,5 +51,11 @@ describe('eval bar fill', () => {
     bar.setEval(null, 3);
     const fill = bar.el.querySelector<HTMLElement>('.review-eval-bar__fill');
     expect(Number.parseFloat(fill?.style.height ?? '0')).toBeGreaterThan(90);
+  });
+
+  it('accepts a variant-native display value without changing the fill input', () => {
+    const bar = createEvalBar();
+    bar.setEval(-201, null, '-0.20');
+    expect(bar.el.querySelector('.review-eval-bar__label')?.textContent).toBe('-0.20');
   });
 });

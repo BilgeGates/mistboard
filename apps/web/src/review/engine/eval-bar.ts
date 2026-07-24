@@ -14,8 +14,10 @@ const BAR_WIDTH_PX = 20;
 const BAR_GAP_PX = 8;
 export interface EvalBar {
   el: HTMLElement;
-  /** Update from a Red-POV score (cp or mate). */
-  setEval(cp: number | null, mate: number | null): void;
+  /** Update from a fixed-side score (normally Red; P1 while flip colors are unbound). */
+  setEval(cp: number | null, mate: number | null, display?: string): void;
+  /** Use a seat-neutral palette while flip-game colors are still unbound. */
+  setNeutral(neutral: boolean): void;
   /** Show a neutral "thinking" state without a number. */
   setLoading(): void;
   /** Back to the empty even state. */
@@ -49,10 +51,14 @@ export function createEvalBar(): EvalBar {
     el.classList.toggle('review-eval-bar--red-ahead', prob >= 0.5);
   }
 
-  function setEval(cp: number | null, mate: number | null): void {
+  function setEval(cp: number | null, mate: number | null, display?: string): void {
     el.classList.remove('review-eval-bar--loading');
     applyProb(winProbRed(cp, mate));
-    label.textContent = formatEval(cp, mate);
+    label.textContent = display ?? formatEval(cp, mate);
+  }
+
+  function setNeutral(neutral: boolean): void {
+    el.classList.toggle('review-eval-bar--neutral', neutral);
   }
 
   function setLoading(): void {
@@ -112,5 +118,5 @@ export function createEvalBar(): EvalBar {
   }
 
   reset();
-  return { el, setEval, setLoading, reset, setIdle, setFlipped, observe };
+  return { el, setEval, setNeutral, setLoading, reset, setIdle, setFlipped, observe };
 }
