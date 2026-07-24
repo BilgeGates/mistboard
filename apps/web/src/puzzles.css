@@ -248,13 +248,10 @@
   overflow: auto;
 }
 
-.puzzle-analysis-panel {
-  min-height: 0;
-}
-
 .puzzle-analysis-open-link {
   display: block;
-  padding: 6px 10px;
+  padding: 8px 10px;
+  text-align: center;
   font-size: 0.8rem;
   color: var(--site-muted);
   text-decoration: none;
@@ -278,6 +275,25 @@
   grid-template-rows: minmax(180px, 1fr) minmax(190px, 240px);
   min-height: 0;
   overflow: hidden;
+}
+
+/* Post-completion: the engine control bar fuses onto the top of the move list,
+   matching the analysis/review board's analyse table (engine head over the move
+   rows in one connected box). The bar becomes a third grid row above the moves;
+   its own card chrome is stripped so only a hairline divider separates it. */
+.puzzle-trainer-panel--analysis {
+  grid-template-rows: auto minmax(140px, 1fr) minmax(190px, 240px);
+}
+
+.puzzle-trainer-panel--analysis > .engine-panel {
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--site-border);
+  background: transparent;
+}
+
+.puzzle-trainer-panel--analysis > .engine-panel .engine-panel__head {
+  border-radius: 0;
 }
 
 .puzzle-left-card {
@@ -1026,6 +1042,10 @@
   .puzzle-trainer-panel {
     grid-template-rows: minmax(180px, auto) minmax(160px, auto);
     min-height: 0;
+  }
+
+  .puzzle-trainer-panel--analysis {
+    grid-template-rows: auto minmax(180px, auto) minmax(160px, auto);
   }
 
   .puzzles-sidebar {

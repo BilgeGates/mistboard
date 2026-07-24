@@ -130,7 +130,12 @@ export type PuzzleNavigation = {
 // (solved, failed, or revealed): an on/off toggle, eval + principal-variation
 // lines, and the engine's candidate moves drawn as arrows on the puzzle board.
 export type PuzzleAnalysisController = {
-  el: HTMLElement;
+  // The engine control bar + PV lines. Placed at the TOP of the move list so the
+  // puzzle mirrors the analysis/review board's analyse table.
+  engineEl: HTMLElement;
+  // The "Open in analysis board" link. Placed on its own, below the scrub
+  // controls (centered), so it reads as a jump-out affordance, not engine chrome.
+  openLinkEl: HTMLElement;
   // Re-point the engine at the currently displayed (replay-aware) position and
   // (re-)apply the engine arrows to the freshly rebuilt board host. Called
   // after each render with the state the board just painted.

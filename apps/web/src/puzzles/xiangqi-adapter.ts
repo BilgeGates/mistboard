@@ -237,12 +237,12 @@ function createPuzzleAnalysis(): PuzzleAnalysisController {
   openLink.className = 'puzzle-analysis-open-link';
   openLink.textContent = 'Open in analysis board';
 
-  const container = document.createElement('section');
-  container.className = 'puzzle-analysis-panel';
-  container.append(panel.el, openLink);
-
   return {
-    el: container,
+    // The engine bar and the jump-out link live in different spots on the puzzle
+    // column (engine at the top of the move list, link below the scrub controls),
+    // so they are handed back as two elements rather than one bundled section.
+    engineEl: panel.el,
+    openLinkEl: openLink,
     refresh(session, displayState, host) {
       boardHost = host;
       perspective = xiangqiPerspective(session);

@@ -424,7 +424,8 @@ function renderPuzzleDetail(
       },
     }),
   );
-  side.append(trainer, actionPanel(session, renderSession));
+  const actions = actionPanel(session, renderSession);
+  side.append(trainer, actions);
 
   // Post-completion engine analysis (adapters with a client engine): once the
   // puzzle is over (solved or its solution revealed), surface the local-engine
@@ -433,10 +434,13 @@ function renderPuzzleDetail(
   // The controller persists on the session across renders.
   if (adapter.createAnalysis && isPuzzleComplete(session)) {
     if (!session.analysis) session.analysis = adapter.createAnalysis();
-    // The engine panel is a third child in a column sized to the board; let the
-    // column scroll instead of clipping (grid is otherwise a fixed 2-row shape).
+    // Engine bar fuses onto the top of the move list (analyse-table shape);
+    // the jump-out link sits below the scrub controls, centered. The column
+    // grows past its fixed two-row shape, so let it scroll instead of clipping.
     side.classList.add('puzzle-side-panel--analysis');
-    side.append(session.analysis.el);
+    trainer.classList.add('puzzle-trainer-panel--analysis');
+    trainer.prepend(session.analysis.engineEl);
+    side.append(session.analysis.openLinkEl);
     session.analysis.refresh(session, displayState, board);
   }
 
