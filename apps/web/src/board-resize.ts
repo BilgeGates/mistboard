@@ -22,6 +22,11 @@ export function currentBoardScale(): number {
 
 function applyBoardScale(scale: number): void {
   const value = clampScale(scale);
+  // Once a drag passes either bound, pointermove keeps firing with values that
+  // clamp to the same scale. Avoid repeatedly writing storage and dispatching
+  // synthetic resize events, which otherwise churn layout while the grip sits
+  // at its maximum or minimum.
+  if (Math.abs(currentBoardScale() - value) < 0.0005) return;
   document.documentElement.style.setProperty('--uni-board-scale', value.toFixed(3));
   try {
     localStorage.setItem(STORAGE_KEY, value.toFixed(3));
@@ -70,29 +75,75 @@ export function attachBoardResizeGrip(
   let baseWidth = 0;
   let startX = 0;
   let startScale = 1;
+  let activePointerId: number | null = null;
+
+  const endPointerDrag = (event: PointerEvent): void => {
+    endDrag(event.pointerId);
+  };
+  const endDragOnBlur = (): void => {
+    endDrag();
+  };
+  const endDragWhenHidden = (): void => {
+    if (document.visibilityState === 'hidden') endDrag();
+  };
+  const removeFallbackListeners = (): void => {
+    window.removeEventListener('pointerup', endPointerDrag);
+    window.removeEventListener('pointercancel', endPointerDrag);
+    window.removeEventListener('blur', endDragOnBlur);
+    document.removeEventListener('visibilitychange', endDragWhenHidden);
+  };
+  const endDrag = (pointerId?: number, releaseCapture = true): void => {
+    if (activePointerId === null || (pointerId !== undefined && pointerId !== activePointerId)) {
+      return;
+    }
+    const capturedPointerId = activePointerId;
+    activePointerId = null;
+    baseWidth = 0;
+    document.documentElement.classList.remove('board-resizing');
+    removeFallbackListeners();
+    // Clear our state before releasePointerCapture: browsers fire
+    // lostpointercapture synchronously in some cases, and cleanup must remain
+    // idempotent when that event comes back through the grip.
+    if (releaseCapture && grip.hasPointerCapture(capturedPointerId)) {
+      grip.releasePointerCapture(capturedPointerId);
+    }
+  };
 
   grip.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     event.stopPropagation();
     const rect = resolveBoard()?.getBoundingClientRect();
     if (!rect || rect.width === 0) return;
+    endDrag();
     startScale = currentBoardScale();
     baseWidth = rect.width / startScale;
     startX = event.clientX;
     grip.setPointerCapture(event.pointerId);
+    activePointerId = event.pointerId;
     document.documentElement.classList.add('board-resizing');
+    // Pointer capture normally routes the terminal event back to the grip, but
+    // these fallbacks cover implicit capture loss, focus changes, and a route
+    // replacing the grip mid-drag.
+    window.addEventListener('pointerup', endPointerDrag);
+    window.addEventListener('pointercancel', endPointerDrag);
+    window.addEventListener('blur', endDragOnBlur);
+    document.addEventListener('visibilitychange', endDragWhenHidden);
   });
   grip.addEventListener('pointermove', (event) => {
-    if (baseWidth === 0 || !grip.hasPointerCapture(event.pointerId)) return;
+    if (
+      baseWidth === 0 ||
+      activePointerId !== event.pointerId ||
+      !grip.hasPointerCapture(event.pointerId)
+    ) {
+      return;
+    }
     applyBoardScale(startScale + (event.clientX - startX) / baseWidth);
   });
-  const endDrag = (event: PointerEvent): void => {
-    if (grip.hasPointerCapture(event.pointerId)) grip.releasePointerCapture(event.pointerId);
-    baseWidth = 0;
-    document.documentElement.classList.remove('board-resizing');
-  };
-  grip.addEventListener('pointerup', endDrag);
-  grip.addEventListener('pointercancel', endDrag);
+  grip.addEventListener('pointerup', endPointerDrag);
+  grip.addEventListener('pointercancel', endPointerDrag);
+  grip.addEventListener('lostpointercapture', (event) => {
+    endDrag(event.pointerId, false);
+  });
   grip.addEventListener('dblclick', (event) => {
     event.preventDefault();
     applyBoardScale(MAX_SCALE);
