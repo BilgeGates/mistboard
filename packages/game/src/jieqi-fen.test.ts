@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyJieqiMove, createInitialJieqiState } from '@mistboard/game';
 import {
   jieqiMoveToPikafishUci,
   jieqiStateToPikafishFen,
   pikafishUciToJieqiMove,
 } from './jieqi-fen.js';
+import { applyJieqiMove, createInitialJieqiState, STANDARD_JIEQI_DEAL } from './variants-jieqi.js';
 
 // The exact FEN the Pikafish jieqi/jieqi_old binary prints for `position startpos`
 // (verified by running the engine). Our encoder must reproduce it byte-for-byte —
@@ -20,6 +20,17 @@ test('start position matches the Pikafish-jieqi reference FEN exactly', () => {
 test('the board field leaks no dark-piece identity (only X/x, generals, digits)', () => {
   const board = jieqiStateToPikafishFen(createInitialJieqiState('t')).split(' ')[0];
   assert.match(board, /^[0-9XxKk/]+$/);
+});
+
+test('different hidden identities with the same public dark board encode the same board field', () => {
+  const left = createInitialJieqiState('left');
+  const right = createInitialJieqiState('right', {
+    red: [...STANDARD_JIEQI_DEAL.red].reverse(),
+    black: [...STANDARD_JIEQI_DEAL.black].reverse(),
+  });
+  const leftBoard = jieqiStateToPikafishFen(left).split(' ')[0];
+  const rightBoard = jieqiStateToPikafishFen(right).split(' ')[0];
+  assert.equal(leftBoard, rightBoard);
 });
 
 test('revealing a piece sets its role char and decrements the hidden pool', () => {

@@ -19,7 +19,10 @@ import type {
   CevalVariant,
 } from './ceval-types.js';
 import { isMistyCevalVariant, MistyCeval, mistyEngineName } from './misty-ceval.js';
+import { isPikaJieqiCevalVariant, PikaJieQiCeval, pikaJieqiEngineName } from './pikajieqi-ceval.js';
+import { parseInfo } from './uci-info.js';
 
+export { type InfoFields, parseInfo } from './uci-info.js';
 export type { CevalHandle, CevalLine, CevalRequest, CevalUpdate, CevalVariant };
 
 const ENGINE_BASE = '/engine/fairy-stockfish/';
@@ -44,10 +47,10 @@ const engineAsset = (file: string): string => `${ENGINE_BASE}${file}?v=${ENGINE_
 /** Human label for the engine, shown in the analysis panel. */
 export const CEVAL_ENGINE_NAME = 'Fairy-Stockfish';
 
-/** Whether the client engine for `variant` can run in this page. The Fairy-Stockfish
- *  variants need SharedArrayBuffer (cross-origin isolation); the single-threaded Misty
- *  wasm variants (banqi) do not, so they are always supported. Called with no argument,
- *  it reports the FSF requirement (back-compat). */
+/** Whether the client engine for `variant` can run in this page. Fairy-Stockfish
+ *  and PikaJieQi need SharedArrayBuffer (cross-origin isolation); the
+ *  single-threaded Misty variants do not. Called with no argument, it reports
+ *  the threaded-engine requirement for backward compatibility. */
 export function cevalSupported(variant?: CevalVariant): boolean {
   if (variant && isMistyCevalVariant(variant)) return true;
   return (
@@ -59,7 +62,7 @@ export function cevalSupported(variant?: CevalVariant): boolean {
 
 /** Human label for the engine backing `variant`. */
 export function cevalEngineName(variant: CevalVariant): string {
-  return mistyEngineName(variant) ?? CEVAL_ENGINE_NAME;
+  return mistyEngineName(variant) ?? pikaJieqiEngineName(variant) ?? CEVAL_ENGINE_NAME;
 }
 
 // --- low-level engine (singleton) ---------------------------------------------
@@ -179,68 +182,6 @@ function engine(): Promise<EngineCore> {
   return enginePromise;
 }
 
-// --- info-line parsing --------------------------------------------------------
-
-export interface InfoFields {
-  depth: number;
-  seldepth: number;
-  multipv: number;
-  scoreCp: number | null;
-  mate: number | null;
-  nodes: number;
-  nps: number;
-  pvUci: string[];
-}
-
-/** Parse a UCI `info` line into fields. Exported for tests. Returns null for
- *  `info string ...` and non-info lines. */
-export function parseInfo(line: string): InfoFields | null {
-  const t = line.split(/\s+/);
-  if (t[0] !== 'info' || t[1] === 'string') return null;
-  const f: InfoFields = {
-    depth: 0,
-    seldepth: 0,
-    multipv: 1,
-    scoreCp: null,
-    mate: null,
-    nodes: 0,
-    nps: 0,
-    pvUci: [],
-  };
-  for (let i = 1; i < t.length; i++) {
-    switch (t[i]) {
-      case 'depth':
-        f.depth = Number(t[++i]);
-        break;
-      case 'seldepth':
-        f.seldepth = Number(t[++i]);
-        break;
-      case 'multipv':
-        f.multipv = Number(t[++i]);
-        break;
-      case 'nodes':
-        f.nodes = Number(t[++i]);
-        break;
-      case 'nps':
-        f.nps = Number(t[++i]);
-        break;
-      case 'score':
-        if (t[i + 1] === 'cp') {
-          f.scoreCp = Number(t[i + 2]);
-          i += 2;
-        } else if (t[i + 1] === 'mate') {
-          f.mate = Number(t[i + 2]);
-          i += 2;
-        }
-        break;
-      case 'pv':
-        f.pvUci = t.slice(i + 1);
-        return f;
-    }
-  }
-  return f;
-}
-
 const EMIT_THROTTLE_MS = 80;
 
 // --- public handle ------------------------------------------------------------
@@ -348,5 +289,6 @@ class Ceval implements CevalHandle {
 
 export function createCeval(variant: CevalVariant): CevalHandle {
   if (isMistyCevalVariant(variant)) return new MistyCeval(variant);
+  if (isPikaJieqiCevalVariant(variant)) return new PikaJieQiCeval(variant);
   return new Ceval(variant);
 }

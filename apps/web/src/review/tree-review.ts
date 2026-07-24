@@ -97,14 +97,14 @@ export interface EnginePresentation<Truth, Arrow> {
   panelVariant: CevalVariant;
   /** How the panel is fed each position. `'moves'` (default): replay engine UCI from the
    *  start position — the Fairy-Stockfish variants. `'fen'`: hand the engine the per-node
-   *  redacted FEN with no move list — the Misty flip variants (banqi), whose engine takes a
-   *  full position FEN and must never see more than the as-played info-state. */
+   *  FEN with no move list — the Misty and PikaJieQi backends. Hidden-information
+   *  variants must redact that FEN to the as-played info-state. */
   positionMode?: 'moves' | 'fen';
   /** Engine FEN for a truth state. Drives the Share tab, and — when positionMode is
    *  `'fen'` — the per-node position fed to the engine panel. */
   fen(truth: Truth): string;
-  /** Whether the local engine can search this truth. Misty engines expect at
-   *  least one legal root move, so terminal positions must be suppressed. */
+  /** Whether the local engine can search this truth. FEN-per-position engines
+   *  expect at least one legal root move, so terminal positions are suppressed. */
   canEvaluatePosition?(truth: Truth): boolean;
   /** Prettify a PV move (engine UCI) for the engine panel. */
   formatPvMove(uci: string): string;
@@ -1100,8 +1100,8 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     // engine is on (stale-arrow clear); the explicit paintOverlays below then
     // repaints for the new node (engine/analysis arrows + the node's user shapes),
     // covering the engine-off case where setPosition fires no onLines.
-    // `'fen'` engines (Misty flip variants) take the per-node redacted FEN with no move
-    // list; `'moves'` engines (Fairy-Stockfish) replay engine UCI from the start position.
+    // `'fen'` engines (Misty and PikaJieQi) take a per-node FEN with no move list;
+    // `'moves'` engines (Fairy-Stockfish) replay engine UCI from the start position.
     if (enginePanel) {
       const searchable = presentation.engine?.canEvaluatePosition?.(node.truth) ?? true;
       if (presentation.engine?.positionMode === 'fen') {

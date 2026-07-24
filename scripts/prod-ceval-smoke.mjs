@@ -1,4 +1,4 @@
-// Headless engine smoke: proves BOTH in-browser analysis backends actually RUN
+// Headless engine smoke: proves every in-browser analysis backend actually RUNS
 // end-to-end against prod, not just that their assets serve. This is the check
 // that would have caught the 2026-07-06 prod outage (five stacked
 // serving/isolation bugs, all hidden behind green deploys because nothing
@@ -15,11 +15,13 @@
 //           Chrome blocks the load (net::ERR_BLOCKED_BY_RESPONSE) - the exact
 //           class that broke FSF on 2026-07-06. A header preflight asserts
 //           this before the browser run so the failure names the real cause.
+//   pika  - PikaJieQi pthread wasm on /analysis/jieqi. This exercises the
+//           redacted Jieqi FEN, persistent UCI worker, and streaming MultiPV.
 //
 // Each check: load the page, mount the board/panel, toggle the engine on, and
 // wait for a real eval + at least one PV line. Fails on engine console errors.
 //
-// Usage: node scripts/prod-ceval-smoke.mjs [--backend fsf|misty|all]
+// Usage: node scripts/prod-ceval-smoke.mjs [--backend fsf|misty|pika|all]
 // Defaults to prod + all backends; point MISTBOARD_WEB_URL at a local build to
 // smoke locally. MISTBOARD_CEVAL_SMOKE_BACKEND is the env equivalent.
 import { readFileSync } from 'node:fs';
@@ -34,7 +36,14 @@ const timeoutMs = Number(process.env.MISTBOARD_CEVAL_SMOKE_TIMEOUT_MS ?? 45000);
 const moves = process.env.MISTBOARD_CEVAL_SMOKE_MOVES ?? 'b3e3,h8e8,b1c3';
 const backend = options.backend;
 
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+const browserArgs = ['--no-sandbox'];
+if (baseUrl.startsWith('http://') && !/^http:\/\/(?:localhost|127\.0\.0\.1)(?::|$)/.test(baseUrl)) {
+  // Docker-based local smoke reaches the host through a LAN/bridge address.
+  // Treat only that explicitly supplied origin as secure so COOP/COEP can
+  // create the same cross-origin-isolated environment as production HTTPS.
+  browserArgs.push(`--unsafely-treat-insecure-origin-as-secure=${baseUrl}`);
+}
+const browser = await chromium.launch({ args: browserArgs });
 const failures = [];
 try {
   if (backend === 'fsf' || backend === 'all') {
@@ -42,6 +51,9 @@ try {
   }
   if (backend === 'misty' || backend === 'all') {
     await runCheck('misty', () => checkMisty(browser));
+  }
+  if (backend === 'pika' || backend === 'all') {
+    await runCheck('pika', () => checkPika(browser));
   }
 } finally {
   await browser.close();
@@ -151,6 +163,43 @@ async function discoverFinishedBanqiGame() {
   return game?.roomId ?? null;
 }
 
+// ── PikaJieQi wasm on the standalone Reveal Xiangqi analysis board ──────────
+async function checkPika(browser) {
+  await assertPikaAssetHeaders();
+
+  const url = `${baseUrl}/analysis/jieqi`;
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  try {
+    const errors = collectErrors(page);
+    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    if (!response?.ok())
+      throw new Error(`${url} returned HTTP ${response?.status() ?? 'no response'}`);
+
+    const isolated = await page.evaluate(() => globalThis.crossOriginIsolated === true);
+    if (!isolated) {
+      throw new Error(
+        'Jieqi analysis page is not cross-origin isolated, so PikaJieQi pthread wasm is unavailable',
+      );
+    }
+
+    await page
+      .locator('.jieqi-live-board svg')
+      .first()
+      .waitFor({ state: 'attached', timeout: timeoutMs });
+    await toggleEngineOn(page);
+    await waitForEvalAndLines(page);
+    const result = await readPanel(page);
+    const engineNamed = await page.evaluate(() =>
+      (document.querySelector('.engine-panel')?.textContent ?? '').includes('PikaJieQi'),
+    );
+    if (!engineNamed) throw new Error('engine panel did not name PikaJieQi');
+    assertNoFatalErrors(errors);
+    return { url, engine: 'PikaJieQi', ...result };
+  } finally {
+    await page.close();
+  }
+}
+
 // Preflight the exact versioned URLs the client fetches (?v= from
 // MISTY_ASSET_VERSION in misty-ceval.ts, read from source so it always matches
 // the deployed revision). The bare path is a DIFFERENT edge-cache key and can
@@ -187,6 +236,43 @@ async function assertMistyAssetHeaders() {
   }
 
   const wasmUrl = `${baseUrl}/engine/misty-banqi/banqi_wasm_bg.wasm?v=${v}`;
+  const wasm = await fetch(wasmUrl, { method: 'HEAD' });
+  if (!wasm.ok) throw new Error(`${wasmUrl} returned HTTP ${wasm.status}`);
+  const wasmType = wasm.headers.get('content-type') ?? '';
+  if (!wasmType.includes('application/wasm')) {
+    throw new Error(
+      `${wasmUrl} content-type is ${wasmType || 'missing'}, expected application/wasm`,
+    );
+  }
+}
+
+function pikaAssetVersion() {
+  const source = readFileSync(
+    new URL('../apps/web/src/review/engine/pikajieqi-ceval.ts', import.meta.url),
+    'utf8',
+  );
+  const match = source.match(/ENGINE_ASSET_VERSION = '([^']+)'/);
+  if (!match) throw new Error('ENGINE_ASSET_VERSION not found in pikajieqi-ceval.ts');
+  return match[1];
+}
+
+async function assertPikaAssetHeaders() {
+  const v = encodeURIComponent(pikaAssetVersion());
+  const workerUrl = `${baseUrl}/engine/pikafish-jieqi/worker.js?v=${v}`;
+  const worker = await fetch(workerUrl);
+  if (!worker.ok) throw new Error(`${workerUrl} returned HTTP ${worker.status}`);
+  const workerType = worker.headers.get('content-type') ?? '';
+  if (!/javascript/.test(workerType)) {
+    throw new Error(`${workerUrl} content-type is ${workerType || 'missing'}, expected javascript`);
+  }
+  const coep = worker.headers.get('cross-origin-embedder-policy');
+  if (coep !== 'require-corp' && coep !== 'credentialless') {
+    throw new Error(
+      `${workerUrl} is served without a compatible Cross-Origin-Embedder-Policy (got ${coep ?? 'none'})`,
+    );
+  }
+
+  const wasmUrl = `${baseUrl}/engine/pikafish-jieqi/pikajieqi.wasm?v=${v}`;
   const wasm = await fetch(wasmUrl, { method: 'HEAD' });
   if (!wasm.ok) throw new Error(`${wasmUrl} returned HTTP ${wasm.status}`);
   const wasmType = wasm.headers.get('content-type') ?? '';
@@ -268,7 +354,7 @@ function readPanel(page) {
 
 function assertNoFatalErrors(errors) {
   const fatal = errors.filter((message) =>
-    /pthread|SharedArrayBuffer|ceval|engine global missing|failed to load engine|misty|ERR_BLOCKED_BY_RESPONSE|Engine unavailable/i.test(
+    /pthread|SharedArrayBuffer|ceval|engine global missing|failed to load engine|misty|pikajieqi|ERR_BLOCKED_BY_RESPONSE|Engine unavailable/i.test(
       message,
     ),
   );
@@ -287,11 +373,20 @@ function parseArgs(args) {
     } else if (arg === '--base') {
       parsed.baseUrl = args[++index];
     } else {
-      throw new Error(`unknown argument: ${arg} (usage: [--backend fsf|misty|all] [--base <url>])`);
+      throw new Error(
+        `unknown argument: ${arg} (usage: [--backend fsf|misty|pika|all] [--base <url>])`,
+      );
     }
   }
-  if (parsed.backend !== 'fsf' && parsed.backend !== 'misty' && parsed.backend !== 'all') {
-    throw new Error(`--backend must be fsf, misty, or all (got ${parsed.backend ?? 'nothing'})`);
+  if (
+    parsed.backend !== 'fsf' &&
+    parsed.backend !== 'misty' &&
+    parsed.backend !== 'pika' &&
+    parsed.backend !== 'all'
+  ) {
+    throw new Error(
+      `--backend must be fsf, misty, pika, or all (got ${parsed.backend ?? 'nothing'})`,
+    );
   }
   if (parsed.baseUrl !== null && !parsed.baseUrl) throw new Error('--base requires a value');
   return parsed;

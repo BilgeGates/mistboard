@@ -1,15 +1,16 @@
 // Reveal Xiangqi (jieqi) review surface: the jieqi presentation bundle over the
-// generic tree-review controller (mountTreeReview). Jieqi has a hidden deal but no
-// client engine, so `engine: null`. Like banqi the adapter is DEAL-BOUND (a factory
-// over the reconstructed deal), so the presentation is built per-game rather than
-// held as a module constant.
+// generic tree-review controller (mountTreeReview). The client engine is the
+// in-browser PikaJieQi wasm build, fed a redacted FEN for each node. Like banqi the
+// adapter is DEAL-BOUND (a factory over the reconstructed deal), so the
+// presentation is built per-game rather than held as a module constant.
 
-import type {
-  JieqiColor,
-  JieqiDeal,
-  JieqiGameState,
-  JieqiMove,
-  JieqiPlayerView,
+import {
+  type JieqiColor,
+  type JieqiDeal,
+  type JieqiGameState,
+  type JieqiMove,
+  type JieqiPlayerView,
+  jieqiStateToPikafishFen,
 } from '@mistboard/game';
 import { createJieqiInteractiveBoard } from '../jieqi-board.js';
 import type { NodeShape, VariantTreeAdapter } from './game-tree.js';
@@ -28,15 +29,23 @@ export type JieqiReviewConfig = TreeReviewConfig<JieqiMove>;
 /** Handle returned by mountJieqiReview: snapshot the current tree to persist it. */
 export type JieqiReviewHandle = TreeReviewHandle;
 
-// No client engine and no overlay layer, so Arrow/Marker are unused; the shapeTo*
-// hooks pass the shape through opaquely. Unlike banqi/jungle-flip, jieqi is on the
-// 9×10 xiangqi board and DOES orient per side, so the Flip control flips the board.
+// The renderer has no overlay layer, so Arrow/Marker are unused; the engine arrow
+// hooks return [] and the shape hooks pass through opaquely. Unlike
+// banqi/jungle-flip, jieqi is on the 9×10 xiangqi board and DOES orient per side.
 function makeJieqiPresentation(
   adapter: VariantTreeAdapter<JieqiMove, JieqiGameState, JieqiPlayerView>,
 ): TreePresentation<JieqiMove, JieqiGameState, JieqiPlayerView, JieqiColor, unknown, unknown> {
   return {
     adapter,
-    engine: null,
+    engine: {
+      panelVariant: 'jieqi',
+      positionMode: 'fen',
+      fen: jieqiStateToPikafishFen,
+      canEvaluatePosition: (truth) => truth.status.type === 'playing',
+      formatPvMove: formatJieqiBestMove,
+      engineArrowsFromLines: () => [],
+      bestMoveArrow: () => [],
+    },
     // The analysis engine's best move is Pikafish UCI (0-indexed ranks, no flips); render it in
     // board coords ("e8-a8") for the "… was best" advice line, not the raw "e7a7".
     formatBestMove: formatJieqiBestMove,
