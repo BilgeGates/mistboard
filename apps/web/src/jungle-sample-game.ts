@@ -20,7 +20,7 @@ export const JUNGLE_SAMPLE_GAME: {
   red: 'Misty Jungle level 3',
   black: 'Misty Jungle level 2',
   event: 'Engine vs engine',
-  outcome: 'Red wins by reaching the den · 69 moves',
+  outcome: 'Red wins by reaching the den · 69 plies',
   result:
     'Red’s rat has already taken Blue’s elephant in the open, and with the strongest piece off the board Red walks a piece straight into Blue’s undefended den. Reaching the enemy den ends the game at once, no matter what material is left.',
   // Space-separated from+to tokens (files a-g, ranks 1-9). Replayed via

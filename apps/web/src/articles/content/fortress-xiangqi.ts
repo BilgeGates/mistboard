@@ -21,26 +21,26 @@ export const fortressXiangqiArticle: Article = {
   playableOnMistboard: true,
   title: 'Fortress Xiangqi Rules',
   summary:
-    'Xiangqi with a pocket: every familiar piece moves as in xiangqi, plus crazyhouse-style drops and one new piece, the Treasure.',
+    'A compact Xiangqi variant with captured pieces in reserve, piece drops, and one new piece: the Treasure.',
   showSummaryOnPage: false,
   status: 'published',
   publishedAt: '2026-07-01',
-  updatedAt: '2026-07-12',
+  updatedAt: '2026-07-23',
   audience: 'Xiangqi and crazyhouse players who want a compact, decisive drop variant.',
   thumbnail: { kind: 'svg', svg: FORTRESS_XIANGQI_START_BOARD },
   intro: [
     {
       kind: 'paragraph',
-      text: 'Fortress Xiangqi is an [Xiangqi](/rules/xiangqi) variant with a reserve, designed by Brian H. Liou in 2026 as a Mistboard original. Every familiar piece moves exactly as it does in xiangqi, and one new piece, the Treasure, joins the back rank. The new rule is the [crazyhouse](https://en.wikipedia.org/wiki/Crazyhouse) loop: capture a piece, hold it in hand, and drop it back into the fight.',
+      text: 'Fortress Xiangqi is a compact [Xiangqi](/rules/xiangqi) variant designed by Brian H. Liou in 2026 as a Mistboard original. It keeps the familiar pieces, adds one new piece called the Treasure, and gives each player an open reserve. Capture an enemy piece and you can later drop it back as your own.',
     },
     {
       kind: 'paragraph',
-      text: 'Captured material never leaves the game, so every capture becomes future pressure. A quiet trade can turn into a later attack, and a fortress can be built, then cracked open by the very material it gave away. The result is fair, decisive, comeback-rich, and short.',
+      text: 'Captured material stays in the game, so every exchange changes both the board and the reserves. A defensive trade now may supply the attacker you need later.',
     },
   ],
   sections: [
     {
-      heading: 'Board and palaces',
+      heading: 'Board and setup',
       blocks: [
         {
           kind: 'paragraph',
@@ -63,7 +63,7 @@ export const fortressXiangqiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Every standard piece moves exactly as it does in [xiangqi](/rules/xiangqi). In the diagrams below, a green dot marks a quiet destination, a green ring marks a capture, and a red cross marks a point the piece cannot reach.',
+          text: 'The Chariot, Cannon, Horse, Elephant, Advisor, and General move as they do in [xiangqi](/rules/xiangqi). The Soldier is the one standard piece with a changed move, and the Treasure is new. In the diagrams below, a green dot marks a quiet destination, a green ring marks a capture, and a red cross marks a point the piece cannot reach.',
         },
         {
           kind: 'paragraph',
@@ -115,7 +115,7 @@ export const fortressXiangqiArticle: Article = {
         } as ArticleBlock,
         {
           kind: 'paragraph',
-          text: '**Soldier:** moves one point forward or sideways, never backward. It has the sideways step from the opening move, where a xiangqi soldier earns it only by crossing the river. Every Fortress soldier is a veteran: the war is already on.',
+          text: '**Soldier:** moves one point forward or sideways, never backward. Unlike a standard xiangqi soldier, it can move sideways from the opening move.',
         },
         {
           kind: 'raw-svg',
@@ -123,7 +123,7 @@ export const fortressXiangqiArticle: Article = {
         } as ArticleBlock,
         {
           kind: 'paragraph',
-          text: '**Treasure:** the one new piece. It steps one point in any of the eight directions, all game. It never promotes and is never confined. Think of it as a queen that only steps one square: a strong palace defender early, and a flexible attacker once it advances or is dropped.',
+          text: '**Treasure:** the one new piece. It steps one point in any of the eight directions, is not confined to the palace, and never promotes. It is a flexible defender near the palace and an attacker after it advances or returns as a drop.',
         },
         {
           kind: 'raw-svg',
@@ -142,11 +142,11 @@ export const fortressXiangqiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'When you capture an enemy piece, it flips to your color and enters your hand. The hand is open information: it can hold any number of pieces, and they can wait there for any number of turns. On your turn you either move a piece on the board, or spend the move to drop one piece from hand onto an empty point.',
+          text: 'When you capture any piece other than the General, it changes to your color and enters your reserve. Both reserves are open information, have no size limit, and keep pieces for as long as needed. On your turn, either move a piece on the board or drop one piece from your reserve onto an empty point. Generals are never captured or held in reserve.',
         },
         {
           kind: 'paragraph',
-          text: 'Attackers drop anywhere, including deep in the enemy half: the Chariot, Horse, Cannon, Soldier, and Treasure. Defenders drop only where they could legally stand.',
+          text: 'Chariots, Horses, Cannons, Soldiers, and Treasures may drop on any empty point. Advisors and Elephants keep their normal territory restrictions.',
         },
         {
           kind: 'raw-svg',
@@ -169,11 +169,11 @@ export const fortressXiangqiArticle: Article = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Checkmate wins. A player left with no legal move loses by stalemate, the xiangqi convention. There is no fifty-move or no-progress draw and no shogi-style impasse rule: the game continues until one side breaks.',
+          text: 'Checkmate wins. A player with no legal move also loses, even when not in check. There is no fifty-move or no-progress draw.',
         },
         {
           kind: 'paragraph',
-          text: 'Repetition is governed by the chasing rule. When the same position occurs for the third time, the game is adjudicated: if one side gave check with every move of the repeating cycle, that side loses. You cannot perpetual-check your way out of a lost game. A repetition that neither side is forcing with checks is an honest standoff and is drawn, the only drawn result in the game.',
+          text: 'On the third occurrence of the same position, a player who gave check on every one of their moves in the repeating cycle loses. If neither player was the sole perpetual checker, the repetition is drawn.',
         },
         {
           kind: 'paragraph',
@@ -182,24 +182,11 @@ export const fortressXiangqiArticle: Article = {
       ],
     },
     {
-      heading: 'What makes it Fortress Xiangqi',
-      blocks: [
-        {
-          kind: 'paragraph',
-          text: 'Most chess variants trade fairness for decisiveness. Drops break that tradeoff: they keep the game fair while cutting draws and shortening play, and your captured material comes back at your own king, so every exchange is a real decision. Cheap pieces parachuted behind enemy lines deliver many of the finishes, which is the good kind of explosive.',
-        },
-        {
-          kind: 'paragraph',
-          text: 'The rules were locked by engine testing rather than taste. Both-side attacker drops won out over a same-side variant that built beautiful fortresses but ran to 246-ply grinds. In engine sampling of the final rules, about 11 percent of games were drawn, one win in five came from behind, and the average game ran 83 plies.',
-        },
-      ],
-    },
-    {
       heading: 'A sample game',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Step through this engine game played under the production rules. Both sides spend their reserves early and often: watch Red build the attack from hand with the cannon drop at move 13 and the treasure drop at move 16, the advisor drop back into its own palace to defend at move 19, and the finish, where the mating pieces arrive by parachute.',
+          text: 'This engine game shows both uses of the reserve: an Advisor returns to defend its palace, then Red finishes with a mating Soldier drop.',
         },
         {
           kind: 'fortress-xiangqi-replay',

@@ -75,21 +75,20 @@ export function localizedArticleHref(article: Article, locale: Locale): string {
 const ZH_HANS: Record<string, string> = {
   // -- Fortress Xiangqi --
   'Fortress Xiangqi Rules': '堡垒象棋规则',
-  'Xiangqi with a pocket: every familiar piece moves as in xiangqi, plus crazyhouse-style drops and one new piece, the Treasure.':
-    '带持子的象棋：所有熟悉的棋子都按象棋规则移动，再加入疯狂屋式打入和一个新棋子「宝」。',
-  'Fortress Xiangqi is an [Xiangqi](/rules/xiangqi) variant with a reserve, designed by Brian H. Liou in 2026 as a Mistboard original. Every familiar piece moves exactly as it does in xiangqi, and one new piece, the Treasure, joins the back rank. The new rule is the [crazyhouse](https://en.wikipedia.org/wiki/Crazyhouse) loop: capture a piece, hold it in hand, and drop it back into the fight.':
-    '堡垒象棋是一种带持子的[象棋](/rules/xiangqi)变体，由 Brian H. Liou 于 2026 年为 Mistboard 原创设计。所有熟悉的棋子都完全按象棋规则移动，底线另加入一个新棋子「宝」。新规则采用[疯狂屋](https://en.wikipedia.org/wiki/Crazyhouse)的循环：吃掉棋子，将它收入持子，再打回战场。',
-  'Captured material never leaves the game, so every capture becomes future pressure. A quiet trade can turn into a later attack, and a fortress can be built, then cracked open by the very material it gave away. The result is fair, decisive, comeback-rich, and short.':
-    '被吃的子永远不会离开对局，因此每次吃子都会变成未来的压力。一次平静的兑子可能化为后续攻势；一座堡垒可以筑起，也可能被它送出的子力反过来攻破。由此形成的对局公平、果断、逆转机会多，而且简短。',
-  'Board and palaces': '棋盘与九宫',
+  'A compact Xiangqi variant with captured pieces in reserve, piece drops, and one new piece: the Treasure.':
+    '一种紧凑的象棋变体，带有持子、打入，以及一个新棋子「宝」。',
+  'Fortress Xiangqi is a compact [Xiangqi](/rules/xiangqi) variant designed by Brian H. Liou in 2026 as a Mistboard original. It keeps the familiar pieces, adds one new piece called the Treasure, and gives each player an open reserve. Capture an enemy piece and you can later drop it back as your own.':
+    '堡垒象棋是 Brian H. Liou 于 2026 年为 Mistboard 原创设计的紧凑型[象棋](/rules/xiangqi)变体。它保留熟悉的棋子，加入一个名为「宝」的新棋子，并让双方拥有公开持子。吃掉敌子后，可以在之后将它作为己方棋子打回棋盘。',
+  'Captured material stays in the game, so every exchange changes both the board and the reserves. A defensive trade now may supply the attacker you need later.':
+    '被吃的子仍留在对局中，因此每次兑子都会同时改变盘面和持子。现在用于防守的兑子，之后可能提供进攻所需的棋子。',
   'The board is 7 files (a to g) by 8 ranks, with a river between ranks 4 and 5. Each side has a 3 by 3 palace, but the two palaces sit in opposite corners: Red holds the bottom left (a1 to c3) and Black holds the top right (e6 to g8). The whole setup has 180 degree rotational symmetry.':
     '棋盘为 7 路（a 至 g）、8 横线，河界位于第 4 与第 5 横线之间。双方各有一个 3×3 九宫，但两个九宫分处对角：红方占左下角（a1 至 c3），黑方占右上角（e6 至 g8）。整个布局具有 180 度旋转对称性。',
   'The starting position. Red holds the bottom-left palace, Black the top-right, and the Treasure starts on each palace corner.':
     '初始局面。红方占左下九宫，黑方占右上九宫，双方的「宝」都从各自九宫的角上出发。',
   'Red moves first. This is open information: both players see the whole board and both reserves.':
     '红方先行。这是完全信息游戏：双方都能看到整个棋盘和双方的持子。',
-  'Every standard piece moves exactly as it does in [xiangqi](/rules/xiangqi). In the diagrams below, a green dot marks a quiet destination, a green ring marks a capture, and a red cross marks a point the piece cannot reach.':
-    '所有标准棋子都完全按照[象棋](/rules/xiangqi)规则移动。在下图中，绿点表示不吃子的落点，绿圈表示吃子，红叉表示该棋子无法到达的点。',
+  'The Chariot, Cannon, Horse, Elephant, Advisor, and General move as they do in [xiangqi](/rules/xiangqi). The Soldier is the one standard piece with a changed move, and the Treasure is new. In the diagrams below, a green dot marks a quiet destination, a green ring marks a capture, and a red cross marks a point the piece cannot reach.':
+    '车、炮、马、象、士和将帅都按[象棋](/rules/xiangqi)规则移动。兵是唯一走法有变化的标准棋子，宝则是新棋子。在下图中，绿点表示不吃子的落点，绿圈表示吃子，红叉表示该棋子无法到达的点。',
   '**Chariot:** slides any distance orthogonally, the strongest piece on the board. Here it can take the soldier on d7.':
     '**车：**沿横线或竖线移动任意距离，是棋盘上最强的棋子。此处它可以吃掉 d7 的兵。',
   '**Cannon:** moves like the Chariot on open lines, but captures only by jumping exactly one screen piece, friend or enemy. On the right, the cannon on d2 takes the chariot on d7 over its own soldier screen.':
@@ -102,19 +101,19 @@ const ZH_HANS: Record<string, string> = {
     '**士：**沿对角线走一点，并且始终留在九宫内。',
   '**General:** moves one point orthogonally and stays inside the palace. One xiangqi rule retires itself here: because the palaces sit in opposite corners, the two generals never share a file, so the facing-generals rule never comes into play.':
     '**将帅：**沿横向或纵向走一点，并且始终留在九宫内。有一条象棋规则在这里自然失效：两个九宫位于对角，两位将帅永远不会处于同一路，因此不会出现将帅照面的情况。',
-  '**Soldier:** moves one point forward or sideways, never backward. It has the sideways step from the opening move, where a xiangqi soldier earns it only by crossing the river. Every Fortress soldier is a veteran: the war is already on.':
-    '**兵：**向前或横向走一点，不能后退。它从开局起就能横走，而普通象棋的兵要过河后才获得这一能力。堡垒象棋里的每个兵都是老兵：战事早已开始。',
-  '**Treasure:** the one new piece. It steps one point in any of the eight directions, all game. It never promotes and is never confined. Think of it as a queen that only steps one square: a strong palace defender early, and a flexible attacker once it advances or is dropped.':
-    '**宝：**唯一的新棋子。整局都可以向八个方向中的任一方向走一点。它不会升变，也不受区域限制。可以把它看作每次只走一格的后：开局时是强力的九宫守卫，前进或打入后则是灵活的攻击子。',
+  '**Soldier:** moves one point forward or sideways, never backward. Unlike a standard xiangqi soldier, it can move sideways from the opening move.':
+    '**兵：**向前或横向走一点，不能后退。与标准象棋的兵不同，它从开局起就能横走。',
+  '**Treasure:** the one new piece. It steps one point in any of the eight directions, is not confined to the palace, and never promotes. It is a flexible defender near the palace and an attacker after it advances or returns as a drop.':
+    '**宝：**唯一的新棋子。它可以向八个方向中的任一方向走一点，不受九宫限制，也不会升变。靠近九宫时它是灵活的守子，前进或打入后则可用于进攻。',
   'The Treasure steps one point in any of the eight directions. Here it has eight moves, including the capture on e5.':
     '「宝」可以向八个方向中的任一方向走一点。此处它有八种走法，包括吃掉 e5 的棋子。',
   'There are no promotions and no past-river changes. Soldiers move the same on both sides of the river; the river only stops the Elephant, which never crosses it.':
     '没有升变，也没有过河后的走法变化。兵在河界两侧的走法相同；河界只限制永远不能过河的象。',
   'Capture, hold, drop': '吃子、持子、打入',
-  'When you capture an enemy piece, it flips to your color and enters your hand. The hand is open information: it can hold any number of pieces, and they can wait there for any number of turns. On your turn you either move a piece on the board, or spend the move to drop one piece from hand onto an empty point.':
-    '吃掉敌方棋子后，它会变成你的颜色并进入持子。持子是公开信息，可以容纳任意数量的棋子，也可以保留任意多个回合。轮到你时，可以移动盘面上的棋子，也可以用这一回合把一枚持子打入空点。',
-  'Attackers drop anywhere, including deep in the enemy half: the Chariot, Horse, Cannon, Soldier, and Treasure. Defenders drop only where they could legally stand.':
-    '攻击子可以打入任何位置，包括敌方纵深：车、马、炮、兵和宝。防守子只能打入其本来可以合法停留的位置。',
+  'When you capture any piece other than the General, it changes to your color and enters your reserve. Both reserves are open information, have no size limit, and keep pieces for as long as needed. On your turn, either move a piece on the board or drop one piece from your reserve onto an empty point. Generals are never captured or held in reserve.':
+    '吃掉将帅以外的任何敌子后，它会变成你的颜色并进入持子。双方持子都是公开信息，没有数量上限，也可保留任意久。轮到你时，可以移动盘面棋子，也可以把一枚持子打入空点。将帅不会被吃，也不会进入持子。',
+  'Chariots, Horses, Cannons, Soldiers, and Treasures may drop on any empty point. Advisors and Elephants keep their normal territory restrictions.':
+    '车、马、炮、兵和宝可以打入任何空点。士和象仍须遵守各自通常的区域限制。',
   'A captured Advisor drops only onto an empty point of your own palace.':
     '被吃的士只能打入己方九宫内的空点。',
   'A captured Elephant drops onto any empty point in your own half.':
@@ -122,19 +121,14 @@ const ZH_HANS: Record<string, string> = {
   'A dropped piece is live immediately. A drop may give check or deliver checkmate, and a dropped Soldier can step sideways wherever it lands. The one limit is the usual one: no move, drop included, may leave your own general in check.':
     '打入的棋子立即生效。打入可以将军或将死，打入的兵无论落在哪里都可以横走。唯一限制与平常相同：任何着法，包括打入，都不能让己方将帅处于被将军状态。',
   'How games end': '对局如何结束',
-  'Checkmate wins. A player left with no legal move loses by stalemate, the xiangqi convention. There is no fifty-move or no-progress draw and no shogi-style impasse rule: the game continues until one side breaks.':
-    '将死获胜。按照象棋惯例，无合法着法的一方因困毙而负。没有五十回合规则或无进展和棋，也没有将棋式的入玉规则：对局会继续，直到一方被攻破。',
-  'Repetition is governed by the chasing rule. When the same position occurs for the third time, the game is adjudicated: if one side gave check with every move of the repeating cycle, that side loses. You cannot perpetual-check your way out of a lost game. A repetition that neither side is forcing with checks is an honest standoff and is drawn, the only drawn result in the game.':
-    '重复局面由长将规则裁定。同一局面第三次出现时进行判定：如果一方在重复循环中的每一步都在将军，该方判负。不能靠长将逃出败势。若双方都没有用连续将军强迫重复，则视为真正的僵持并判和，这是本游戏唯一的和棋结果。',
+  'Checkmate wins. A player with no legal move also loses, even when not in check. There is no fifty-move or no-progress draw.':
+    '将死获胜。即使没有被将军，一方若无合法着法也判负。这里没有五十回合规则或无进展和棋。',
+  'On the third occurrence of the same position, a player who gave check on every one of their moves in the repeating cycle loses. If neither player was the sole perpetual checker, the repetition is drawn.':
+    '同一局面第三次出现时，若一方在重复循环中的每一步都将军，该方判负。若双方都不是唯一的长将方，则重复局面判和。',
   'Games can also end by timeout, resignation, or abandonment.':
     '对局也可能因超时、认输或弃局而结束。',
-  'What makes it Fortress Xiangqi': '为什么它叫堡垒象棋',
-  'Most chess variants trade fairness for decisiveness. Drops break that tradeoff: they keep the game fair while cutting draws and shortening play, and your captured material comes back at your own king, so every exchange is a real decision. Cheap pieces parachuted behind enemy lines deliver many of the finishes, which is the good kind of explosive.':
-    '多数棋类变体会用公平性换取更果断的结果。打入打破了这种取舍：它既保持公平，又减少和棋、缩短对局；你被吃掉的子力还会回头攻击自己的将帅，因此每次兑子都是实质抉择。许多终局由廉价棋子空降敌后完成，带来恰到好处的爆发力。',
-  'The rules were locked by engine testing rather than taste. Both-side attacker drops won out over a same-side variant that built beautiful fortresses but ran to 246-ply grinds. In engine sampling of the final rules, about 11 percent of games were drawn, one win in five came from behind, and the average game ran 83 plies.':
-    '规则由引擎测试定案，而不是凭个人喜好。允许攻击子打入双方半场的版本胜过了只许打入己方半场的版本；后者虽然能筑出漂亮堡垒，却会拖成长达 246 回合步的苦战。在最终规则的引擎抽样中，约 11% 的对局为和棋，五场胜局中有一场来自逆转，平均对局长度为 83 回合步。',
-  'Step through this engine game played under the production rules. Both sides spend their reserves early and often: watch Red build the attack from hand with the cannon drop at move 13 and the treasure drop at move 16, the advisor drop back into its own palace to defend at move 19, and the finish, where the mating pieces arrive by parachute.':
-    '逐步回放这盘按生产规则进行的引擎对局。双方很早就频繁使用持子：观察红方如何在第 13 回合打入炮、第 16 回合打入宝，从持子构筑攻势；又如何在第 19 回合把士打回己方九宫防守；最后，将死棋子如同空降般抵达战场。',
+  'This engine game shows both uses of the reserve: an Advisor returns to defend its palace, then Red finishes with a mating Soldier drop.':
+    '这盘引擎对局展示持子的两种用途：士先打回九宫防守，随后红方打入兵将死。',
 
   // -- How Misty Plays --
   'Misty is the bot you play on Mistboard in Fog of War chess. It is not allowed to peek. The server sends it the same kind of limited view a human player gets, then Misty has to choose a move from that uncertainty.':
@@ -700,33 +694,37 @@ const ZH_HANS: Record<string, string> = {
   Traps: '陷阱',
   'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there, so any defending piece can take it, down to a rat capturing a trapped elephant. Only an enemy’s traps do this: a piece can sit on one of its own traps and keeps its full rank.':
     '把一枚棋子走进对方三个陷阱格之一，它在停留期间会丧失全部等级，因此任何防守方棋子都能吃掉它，哪怕是老鼠吃掉落入陷阱的大象。只有敌方的陷阱才有此效果：棋子可以停在自己的陷阱上，并保持全部等级。',
-  'Move any piece into your opponent’s den and you win immediately. You also win by capturing every enemy piece. You can never move a piece onto your own den, so the only den you can enter is the enemy’s.':
-    '任何一枚棋子走进对方的兽穴，你立刻获胜。吃光对方所有棋子同样获胜。你永远不能把棋子走进自己的兽穴，所以你能进入的只有对方的兽穴。',
+  'You win immediately by moving any piece into the enemy den, capturing every enemy piece, or leaving your opponent with no legal move. You cannot move into your own den.':
+    '任何一枚棋子走进敌方兽穴、吃光敌方所有棋子，或让对手无合法着法，你都立即获胜。棋子不能走进己方兽穴。',
   'Games draw on threefold repetition, or when 100 half-moves (50 by each player) pass with no capture.':
     '若同一局面出现三次，或连续 100 个半回合（每方 50 步）无吃子，则判和。',
-  'A full game': '完整对局',
-  'Step through a real game between two strengths of our bot. Watch the lion leap the river, the rat swim up the far lane and take the elephant in the open, and Red march the rest of the way into Blue’s den.':
-    '逐步回放我们机器人两个强度之间的真实对局。看狮子跳过河、老鼠沿远侧通道游上去并在空地上吃掉大象，最后红方一路走进蓝方的兽穴。',
-  'All sixteen pieces, one of each animal in two colors, are shuffled and placed face-down on the sixteen squares. Nobody knows which animal or which color sits under a tile until it is flipped. The first tile you flip sets your color for the rest of the game.':
-    '全部十六枚棋子（两种颜色各八种动物）洗匀后背面朝上放在十六个格子里。在翻开之前，谁也不知道某个格子下面是哪种动物、哪种颜色。你翻开的第一枚棋子决定你在本局其余时间的颜色。',
-  'A turn': '一个回合',
-  'On your turn you either flip one face-down tile to reveal it, or move one of your own revealed animals one square up, down, left, or right. Early on, before pieces come up, flipping is all you can do.':
-    '轮到你时，你要么翻开一枚背面朝上的棋子使其亮明，要么把己方一枚已翻开的动物上下左右走一格。开局阶段，在棋子尚未翻出之前，你能做的只有翻棋。',
-  Capturing: '吃子',
-  'You win when your opponent has nothing left to do: no piece to move and no tile to flip. In practice that means capturing or trading away everything they have.':
-    '当对手无事可做时你获胜：既没有棋子可走，也没有棋子可翻。实际上，这意味着把对方拥有的一切吃掉或换掉。',
+  'This engine game shows a lion leap, a rat swim and capture an elephant, and the final entry into Blue’s den.':
+    '这盘引擎对局展示狮子跳河、老鼠游水并吃掉大象，以及最后进入蓝方兽穴。',
+  'One of each animal in two colors is shuffled and placed face-down on the sixteen squares. Nobody knows what is under a tile until it is flipped. The first tile the first player flips sets that player’s color; the other player takes the other color.':
+    '两种颜色各一套八种动物，洗匀后背面朝上放在十六个格子里。在翻开之前，谁也不知道棋子下面是什么。先行者翻开的第一枚棋子决定其颜色，另一位玩家执另一色。',
+  'On your turn, do one thing: flip one face-down tile, or move one of your revealed animals one square up, down, left, or right. Face-down tiles block movement and cannot be captured. You cannot pass.':
+    '轮到你时只能做一件事：翻开一枚背面朝上的棋子，或把己方一枚已翻开的动物上下左右走一格。暗子会阻挡移动，也不能被吃。不能跳过回合。',
+  'A flip reveals both the animal and its color to both players.':
+    '翻开后，双方都能看到该动物及其颜色。',
+  'Captures and trades': '吃子与兑子',
+  'Both colors use the same ladder. Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A higher-ranked animal captures a lower-ranked enemy by moving onto its square. A weaker animal cannot capture a stronger one.':
+    '两种颜色使用同一等级顺序。从强到弱是：象、狮、虎、豹、狼、狗、猫、鼠。高等级动物可以走到相邻低等级敌子所在格将其吃掉，低等级动物不能吃高等级动物。',
+  'The rat and elephant reverse the usual order: a rat can capture an elephant, while an elephant cannot capture a rat.':
+    '鼠和象颠倒通常的等级关系：鼠可以吃象，象不能吃鼠。',
+  'You win when your opponent has no animals left, or starts a turn with no legal flip or move. If the last animal of each color is removed in an equal-rank trade, the game is drawn.':
+    '当对手没有动物剩下，或回合开始时既不能翻棋也不能走棋，你获胜。若双方最后一只动物在同级兑子中一同离场，则判和。',
   'Games draw on threefold repetition, or when 40 half-moves (20 by each player) pass with no flip, capture, or trade.':
     '若同一局面出现三次，或连续 40 个半回合（每方 20 步）没有翻棋、吃子或同归于尽，则判和。',
-  'A game is also drawn the moment the pieces left on the board can no longer force a win — two survivors of equal rank, or a lone piece that can never corner the opponent’s last piece on the small board. These dead positions are settled as a draw right away rather than played out to the repetition count.':
-    '当盘面上剩下的棋子已无法取胜时，本局同样判和——例如两枚同级的棋子，或一枚在小棋盘上永远逼不住对方最后一子的孤子。这类死局会立即判和，而不必一直走到三次重复局面。',
-  'Step through a game our bot played against itself. The two lions meet and both leave the board, an elephant runs through three pieces until it hits the other elephant and they cancel too, and the side left standing wins. Tiles flip to their dealt animal the first time they are turned over.':
-    '逐步回放我们机器人左右互搏的一盘棋。两只狮子相遇、双双离场；一头大象连吃三子，直到撞上另一头大象、两象也同归于尽；最后还有棋子站着的一方获胜。棋子第一次被翻开时，会显示其发到的动物。',
+  'Mistboard also ends a fully revealed, one-animal-each position when neither side can force a win. Equal ranks are always dead because any meeting removes both; some unequal-rank chases are also unwinnable. These positions are drawn immediately.':
+    '当棋子全部翻开、双方各剩一只动物且谁也无法强制获胜时，Mistboard 也会结束对局。同级棋子必为死局，因为相遇会双双离场；某些不同等级的追逐也无法取胜。这些局面立即判和。',
+  'This engine game shows two equal-rank trades: first the Lions, then the Elephants. Blue wins after Red’s last animal leaves the board.':
+    '这盘引擎对局展示两次同级兑子：先是双方的狮子，再是双方的大象。红方最后一只动物离场后，蓝方获胜。',
   'Engine vs engine': '引擎对引擎',
-  'Red wins by reaching the den · 69 moves': '红方进入兽穴获胜 · 69 步',
+  'Red wins by reaching the den · 69 plies': '红方进入兽穴获胜 · 69 个半回合',
   'Red’s rat has already taken Blue’s elephant in the open, and with the strongest piece off the board Red walks a piece straight into Blue’s undefended den. Reaching the enemy den ends the game at once, no matter what material is left.':
     '红方的老鼠已经在空地上吃掉了蓝方的大象，最强的棋子离场后，红方径直把一枚棋子走进蓝方无人防守的兽穴。进入对方兽穴会立刻结束对局，无论场上还剩多少子力。',
   'Engine self-play': '引擎自我对弈',
-  'Blue wins by elimination · 36 moves': '蓝方吃光对手获胜 · 36 步',
+  'Blue wins by elimination · 36 plies': '蓝方吃光对手获胜 · 36 个半回合',
   'Both lions and both elephants have already traded off the board, and the pieces that survived all belong to Blue. Red has nothing left that can move, so the game ends: with no piece to move and no tile to flip, Red loses.':
     '两只狮子和两头大象都已同归于尽离场，存活下来的棋子全部属于蓝方。红方再无可走之子，于是对局结束：既没有棋子可走，也没有棋子可翻，红方告负。',
 
@@ -770,8 +768,8 @@ const ZH_HANS: Record<string, string> = {
   'Jungle Chess Rules': '斗兽棋规则',
   "The classic animal-chess game on a 7 by 9 board. Eight ranked animals, rivers only the rat can cross, and a race to the opponent's den.":
     '经典中国动物棋斗兽棋，棋盘 7×9。八种按等级排列的动物，只有老鼠能过的河，以及冲入对方兽穴的竞赛。',
-  'Jungle Chess, also called Animal Chess, is a two-player game played across much of East Asia. Each side commands eight animals of different rank. You win by marching a piece into your opponent’s den, or by capturing all of their pieces.':
-    '斗兽棋是 Mistboard 对 Dou Shou Qi（斗兽棋，也称 Animal Chess）采用的公开英文名称。这是流行于东亚许多地区的双人游戏。每方指挥八种不同等级的动物。把一枚棋子走进对方的兽穴，或吃光对方所有棋子，即获胜。',
+  'Jungle Chess is a two-player strategy game about rank and terrain. Each side commands eight animals and tries to reach the enemy den or eliminate the enemy army.':
+    '斗兽棋是一种围绕等级与地形展开的双人策略游戏。双方各指挥八种动物，目标是进入敌方兽穴或消灭敌方全部棋子。',
   'Flip Jungle Rules': '翻翻棋规则',
   'The 4×4 flip version of Jungle Chess. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.':
     '斗兽棋的 4×4 翻面版本。所有动物开局均背面朝上，翻开即亮明身份，等级相同的双方同归于尽、一起离场。',
@@ -795,32 +793,29 @@ const ZH_HANS: Record<string, string> = {
   'The board is seven files wide and nine ranks deep. Your den sits at the center of your back rank, ringed by three trap squares. Two rivers, each a 2×3 block of water, split the middle of the board. Red moves first from the fixed starting position below.':
     '棋盘宽七列、深九行。你的兽穴位于底线中央，周围有三个陷阱格。两条河流各占 2×3 格，分开棋盘中部。红方从下方的固定初始局面先行。',
   'Ranks and captures': '等级与吃子',
-  'Each side has the same eight animals. Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A piece captures an adjacent enemy of equal or lower rank. The exception runs the other way: a rat on land can capture an elephant, and an elephant cannot capture a rat.':
-    '双方各有相同的八种动物。从强到弱是：象、狮、虎、豹、狼、狗、猫、鼠。棋子可吃相邻的同级或低级敌子。例外恰好相反：陆地上的鼠可吃象，象不能吃鼠。',
+  'Each side has the same eight animals. Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A piece captures an adjacent enemy of equal or lower rank.':
+    '双方各有相同的八种动物。从强到弱是：象、狮、虎、豹、狼、狗、猫、鼠。棋子可吃相邻的同级或低级敌子。',
+  'The rank exception connects the ends of the ladder: a rat on land can capture an elephant, while an elephant cannot capture a rat.':
+    '等级例外连接序列两端：陆地上的鼠可以吃象，象不能吃鼠。',
+  'On land, the lowest-ranked rat can capture the highest-ranked elephant.':
+    '在陆地上，等级最低的鼠可以吃等级最高的象。',
   'How the animals move': '动物如何移动',
   'Every animal moves one square up, down, left, or right. Animals never move diagonally. Most animals stay on land, so they cannot enter a river. The rat, lion, and tiger are the three movement exceptions.':
     '每种动物都向上、下、左或右移动一格，不能斜走。大多数动物只能留在陆地，不能进入河流。鼠、狮和虎是三个移动例外。',
   Rat: '鼠',
-  'The rat moves one square at a time like every other animal, but it is the only animal that can enter the water. A rat in a river can move and capture another rat there. It cannot capture an elephant directly from the water, so it must return to land first.':
-    '鼠像其他动物一样每次移动一格，但它是唯一能进入水中的动物。河中的鼠可以移动，也可吃掉另一只河中的鼠。它不能从水中直接吃象，必须先回到陆地。',
+  'The rat is the only animal that can enter water. A rat in a river can move and capture another rat there, but no piece can capture across the shoreline: a land rat cannot capture into water, and a water rat cannot capture onto land.':
+    '鼠是唯一能进入水中的动物。河中的鼠可以移动，也可吃掉另一只河中的鼠，但任何棋子都不能隔着水岸吃子：陆地上的鼠不能吃进水中，水中的鼠也不能吃上陆地。',
   Lion: '狮',
   'The lion can move one land square normally, or leap straight across a river horizontally or vertically. It lands on the first square beyond the water and may capture an animal there if rank allows.':
     '狮可以在陆地上正常移动一格，也可水平或垂直跳过整条河。它落在水面另一侧的第一格，等级允许时可吃掉那里的动物。',
   Tiger: '虎',
-  'The tiger has the same river leap as the lion: horizontal or vertical, from one bank to the other. A rat of either color on any water square in the path blocks a lion or tiger from jumping.':
-    '虎与狮有相同的跳河能力：水平或垂直从一岸跳到另一岸。路径上任何水格里只要有一只任意颜色的鼠，就会阻止狮或虎跳跃。',
+  'The tiger can move one land square normally or leap vertically across a river. Unlike the lion, it cannot leap horizontally. A rat of either color on any water square in the path blocks either animal’s jump.':
+    '虎可以在陆地上正常移动一格，也可纵向跳过河流。与狮不同，它不能横向跳河。路径上任何水格里只要有一只任意颜色的鼠，就会阻止两种动物跳跃。',
   'A rat in the river blocks the leap.': '河中的鼠会挡住跳跃。',
-  'Flip Jungle is a small, fast relative of [Jungle Chess](/rules/jungle), built around the same eight ranked animals. It is also known in English as Flip Animal Chess. All sixteen animals begin face-down on a four-by-four grid. There are no rivers, dens, or traps.':
-    '翻翻棋是[斗兽棋](/rules/jungle)小巧快节奏的近亲，使用同样的八种等级动物，英文中也称 Flip Animal Chess。十六枚动物棋子全部背面朝上放在 4×4 棋盘上。这里没有河流、兽穴或陷阱。',
-  'Its turn structure is especially close to [Flip Xiangqi](/rules/flip-xiangqi): reveal one unknown tile or move one of your revealed pieces. The board and pieces are different, but both games turn each flip into a choice between gaining information and improving position.':
-    '它的回合结构尤其接近[翻转象棋](/rules/flip-xiangqi)：翻开一枚未知棋子，或移动一枚已翻开的己方棋子。棋盘和棋子不同，但两种游戏都让每次翻子成为「获取信息」与「改善局面」之间的选择。',
-  'Animal ranks': '动物等级',
-  'Both colors use the same ladder. Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. The rat still has one exception: it can capture the elephant, while the elephant cannot capture the rat.':
-    '两种颜色使用同一等级顺序。从强到弱是：象、狮、虎、豹、狼、狗、猫、鼠。鼠仍有一个例外：它可以吃象，象不能吃鼠。',
+  'Flip Jungle is a compact hidden-piece relative of [Jungle Chess](/rules/jungle). All sixteen animals begin face-down on a 4×4 board. There are no rivers, dens, or traps: reveal tiles, move your animals, and eliminate the other color.':
+    '翻翻棋是[斗兽棋](/rules/jungle)的紧凑型隐藏棋子变体。十六枚动物棋子全部背面朝上放在 4×4 棋盘上。这里没有河流、兽穴或陷阱：翻开棋子、移动动物，并消灭另一种颜色。',
   'Flip a tile': '翻开一枚棋子',
   'Move an animal': '移动一枚动物',
-  'Move onto an adjacent enemy to capture it when your animal outranks it. The rat-beats-elephant exception from Jungle Chess still applies.':
-    '当你的动物等级更高时，移到相邻敌子所在格即可吃掉它。斗兽棋中「鼠吃象」的例外仍然适用。',
   'A lion captures a lower-ranked wolf.': '狮吃掉等级较低的狼。',
   'Equal ranks work differently. When an animal captures an enemy of its own rank, both pieces leave the board, and neither side keeps the square.':
     '同等级的处理方式不同。当动物吃与自己同等级的敌子时，两枚棋子都离开棋盘，双方都不占据该格。',
@@ -873,21 +868,20 @@ const ZH_HANT: Record<string, string> = {
   ...ZH_HANS,
   // -- Fortress Xiangqi --
   'Fortress Xiangqi Rules': '堡壘象棋規則',
-  'Xiangqi with a pocket: every familiar piece moves as in xiangqi, plus crazyhouse-style drops and one new piece, the Treasure.':
-    '帶持子的象棋：所有熟悉的棋子都按象棋規則移動，再加入瘋狂屋式打入和一個新棋子「寶」。',
-  'Fortress Xiangqi is an [Xiangqi](/rules/xiangqi) variant with a reserve, designed by Brian H. Liou in 2026 as a Mistboard original. Every familiar piece moves exactly as it does in xiangqi, and one new piece, the Treasure, joins the back rank. The new rule is the [crazyhouse](https://en.wikipedia.org/wiki/Crazyhouse) loop: capture a piece, hold it in hand, and drop it back into the fight.':
-    '堡壘象棋是一種帶持子的[象棋](/rules/xiangqi)變體，由 Brian H. Liou 於 2026 年為 Mistboard 原創設計。所有熟悉的棋子都完全按象棋規則移動，底線另加入一個新棋子「寶」。新規則採用[瘋狂屋](https://en.wikipedia.org/wiki/Crazyhouse)的循環：吃掉棋子，將它收入持子，再打回戰場。',
-  'Captured material never leaves the game, so every capture becomes future pressure. A quiet trade can turn into a later attack, and a fortress can be built, then cracked open by the very material it gave away. The result is fair, decisive, comeback-rich, and short.':
-    '被吃的子永遠不會離開對局，因此每次吃子都會變成未來的壓力。一次平靜的兌子可能化為後續攻勢；一座堡壘可以築起，也可能被它送出的子力反過來攻破。由此形成的對局公平、果斷、逆轉機會多，而且簡短。',
-  'Board and palaces': '棋盤與九宮',
+  'A compact Xiangqi variant with captured pieces in reserve, piece drops, and one new piece: the Treasure.':
+    '一種緊湊的象棋變體，帶有持子、打入，以及一個新棋子「寶」。',
+  'Fortress Xiangqi is a compact [Xiangqi](/rules/xiangqi) variant designed by Brian H. Liou in 2026 as a Mistboard original. It keeps the familiar pieces, adds one new piece called the Treasure, and gives each player an open reserve. Capture an enemy piece and you can later drop it back as your own.':
+    '堡壘象棋是 Brian H. Liou 於 2026 年為 Mistboard 原創設計的緊湊型[象棋](/rules/xiangqi)變體。它保留熟悉的棋子，加入一個名為「寶」的新棋子，並讓雙方擁有公開持子。吃掉敵子後，可以在之後將它作為己方棋子打回棋盤。',
+  'Captured material stays in the game, so every exchange changes both the board and the reserves. A defensive trade now may supply the attacker you need later.':
+    '被吃的子仍留在對局中，因此每次兌子都會同時改變盤面和持子。現在用於防守的兌子，之後可能提供進攻所需的棋子。',
   'The board is 7 files (a to g) by 8 ranks, with a river between ranks 4 and 5. Each side has a 3 by 3 palace, but the two palaces sit in opposite corners: Red holds the bottom left (a1 to c3) and Black holds the top right (e6 to g8). The whole setup has 180 degree rotational symmetry.':
     '棋盤為 7 路（a 至 g）、8 橫線，河界位於第 4 與第 5 橫線之間。雙方各有一個 3×3 九宮，但兩個九宮分處對角：紅方占左下角（a1 至 c3），黑方占右上角（e6 至 g8）。整個布局具有 180 度旋轉對稱性。',
   'The starting position. Red holds the bottom-left palace, Black the top-right, and the Treasure starts on each palace corner.':
     '初始局面。紅方占左下九宮，黑方占右上九宮，雙方的「寶」都從各自九宮的角上出發。',
   'Red moves first. This is open information: both players see the whole board and both reserves.':
     '紅方先行。這是完全資訊遊戲：雙方都能看到整個棋盤和雙方的持子。',
-  'Every standard piece moves exactly as it does in [xiangqi](/rules/xiangqi). In the diagrams below, a green dot marks a quiet destination, a green ring marks a capture, and a red cross marks a point the piece cannot reach.':
-    '所有標準棋子都完全按照[象棋](/rules/xiangqi)規則移動。在下圖中，綠點表示不吃子的落點，綠圈表示吃子，紅叉表示該棋子無法到達的點。',
+  'The Chariot, Cannon, Horse, Elephant, Advisor, and General move as they do in [xiangqi](/rules/xiangqi). The Soldier is the one standard piece with a changed move, and the Treasure is new. In the diagrams below, a green dot marks a quiet destination, a green ring marks a capture, and a red cross marks a point the piece cannot reach.':
+    '車、砲、馬、象、士和將帥都按[象棋](/rules/xiangqi)規則移動。兵是唯一走法有變化的標準棋子，寶則是新棋子。在下圖中，綠點表示不吃子的落點，綠圈表示吃子，紅叉表示該棋子無法到達的點。',
   '**Chariot:** slides any distance orthogonally, the strongest piece on the board. Here it can take the soldier on d7.':
     '**車：**沿橫線或直線移動任意距離，是棋盤上最強的棋子。此處它可以吃掉 d7 的兵。',
   '**Cannon:** moves like the Chariot on open lines, but captures only by jumping exactly one screen piece, friend or enemy. On the right, the cannon on d2 takes the chariot on d7 over its own soldier screen.':
@@ -900,19 +894,19 @@ const ZH_HANT: Record<string, string> = {
     '**士：**沿對角線走一點，並且始終留在九宮內。',
   '**General:** moves one point orthogonally and stays inside the palace. One xiangqi rule retires itself here: because the palaces sit in opposite corners, the two generals never share a file, so the facing-generals rule never comes into play.':
     '**將帥：**沿橫向或縱向走一點，並且始終留在九宮內。有一條象棋規則在這裡自然失效：兩個九宮位於對角，兩位將帥永遠不會處於同一路，因此不會出現將帥照面的情況。',
-  '**Soldier:** moves one point forward or sideways, never backward. It has the sideways step from the opening move, where a xiangqi soldier earns it only by crossing the river. Every Fortress soldier is a veteran: the war is already on.':
-    '**兵：**向前或橫向走一點，不能後退。它從開局起就能橫走，而普通象棋的兵要過河後才獲得這項能力。堡壘象棋裡的每個兵都是老兵：戰事早已開始。',
-  '**Treasure:** the one new piece. It steps one point in any of the eight directions, all game. It never promotes and is never confined. Think of it as a queen that only steps one square: a strong palace defender early, and a flexible attacker once it advances or is dropped.':
-    '**寶：**唯一的新棋子。整局都可以向八個方向中的任一方向走一點。它不會升變，也不受區域限制。可以把它看作每次只走一格的后：開局時是強力的九宮守衛，前進或打入後則是靈活的攻擊子。',
+  '**Soldier:** moves one point forward or sideways, never backward. Unlike a standard xiangqi soldier, it can move sideways from the opening move.':
+    '**兵：**向前或橫向走一點，不能後退。與標準象棋的兵不同，它從開局起就能橫走。',
+  '**Treasure:** the one new piece. It steps one point in any of the eight directions, is not confined to the palace, and never promotes. It is a flexible defender near the palace and an attacker after it advances or returns as a drop.':
+    '**寶：**唯一的新棋子。它可以向八個方向中的任一方向走一點，不受九宮限制，也不會升變。靠近九宮時它是靈活的守子，前進或打入後則可用於進攻。',
   'The Treasure steps one point in any of the eight directions. Here it has eight moves, including the capture on e5.':
     '「寶」可以向八個方向中的任一方向走一點。此處它有八種走法，包括吃掉 e5 的棋子。',
   'There are no promotions and no past-river changes. Soldiers move the same on both sides of the river; the river only stops the Elephant, which never crosses it.':
     '沒有升變，也沒有過河後的走法變化。兵在河界兩側的走法相同；河界只限制永遠不能過河的象。',
   'Capture, hold, drop': '吃子、持子、打入',
-  'When you capture an enemy piece, it flips to your color and enters your hand. The hand is open information: it can hold any number of pieces, and they can wait there for any number of turns. On your turn you either move a piece on the board, or spend the move to drop one piece from hand onto an empty point.':
-    '吃掉敵方棋子後，它會變成你的顏色並進入持子。持子是公開資訊，可以容納任意數量的棋子，也可以保留任意多個回合。輪到你時，可以移動盤面上的棋子，也可以用這一回合把一枚持子打入空點。',
-  'Attackers drop anywhere, including deep in the enemy half: the Chariot, Horse, Cannon, Soldier, and Treasure. Defenders drop only where they could legally stand.':
-    '攻擊子可以打入任何位置，包括敵方縱深：車、馬、炮、兵和寶。防守子只能打入其本來可以合法停留的位置。',
+  'When you capture any piece other than the General, it changes to your color and enters your reserve. Both reserves are open information, have no size limit, and keep pieces for as long as needed. On your turn, either move a piece on the board or drop one piece from your reserve onto an empty point. Generals are never captured or held in reserve.':
+    '吃掉將帥以外的任何敵子後，它會變成你的顏色並進入持子。雙方持子都是公開資訊，沒有數量上限，也可保留任意久。輪到你時，可以移動盤面棋子，也可以把一枚持子打入空點。將帥不會被吃，也不會進入持子。',
+  'Chariots, Horses, Cannons, Soldiers, and Treasures may drop on any empty point. Advisors and Elephants keep their normal territory restrictions.':
+    '車、馬、炮、兵和寶可以打入任何空點。士和象仍須遵守各自通常的區域限制。',
   'A captured Advisor drops only onto an empty point of your own palace.':
     '被吃的士只能打入己方九宮內的空點。',
   'A captured Elephant drops onto any empty point in your own half.':
@@ -920,19 +914,14 @@ const ZH_HANT: Record<string, string> = {
   'A dropped piece is live immediately. A drop may give check or deliver checkmate, and a dropped Soldier can step sideways wherever it lands. The one limit is the usual one: no move, drop included, may leave your own general in check.':
     '打入的棋子立即生效。打入可以將軍或將死，打入的兵無論落在哪裡都可以橫走。唯一限制與平常相同：任何著法，包括打入，都不能讓己方將帥處於被將軍狀態。',
   'How games end': '對局如何結束',
-  'Checkmate wins. A player left with no legal move loses by stalemate, the xiangqi convention. There is no fifty-move or no-progress draw and no shogi-style impasse rule: the game continues until one side breaks.':
-    '將死獲勝。按照象棋慣例，無合法著法的一方因困斃而負。沒有五十回合規則或無進展和棋，也沒有將棋式的入玉規則：對局會繼續，直到一方被攻破。',
-  'Repetition is governed by the chasing rule. When the same position occurs for the third time, the game is adjudicated: if one side gave check with every move of the repeating cycle, that side loses. You cannot perpetual-check your way out of a lost game. A repetition that neither side is forcing with checks is an honest standoff and is drawn, the only drawn result in the game.':
-    '重複局面由長將規則裁定。同一局面第三次出現時進行判定：如果一方在重複循環中的每一步都在將軍，該方判負。不能靠長將逃出敗勢。若雙方都沒有用連續將軍強迫重複，則視為真正的僵持並判和，這是本遊戲唯一的和棋結果。',
+  'Checkmate wins. A player with no legal move also loses, even when not in check. There is no fifty-move or no-progress draw.':
+    '將死獲勝。即使沒有被將軍，一方若無合法著法也判負。這裡沒有五十回合規則或無進展和棋。',
+  'On the third occurrence of the same position, a player who gave check on every one of their moves in the repeating cycle loses. If neither player was the sole perpetual checker, the repetition is drawn.':
+    '同一局面第三次出現時，若一方在重複循環中的每一步都將軍，該方判負。若雙方都不是唯一的長將方，則重複局面判和。',
   'Games can also end by timeout, resignation, or abandonment.':
     '對局也可能因超時、認輸或棄局而結束。',
-  'What makes it Fortress Xiangqi': '為什麼它叫堡壘象棋',
-  'Most chess variants trade fairness for decisiveness. Drops break that tradeoff: they keep the game fair while cutting draws and shortening play, and your captured material comes back at your own king, so every exchange is a real decision. Cheap pieces parachuted behind enemy lines deliver many of the finishes, which is the good kind of explosive.':
-    '多數棋類變體會用公平性換取更果斷的結果。打入打破了這種取捨：它既保持公平，又減少和棋、縮短對局；你被吃掉的子力還會回頭攻擊自己的將帥，因此每次兌子都是實質抉擇。許多終局由廉價棋子空降敵後完成，帶來恰到好處的爆發力。',
-  'The rules were locked by engine testing rather than taste. Both-side attacker drops won out over a same-side variant that built beautiful fortresses but ran to 246-ply grinds. In engine sampling of the final rules, about 11 percent of games were drawn, one win in five came from behind, and the average game ran 83 plies.':
-    '規則由引擎測試定案，而不是憑個人喜好。允許攻擊子打入雙方半場的版本勝過了只許打入己方半場的版本；後者雖然能築出漂亮堡壘，卻會拖成長達 246 回合步的苦戰。在最終規則的引擎抽樣中，約 11% 的對局為和棋，五場勝局中有一場來自逆轉，平均對局長度為 83 回合步。',
-  'Step through this engine game played under the production rules. Both sides spend their reserves early and often: watch Red build the attack from hand with the cannon drop at move 13 and the treasure drop at move 16, the advisor drop back into its own palace to defend at move 19, and the finish, where the mating pieces arrive by parachute.':
-    '逐步回放這盤按正式規則進行的引擎對局。雙方很早就頻繁使用持子：觀察紅方如何在第 13 回合打入炮、第 16 回合打入寶，從持子構築攻勢；又如何在第 19 回合把士打回己方九宮防守；最後，將死棋子如同空降般抵達戰場。',
+  'This engine game shows both uses of the reserve: an Advisor returns to defend its palace, then Red finishes with a mating Soldier drop.':
+    '這盤引擎對局展示持子的兩種用途：士先打回九宮防守，隨後紅方打入兵將死。',
 
   // -- How Misty Plays --
   'Misty is the bot you play on Mistboard in Fog of War chess. It is not allowed to peek. The server sends it the same kind of limited view a human player gets, then Misty has to choose a move from that uncertainty.':
@@ -1495,33 +1484,37 @@ const ZH_HANT: Record<string, string> = {
   Traps: '陷阱',
   'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there, so any defending piece can take it, down to a rat capturing a trapped elephant. Only an enemy’s traps do this: a piece can sit on one of its own traps and keeps its full rank.':
     '把一枚棋子走進對方三個陷阱格之一，它在停留期間會喪失全部等級，因此任何防守方棋子都能吃掉它，哪怕是老鼠吃掉落入陷阱的大象。只有敵方的陷阱才有此效果：棋子可以停在自己的陷阱上，並保持全部等級。',
-  'Move any piece into your opponent’s den and you win immediately. You also win by capturing every enemy piece. You can never move a piece onto your own den, so the only den you can enter is the enemy’s.':
-    '任何一枚棋子走進對方的獸穴，你立刻獲勝。吃光對方所有棋子同樣獲勝。你永遠不能把棋子走進自己的獸穴，所以你能進入的只有對方的獸穴。',
+  'You win immediately by moving any piece into the enemy den, capturing every enemy piece, or leaving your opponent with no legal move. You cannot move into your own den.':
+    '任何一枚棋子走進敵方獸穴、吃光敵方所有棋子，或讓對手無合法著法，你都立即獲勝。棋子不能走進己方獸穴。',
   'Games draw on threefold repetition, or when 100 half-moves (50 by each player) pass with no capture.':
     '若同一局面出現三次，或連續 100 個半回合（每方 50 步）無吃子，則判和。',
-  'A full game': '完整對局',
-  'Step through a real game between two strengths of our bot. Watch the lion leap the river, the rat swim up the far lane and take the elephant in the open, and Red march the rest of the way into Blue’s den.':
-    '逐步回放我們機器人兩個強度之間的真實對局。看獅子跳過河、老鼠沿遠側通道游上去並在空地上吃掉大象，最後紅方一路走進藍方的獸穴。',
-  'All sixteen pieces, one of each animal in two colors, are shuffled and placed face-down on the sixteen squares. Nobody knows which animal or which color sits under a tile until it is flipped. The first tile you flip sets your color for the rest of the game.':
-    '全部十六枚棋子（兩種顏色各八種動物）洗勻後背面朝上放在十六個格子裡。在翻開之前，誰也不知道某個格子下面是哪種動物、哪種顏色。你翻開的第一枚棋子決定你在本局其餘時間的顏色。',
-  'A turn': '一個回合',
-  'On your turn you either flip one face-down tile to reveal it, or move one of your own revealed animals one square up, down, left, or right. Early on, before pieces come up, flipping is all you can do.':
-    '輪到你時，你要麼翻開一枚背面朝上的棋子使其亮明，要麼把己方一枚已翻開的動物上下左右走一格。開局階段，在棋子尚未翻出之前，你能做的只有翻棋。',
-  Capturing: '吃子',
-  'You win when your opponent has nothing left to do: no piece to move and no tile to flip. In practice that means capturing or trading away everything they have.':
-    '當對手無事可做時你獲勝：既沒有棋子可走，也沒有棋子可翻。實際上，這意味著把對方擁有的一切吃掉或換掉。',
+  'This engine game shows a lion leap, a rat swim and capture an elephant, and the final entry into Blue’s den.':
+    '這盤引擎對局展示獅子跳河、老鼠游水並吃掉大象，以及最後進入藍方獸穴。',
+  'One of each animal in two colors is shuffled and placed face-down on the sixteen squares. Nobody knows what is under a tile until it is flipped. The first tile the first player flips sets that player’s color; the other player takes the other color.':
+    '兩種顏色各一套八種動物，洗勻後背面朝上放在十六個格子裡。在翻開之前，誰也不知道棋子下面是什麼。先行者翻開的第一枚棋子決定其顏色，另一位玩家執另一色。',
+  'On your turn, do one thing: flip one face-down tile, or move one of your revealed animals one square up, down, left, or right. Face-down tiles block movement and cannot be captured. You cannot pass.':
+    '輪到你時只能做一件事：翻開一枚背面朝上的棋子，或把己方一枚已翻開的動物上下左右走一格。暗子會阻擋移動，也不能被吃。不能跳過回合。',
+  'A flip reveals both the animal and its color to both players.':
+    '翻開後，雙方都能看到該動物及其顏色。',
+  'Captures and trades': '吃子與兌子',
+  'Both colors use the same ladder. Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A higher-ranked animal captures a lower-ranked enemy by moving onto its square. A weaker animal cannot capture a stronger one.':
+    '兩種顏色使用同一等級順序。從強到弱是：象、獅、虎、豹、狼、狗、貓、鼠。高等級動物可以走到相鄰低等級敵子所在格將其吃掉，低等級動物不能吃高等級動物。',
+  'The rat and elephant reverse the usual order: a rat can capture an elephant, while an elephant cannot capture a rat.':
+    '鼠和象顛倒通常的等級關係：鼠可以吃象，象不能吃鼠。',
+  'You win when your opponent has no animals left, or starts a turn with no legal flip or move. If the last animal of each color is removed in an equal-rank trade, the game is drawn.':
+    '當對手沒有動物剩下，或回合開始時既不能翻棋也不能走棋，你獲勝。若雙方最後一隻動物在同級兌子中一同離場，則判和。',
   'Games draw on threefold repetition, or when 40 half-moves (20 by each player) pass with no flip, capture, or trade.':
     '若同一局面出現三次，或連續 40 個半回合（每方 20 步）沒有翻棋、吃子或同歸於盡，則判和。',
-  'A game is also drawn the moment the pieces left on the board can no longer force a win — two survivors of equal rank, or a lone piece that can never corner the opponent’s last piece on the small board. These dead positions are settled as a draw right away rather than played out to the repetition count.':
-    '當盤面上剩下的棋子已無法取勝時，本局同樣判和——例如兩枚同級的棋子，或一枚在小棋盤上永遠逼不住對方最後一子的孤子。這類死局會立即判和，而不必一直走到三次重複局面。',
-  'Step through a game our bot played against itself. The two lions meet and both leave the board, an elephant runs through three pieces until it hits the other elephant and they cancel too, and the side left standing wins. Tiles flip to their dealt animal the first time they are turned over.':
-    '逐步回放我們機器人左右互搏的一盤棋。兩隻獅子相遇、雙雙離場；一頭大象連吃三子，直到撞上另一頭大象、兩象也同歸於盡；最後還有棋子站著的一方獲勝。棋子第一次被翻開時，會顯示其發到的動物。',
+  'Mistboard also ends a fully revealed, one-animal-each position when neither side can force a win. Equal ranks are always dead because any meeting removes both; some unequal-rank chases are also unwinnable. These positions are drawn immediately.':
+    '當棋子全部翻開、雙方各剩一隻動物且誰也無法強制獲勝時，Mistboard 也會結束對局。同級棋子必為死局，因為相遇會雙雙離場；某些不同等級的追逐也無法取勝。這些局面立即判和。',
+  'This engine game shows two equal-rank trades: first the Lions, then the Elephants. Blue wins after Red’s last animal leaves the board.':
+    '這盤引擎對局展示兩次同級兌子：先是雙方的獅子，再是雙方的大象。紅方最後一隻動物離場後，藍方獲勝。',
   'Engine vs engine': '引擎對引擎',
-  'Red wins by reaching the den · 69 moves': '紅方進入獸穴獲勝 · 69 步',
+  'Red wins by reaching the den · 69 plies': '紅方進入獸穴獲勝 · 69 個半回合',
   'Red’s rat has already taken Blue’s elephant in the open, and with the strongest piece off the board Red walks a piece straight into Blue’s undefended den. Reaching the enemy den ends the game at once, no matter what material is left.':
     '紅方的老鼠已經在空地上吃掉了藍方的大象，最強的棋子離場後，紅方逕直把一枚棋子走進藍方無人防守的獸穴。進入對方獸穴會立刻結束對局，無論場上還剩多少子力。',
   'Engine self-play': '引擎自我對弈',
-  'Blue wins by elimination · 36 moves': '藍方吃光對手獲勝 · 36 步',
+  'Blue wins by elimination · 36 plies': '藍方吃光對手獲勝 · 36 個半回合',
   'Both lions and both elephants have already traded off the board, and the pieces that survived all belong to Blue. Red has nothing left that can move, so the game ends: with no piece to move and no tile to flip, Red loses.':
     '兩隻獅子和兩頭大象都已同歸於盡離場，存活下來的棋子全部屬於藍方。紅方再無可走之子，於是對局結束：既沒有棋子可走，也沒有棋子可翻，紅方告負。',
 
@@ -1565,18 +1558,29 @@ const ZH_HANT: Record<string, string> = {
   'Jungle Chess Rules': '鬥獸棋規則',
   "The classic animal-chess game on a 7 by 9 board. Eight ranked animals, rivers only the rat can cross, and a race to the opponent's den.":
     '經典中國動物棋鬥獸棋，棋盤 7×9。八種按等級排列的動物，只有老鼠能過的河，以及衝入對方獸穴的競賽。',
-  'Jungle Chess, also called Animal Chess, is a two-player game played across much of East Asia. Each side commands eight animals of different rank. You win by marching a piece into your opponent’s den, or by capturing all of their pieces.':
-    '鬥獸棋是 Mistboard 對 Dou Shou Qi（鬥獸棋，也稱 Animal Chess）採用的公開英文名稱。這是流行於東亞許多地區的雙人遊戲。每方指揮八種不同等級的動物。把一枚棋子走進對方的獸穴，或吃光對方所有棋子，即獲勝。',
+  'Jungle Chess is a two-player strategy game about rank and terrain. Each side commands eight animals and tries to reach the enemy den or eliminate the enemy army.':
+    '鬥獸棋是一種圍繞等級與地形展開的雙人策略遊戲。雙方各指揮八種動物，目標是進入敵方獸穴或消滅敵方全部棋子。',
   'Flip Jungle Rules': '翻翻棋規則',
   'The 4×4 flip version of Jungle Chess. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.':
     '鬥獸棋的 4×4 翻面版本。所有動物開局均背面朝上，翻開即亮明身分，等級相同的雙方同歸於盡、一起離場。',
   'Reveal Xiangqi Rules': '揭棋規則',
   'Ranks and captures': '等級與吃子',
+  'Each side has the same eight animals. Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A piece captures an adjacent enemy of equal or lower rank.':
+    '雙方各有相同的八種動物。從強到弱是：象、獅、虎、豹、狼、狗、貓、鼠。棋子可吃相鄰的同級或低級敵子。',
+  'The rank exception connects the ends of the ladder: a rat on land can capture an elephant, while an elephant cannot capture a rat.':
+    '等級例外連接序列兩端：陸地上的鼠可以吃象，象不能吃鼠。',
+  'On land, the lowest-ranked rat can capture the highest-ranked elephant.':
+    '在陸地上，等級最低的鼠可以吃等級最高的象。',
   'How the animals move': '動物如何移動',
   Rat: '鼠',
+  'The rat is the only animal that can enter water. A rat in a river can move and capture another rat there, but no piece can capture across the shoreline: a land rat cannot capture into water, and a water rat cannot capture onto land.':
+    '鼠是唯一能進入水中的動物。河中的鼠可以移動，也可吃掉另一隻河中的鼠，但任何棋子都不能隔著水岸吃子：陸地上的鼠不能吃進水中，水中的鼠也不能吃上陸地。',
   Lion: '獅',
   Tiger: '虎',
-  'Animal ranks': '動物等級',
+  'The tiger can move one land square normally or leap vertically across a river. Unlike the lion, it cannot leap horizontally. A rat of either color on any water square in the path blocks either animal’s jump.':
+    '虎可以在陸地上正常移動一格，也可縱向跳過河流。與獅不同，它不能橫向跳河。路徑上任何水格裡只要有一隻任意顏色的鼠，就會阻止兩種動物跳躍。',
+  'Flip Jungle is a compact hidden-piece relative of [Jungle Chess](/rules/jungle). All sixteen animals begin face-down on a 4×4 board. There are no rivers, dens, or traps: reveal tiles, move your animals, and eliminate the other color.':
+    '翻翻棋是[鬥獸棋](/rules/jungle)的緊湊型隱藏棋子變體。十六枚動物棋子全部背面朝上放在 4×4 棋盤上。這裡沒有河流、獸穴或陷阱：翻開棋子、移動動物，並消滅另一種顏色。',
   'Flip a tile': '翻開一枚棋子',
   'Move an animal': '移動一枚動物',
   'FIRST FLIP ASSIGNS COLOR': '首次翻子決定顏色',

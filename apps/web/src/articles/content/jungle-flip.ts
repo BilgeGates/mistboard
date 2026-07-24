@@ -26,20 +26,16 @@ export const jungleFlipArticle: Article = {
   intro: [
     {
       kind: 'paragraph',
-      text: 'Flip Jungle is a small, fast relative of [Jungle Chess](/rules/jungle), built around the same eight ranked animals. It is also known in English as Flip Animal Chess. All sixteen animals begin face-down on a four-by-four grid. There are no rivers, dens, or traps.',
-    },
-    {
-      kind: 'paragraph',
-      text: 'Its turn structure is especially close to [Flip Xiangqi](/rules/flip-xiangqi): reveal one unknown tile or move one of your revealed pieces. The board and pieces are different, but both games turn each flip into a choice between gaining information and improving position.',
+      text: 'Flip Jungle is a compact hidden-piece relative of [Jungle Chess](/rules/jungle). All sixteen animals begin face-down on a 4×4 board. There are no rivers, dens, or traps: reveal tiles, move your animals, and eliminate the other color.',
     },
   ],
   sections: [
     {
-      heading: 'Setup',
+      heading: 'Board and setup',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'All sixteen pieces, one of each animal in two colors, are shuffled and placed face-down on the sixteen squares. Nobody knows which animal or which color sits under a tile until it is flipped. The first tile you flip sets your color for the rest of the game.',
+          text: 'One of each animal in two colors is shuffled and placed face-down on the sixteen squares. Nobody knows what is under a tile until it is flipped. The first tile the first player flips sets that player’s color; the other player takes the other color.',
         },
         {
           kind: 'raw-svg',
@@ -48,30 +44,17 @@ export const jungleFlipArticle: Article = {
       ],
     },
     {
-      heading: 'Animal ranks',
+      heading: 'Turns',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Both colors use the same ladder. Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. The rat still has one exception: it can capture the elephant, while the elephant cannot capture the rat.',
-        },
-        {
-          kind: 'raw-svg',
-          svg: JUNGLE_RANK_LADDER,
-          caption: 'Strongest at the left, weakest at the right.',
-        },
-      ],
-    },
-    {
-      heading: 'A turn',
-      blocks: [
-        {
-          kind: 'paragraph',
-          text: 'On your turn you either flip one face-down tile to reveal it, or move one of your own revealed animals one square up, down, left, or right. Early on, before pieces come up, flipping is all you can do.',
+          text: 'On your turn, do one thing: flip one face-down tile, or move one of your revealed animals one square up, down, left, or right. Face-down tiles block movement and cannot be captured. You cannot pass.',
         },
         { kind: 'sub-heading', text: 'Flip a tile' },
         {
           kind: 'raw-svg',
           svg: JUNGLE_FLIP_REVEAL,
+          caption: 'A flip reveals both the animal and its color to both players.',
         },
         { kind: 'sub-heading', text: 'Move an animal' },
         {
@@ -81,11 +64,20 @@ export const jungleFlipArticle: Article = {
       ],
     },
     {
-      heading: 'Capturing',
+      heading: 'Captures and trades',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Move onto an adjacent enemy to capture it when your animal outranks it. The rat-beats-elephant exception from Jungle Chess still applies.',
+          text: 'Both colors use the same ladder. Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A higher-ranked animal captures a lower-ranked enemy by moving onto its square. A weaker animal cannot capture a stronger one.',
+        },
+        {
+          kind: 'raw-svg',
+          svg: JUNGLE_RANK_LADDER,
+          caption: 'Strongest at the left, weakest at the right.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'The rat and elephant reverse the usual order: a rat can capture an elephant, while an elephant cannot capture a rat.',
         },
         {
           kind: 'raw-svg',
@@ -104,33 +96,28 @@ export const jungleFlipArticle: Article = {
       ],
     },
     {
-      heading: 'Winning',
+      heading: 'Winning and draws',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'You win when your opponent has nothing left to do: no piece to move and no tile to flip. In practice that means capturing or trading away everything they have.',
+          text: 'You win when your opponent has no animals left, or starts a turn with no legal flip or move. If the last animal of each color is removed in an equal-rank trade, the game is drawn.',
         },
-      ],
-    },
-    {
-      heading: 'Draws',
-      blocks: [
         {
           kind: 'paragraph',
           text: 'Games draw on threefold repetition, or when 40 half-moves (20 by each player) pass with no flip, capture, or trade.',
         },
         {
           kind: 'paragraph',
-          text: 'A game is also drawn the moment the pieces left on the board can no longer force a win — two survivors of equal rank, or a lone piece that can never corner the opponent’s last piece on the small board. These dead positions are settled as a draw right away rather than played out to the repetition count.',
+          text: 'Mistboard also ends a fully revealed, one-animal-each position when neither side can force a win. Equal ranks are always dead because any meeting removes both; some unequal-rank chases are also unwinnable. These positions are drawn immediately.',
         },
       ],
     },
     {
-      heading: 'A full game',
+      heading: 'A sample game',
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Step through a game our bot played against itself. The two lions meet and both leave the board, an elephant runs through three pieces until it hits the other elephant and they cancel too, and the side left standing wins. Tiles flip to their dealt animal the first time they are turned over.',
+          text: 'This engine game shows two equal-rank trades: first the Lions, then the Elephants. Blue wins after Red’s last animal leaves the board.',
         },
         {
           kind: 'jungle-flip-replay',

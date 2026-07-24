@@ -108,15 +108,15 @@ export const JUNGLE_RAT_SWIMS = jungleDiagram(
   440,
 );
 
-// The lion (and tiger) leap a river in a straight line and land on the far bank.
-// b3 sits below the west lake; the lion clears b4/b5/b6 to land on b7.
+// The lion can leap either across or along a river. This horizontal example is
+// the direction that distinguishes it from the vertically jumping tiger.
 const JUMP_BOARD: JungleBoard = {
-  b3: { color: 'red', role: 'lion' },
+  a5: { color: 'red', role: 'lion' },
 };
 export const JUNGLE_LION_JUMP = jungleDiagram(
   '-jump',
   JUMP_BOARD,
-  { selected: 'b3', targets: ['b7'] },
+  { selected: 'a5', targets: ['d5'] },
   440,
 );
 
@@ -212,7 +212,7 @@ const FLIP_REVEAL_BOARD: JungleFlipRenderBoard = {
   c1: FACE_DOWN,
   d1: FACE_DOWN,
   a2: FACE_DOWN,
-  b2: FACE_DOWN,
+  b2: { faceDown: false, color: 'red', role: 'elephant' },
   c2: FACE_DOWN,
   d2: FACE_DOWN,
 };
@@ -268,12 +268,12 @@ export const JUNGLE_FLIP_MUTUAL = flipDiagram(
   300,
 );
 
-const TIGER_JUMP_BOARD: JungleBoard = {
-  a5: { color: 'red', role: 'tiger' },
-};
+// Mistboard's tiger jumps vertically only. b3 sits below the west lake; the
+// tiger clears b4/b5/b6 to land on b7.
+const TIGER_JUMP_BOARD: JungleBoard = { b3: { color: 'red', role: 'tiger' } };
 export const JUNGLE_TIGER_JUMP = jungleDiagram(
   '-tiger-jump',
   TIGER_JUMP_BOARD,
-  { selected: 'a5', targets: ['d5'] },
+  { selected: 'b3', targets: ['b7'] },
   440,
 );

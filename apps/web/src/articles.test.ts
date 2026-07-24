@@ -6,6 +6,9 @@ import {
   BANQI_ENGINE_THUMBNAIL,
   BANQI_RULES_THUMBNAIL,
   BANQI_SETUP_BOARD,
+  JUNGLE_FLIP_REVEAL,
+  JUNGLE_LION_JUMP,
+  JUNGLE_TIGER_JUMP,
   XQ_FOG_SAMPLE_STATES,
   XQ_FOG_SAMPLE_STEPS,
   XQ_PRIMER_FACING_LEGAL,
@@ -982,31 +985,73 @@ describe('rules variant sidebar', () => {
     }
   });
 
-  it('teaches Jungle movement before terrain details and shows both colors in the shared ladder', () => {
+  it('teaches Jungle movement and terminal rules in kernel order', () => {
     const page = buildArticlePage('jungle');
     const headings = [...page.querySelectorAll('h2')].map((heading) => heading.textContent);
 
-    expect(headings).toContain('How the animals move');
-    expect(headings.indexOf('How the animals move')).toBeLessThan(headings.indexOf('Traps'));
-    expect(page.textContent).toContain('Rat');
-    expect(page.textContent).toContain('Lion');
-    expect(page.textContent).toContain('Tiger');
+    expect(headings).toEqual([
+      'Board and setup',
+      'How the animals move',
+      'Ranks and captures',
+      'Traps',
+      'Winning and draws',
+      'A sample game',
+      'Play on Mistboard',
+    ]);
+    expect(page.textContent).toContain('no piece can capture across the shoreline');
+    expect(page.textContent).toContain('Unlike the lion, it cannot leap horizontally');
+    expect(page.textContent).toContain('leaving your opponent with no legal move');
     expect(page.innerHTML).toContain('red-elephant.png');
     expect(page.innerHTML).toContain('black-elephant.png');
     expect(page.innerHTML).toContain('tiger-jump');
+    expect(page.innerHTML).toContain('rat-elephant');
   });
 
-  it('shows Flip Jungle turn and capture choices as paired examples', () => {
-    const page = buildArticlePage('jungle-flip');
+  it('pins the Jungle jump directions and Flip Jungle reveal example', () => {
+    expect(JUNGLE_LION_JUMP).toContain('class="mb-grid-target-dot" cx="168" cy="216"');
+    expect(JUNGLE_TIGER_JUMP).toContain('class="mb-grid-target-dot" cx="72" cy="120"');
+    expect(JUNGLE_FLIP_REVEAL).toContain('red-elephant.png');
+  });
 
-    expect(page.textContent).toContain('Flip Animal Chess');
-    expect(page.querySelector('a[href="/rules/flip-xiangqi"]')).not.toBeNull();
+  it('shows Flip Jungle turn, capture, and ending choices as paired examples', () => {
+    const page = buildArticlePage('jungle-flip');
+    const headings = [...page.querySelectorAll('h2')].map((heading) => heading.textContent);
+
+    expect(headings).toEqual([
+      'Board and setup',
+      'Turns',
+      'Captures and trades',
+      'Winning and draws',
+      'A sample game',
+      'Play on Mistboard',
+    ]);
+    expect(page.textContent).toContain('Face-down tiles block movement and cannot be captured');
+    expect(page.textContent).toContain('If the last animal of each color is removed');
+    expect(page.textContent).not.toContain('Its turn structure is especially close');
     expect(page.innerHTML).toContain('flip-reveal');
     expect(page.innerHTML).toContain('flip-move');
     expect(page.innerHTML).toContain('flip-capture');
     expect(page.innerHTML).toContain('flip-mutual');
     expect(page.innerHTML).toContain('red-elephant.png');
     expect(page.innerHTML).toContain('black-elephant.png');
+  });
+
+  it('keeps Fortress Xiangqi focused on the playable rules', () => {
+    const page = buildArticlePage('fortress-xiangqi');
+    const headings = [...page.querySelectorAll('h2')].map((heading) => heading.textContent);
+
+    expect(headings).toEqual([
+      'Board and setup',
+      'The pieces',
+      'Capture, hold, drop',
+      'How games end',
+      'A sample game',
+      'Play on Mistboard',
+    ]);
+    expect(page.textContent).toContain('Generals are never captured or held in reserve');
+    expect(page.textContent).toContain('a player who gave check on every one of their moves');
+    expect(page.textContent).not.toContain('What makes it Fortress Xiangqi');
+    expect(page.textContent).not.toContain('chasing rule');
   });
 
   it('keeps the Fog Chess ending focused on play', () => {
