@@ -3,7 +3,11 @@ import test from 'node:test';
 import { JIEQI_SPEC_ID, STANDARD_JIEQI_DEAL } from '@mistboard/game';
 import type { JieqiEvent } from '../jieqi-runtime.js';
 import type { RecentEveGameRecord } from '../persistence.js';
-import { type JieqiPostgamePersistence, jieqiPostgameForApi } from './jieqi-games.js';
+import {
+  type JieqiPostgamePersistence,
+  jieqiPostgameForApi,
+  jieqiWatchPostgameForApi,
+} from './jieqi-games.js';
 
 const ROOM_ID = 'jq_postgame';
 
@@ -202,6 +206,31 @@ test('Jieqi postgame history snapshots every perspective per ply', async () => {
   assert.equal(payload.history.black?.length, 2);
 });
 
+test('Jieqi watch postgame emits only capture-free server-truth history', async () => {
+  const payload = await jieqiWatchPostgameForApi(
+    ROOM_ID,
+    deps(gameRecord(), finishedCaptureEvents()),
+  );
+  assert.ok(payload);
+
+  assert.equal('views' in payload, false);
+  assert.deepEqual(Object.keys(payload.history), ['truth']);
+  assert.deepEqual(
+    payload.history.truth.map((snapshot) => snapshot.ply),
+    [0, 1],
+  );
+
+  for (const snapshot of payload.history.truth) {
+    assert.deepEqual(snapshot.view.legalMoves, []);
+    assert.deepEqual(snapshot.view.captured, []);
+    for (const [square, entry] of Object.entries(snapshot.view.board)) {
+      assert.equal(entry?.faceDown, false, `watch truth square ${square} must be revealed`);
+    }
+  }
+  assert.deepEqual(payload.view.captured, []);
+  assert.deepEqual(payload.view.legalMoves, []);
+});
+
 test('Jieqi postgame builds a move-and-terminal timeline', async () => {
   const payload = await jieqiPostgameForApi(ROOM_ID, deps(gameRecord(), finishedCaptureEvents()));
   assert.ok(payload);
@@ -218,6 +247,12 @@ test('Jieqi postgame builds a move-and-terminal timeline', async () => {
 test('Jieqi postgame returns null for an unfinished game', async () => {
   const events = finishedCaptureEvents().slice(0, -1); // drop the resignation
   const payload = await jieqiPostgameForApi(ROOM_ID, deps(gameRecord(), events));
+  assert.equal(payload, null);
+});
+
+test('Jieqi watch postgame never releases truth for an unfinished game', async () => {
+  const events = finishedCaptureEvents().slice(0, -1);
+  const payload = await jieqiWatchPostgameForApi(ROOM_ID, deps(gameRecord(), events));
   assert.equal(payload, null);
 });
 

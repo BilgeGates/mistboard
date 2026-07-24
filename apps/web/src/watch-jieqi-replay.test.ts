@@ -1,14 +1,14 @@
 import type { JieqiColor, JieqiMove, JieqiPlayerBoard, JieqiPlayerView } from '@mistboard/game';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { JieqiPostgameResponse } from './live-jieqi-postgame.js';
-import { mountJieqiWatchReplay } from './watch-jieqi-replay.js';
+import { jieqiWatchPostgameApiUrl, mountJieqiWatchReplay } from './watch-jieqi-replay.js';
 
 describe('Jieqi watch replay', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('mounts a Jieqi TV replay with boards, seats, and controls', async () => {
+  it('mounts a compact truth-only Jieqi TV replay with no captures or reveal controls', async () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
       const roomId = String(input).split('/').pop() ?? 'jq_watch';
       return jsonResponse(postgameFixture(roomId));
@@ -16,60 +16,48 @@ describe('Jieqi watch replay', () => {
     vi.stubGlobal('fetch', fetchSpy);
     const root = document.createElement('div');
 
-    const handle = await mountJieqiWatchReplay(root, 'jq_watch', { autoplay: false });
+    const handle = await mountJieqiWatchReplay(root, 'jq_watch', {
+      autoplay: false,
+      compact: true,
+    });
 
-    expect(fetchSpy).toHaveBeenCalledWith('/api/jieqi/games/jq_watch');
+    expect(fetchSpy).toHaveBeenCalledWith('/api/jieqi/games/jq_watch/watch');
     expect(handle.activeSampleId()).toBe('jq_watch');
-    expect(root.textContent).toContain('Human vs human');
-    expect(root.textContent).toContain('Red wins');
-    expect(root.textContent).toContain('by Resignation');
-    expect(root.textContent).toContain('1 plies');
-    expect(root.textContent).toContain('Casual');
     expect(root.textContent).toContain('Red');
     expect(root.textContent).toContain('Black');
-    expect(root.textContent).toContain('Ply 0 / 1');
-    // A single board (not a triptych): jieqi's per-color boards are identical, so
-    // the watch shows one board, matching the postgame review.
     expect(root.querySelectorAll('.jieqi-board')).toHaveLength(1);
 
-    // Defaults to the as-played hidden view, so the face-down soldier renders as a
-    // back, and a Reveal control is offered.
-    const board = () => root.querySelector('.jieqi-board')?.innerHTML ?? '';
-    expect(board()).toContain('hidden piece');
-    const revealBtn = root.querySelector<HTMLButtonElement>(
-      '[aria-label="Reveal hidden identities"]',
-    );
-    expect(revealBtn).toBeTruthy();
-    expect(revealBtn?.textContent).toBe('Reveal');
-
-    root.querySelector<HTMLButtonElement>('[aria-label="Next move"]')?.click();
-    expect(root.textContent).toContain('Ply 1 / 1 - Red wins');
-
-    root.querySelector<HTMLButtonElement>('[aria-label="Flip boards"]')?.click();
-    expect(root.querySelectorAll('.jieqi-board')).toHaveLength(1);
+    const board = root.querySelector('.jieqi-board')?.innerHTML ?? '';
+    expect(board).toContain('red soldier');
+    expect(board).not.toContain('hidden piece');
+    expect(root.querySelector('[aria-label="Reveal hidden identities"]')).toBeNull();
+    for (const strip of root.querySelectorAll('.replay-captures')) {
+      expect(strip.childElementCount).toBe(0);
+    }
 
     await handle.loadGame('jq_next');
-    expect(fetchSpy).toHaveBeenCalledWith('/api/jieqi/games/jq_next');
+    expect(fetchSpy).toHaveBeenCalledWith('/api/jieqi/games/jq_next/watch');
     expect(handle.activeSampleId()).toBe('jq_next');
 
     handle.destroy();
     expect(root.childElementCount).toBe(0);
   });
+
+  it('encodes room ids in the dedicated finished-game watch endpoint', () => {
+    expect(jieqiWatchPostgameApiUrl('jq room')).toBe('/api/jieqi/games/jq%20room/watch');
+  });
 });
 
-// A minimal two-position fixture: a face-down red soldier home rank plus the
-// red general, with one ply moving the soldier forward. Per-color views reuse
-// the same boards (the truth view reveals identities; this fixture keeps it
-// simple by sharing the open boards across keys).
+// A minimal two-position finished-game truth fixture.
 function postgameFixture(roomId: string): JieqiPostgameResponse {
   const startBoard: JieqiPlayerBoard = {
     e1: { color: 'red', role: 'general', faceDown: false },
-    a4: { color: 'red', faceDown: true },
+    a4: { color: 'red', role: 'soldier', faceDown: false },
     e10: { color: 'black', role: 'general', faceDown: false },
   };
   const movedBoard: JieqiPlayerBoard = {
     e1: { color: 'red', role: 'general', faceDown: false },
-    a5: { color: 'red', faceDown: true },
+    a5: { color: 'red', role: 'soldier', faceDown: false },
     e10: { color: 'black', role: 'general', faceDown: false },
   };
   const move: JieqiMove = { from: 'a4', to: 'a5' };
@@ -106,23 +94,10 @@ function postgameFixture(roomId: string): JieqiPostgameResponse {
       { type: 'seat-resigned', at: 3, color: 'black', winner: 'red' },
     ],
     view: view('red', movedBoard, move, finished),
-    views: {
-      red: view('red', movedBoard, move, finished),
-      truth: view('red', movedBoard, move, finished),
-      black: view('black', movedBoard, move, finished),
-    },
     history: {
-      red: [
-        { ply: 0, view: view('red', startBoard, undefined, playingRed) },
-        { ply: 1, view: view('red', movedBoard, move, playingBlack) },
-      ],
       truth: [
         { ply: 0, view: view('red', startBoard, undefined, playingRed) },
         { ply: 1, view: view('red', movedBoard, move, playingBlack) },
-      ],
-      black: [
-        { ply: 0, view: view('black', startBoard, undefined, playingRed) },
-        { ply: 1, view: view('black', movedBoard, move, playingBlack) },
       ],
     },
   };

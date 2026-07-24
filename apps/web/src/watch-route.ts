@@ -113,6 +113,17 @@ export function shouldPlayWatchMoveSound(previousPly: number | null, nextPly: nu
   return previousPly !== null && nextPly === previousPly + 1;
 }
 
+// Queue thumbnails are secondary content. In particular, Jieqi postgames are
+// projection-heavy, so starting two previews before the center board can make
+// all three requests contend and delay the primary paint.
+export async function loadWatchMainBeforePreviews(
+  loadMain: () => Promise<void>,
+  loadPreviews: () => void,
+): Promise<void> {
+  await loadMain();
+  loadPreviews();
+}
+
 export async function mountWatch(root: HTMLElement): Promise<void> {
   initLiveSound();
   root.replaceChildren();
@@ -509,10 +520,12 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     activeRoomId = nextRoomId;
     selectedRoomByChannel.set(nextFeed.activeChannel, nextRoomId);
     renderWatchActiveGame(watch, nextFeed, activeRoomId);
-    renderQueue(nextFeed, activeRoomId, previousRoomIds);
 
     try {
-      await ensureReplay(nextFeed, nextRoomId, nextFeed.initialReplay, false);
+      await loadWatchMainBeforePreviews(
+        () => ensureReplay(nextFeed, nextRoomId, nextFeed.initialReplay, false),
+        () => renderQueue(nextFeed, activeRoomId, previousRoomIds),
+      );
     } catch (err) {
       console.warn(err);
       activeRoomId = priorRoomId;
@@ -593,31 +606,33 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   };
 
   const switchWatchGame = async (roomId: string, urlMode: 'push' | 'replace'): Promise<void> => {
-    if (!currentFeed?.unlocked.some((game) => game.roomId === roomId)) return;
+    const feed = currentFeed;
+    if (!feed?.unlocked.some((game) => game.roomId === roomId)) return;
     // Deliberately picking a completed game on Top hands the board back from the
     // live feed to a VOD; the live poll may re-air a live game on a later tick.
     if (liveActive) dropLiveBoard();
     if (roomId === activeRoomId) {
-      syncWatchUrl(urlMode, currentFeed.activeChannel, activeRoomId);
+      syncWatchUrl(urlMode, feed.activeChannel, activeRoomId);
       return;
     }
     const previousRoomId = activeRoomId;
     activeRoomId = roomId;
-    selectedRoomByChannel.set(currentFeed.activeChannel, roomId);
-    renderWatchActiveGame(watch, currentFeed, activeRoomId);
-    // The rail swaps rather than restyles: the promoted game leaves it and the outgoing one
-    // takes a slot. previousRoomIds stays null because nothing here is newly ARRIVED content
-    // — that animation belongs to feed polls.
-    renderQueue(currentFeed, activeRoomId, null);
+    selectedRoomByChannel.set(feed.activeChannel, roomId);
+    renderWatchActiveGame(watch, feed, activeRoomId);
     try {
       // User-initiated: play the clicked game once (VOD semantics, not broadcast).
-      await ensureReplay(currentFeed, roomId, currentFeed.initialReplay, true);
-      syncWatchUrl(urlMode, currentFeed.activeChannel, activeRoomId);
+      await loadWatchMainBeforePreviews(
+        () => ensureReplay(feed, roomId, feed.initialReplay, true),
+        // The rail swaps rather than restyles after the center board is ready:
+        // the promoted game leaves it and the outgoing one takes a slot.
+        () => renderQueue(feed, activeRoomId, null),
+      );
+      syncWatchUrl(urlMode, feed.activeChannel, activeRoomId);
     } catch (err) {
       console.warn(err);
       activeRoomId = previousRoomId;
-      renderWatchActiveGame(watch, currentFeed, activeRoomId);
-      renderQueue(currentFeed, activeRoomId, null);
+      renderWatchActiveGame(watch, feed, activeRoomId);
+      renderQueue(feed, activeRoomId, null);
     }
   };
 

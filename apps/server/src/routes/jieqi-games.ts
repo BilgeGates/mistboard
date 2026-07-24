@@ -11,6 +11,7 @@ import {
   oppositeJieqiColor,
 } from '@mistboard/game';
 import { jieqiEnabled } from './../feature-flags.js';
+import { FinishedGameCache } from './../finished-game-cache.js';
 import {
   jieqiChancePlies,
   resolveJieqiAnalysis,
@@ -69,6 +70,19 @@ const defaultPersistence: JieqiPostgamePersistence = {
   loadRoomEvents: (roomId) => persistence.loadRoomEvents<JieqiEvent>(roomId),
 };
 
+// Mistboard TV shows one finished-game server-truth board and no capture pool.
+// Its passive replay must not pay for the richer review endpoint's Red + Black
+// player projections (which calculate full legal move lists at every ply).
+// Finished games are immutable, so cache only successful production projections;
+// injected test dependencies bypass the cache to stay deterministic.
+const jieqiWatchPostgameCache = new FinishedGameCache<
+  NonNullable<Awaited<ReturnType<typeof buildJieqiWatchPostgame>>>
+>();
+
+export function clearJieqiWatchPostgameCache(): void {
+  jieqiWatchPostgameCache.clear();
+}
+
 // Computer analysis (Layer 1): fixed-strength eval of every ply, red-seat POV, cached +
 // coalesced. Decision-vs-luck decomposition (Layer 2): the heavier, opt-in tier on top —
 // per REVEAL ply it returns {best, played, realized} EVs (mover POV) so the client can
@@ -113,8 +127,9 @@ export async function tryHandle(
 ): Promise<boolean> {
   if (await handleAnalysisRoutes(request, response, pathname)) return true;
 
+  const watchPostgameMatch = pathname.match(/^\/api\/jieqi\/games\/([^/]+)\/watch$/);
   const postgameMatch = pathname.match(/^\/api\/jieqi\/games\/([^/]+)$/);
-  if (!postgameMatch) return false;
+  if (!watchPostgameMatch && !postgameMatch) return false;
 
   if (!requireMethod(request, response, 'GET')) return true;
   if (!jieqiEnabled()) {
@@ -123,14 +138,80 @@ export async function tryHandle(
   }
   if (!requirePersistence(response)) return true;
 
-  const roomId = decodeURIComponent(postgameMatch[1]!);
-  const payload = await jieqiPostgameForApi(roomId);
+  const roomId = decodeURIComponent((watchPostgameMatch ?? postgameMatch)![1]!);
+  const payload = watchPostgameMatch
+    ? await jieqiWatchPostgameForApi(roomId)
+    : await jieqiPostgameForApi(roomId);
   if (!payload) {
     writeJson(response, 404, { error: 'not_found' });
     return true;
   }
   writeJson(response, 200, payload);
   return true;
+}
+
+export async function jieqiWatchPostgameForApi(
+  roomId: string,
+  deps: JieqiPostgamePersistence = defaultPersistence,
+) {
+  const useCache = deps === defaultPersistence;
+  if (useCache) {
+    const cached = jieqiWatchPostgameCache.get(roomId);
+    if (cached) return cached;
+  }
+  const payload = await buildJieqiWatchPostgame(roomId, deps);
+  if (payload && useCache) jieqiWatchPostgameCache.set(roomId, payload);
+  return payload;
+}
+
+async function buildJieqiWatchPostgame(roomId: string, deps: JieqiPostgamePersistence) {
+  const [game, events] = await Promise.all([
+    deps.getGameSummary(roomId),
+    deps.loadRoomEvents(roomId),
+  ]);
+  if (!game || game.variant !== JIEQI_SPEC_ID) return null;
+  if (!events || !isTenantEventLog(jieqiTenant, events, roomId)) return null;
+
+  const created = events[0];
+  if (created?.type !== 'room-created') return null;
+
+  // One replay pass, one cheap truth projection per move. The richer postgame
+  // path below replays again and builds per-color views because review may grow
+  // player-knowledge POVs later; TV deliberately does neither.
+  let projection = replayTenantEvents(jieqiTenant, [created]);
+  let ply = 0;
+  const truth = [{ ply, view: jieqiWatchTruthView(projection.state) }];
+  for (const event of events.slice(1)) {
+    projection = applyTenantEvent(jieqiTenant, projection, event);
+    if (event.type !== 'move-played') continue;
+    ply += 1;
+    truth.push({ ply, view: jieqiWatchTruthView(projection.state) });
+  }
+
+  // This check is the truth-release boundary. Never cache or return an
+  // in-progress projection, even though it was reconstructed above.
+  if (projection.state.status.type !== 'finished') return null;
+
+  const view = truth.at(-1)?.view ?? jieqiWatchTruthView(projection.state);
+  return {
+    game: postgameGameSummary(game),
+    state: {
+      status: projection.state.status,
+      moveNumber: projection.state.moveNumber,
+      ...(projection.clock ? { clock: projection.clock } : {}),
+      ...(projection.timeControl ? { timeControl: projection.timeControl } : {}),
+    },
+    timeline: jieqiPostgameTimeline(events),
+    view,
+    history: { truth },
+  };
+}
+
+// Keep the renderer-compatible shape without transmitting any captured-piece
+// knowledge. jieqiTruthView already emits no legal moves; clearing captured
+// keeps TV independent of the future per-player knowledge presentation.
+function jieqiWatchTruthView(state: JieqiGameState): JieqiPlayerView {
+  return { ...jieqiTruthView(state), captured: [] };
 }
 
 // Shared loader for the analysis tiers (both `/analysis` and `/decisions`): the per-game deal

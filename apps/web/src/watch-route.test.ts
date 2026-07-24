@@ -11,6 +11,7 @@ import { createGameTable } from './game-table.js';
 import {
   buildWatchScrubber,
   formatWatchScope,
+  loadWatchMainBeforePreviews,
   renderWatchChannelList,
   renderWatchQueue,
   renderWatchReplaySkeleton,
@@ -30,6 +31,31 @@ describe('watch move sounds', () => {
     expect(shouldPlayWatchMoveSound(2, 2)).toBe(false);
     expect(shouldPlayWatchMoveSound(2, 8)).toBe(false);
     expect(shouldPlayWatchMoveSound(8, 0)).toBe(false);
+  });
+});
+
+describe('watch replay load priority', () => {
+  it('does not start queue previews until the center board is ready', async () => {
+    const order: string[] = [];
+    let finishMain: (() => void) | undefined;
+    const mainReady = new Promise<void>((resolve) => {
+      finishMain = resolve;
+    });
+
+    const loading = loadWatchMainBeforePreviews(
+      async () => {
+        order.push('main-start');
+        await mainReady;
+        order.push('main-ready');
+      },
+      () => order.push('previews-start'),
+    );
+
+    await Promise.resolve();
+    expect(order).toEqual(['main-start']);
+    finishMain?.();
+    await loading;
+    expect(order).toEqual(['main-start', 'main-ready', 'previews-start']);
   });
 });
 
