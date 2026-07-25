@@ -28,9 +28,10 @@ if [ "$pushing_main" != "1" ]; then
   exit 0
 fi
 
-if [ "${MISTBOARD_RELEASE_PUSH:-}" != "1" ]; then
+if [ "${MISTBOARD_RELEASE_PUSH:-}" != "1" ] && [ "${SKIP_PREPUSH:-}" != "1" ]; then
   echo "pre-push: direct pushes to main are disabled."
-  echo "Use: npm run release:prod -- --push"
+  echo "Use: npm run release:prod -- --push  (drains only when games are live)."
+  echo "Emergency bypass: SKIP_PREPUSH=1 git push  (still runs the path-aware gate)."
   exit 1
 fi
 

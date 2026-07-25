@@ -48,6 +48,7 @@ const release = {
   ciRequired: false,
   ciReason: null,
   drainCommitted: false,
+  drainRequired: false,
   deployRequired: false,
   headRevision: null,
   planReason: null,
@@ -85,10 +86,27 @@ try {
   release.ciReason = ciPlan.reason;
   printHostedCiPlan(ciPlan);
 
-  if (options.push && release.deployRequired && !process.env.MISTBOARD_DRAIN_TOKEN) {
-    throw new Error(
-      'MISTBOARD_DRAIN_TOKEN is required for a production deploy. Get it from the Railway web service dashboard.',
-    );
+  // Drain only when production is actually serving live games. An empty pool
+  // needs no drain, so a routine deploy stays token-free and can run
+  // unattended; a deploy that would interrupt live games still requires the
+  // token and drains first. When the active-game count can't be read, fail
+  // safe and require the drain.
+  if (options.push && release.deployRequired) {
+    const liveGames = await fetchActiveGameCount();
+    if (liveGames === null) {
+      release.drainRequired = true;
+      console.log('production drain: required (could not read active game count; failing safe)');
+    } else if (liveGames > 0) {
+      release.drainRequired = true;
+      console.log(`production drain: required (${liveGames} active game(s) in progress)`);
+    } else {
+      console.log('production drain: not required (0 active games)');
+    }
+    if (release.drainRequired && !process.env.MISTBOARD_DRAIN_TOKEN) {
+      throw new Error(
+        'MISTBOARD_DRAIN_TOKEN is required to drain the active games for this deploy. Get it from the Railway web service dashboard, or wait until no games are live.',
+      );
+    }
   }
 
   if (options.localCi) {
@@ -98,7 +116,7 @@ try {
   }
 
   if (options.push) {
-    if (release.deployRequired) {
+    if (release.drainRequired) {
       runTimed('production drain', [
         'node',
         'scripts/safe-deploy.mjs',
@@ -107,6 +125,8 @@ try {
         ...safeDeployBaseArgs(),
       ]);
       release.drainCommitted = true;
+    } else if (release.deployRequired) {
+      console.log('skip: production drain (0 active games)');
     } else {
       console.log(`skip: production drain (${release.planReason})`);
     }
@@ -624,6 +644,27 @@ function safeDeployBaseArgs() {
   return options.baseUrl ? ['--base-url', options.baseUrl] : [];
 }
 
+// Read production's live-game count so the release can decide whether a drain
+// is actually needed. Returns null (fail-safe -> drain) on any read failure.
+async function fetchActiveGameCount() {
+  const base = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, '');
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    let body;
+    try {
+      const response = await fetch(`${base}/api/server-status`, { signal: controller.signal });
+      if (!response.ok) return null;
+      body = await response.json();
+    } finally {
+      clearTimeout(timer);
+    }
+    return typeof body?.activeGames === 'number' ? body.activeGames : null;
+  } catch {
+    return null;
+  }
+}
+
 function npmCommand(script, args = []) {
   if (args.length === 0) return ['npm', 'run', script];
   return ['npm', 'run', script, '--', ...args];
@@ -778,11 +819,13 @@ function printHelp() {
   node scripts/release-prod.mjs --plan-file apps/web/src/main.ts --plan-file scripts/build.mjs
 
 Order:
-  local ci:quick -> drain and wait for zero games -> restart-now notice -> optional git push -> hosted GitHub CI when matched -> production revision wait when deploying -> smoke
+  local ci:quick -> drain to zero when games are live -> optional git push -> hosted GitHub CI when matched -> production revision wait when deploying -> smoke
 
 Options:
-  --push                   Drain production, then push --head to origin/main.
-                           Without this, assume it is already pushed.
+  --push                   Push --head to origin/main. Drains production first
+                           only when games are live (needs MISTBOARD_DRAIN_TOKEN
+                           then); an empty pool deploys token-free. Without this,
+                           assume it is already pushed.
   --head <ref>             Commit/ref to release, default HEAD.
   --plan                   Dry run: print the deploy plan, hosted CI plan, and
                            resolved smoke tier, then exit. No ci, push, or smoke.
@@ -800,9 +843,10 @@ Options:
   --timeout-ms <ms>        Timeout for hosted CI and revision wait, default ${DEFAULT_TIMEOUT_MS}.
 
 Use --push instead of a standalone git push when you want this command to own
-the release order. Deploying pushes require MISTBOARD_DRAIN_TOKEN and stop if
-active games do not finish inside the drain window. For docs-only or other
-non-deploy commits, the planner skips
+the release order. A deploying push requires MISTBOARD_DRAIN_TOKEN only when
+production is serving live games (it drains them first and stops if they do not
+finish inside the drain window); with an empty pool the deploy runs token-free.
+For docs-only or other non-deploy commits, the planner skips
 the exact-revision wait because production is not expected to serve that SHA,
 but still waits for hosted CI when the diff matches the CI workflow paths. When
 local ci:quick runs, --push uses git push --no-verify to avoid running the same

@@ -60,9 +60,10 @@ test('unwatched files still get the drift check', () => {
   assert.match(output, /npm run check:drift/);
 });
 
-test('the git hook blocks direct pushes to main in favor of the drained release path', () => {
+test('the git hook blocks direct pushes to main in favor of the release path', () => {
   const env = { ...process.env };
   delete env.MISTBOARD_RELEASE_PUSH;
+  delete env.SKIP_PREPUSH;
   const result = spawnSync(hook, ['origin', 'unused'], {
     cwd: join(scriptsDir, '..'),
     encoding: 'utf8',
@@ -72,4 +73,20 @@ test('the git hook blocks direct pushes to main in favor of the drained release 
   assert.equal(result.status, 1);
   assert.match(result.stdout, /direct pushes to main are disabled/);
   assert.match(result.stdout, /npm run release:prod -- --push/);
+  assert.match(result.stdout, /SKIP_PREPUSH=1/);
+});
+
+test('SKIP_PREPUSH=1 is an escape hatch past the direct-push block', () => {
+  const env = { ...process.env };
+  delete env.MISTBOARD_RELEASE_PUSH;
+  env.SKIP_PREPUSH = '1';
+  const result = spawnSync(hook, ['origin', 'unused'], {
+    cwd: join(scriptsDir, '..'),
+    encoding: 'utf8',
+    env,
+    input: `refs/heads/main ${'1'.repeat(40)} refs/heads/main ${'2'.repeat(40)}\n`,
+  });
+  // The bypass skips the "disabled" block and hands off to the path-aware gate
+  // (which then runs against the given refs); it must not print the block.
+  assert.doesNotMatch(result.stdout, /direct pushes to main are disabled/);
 });
