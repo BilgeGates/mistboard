@@ -37,7 +37,7 @@ export const ZH_HANT_SHELL = {
   'nav.studies': '研習',
   'nav.streamers': '直播主',
   'nav.videoLibrary': '影片庫',
-  'nav.donate': '捐款',
+  'nav.donate': '支持',
   'nav.signIn': '登入',
   'nav.register': '註冊',
   'nav.language': '語言',

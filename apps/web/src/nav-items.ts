@@ -57,9 +57,12 @@ export function learnNavItems(): NavItem[] {
 }
 
 // Public support link, rendered as the rightmost public nav item (left of the
-// admin-only menu). Points at the existing /patron donate page.
+// admin-only menu). Points at the existing /patron page. Labelled "Support",
+// not "Donate": the page sells an optional patron subscription from a
+// for-profit sole proprietorship, and donation wording reads as charitable
+// fundraising to payment-processor review.
 export function donateNavItem(): NavItem {
-  return { label: 'Donate', labelKey: 'nav.donate', href: '/patron' };
+  return { label: 'Support', labelKey: 'nav.donate', href: '/patron' };
 }
 
 export function adminNavItems(): NavItem[] {

@@ -101,7 +101,7 @@ export const EN_CONTENT = {
   'patron.checkoutError': 'Something went wrong starting checkout. Please try again.',
   'patron.transparencyTitle': 'Where the money goes',
   'patron.transparency':
-    'Donations pay for hosting (servers, database, and bandwidth) and the time to keep building. Mistboard is run by one person.',
+    'Patron support pays for hosting (servers, database, and bandwidth) and the time to keep building. Mistboard is run by one person.',
   'patron.faqTitle': 'Questions',
   'patron.faqPerkQuestion': 'Is anything Patron-only?',
   'patron.faqPerkAnswer':

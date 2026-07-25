@@ -37,7 +37,7 @@ export const ZH_HANS_SHELL = {
   'nav.studies': '研习',
   'nav.streamers': '主播',
   'nav.videoLibrary': '视频库',
-  'nav.donate': '捐赠',
+  'nav.donate': '支持',
   'nav.signIn': '登录',
   'nav.register': '注册',
   'nav.language': '语言',

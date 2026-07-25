@@ -25,7 +25,7 @@ describe('site shell nav', () => {
       'Watch',
       'Community',
       'Tools',
-      'Donate',
+      'Support',
     ]);
     const donate = nav.querySelector<HTMLAnchorElement>('.site-nav-link-donate');
     expect(donate?.getAttribute('href')).toBe('/patron');
@@ -125,7 +125,7 @@ describe('site shell nav', () => {
       ),
     ].map((link) => link.textContent);
 
-    expect(primaryLabels).toEqual(['對弈', '題目', '學習', '觀看', '社群', '工具', '捐款']);
+    expect(primaryLabels).toEqual(['對弈', '題目', '學習', '觀看', '社群', '工具', '支持']);
     expect(nav.getAttribute('aria-label')).toBe('主導覽');
     expect(nav.querySelector('.site-nav-language')).toBeNull();
     // The Learn dropdown's Rules item is the localized content link (規則).

@@ -31,7 +31,7 @@ export const EN_SHELL = {
   'nav.studies': 'Study',
   'nav.streamers': 'Streamers',
   'nav.videoLibrary': 'Video library',
-  'nav.donate': 'Donate',
+  'nav.donate': 'Support',
   'nav.signIn': 'Sign in',
   'nav.register': 'Register',
   'nav.language': 'Language',
