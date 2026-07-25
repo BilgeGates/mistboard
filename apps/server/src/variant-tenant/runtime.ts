@@ -745,14 +745,22 @@ export function isTenantClockState<C extends string>(
 }
 
 // Live in-progress games in a tenant's room map, for the registration's
-// activeGameCount binding (tenants have no pause, so playing status is the
-// whole check — the chess count additionally excludes paused rooms).
+// activeGameCount binding. Tenants have no pause, so playing status is the
+// whole liveness check. Correspondence (days-per-move) rooms are excluded on
+// purpose: this count is the deploy drain gate, and a multi-week correspondence
+// game must never pin it above zero (its deadline is durable via the sweeper,
+// and a mid-deploy reconnect is invisible at days-per-move cadence). This
+// mirrors the dark-chess tenant's hand-rolled counter.
 export function countActiveTenantGames(
-  rooms: Iterable<{ projection: { state: { status: { type: string } } } }>,
+  rooms: Iterable<{
+    projection: { state: { status: { type: string } }; timeControl?: RoomTimeControl };
+  }>,
 ): number {
   let count = 0;
   for (const room of rooms) {
-    if (room.projection.state.status.type === 'playing') count += 1;
+    if (room.projection.state.status.type !== 'playing') continue;
+    if (clockPolicyKindFor(room.projection.timeControl) !== 'live') continue;
+    count += 1;
   }
   return count;
 }
