@@ -149,10 +149,13 @@ function terrain(
       ? `<rect x="0" y="0" width="${boardW}" height="${boardH}" fill="${PALETTE.lightCell}"/>`
       : jungleCoverImage(jungleBoardAssetHref('flip-board'), 0, 0, boardW, boardH),
   ];
-  // INTERIOR lines only. Perimeter lines are straight and meet at square corners,
-  // which the rounded clip-path then shaves — the painted board image hid that, but
-  // on the bare board those lines ARE the border and the corners read as mistrimmed.
-  // The vanilla board learned this first (see jungle-render.ts's furniture()).
+  // INTERIOR lines only, and NO drawn perimeter at all: the playable background
+  // defines the board edge, exactly as on the 7x9 board (see jungle-render.ts's
+  // furniture()). Perimeter lines are straight and meet at square corners, which
+  // the rounded clip-path then shaves — the painted board image hid that, but on
+  // the bare board those lines were the border and the corners read as mistrimmed.
+  // A rounded-rect border on the clip's own radius fixed the trim, but the edge is
+  // cleaner without any border at all.
   for (let i = 1; i < FILES; i += 1) {
     const x = i * c;
     parts.push(
@@ -165,15 +168,6 @@ function terrain(
       `<line x1="0" y1="${y}" x2="${boardW}" y2="${y}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
     );
   }
-  // The board edge as a ROUNDED rect on the same radius as the clip, inset by half
-  // its stroke so the clip does not shave the stroke in half. This is what closes
-  // the 4x4 grid: unlike the 7x9 board, whose terrain defines its own edge, the
-  // flip board's tiles need a perimeter to read as a bounded play area.
-  const edge = 1;
-  parts.push(
-    `<rect x="${edge / 2}" y="${edge / 2}" width="${boardW - edge}" height="${boardH - edge}" ` +
-      `rx="${BOARD_RADIUS - edge / 2}" fill="none" stroke="${GRID_STROKE}" stroke-width="${edge}"/>`,
-  );
   if (lastMove) {
     // A board move gets xiangqi's two-part grammar: origin shadow disc plus a
     // destination halo. A flip is a self-move (`from === to`), so it gets only the
