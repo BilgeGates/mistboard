@@ -2452,7 +2452,7 @@
 .leaderboard-grid {
   grid-area: grid;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   padding-top: 12px;
 }
@@ -2581,7 +2581,7 @@
 
 @media (max-width: 1320px) {
   .leaderboard-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
