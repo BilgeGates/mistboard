@@ -1,5 +1,6 @@
 import { buildSiteBox } from './site-box.js';
 import { localizedStudyName } from './study-i18n.js';
+import { buildStudyThumbnail } from './study-thumbnails.js';
 import { leaderboardVariants } from './variants.js';
 import './landing-community-widgets.css';
 
@@ -71,6 +72,7 @@ function studyRow(study: PublicStudy): HTMLElement {
   const row = document.createElement('a');
   row.className = 'site-box-row landing-study-row';
   row.href = `/study/${encodeURIComponent(study.id)}`;
+  const thumbnail = buildStudyThumbnail(study.id, 'landing-study-thumbnail');
 
   const main = document.createElement('span');
   main.className = 'landing-community-main';
@@ -83,7 +85,7 @@ function studyRow(study: PublicStudy): HTMLElement {
   );
   const likes = text('landing-study-likes', `♥ ${study.likeCount}`);
   likes.title = `${study.likeCount} ${study.likeCount === 1 ? 'like' : 'likes'}`;
-  row.append(main, likes);
+  row.append(...(thumbnail ? [thumbnail] : []), main, likes);
   return row;
 }
 

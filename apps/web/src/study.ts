@@ -47,6 +47,7 @@ import {
   type StudySettingsPatch,
   type StudyVisibility,
 } from './study-controls.js';
+import { buildStudyThumbnail } from './study-thumbnails.js';
 
 type StudyDto = {
   id: string;
@@ -502,6 +503,7 @@ function renderStudy(
         summary: localizedStudyName(chapter.name, chapter.i18n),
         aside,
       });
+      attachStudyPageThumbnail(root, study.id);
       return;
     }
 
@@ -601,6 +603,7 @@ function renderStudy(
     })
       .then((mounted) => {
         if (mountToken !== mountSeq) return;
+        attachStudyPageThumbnail(root, study.id);
         handle = mounted;
         activeHandle = mounted;
       })
@@ -608,6 +611,26 @@ function renderStudy(
   }
 
   renderActive();
+}
+
+function attachStudyPageThumbnail(root: HTMLElement, studyId: string): void {
+  const title = root.querySelector<HTMLElement>('.review-info-card__title, .gamebook__title');
+  if (!title || title.closest('.study-page__title-row')) return;
+  const thumbnail = buildStudyThumbnail(studyId, 'study-page__thumbnail', 'eager');
+  if (!thumbnail) return;
+
+  const summary = title.nextElementSibling;
+  const hasSummary =
+    summary instanceof HTMLElement &&
+    (summary.classList.contains('review-info-card__summary') ||
+      summary.classList.contains('gamebook__summary'));
+  const copy = document.createElement('div');
+  copy.className = 'study-page__title-copy';
+  const row = document.createElement('div');
+  row.className = 'study-page__title-row';
+  title.before(row);
+  copy.append(title, ...(hasSummary ? [summary] : []));
+  row.append(thumbnail, copy);
 }
 
 export function studyChapterPath(studyId: string, chapterId: string, pathname = '/'): string {

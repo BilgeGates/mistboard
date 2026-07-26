@@ -19,6 +19,7 @@ import {
   selectedStudyVariant,
   studyVariantSupportsComposition,
 } from './study-catalog.js';
+import { buildStudyThumbnail } from './study-thumbnails.js';
 
 // A fresh study starts with one blank chapter at the standard start position.
 const EMPTY_TREE = { version: 1, root: { children: [] } };
@@ -440,6 +441,7 @@ function studyCard(study: StudySummary): HTMLElement {
 function cardHead(study: StudySummary): HTMLElement {
   const head = document.createElement('div');
   head.className = 'study-index__card-head';
+  const thumbnail = buildStudyThumbnail(study.id, 'study-index__thumbnail');
 
   const heading = document.createElement('div');
   heading.className = 'study-index__heading';
@@ -453,7 +455,7 @@ function cardHead(study: StudySummary): HTMLElement {
   meta.textContent = metaLine(study);
 
   heading.append(name, meta);
-  head.append(heading);
+  head.append(...(thumbnail ? [thumbnail] : []), heading);
   return head;
 }
 

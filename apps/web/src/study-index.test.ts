@@ -15,7 +15,7 @@ describe('study index Staff picks', () => {
       return jsonResponse({
         studies: [
           {
-            id: 'classic1',
+            id: 'Dfi3NpRE',
             name: 'Secret in the Tangerine',
             description: 'Archive transcription',
             visibility: 'public',
@@ -45,6 +45,9 @@ describe('study index Staff picks', () => {
       'Curated by Mistboard',
     );
     expect(root.querySelector('.study-index__staff-badge')).toBeNull();
+    expect(
+      root.querySelector<HTMLImageElement>('.study-index__thumbnail img')?.getAttribute('src'),
+    ).toBe('/study-thumbnails/tangerine-vol-1.webp');
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 

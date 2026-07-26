@@ -14,10 +14,10 @@ describe('study creator workspace', () => {
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
         const url = input.toString();
-        if (url === '/api/studies/study1') {
+        if (url === '/api/studies/uXnuObfx') {
           return jsonResponse({
             study: {
-              id: 'study1',
+              id: 'uXnuObfx',
               name: 'Cannon manual',
               description: 'Attacking patterns on the central file.',
               visibility: 'private',
@@ -38,16 +38,19 @@ describe('study creator workspace', () => {
             ],
           });
         }
-        if (url === '/api/chat/study/study1') return jsonResponse({ lines: [] });
+        if (url === '/api/chat/study/uXnuObfx') return jsonResponse({ lines: [] });
         throw new Error(`Unexpected request: ${url}`);
       }),
     );
     const root = document.createElement('div');
     document.body.append(root);
 
-    mountStudy(root, 'study1');
+    mountStudy(root, 'uXnuObfx');
     await vi.waitFor(() => expect(root.querySelector('.review-shell--study')).not.toBeNull());
 
+    expect(
+      root.querySelector<HTMLImageElement>('.study-page__thumbnail img')?.getAttribute('src'),
+    ).toBe('/study-thumbnails/seven-stars.webp');
     expect(root.querySelector('.study-chapters__head')?.textContent).toContain('1 Chapter');
     expect(root.querySelector('.study-chapters__settings')).not.toBeNull();
     expect(root.querySelector('.study-chapters__chapter-settings')).not.toBeNull();

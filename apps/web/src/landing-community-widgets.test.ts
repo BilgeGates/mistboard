@@ -15,11 +15,18 @@ describe('landing community widgets', () => {
         return jsonResponse({
           studies: [
             {
-              id: 'studyOne',
-              name: 'Horse and cannon attacks',
+              id: 'uXnuObfx',
+              name: 'Seven Stars',
               owner: { handle: 'teacher', displayName: 'Teacher' },
               chapterCount: 3,
               likeCount: 12,
+            },
+            {
+              id: 'studyOne',
+              name: 'Horse and cannon attacks',
+              owner: { handle: 'teacher', displayName: 'Teacher' },
+              chapterCount: 1,
+              likeCount: 4,
             },
           ],
         });
@@ -50,14 +57,22 @@ describe('landing community widgets', () => {
     document.body.append(strip);
 
     await vi.waitFor(() => {
-      expect(strip.querySelector('.landing-study-row')?.textContent).toContain(
-        'Horse and cannon attacks',
-      );
+      expect(strip.querySelector('.landing-study-row')?.textContent).toContain('Seven Stars');
       expect(strip.querySelector('.landing-leaderboard-player')?.textContent).toBe('Champion');
     });
-    expect(strip.querySelector<HTMLAnchorElement>('.landing-study-row')?.pathname).toBe(
-      '/study/studyOne',
+    const flagshipRow = strip.querySelector<HTMLAnchorElement>('.landing-study-row');
+    expect(flagshipRow?.pathname).toBe('/study/uXnuObfx');
+    expect(
+      flagshipRow?.querySelector<HTMLImageElement>('.landing-study-thumbnail img'),
+    ).toMatchObject({
+      alt: '',
+      loading: 'lazy',
+      src: expect.stringContaining('/study-thumbnails/seven-stars.webp'),
+    });
+    const ordinaryRow = [...strip.querySelectorAll<HTMLAnchorElement>('.landing-study-row')].find(
+      (row) => row.pathname === '/study/studyOne',
     );
+    expect(ordinaryRow?.querySelector('.landing-study-thumbnail')).toBeNull();
     expect(strip.querySelector('.landing-study-likes')?.textContent).toBe('♥ 12');
     expect(strip.querySelector('.landing-leaderboard-category')?.textContent).toBe(variant.label);
     expect(strip.querySelector('.landing-leaderboard-rating')?.textContent).toBe('2412');

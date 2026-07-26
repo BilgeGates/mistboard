@@ -27,6 +27,17 @@
   box-sizing: border-box;
 }
 
+.landing-study-row {
+  align-items: center;
+  padding-block: 2px;
+}
+
+.landing-study-thumbnail {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 36px;
+}
+
 .landing-community-main {
   display: grid;
   flex: 1 1 auto;

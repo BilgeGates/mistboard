@@ -197,6 +197,12 @@ a.study-index__rail-tab.is-active:hover {
   gap: 0.65rem;
 }
 
+.study-index__thumbnail {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 68px;
+}
+
 .study-index__heading {
   display: flex;
   flex-direction: column;
