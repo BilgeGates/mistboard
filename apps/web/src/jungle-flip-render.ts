@@ -25,6 +25,10 @@ import {
 } from '@mistboard/game';
 import { TOKEN_PIECE_RATIO } from './board-metrics.js';
 import {
+  currentJungleBoardSkin,
+  currentJunglePieceSkin,
+} from './jungle-appearance-storage.js';
+import {
   framedTokenSvg,
   jungleBoardAssetHref,
   jungleCoverImage,
@@ -34,6 +38,11 @@ import {
   jungleLastMoveToSvg,
   jungleShadowFilterDef,
 } from './jungle-art.js';
+import {
+  characterTokenSvg,
+  type JungleBoardSkin,
+  type JunglePieceSkin,
+} from './jungle-skins.js';
 import { type SvgBoardArrowStyle, svgBoardArrow } from './svg-board-arrow.js';
 import { type SvgBoardMarkerStyle, svgBoardCircleMarker } from './svg-board-marker.js';
 
@@ -99,6 +108,10 @@ export type JungleFlipRenderOptions = {
   idSuffix?: string;
   // Drop the per-token shadow filter (markers; avoids duplicate filter ids).
   shadow?: boolean;
+  // Pin the look instead of resolving it — for surfaces that must render
+  // deterministically (variant markers, rules diagrams, OG cards).
+  boardSkin?: JungleBoardSkin;
+  pieceSkin?: JunglePieceSkin;
 };
 
 export interface JungleFlipBoardArrow extends SvgBoardArrowStyle {
@@ -126,12 +139,19 @@ function defs(gid: string): string {
 function terrain(
   geom: GridGeometry,
   lastMove: { from: JungleFlipSquare; to: JungleFlipSquare } | null,
+  boardSkin: JungleBoardSkin,
 ): string {
   const c = geom.cell;
   const boardW = FILES * c;
   const boardH = RANKS * c;
+  // Both skins paint an OPAQUE base: the core stack draws its last-move and
+  // selection fills BEFORE renderPieces, so a transparent land would let those
+  // show through on the plain skin only (this board draws its own last-move
+  // marks below, over the terrain, precisely because of this order).
   const parts: string[] = [
-    jungleCoverImage(jungleBoardAssetHref('flip-board'), 0, 0, boardW, boardH),
+    boardSkin === 'bare'
+      ? `<rect x="0" y="0" width="${boardW}" height="${boardH}" fill="${PALETTE.lightCell}"/>`
+      : jungleCoverImage(jungleBoardAssetHref('flip-board'), 0, 0, boardW, boardH),
   ];
   for (let i = 0; i <= FILES; i += 1) {
     const x = i * c;
@@ -172,10 +192,13 @@ function pieces(
   gid: string,
   shadow: boolean,
   draggingFrom: JungleFlipSquare | null,
+  pieceSkin: JunglePieceSkin,
 ): string {
   const parts: string[] = [];
   const s = geom.cell * FLIP_TOKEN_RATIO;
   const filterId = shadow ? `${gid}-tok` : undefined;
+  // The face-down disc is already flat, so it is shared by both skins.
+  const tokenSvg = pieceSkin === 'characters' ? characterTokenSvg : framedTokenSvg;
   for (const square of ALL_JUNGLE_FLIP_SQUARES) {
     const entry = board[square];
     if (!entry) continue;
@@ -187,8 +210,8 @@ function pieces(
       parts.push(jungleFaceDownDiscSvg(x, y, geom.cell, filterId));
       continue;
     }
-    // Revealed: the shared framed dobutsu token (matches the vanilla board).
-    const token = framedTokenSvg({
+    // Revealed: the framed token for the active skin (matches the vanilla board).
+    const token = tokenSvg({
       cx: x,
       cy: y,
       size: s,
@@ -208,7 +231,8 @@ export function jungleFlipPieceGhostSvg(entry: {
   color: JungleFlipColor;
   role: JungleFlipPieceRole;
 }): string {
-  const inner = framedTokenSvg({
+  const tokenSvg = currentJunglePieceSkin() === 'characters' ? characterTokenSvg : framedTokenSvg;
+  const inner = tokenSvg({
     cx: CELL / 2,
     cy: CELL / 2,
     size: CELL * FLIP_TOKEN_RATIO,
@@ -224,14 +248,17 @@ export function renderJungleFlipBoardSvg(
 ): string {
   const gid = `jungleflip${options.idSuffix ?? ''}`;
   const shadow = options.shadow ?? true;
+  // Resolved once per render; a caller may pin either axis (markers, diagrams).
+  const boardSkin = options.boardSkin ?? currentJungleBoardSkin();
+  const pieceSkin = options.pieceSkin ?? currentJunglePieceSkin();
   return renderGridBoardSvg(DESCRIPTOR, {
     id: gid,
     flip: false, // the deal has no sides — a fixed orientation is least confusing
     extraDefs: shadow ? defs(gid) : '',
     coords: false,
     renderPieces: (geom) =>
-      terrain(geom, options.lastMove ?? null) +
-      pieces(board, geom, gid, shadow, options.draggingFrom ?? null) +
+      terrain(geom, options.lastMove ?? null, boardSkin) +
+      pieces(board, geom, gid, shadow, options.draggingFrom ?? null, pieceSkin) +
       `<g class="jungle-flip-board-markers xq-live-markers" aria-hidden="true" pointer-events="none">${jungleFlipMarkerLayer(options.markers ?? [], geom)}</g>` +
       `<g class="jungle-flip-board-arrows xq-live-arrows" aria-hidden="true" pointer-events="none">${jungleFlipArrowLayer(options.arrows ?? [], geom)}</g>`,
     // Last-move is drawn inside terrain (over the bushy board); the core's own last-move

@@ -854,7 +854,15 @@ function jungleBody(): string {
   // its traps, with the leopard and wolf behind — the den makes it read as Jungle at a
   // glance. No last-move marker.
   const board = createInitialJungleState('marker').board;
-  const svg = renderJungleBoardSvg(board, { idSuffix: '-mk-jungle', shadow: false });
+  // Pinned to the animal skin: this is the variant's IDENTITY mark (nav, picker,
+  // channel rail), not a play surface, so a viewer's board-skin preference must
+  // not repaint the site's iconography.
+  const svg = renderJungleBoardSvg(board, {
+    idSuffix: '-mk-jungle',
+    shadow: false,
+    boardSkin: 'illustrated',
+    pieceSkin: 'animals',
+  });
   return croppedBoardMarker(svg, JUNGLE_BOARD_VIEW, 2, 1, 3);
 }
 
@@ -865,7 +873,13 @@ function jungleFlipBody(): string {
   for (const sq of ALL_JUNGLE_FLIP_SQUARES) board[sq] = { faceDown: true };
   board.a1 = { faceDown: false, color: 'red', role: 'elephant' };
   board.b2 = { faceDown: false, color: 'black', role: 'elephant' };
-  const svg = renderJungleFlipBoardSvg(board, { idSuffix: '-mk-flip', shadow: false });
+  // Pinned to the animal skin — see jungleBody.
+  const svg = renderJungleFlipBoardSvg(board, {
+    idSuffix: '-mk-flip',
+    shadow: false,
+    boardSkin: 'illustrated',
+    pieceSkin: 'animals',
+  });
   return croppedBoardMarker(svg, JUNGLE_FLIP_BOARD_VIEW, 0, 1, 2);
 }
 

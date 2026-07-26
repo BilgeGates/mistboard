@@ -35,6 +35,10 @@ import {
 import { glideSvgPiece, pieceAnimationDurationMs } from './board-anim.js';
 import { TOKEN_PIECE_RATIO } from './board-metrics.js';
 import {
+  currentJungleBoardSkin,
+  currentJunglePieceSkin,
+} from './jungle-appearance-storage.js';
+import {
   framedTokenSvg,
   jungleBoardAssetHref,
   jungleCoverImage,
@@ -42,6 +46,14 @@ import {
   jungleLastMoveToSvg,
   jungleShadowFilterDef,
 } from './jungle-art.js';
+import {
+  JUNGLE_BARE_TERRAIN,
+  characterTokenSvg,
+  jungleBareDenSvg,
+  jungleBareTrapSvg,
+  type JungleBoardSkin,
+  type JunglePieceSkin,
+} from './jungle-skins.js';
 import { type SvgBoardArrowStyle, svgBoardArrow } from './svg-board-arrow.js';
 
 const FILES = 7;
@@ -109,6 +121,10 @@ export type JungleRenderOptions = {
   // Drop the per-token shadow filter (markers don't need it, and it avoids duplicate
   // filter ids when several cropped boards render on one page).
   shadow?: boolean;
+  // Pin the look instead of resolving it — for surfaces that must render
+  // deterministically (variant markers, rules diagrams, OG cards).
+  boardSkin?: JungleBoardSkin;
+  pieceSkin?: JunglePieceSkin;
 };
 
 export interface JungleBoardArrow extends SvgBoardArrowStyle {
@@ -132,16 +148,25 @@ function defs(gid: string): string {
 function furniture(
   geom: GridGeometry,
   lastMove: { from: JungleSquare; to: JungleSquare } | null,
+  boardSkin: JungleBoardSkin,
 ): string {
   const parts: string[] = [];
   const c = geom.cell;
   const boardW = FILES * c;
   const boardH = RANKS * c;
+  const bare = boardSkin === 'bare';
 
-  // Grass land under everything.
-  parts.push(jungleCoverImage(jungleBoardAssetHref('grass'), 0, 0, boardW, boardH));
+  // Land under everything. Both skins paint an OPAQUE base: the core stack draws
+  // its last-move and selection fills BEFORE renderPieces, so a transparent land
+  // would let those show through on the plain skin only (each board draws its own
+  // last-move marks below, over the terrain, precisely because of this order).
+  parts.push(
+    bare
+      ? `<rect x="0" y="0" width="${boardW}" height="${boardH}" fill="${PALETTE.lightCell}"/>`
+      : jungleCoverImage(jungleBoardAssetHref('grass'), 0, 0, boardW, boardH),
+  );
 
-  // Each lake as ONE water image over its 6-cell bounding box (flip-safe).
+  // Each lake as ONE water layer over its 6-cell bounding box (flip-safe).
   for (const lake of LAKES) {
     let minX = Infinity;
     let minY = Infinity;
@@ -157,18 +182,23 @@ function furniture(
       }
     }
     parts.push(
-      jungleCoverImage(jungleBoardAssetHref('water'), minX, minY, maxX - minX, maxY - minY),
+      bare
+        ? `<rect x="${minX}" y="${minY}" width="${maxX - minX}" height="${maxY - minY}" fill="${JUNGLE_BARE_TERRAIN.water}"/>`
+        : jungleCoverImage(jungleBoardAssetHref('water'), minX, minY, maxX - minX, maxY - minY),
     );
   }
 
-  // Dobutsu den + trap tiles, one image per cell.
+  // Den + trap tiles, one per cell: the painted tile, or the bare board's vector
+  // mark (same silhouette, no baked-in grass texture and no character to read).
   for (const square of ALL_JUNGLE_SQUARES) {
     const { file, rank } = jungleCoordOf(square);
     const { x, y } = geom.topLeft(file, rank);
-    if (square === JUNGLE_DENS.red || square === JUNGLE_DENS.black) {
-      parts.push(jungleCoverImage(jungleBoardAssetHref('den'), x, y, c, c));
-    } else if (jungleTrapOwner(square)) {
-      parts.push(jungleCoverImage(jungleBoardAssetHref('trap'), x, y, c, c));
+    const isDen = square === JUNGLE_DENS.red || square === JUNGLE_DENS.black;
+    if (!isDen && !jungleTrapOwner(square)) continue;
+    if (bare) {
+      parts.push(isDen ? jungleBareDenSvg(x, y, c) : jungleBareTrapSvg(x, y, c));
+    } else {
+      parts.push(jungleCoverImage(jungleBoardAssetHref(isDen ? 'den' : 'trap'), x, y, c, c));
     }
   }
 
@@ -212,15 +242,17 @@ function pieces(
   gid: string,
   shadow: boolean,
   draggingFrom: JungleSquare | null,
+  pieceSkin: JunglePieceSkin,
 ): string {
   const parts: string[] = [];
   const s = geom.cell * TOKEN_PIECE_RATIO;
+  const tokenSvg = pieceSkin === 'characters' ? characterTokenSvg : framedTokenSvg;
   for (const square of ALL_JUNGLE_SQUARES) {
     const piece = board[square];
     if (!piece) continue;
     const { file, rank } = jungleCoordOf(square);
     const { x, y } = geom.center(file, rank);
-    const token = framedTokenSvg({
+    const token = tokenSvg({
       cx: x,
       cy: y,
       size: s,
@@ -266,7 +298,8 @@ export function animateJungleBoardMove(
 // The floating ghost piece shown while dragging (a framed token in a one-cell SVG box),
 // appended to <body> by installBoardDrag.
 export function junglePieceGhostSvg(entry: { color: JungleColor; role: JunglePieceRole }): string {
-  const inner = framedTokenSvg({
+  const tokenSvg = currentJunglePieceSkin() === 'characters' ? characterTokenSvg : framedTokenSvg;
+  const inner = tokenSvg({
     cx: CELL / 2,
     cy: CELL / 2,
     size: CELL * TOKEN_PIECE_RATIO,
@@ -282,14 +315,17 @@ export function renderJungleBoardSvg(
 ): string {
   const gid = `jungle${options.idSuffix ?? ''}`;
   const shadow = options.shadow ?? true;
+  // Resolved once per render; a caller may pin either axis (markers, diagrams).
+  const boardSkin = options.boardSkin ?? currentJungleBoardSkin();
+  const pieceSkin = options.pieceSkin ?? currentJunglePieceSkin();
   return renderGridBoardSvg(DESCRIPTOR, {
     id: gid,
     flip: options.perspective === 'black',
     extraDefs: shadow ? defs(gid) : '',
     coords: false,
     renderPieces: (geom) =>
-      furniture(geom, options.lastMove ?? null) +
-      pieces(board, geom, gid, shadow, options.draggingFrom ?? null) +
+      furniture(geom, options.lastMove ?? null, boardSkin) +
+      pieces(board, geom, gid, shadow, options.draggingFrom ?? null, pieceSkin) +
       `<g class="jungle-board-arrows xq-live-arrows" aria-hidden="true" pointer-events="none">${jungleArrowLayer(options.arrows ?? [], geom)}</g>`,
     // Last-move is drawn inside furniture (over the grass terrain); the core's own
     // last-move layer sits under renderPieces and would be hidden by the grass.

@@ -41,7 +41,14 @@ function jungleDiagram(
   options: Omit<JungleRenderOptions, 'idSuffix'>,
   maxWidth: number,
 ): string {
-  return responsive(renderJungleBoardSvg(board, { ...options, idSuffix }), maxWidth);
+  // Pinned to the animal skin. These diagrams are MODULE CONSTANTS, evaluated once
+  // at import, so they could never follow a live skin change anyway — they would
+  // just freeze whatever skin happened to be active on first load. Authored
+  // teaching art stays authored; the same call the markers make.
+  return responsive(
+    renderJungleBoardSvg(board, { ...options, idSuffix, boardSkin: 'illustrated', pieceSkin: 'animals' }),
+    maxWidth,
+  );
 }
 
 function flipDiagram(
@@ -55,6 +62,8 @@ function flipDiagram(
       idSuffix,
       selected: options.selected ?? null,
       targets: options.targets ?? [],
+      boardSkin: 'illustrated',
+    pieceSkin: 'animals', // see jungleDiagram
     }),
     maxWidth,
   );
