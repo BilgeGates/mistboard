@@ -596,7 +596,12 @@ async function submitMove(
     // next) survive the piece-select feedback reset on the next render.
     session.failed = true;
     session.feedback = { kind: 'bad', text: 'Try another move.' };
-    playSound('lose');
+    // A wrong try is NOT a lost game: 'lose' is the full defeat sting (a second
+    // of falling pitch on the file sets), which is both too heavy for a miss and
+    // punishing when you probe several moves in a row. 'learn-failure' is the
+    // short "not quite" the lesson surface already uses, and no sound set files
+    // it, so it stays the same brief cue everywhere.
+    playSound('learn-failure');
   }
   if (rating) reportAttemptRating(rating);
   renderSession();
