@@ -42,6 +42,7 @@ import {
   landingBotLineup,
   landingBotOffer,
   landingBotRotationBucket,
+  landingXiangqiBotOffers,
 } from './landing-bot-policy.js';
 import { isRatedModeEnabled } from './rated-flag.js';
 import { isLikelySignedIn } from './signed-in-state.js';
@@ -481,7 +482,7 @@ type LandingEngineSeed = {
   timeControlId: TimeControlId;
 };
 
-const LANDING_ENGINE_SEED_COUNT = 6;
+const LANDING_ENGINE_SEED_VARIANT_COUNT = 6;
 
 // A seed only lists when its variant is currently offered: dark chess is always
 // on; tenant variants follow the same offerInMenu gate as every play menu.
@@ -496,7 +497,7 @@ function landingEngineSeeds(locale: Locale, rotationBucket: number): LandingEngi
   // Kill-switched variants drop out without shrinking the table when another
   // supported live variant can backfill the slot.
   for (const gameSpecId of LANDING_BOT_GAME_SPEC_IDS) {
-    if (picked.length >= LANDING_ENGINE_SEED_COUNT) break;
+    if (picked.length >= LANDING_ENGINE_SEED_VARIANT_COUNT) break;
     if (!picked.includes(gameSpecId) && landingSeedVariantOffered(gameSpecId)) {
       picked.push(gameSpecId);
     }
@@ -505,6 +506,9 @@ function landingEngineSeeds(locale: Locale, rotationBucket: number): LandingEngi
     .sort((a, b) => canonicalVariantOrderIndex(a) - canonicalVariantOrderIndex(b))
     .map((gameSpecId) => landingBotOffer(gameSpecId, rotationBucket))
     .filter((offer): offer is NonNullable<typeof offer> => offer !== null)
+    .flatMap((offer) =>
+      offer.gameSpecId === XIANGQI_SPEC_ID ? landingXiangqiBotOffers(rotationBucket) : [offer],
+    )
     .map((offer) => ({
       ...offer,
       variantLabel: variantLabelForGameSpec(offer.gameSpecId, locale),
@@ -552,7 +556,10 @@ function engineSeedRow(seed: LandingEngineSeed, locale: Locale): HTMLElement {
   row.dataset.gameSpec = seed.gameSpecId;
   const timeControl = TIME_CONTROLS.find((spec) => spec.id === seed.timeControlId);
   if (timeControl) row.dataset.timeClass = timeControl.timeClass;
-  row.setAttribute('aria-label', `${t('play.playEngine', {}, locale)}: ${seed.variantLabel}`);
+  row.setAttribute(
+    'aria-label',
+    `${t('play.playEngine', {}, locale)}: ${seed.variantLabel}, ${seed.botName}`,
+  );
 
   const thumb = document.createElement('span');
   thumb.className = 'landing-lobby-seed-thumb';

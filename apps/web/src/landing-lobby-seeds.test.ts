@@ -8,7 +8,7 @@ import { buildLobbyPanel } from './landing-play.js';
 // invariants worth pinning are honesty (labeled engine), separation from the
 // human seek table, and the bucket-stable rotation.
 
-// Six-hour bucket 82622: lineup C and Fairy-Stockfish Level 3.
+// Six-hour bucket 82622: lineup C, with Xiangqi levels 3, 2, and 5.
 const FIXED_DATE = new Date('2026-07-21T12:00:00Z');
 
 describe('landing lobby bot seeks', () => {
@@ -27,24 +27,27 @@ describe('landing lobby bot seeks', () => {
     vi.unstubAllEnvs();
   });
 
-  it('renders six distinct variants in canonical order', () => {
+  it('renders six distinct variants plus two additional xiangqi levels', () => {
     const panel = buildLobbyPanel('en', { hydrate: false });
     const seeds = [...panel.querySelectorAll<HTMLElement>('.landing-lobby-seed')];
-    expect(seeds).toHaveLength(6);
+    expect(seeds).toHaveLength(8);
 
     const signature = seeds.map((seed) => `${seed.dataset.botId}|${seed.dataset.gameSpec}`);
     expect(signature).toEqual([
       'fairy-stockfish-level-3|xiangqi',
+      'fairy-stockfish-level-2|xiangqi',
+      'fairy-stockfish-level-5|xiangqi',
       'misty|banqi',
       'pikafish|jieqi',
       'misty|dark-chess',
       'misty|jungle',
       'misty|jungle-flip',
     ]);
+    expect(new Set(signature).size).toBe(8);
     expect(new Set(seeds.map((seed) => seed.dataset.gameSpec)).size).toBe(6);
     expect(
       seeds.map((seed) => seed.querySelector('.landing-lobby-seed-time')?.textContent),
-    ).toEqual(['3+2', '3+2', '3+2', '3+2', '3+2', '3+2']);
+    ).toEqual(['3+2', '3+2', '3+2', '3+2', '3+2', '3+2', '3+2', '3+2']);
   });
 
   it('labels each seed as an engine game rather than a human seek', () => {
@@ -106,6 +109,34 @@ describe('landing lobby bot seeks', () => {
       rated: false,
     });
     expect(window.location.pathname).toBe('/room/bot_seek');
+  });
+
+  it('starts the selected additional xiangqi level', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/xiangqi/room/fsf_5' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLobbyPanel('en', { hydrate: false });
+    document.body.append(panel);
+
+    const row = panel.querySelector<HTMLButtonElement>(
+      '.landing-lobby-seed[data-bot-id="fairy-stockfish-level-5"][data-game-spec="xiangqi"]',
+    );
+    expect(row?.getAttribute('aria-label')).toContain('Fairy-Stockfish Level 5');
+    row!.click();
+    await flushPromises();
+
+    const call = fetchSpy.mock.calls.find(
+      ([input, init]) =>
+        String(input) === '/api/rooms' && (init as RequestInit | undefined)?.method === 'POST',
+    );
+    expect(JSON.parse(String((call![1] as RequestInit).body))).toMatchObject({
+      mode: 'pve',
+      botId: 'fairy-stockfish-level-5',
+      gameSpecId: 'xiangqi',
+    });
+    expect(window.location.pathname).toBe('/xiangqi/room/fsf_5');
   });
 
   it('fills rating cells from the /api/bots roster', async () => {
