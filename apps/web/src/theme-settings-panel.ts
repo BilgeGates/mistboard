@@ -31,10 +31,8 @@ import {
   enabledAppearanceFamilies,
   fogThemes,
   formatVolume,
-  pieceSets,
   readEffectiveSoundVolume,
   readStoredFogTheme,
-  readStoredPieceSet,
   readStoredSiteTheme,
   readStoredSoundMuted,
   readStoredTheme,
@@ -43,7 +41,6 @@ import {
   setBoardFamily,
   setBoardThemePreference,
   setFogThemePreference,
-  setPieceSetPreference,
   setShogiBoardThemePreference,
   setShogiPieceSetPreference,
   setSiteThemePreference,
@@ -186,20 +183,13 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
   }
   addCategory('board', t('prefs.board', {}, locale), boardBody);
 
+  // Pieces carries XIANGQI ONLY (2026-07-26). Chess ships one set, so there is no
+  // choice to offer — and with nothing to scope, the Game selector goes too: it
+  // would leave an EMPTY panel whenever the shared family state (set from the
+  // Board panel, which still has chess themes) happened to be 'chess'. That also
+  // means the xiangqi field must NOT be family-gated, or the same empty panel
+  // comes back through the gating CSS.
   const pieceBody: HTMLElement[] = [];
-  if (xiangqiAppearanceEnabled()) pieceBody.push(createBoardFamilyField('stacked'));
-  pieceBody.push(
-    createTileField(
-      'piece',
-      t('prefs.pieces', {}, locale),
-      t('prefs.pieceSet', {}, locale),
-      pieceSets,
-      readStoredPieceSet(),
-      setPieceSetPreference,
-      'chess',
-      false,
-    ),
-  );
   if (xiangqiAppearanceEnabled()) {
     pieceBody.push(
       createTileField(
@@ -209,7 +199,7 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
         XIANGQI_PIECE_SETS,
         readStoredXiangqiPieceSet(),
         setXiangqiPieceSetPreference,
-        'xiangqi',
+        undefined,
         false,
       ),
     );

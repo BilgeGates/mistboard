@@ -1,11 +1,65 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  boardThemes,
   buildAppearanceMenu,
+  fogThemes,
   initializeThemeSettings,
+  pieceSets,
+  readStoredFogTheme,
+  readStoredPieceSet,
   readStoredSiteTheme,
+  readStoredTheme,
   setSiteThemePreference,
   siteThemeOptions,
 } from './theme.js';
+
+// The chess board/piece and fog pickers are trimmed to options that change
+// LEGIBILITY rather than taste (2026-07-26). These lock the floor so the taste
+// options cannot drift back in without a deliberate edit, and so a player whose
+// stored preference was retired lands on a neighbour, not the default.
+describe('appearance option floor', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: memoryStorage(),
+    });
+  });
+
+  it('keeps only the accessibility-justified chess board themes', () => {
+    expect(boardThemes.map((theme) => theme.id)).toEqual(['green', 'contrast', 'colorblind']);
+  });
+
+  it('ships exactly one chess piece set, with no picker to choose it', () => {
+    expect(pieceSets.map((set) => set.id)).toEqual(['cburnett']);
+  });
+
+  it('keeps three fog shading styles', () => {
+    expect(fogThemes.map((theme) => theme.id)).toEqual(['solid', 'veil', 'invisible']);
+  });
+
+  it('maps a retired board theme to its nearest survivor, not the default', () => {
+    window.localStorage.setItem('mistboard.boardTheme', 'mono');
+    expect(readStoredTheme()).toBe('contrast');
+    window.localStorage.setItem('mistboard.boardTheme', 'blue');
+    expect(readStoredTheme()).toBe('green');
+  });
+
+  it('maps a retired piece set and fog style to their survivors', () => {
+    window.localStorage.setItem('mistboard.pieceSet', 'merida');
+    expect(readStoredPieceSet()).toBe('cburnett');
+    window.localStorage.setItem('mistboard.pieceSet', 'letter');
+    expect(readStoredPieceSet()).toBe('cburnett');
+    window.localStorage.setItem('mistboard.fogTheme', 'mistveil');
+    expect(readStoredFogTheme()).toBe('veil');
+    window.localStorage.setItem('mistboard.fogTheme', 'void');
+    expect(readStoredFogTheme()).toBe('solid');
+  });
+
+  it('still falls back to the default for an unknown value', () => {
+    window.localStorage.setItem('mistboard.boardTheme', 'not-a-theme');
+    expect(readStoredTheme()).toBe('green');
+  });
+});
 
 describe('site appearance preference', () => {
   beforeEach(() => {
@@ -193,7 +247,8 @@ describe('appearance family gating', () => {
         (option) => option.dataset.boardFamilyOption,
       ),
     ).toEqual(['xiangqi', 'chess']);
-    expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
+    // Chess ships one piece set, so the chess piece picker is gone entirely.
+    expect(document.querySelector('[data-theme-tile="piece"]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="fog"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqlayout"]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
@@ -235,7 +290,7 @@ describe('appearance family gating', () => {
       ),
     ).toEqual(['xiangqi', 'chess']);
 
-    expect(document.querySelector('[data-theme-tile="piece"]')).not.toBeNull();
+    expect(document.querySelector('[data-theme-tile="piece"]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="xqlayout"]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
@@ -250,10 +305,12 @@ describe('appearance family gating', () => {
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
   });
 
-  it('opens board and piece settings on the first Xiangqi family option by default', async () => {
+  it('opens board settings on the first Xiangqi family option by default', async () => {
     await rebuildThemePanel();
 
-    for (const key of ['board', 'pieces']) {
+    // Board only: the Pieces panel dropped its Game selector along with the chess
+    // piece picker, since xiangqi is the sole family with a choice to scope.
+    for (const key of ['board']) {
       document.querySelector<HTMLButtonElement>(`[data-appearance-target="${key}"]`)?.click();
       const submenu = document.querySelector<HTMLElement>(`.appearance-submenu[data-key="${key}"]`);
       const xiangqi = submenu?.querySelector<HTMLButtonElement>(

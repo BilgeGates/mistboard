@@ -54,25 +54,24 @@ describe('Crossroads Chess hot-seat controller', () => {
     expect(root.querySelector('.crossroads-play-status')?.textContent).toBe('White to move');
   });
 
-  it('rerenders local pieces from the chess and xiangqi appearance settings', () => {
+  it('rerenders local pieces from the xiangqi appearance settings', () => {
     const root = document.createElement('div');
 
     // Start from the traditional glyph set so the baseline assertion below is a
     // known CJK disk; the test then proves a switch to western re-renders it.
     // Stamp the piece-set rollout version so the one-time Dobutsu reset doesn't
     // override this explicit choice (simulates a post-rollout user).
+    // Chess ships ONE piece set now, so the xiangqi side is the only axis left
+    // that can prove the board re-renders on the appearance event.
     window.localStorage.setItem('mistboard.xiangqiPieceSetVersion', '3');
     window.localStorage.setItem('mistboard.xiangqiPieceSet', 'traditional');
     mountCrossroadsChessPlay(root);
 
     expect(root.innerHTML).toContain(XIANGQI_GLYPH_PATHS.車);
-    expect(root.innerHTML).not.toContain('/pieces/letter/wK.svg');
 
-    window.localStorage.setItem('mistboard.pieceSet', 'letter');
     window.localStorage.setItem('mistboard.xiangqiPieceSet', 'western');
     window.dispatchEvent(new Event(boardAppearanceChangedEvent));
 
-    expect(root.innerHTML).toContain('/pieces/letter/wK.svg');
     expect(root.innerHTML).toContain('>R</text>');
     expect(root.innerHTML).not.toContain(XIANGQI_GLYPH_PATHS.車);
   });

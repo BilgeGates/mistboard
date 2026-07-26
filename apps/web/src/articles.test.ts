@@ -558,13 +558,12 @@ describe('article public listing gates', () => {
     document.body.append(page);
 
     expect(page.innerHTML).toContain(XIANGQI_GLYPH_PATHS.車);
-    expect(page.innerHTML).not.toContain('/pieces/letter/wK.svg');
 
-    window.localStorage.setItem('mistboard.pieceSet', 'letter');
+    // Chess ships ONE piece set now, so the xiangqi side is the only axis left
+    // that can prove the diagrams re-render on the appearance event.
     window.localStorage.setItem('mistboard.xiangqiPieceSet', 'western');
     window.dispatchEvent(new Event(boardAppearanceChangedEvent));
 
-    expect(page.innerHTML).toContain('/pieces/letter/wK.svg');
     expect(page.innerHTML).toContain('>R</text>');
     expect(page.innerHTML).not.toContain(XIANGQI_GLYPH_PATHS.車);
   });

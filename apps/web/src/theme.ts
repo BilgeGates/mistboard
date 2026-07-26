@@ -81,28 +81,33 @@ export const siteThemeOptions: Array<{ id: SiteTheme; label: string }> = [
   { id: 'light', label: 'Light' },
   { id: 'dark', label: 'Dark' },
 ];
+// Trimmed 2026-07-26 to the ACCESSIBILITY floor. A board/piece option earns a
+// slot when it changes LEGIBILITY, not when it changes taste: the chess family is
+// one deranked fog variant now, and eleven taste tiles for it cost more (every
+// renderer, OG card, marker and static diagram has to stay honest across them)
+// than they return. Classic/Blue/Monochrome were taste; the retired ids still
+// render (the CSS and the union keep them) and alias to a survivor below, so a
+// stored preference degrades to its nearest neighbour instead of snapping to the
+// default.
 export const boardThemes: Array<{ id: BoardTheme; label: string }> = [
   { id: 'green', label: 'Tournament' },
-  { id: 'standard', label: 'Classic' },
-  { id: 'blue', label: 'Blue' },
-  { id: 'mono', label: 'Monochrome' },
   { id: 'contrast', label: 'High contrast' },
   { id: 'colorblind', label: 'Colorblind' },
 ];
+// Fog shading affects readability, so it keeps a control — but six variations of
+// it is a bet-era leftover from when fog was the product.
 export const fogThemes: Array<{ id: FogTheme; label: string }> = [
   { id: 'solid', label: 'Solid' },
   { id: 'veil', label: 'Veil' },
-  { id: 'mistveil', label: 'Mistveil' },
-  { id: 'drift', label: 'Puff' },
-  { id: 'void', label: 'Void' },
   { id: 'invisible', label: 'None' },
 ];
+// ONE chess set (2026-07-26). The chess family is a single deranked fog variant,
+// so its piece art is a product decision, not a per-player one — the picker is
+// gone from the settings panel entirely (see theme-settings-panel.ts) and this
+// list exists only so the stored-preference normalizer keeps a target. Retired
+// ids alias here rather than snapping, same as the board themes.
 export const pieceSets: Array<{ id: PieceSet; label: string }> = [
   { id: 'cburnett', label: 'Cburnett' },
-  { id: 'merida', label: 'Merida' },
-  { id: 'chessnut', label: 'Chessnut' },
-  { id: 'fantasy', label: 'Fantasy' },
-  { id: 'letter', label: 'Letter' },
 ];
 const defaultBoardFamily: BoardFamily = 'xiangqi';
 
@@ -740,17 +745,45 @@ function normalizeSiteTheme(value: string | null): SiteTheme {
     : defaultSiteTheme;
 }
 
+// Retired picker options -> their nearest surviving neighbour. A player who chose
+// Monochrome wanted low chroma, so High contrast serves them better than the
+// green default would. Same shape as the fog aliases below.
+const RETIRED_BOARD_THEMES: Record<string, BoardTheme> = {
+  standard: 'green',
+  blue: 'green',
+  mono: 'contrast',
+};
+
 function normalizeTheme(value: string | null): BoardTheme {
-  return boardThemes.some((theme) => theme.id === value) ? (value as BoardTheme) : defaultTheme;
+  if (boardThemes.some((theme) => theme.id === value)) return value as BoardTheme;
+  return (value && RETIRED_BOARD_THEMES[value]) || defaultTheme;
 }
+
+// 'mistveil'/'drift' were softer veils; 'void' was an opaque blackout, so it lands
+// on Solid. 'soft'/'hatched' predate the current set.
+const RETIRED_FOG_THEMES: Record<string, FogTheme> = {
+  soft: 'solid',
+  hatched: 'solid',
+  mistveil: 'veil',
+  drift: 'veil',
+  void: 'solid',
+};
 
 function normalizeFogTheme(value: string | null): FogTheme {
-  if (value === 'soft' || value === 'hatched') return 'solid';
-  return fogThemes.some((theme) => theme.id === value) ? (value as FogTheme) : defaultFogTheme;
+  if (fogThemes.some((theme) => theme.id === value)) return value as FogTheme;
+  return (value && RETIRED_FOG_THEMES[value]) || defaultFogTheme;
 }
 
+const RETIRED_PIECE_SETS: Record<string, PieceSet> = {
+  merida: 'cburnett',
+  chessnut: 'cburnett',
+  fantasy: 'cburnett',
+  letter: 'cburnett',
+};
+
 function normalizePieceSet(value: string | null): PieceSet {
-  return pieceSets.some((set) => set.id === value) ? (value as PieceSet) : defaultPieceSet;
+  if (pieceSets.some((set) => set.id === value)) return value as PieceSet;
+  return (value && RETIRED_PIECE_SETS[value]) || defaultPieceSet;
 }
 
 function normalizeVolume(value: string | number | null): number {
