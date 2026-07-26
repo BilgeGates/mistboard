@@ -42,6 +42,9 @@ import { type SvgBoardMarkerStyle, svgBoardCircleMarker } from './svg-board-mark
 const FILES = 4;
 const RANKS = 4;
 const CELL = 64;
+// Board corner radius, shared by the descriptor's internal clip-path AND the drawn
+// border below so the two can never disagree about the curve.
+const BOARD_RADIUS = 5;
 // Flip tokens back off the canonical ratio so they sit INSIDE the last-move
 // ring (its inner clear is ~0.83·cell).
 const FLIP_TOKEN_RATIO = TOKEN_PIECE_RATIO - 0.03;
@@ -81,7 +84,7 @@ const DESCRIPTOR: GridBoardDescriptor = {
   // Full-bleed <image> terrain (like jungle) isn't clipped by the outer CSS
   // border-radius, so round the internal clip-path (~1.9% of the 256u board
   // width = the shared --board-corner-radius token) to clip the corner images.
-  boardRadius: 5,
+  boardRadius: BOARD_RADIUS,
   svgClass: 'jungle-flip-live-svg',
 };
 
@@ -146,18 +149,31 @@ function terrain(
       ? `<rect x="0" y="0" width="${boardW}" height="${boardH}" fill="${PALETTE.lightCell}"/>`
       : jungleCoverImage(jungleBoardAssetHref('flip-board'), 0, 0, boardW, boardH),
   ];
-  for (let i = 0; i <= FILES; i += 1) {
+  // INTERIOR lines only. Perimeter lines are straight and meet at square corners,
+  // which the rounded clip-path then shaves — the painted board image hid that, but
+  // on the bare board those lines ARE the border and the corners read as mistrimmed.
+  // The vanilla board learned this first (see jungle-render.ts's furniture()).
+  for (let i = 1; i < FILES; i += 1) {
     const x = i * c;
     parts.push(
       `<line x1="${x}" y1="0" x2="${x}" y2="${boardH}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
     );
   }
-  for (let j = 0; j <= RANKS; j += 1) {
+  for (let j = 1; j < RANKS; j += 1) {
     const y = j * c;
     parts.push(
       `<line x1="0" y1="${y}" x2="${boardW}" y2="${y}" stroke="${GRID_STROKE}" stroke-width="1" stroke-linecap="round"/>`,
     );
   }
+  // The board edge as a ROUNDED rect on the same radius as the clip, inset by half
+  // its stroke so the clip does not shave the stroke in half. This is what closes
+  // the 4x4 grid: unlike the 7x9 board, whose terrain defines its own edge, the
+  // flip board's tiles need a perimeter to read as a bounded play area.
+  const edge = 1;
+  parts.push(
+    `<rect x="${edge / 2}" y="${edge / 2}" width="${boardW - edge}" height="${boardH - edge}" ` +
+      `rx="${BOARD_RADIUS - edge / 2}" fill="none" stroke="${GRID_STROKE}" stroke-width="${edge}"/>`,
+  );
   if (lastMove) {
     // A board move gets xiangqi's two-part grammar: origin shadow disc plus a
     // destination halo. A flip is a self-move (`from === to`), so it gets only the
