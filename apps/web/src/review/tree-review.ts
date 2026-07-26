@@ -33,6 +33,7 @@ import {
   type GamePhases,
   judgmentGlyph,
   mergeDecisionAnalysis,
+  regradeBestPlayed,
 } from './game-analysis.js';
 import {
   createGameTree,
@@ -1185,7 +1186,28 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
     return labels;
   }
 
-  function applyAnalysis(analysis: GameAnalysis): void {
+  /** Mainline plies whose played move IS the analysis engine's best move for the position before
+   *  it. The engine reports `best` in its OWN UCI dialect, so resolving this needs the position it
+   *  was reported for — only available here, against the tree. Those plies must not be judged:
+   *  otherwise a two-search eval drift renders as "Mistake. b1-b2 was best." on the move b1-b2. */
+  function bestPlayedPlies(analysis: GameAnalysis): Set<number> {
+    const decode = presentation.engine?.moveFromEngineUci;
+    const nodes = mainlineNodes();
+    const plies = new Set<number>();
+    for (const entry of analysis.evals) {
+      const parent = nodes[entry.ply];
+      const played = nodes[entry.ply + 1];
+      if (!entry.best || !parent || !played) continue;
+      const move = decode
+        ? decode(entry.best, parent.truth)
+        : adapter.fromUci(entry.best, parent.truth);
+      if (move && adapter.moveKey(move) === played.id) plies.add(entry.ply + 1);
+    }
+    return plies;
+  }
+
+  function applyAnalysis(raw: GameAnalysis): void {
+    const analysis = regradeBestPlayed(raw, bestPlayedPlies(raw));
     gameAnalysis = analysis;
     // Graft the best-play refutation lines into the tree BEFORE the annotation
     // rebuild so comments and variations land in one pass.

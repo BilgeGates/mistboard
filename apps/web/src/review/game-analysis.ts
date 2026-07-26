@@ -62,6 +62,9 @@ export type GameAnalysis = {
   /** 1-based plies whose move was a chance (reveal) move — left unjudged here; graded luck-free by
    *  the decision decomposition (see mergeDecisionAnalysis). Empty for deterministic variants. */
   chancePlies: number[];
+  /** 1-based plies where the move played WAS the engine's own best move for the position before
+   *  it (see computeGameAnalysis opts.bestPlayedPlies). Ungraded and scored 100. */
+  bestPlayedPlies: number[];
   red: PlayerAnalysis;
   black: PlayerAnalysis;
 };
@@ -95,19 +98,32 @@ function moverCp(cpRed: number | null, mate: number | null, mover: 'red' | 'blac
 
 /** Turn the Red-POV eval series into per-move judgments + per-player aggregates.
  *  `firstMover` attributes ply parity — a FEN-seeded composition can open with
- *  black to move, flipping which side owns each ply (default red, ply 1). */
+ *  black to move, flipping which side owns each ply (default red, ply 1).
+ *  `bestPlayedPlies` marks plies where the player found the engine's OWN best move (see the
+ *  guard below); callers that can't resolve the engine's UCI dialect omit it. */
 export function computeGameAnalysis(
   response: XiangqiGameAnalysisResponse,
-  opts?: { firstMover?: 'red' | 'black' },
+  opts?: { firstMover?: 'red' | 'black'; bestPlayedPlies?: ReadonlySet<number> },
 ): GameAnalysis {
   const firstMover = opts?.firstMover ?? 'red';
   const evals = [...response.plies].sort((a, b) => a.ply - b.ply);
   const moves: MoveAnalysis[] = [];
   const redWinPercents = evals.map((entry) => winPercent(entry.cp, entry.mate));
+  // A move that IS the engine's best move for the position before it can never be an error
+  // BY THAT ENGINE, whatever the realized swing says. The swing can still be negative: the
+  // pre-move eval and the post-move eval come from two INDEPENDENT searches, so a horizon
+  // shift between them shows up as a "loss" the player had no way to avoid. Judging it
+  // produces the self-contradiction "Mistake. b1-b2 was best." on the move b1-b2. So these
+  // plies are ungraded (no glyph, no advice), scored 100, and cost no centipawns.
   // CHANCE moves (flips) are left unjudged: their eval swing conflates decision quality with
   // the random reveal, so grading them on outcome would blame the player for variance. Until
   // the engine reports per-move expected values, we neither glyph nor count them.
   const chancePlies = new Set(response.chancePlies ?? []);
+  // A chance ply stays chance-graded even if the reveal it chose was the engine's pick — its
+  // decomposition (mergeDecisionAnalysis) owns that grade, and a flat 100 would overwrite it.
+  const bestPlayed = new Set(
+    [...(opts?.bestPlayedPlies ?? [])].filter((ply) => !chancePlies.has(ply)),
+  );
   const acc: Record<'red' | 'black', { losses: number[]; i: number; m: number; b: number }> = {
     red: { losses: [], i: 0, m: 0, b: 0 },
     black: { losses: [], i: 0, m: 0, b: 0 },
@@ -124,8 +140,9 @@ export function computeGameAnalysis(
     const winBefore = mover === 'red' ? redBefore : 100 - redBefore;
     const winAfter = mover === 'red' ? redAfter : 100 - redAfter;
     const isChance = chancePlies.has(ply);
-    const judgment = isChance ? null : moveJudgment(winBefore, winAfter);
-    const accuracy = accuracyPercent(winBefore, winAfter);
+    const isBestPlayed = bestPlayed.has(ply);
+    const judgment = isChance || isBestPlayed ? null : moveJudgment(winBefore, winAfter);
+    const accuracy = isBestPlayed ? 100 : accuracyPercent(winBefore, winAfter);
     moves.push({ ply, mover, judgment, accuracy });
 
     // A chance move doesn't contribute to a player's mistake counts or ACPL — we can't say the
@@ -133,7 +150,12 @@ export function computeGameAnalysis(
     if (isChance) continue;
     const bucket = acc[mover];
     bucket.losses.push(
-      Math.max(0, moverCp(before.cp, before.mate, mover) - moverCp(after.cp, after.mate, mover)),
+      isBestPlayed
+        ? 0
+        : Math.max(
+            0,
+            moverCp(before.cp, before.mate, mover) - moverCp(after.cp, after.mate, mover),
+          ),
     );
     if (judgment === 'inaccuracy') bucket.i += 1;
     else if (judgment === 'mistake') bucket.m += 1;
@@ -145,9 +167,15 @@ export function computeGameAnalysis(
   // dropped here so this base grades only the moves a player fully controls — a reveal's swing is
   // luck. For chance variants this base is provisional: mergeDecisionAnalysis re-grades the reveals
   // luck-free once the decomposition loads. Empty map for deterministic variants (unchanged).
+  // Best-played plies are pinned to 100 in the same override map (a move that matched the
+  // engine's own choice is 100% accurate by definition, whatever the two-search drift says).
+  const accuracyOverride = new Map<number, number | null>([
+    ...[...chancePlies].map((ply): [number, number | null] => [ply, null]),
+    ...[...bestPlayed].map((ply): [number, number | null] => [ply, 100]),
+  ]);
   const accuracies = gameAccuracy(
     redWinPercents,
-    chancePlies.size ? new Map([...chancePlies].map((ply) => [ply, null])) : undefined,
+    accuracyOverride.size ? accuracyOverride : undefined,
   );
 
   const summarize = (side: 'red' | 'black'): PlayerAnalysis => {
@@ -167,9 +195,30 @@ export function computeGameAnalysis(
     evals,
     moves,
     chancePlies: [...chancePlies].sort((a, b) => a - b),
+    bestPlayedPlies: [...bestPlayed].sort((a, b) => a - b),
     red: summarize('red'),
     black: summarize('black'),
   };
+}
+
+/** Re-grade an already-computed analysis once the caller knows which plies played the engine's
+ *  own best move. The review surface only learns this after the move tree exists (the engine's
+ *  UCI dialect has to be decoded against each position), so the analysis is computed first and
+ *  regraded here rather than threading the moves through the fetch. */
+export function regradeBestPlayed(
+  analysis: GameAnalysis,
+  bestPlayedPlies: ReadonlySet<number>,
+): GameAnalysis {
+  if (bestPlayedPlies.size === 0) return analysis;
+  return computeGameAnalysis(
+    {
+      engineId: analysis.engineId,
+      depth: analysis.depth,
+      plies: analysis.evals,
+      chancePlies: analysis.chancePlies,
+    },
+    { firstMover: analysis.moves[0]?.mover ?? 'red', bestPlayedPlies },
+  );
 }
 
 /** Game-phase boundaries as MOVE plies: `middle` = the first middlegame move,

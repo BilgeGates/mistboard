@@ -4,6 +4,7 @@ import {
   judgmentGlyph,
   mergeDecisionAnalysis,
   type PlyDecision,
+  regradeBestPlayed,
 } from './game-analysis.js';
 
 const evals = (cps: (number | null)[]) => ({
@@ -40,6 +41,39 @@ describe('computeGameAnalysis', () => {
     expect(a.red.inaccuracies).toBe(0);
     // ACPL excludes the chance ply too (no attributable loss).
     expect(a.red.acpl).toBe(0);
+  });
+
+  it('leaves a move that WAS the engine best ungraded, scored 100, and uncounted', () => {
+    // Same collapse as the blunder above, but ply 1 played the engine's own best move: the
+    // pre-move and post-move evals come from two independent searches, so the drop is search
+    // drift, not an error. Judging it would print "Blunder. X was best." on the move X.
+    const a = computeGameAnalysis(evals([0, -600]), { bestPlayedPlies: new Set([1]) });
+    expect(a.moves[0]?.judgment).toBe(null);
+    expect(a.moves[0]?.accuracy).toBe(100);
+    expect(a.red.blunders).toBe(0);
+    expect(a.red.acpl).toBe(0);
+    expect(a.bestPlayedPlies).toEqual([1]);
+  });
+
+  it('keeps a chance ply chance-graded even when it played the engine best', () => {
+    // The decision decomposition owns a reveal's grade; a flat 100 would overwrite it.
+    const a = computeGameAnalysis(
+      { ...evals([0, -600]), chancePlies: [1] },
+      { bestPlayedPlies: new Set([1]) },
+    );
+    expect(a.bestPlayedPlies).toEqual([]);
+    expect(a.moves[0]?.judgment).toBe(null);
+    expect(a.moves[0]?.accuracy).toBeLessThan(100);
+  });
+
+  it('regradeBestPlayed re-derives the summary without recomputing from the wire', () => {
+    const base = computeGameAnalysis(evals([0, -600]));
+    expect(base.red.blunders).toBe(1);
+    const regraded = regradeBestPlayed(base, new Set([1]));
+    expect(regraded.moves[0]?.judgment).toBe(null);
+    expect(regraded.red.blunders).toBe(0);
+    // No best-played plies = the same analysis object back (no work, no drift).
+    expect(regradeBestPlayed(base, new Set())).toBe(base);
   });
 
   it('a Black move that improves Black is not penalised', () => {
