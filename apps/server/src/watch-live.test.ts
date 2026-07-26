@@ -4,7 +4,11 @@ import test, { beforeEach } from 'node:test';
 import { GAME_SPECS } from '@mistboard/game';
 import { tryHandle } from './routes/games.js';
 import type { HttpApiContext } from './routes/lib.js';
-import { canServeLiveBoard, liveObservePolicy } from './server-policy.js';
+import {
+  canServeLiveBoard,
+  HIDDEN_IDENTITY_LIVE_OBSERVE,
+  liveObservePolicy,
+} from './server-policy.js';
 import {
   registerVariantTenant,
   type TenantManagedRoom,
@@ -20,8 +24,9 @@ import {
 } from './watch-live.js';
 
 // ---------------------------------------------------------------------------
-// Fail-closed policy conformance: every spec maps through liveObservePolicy,
-// and ONLY open-visibility specs may serve a live board. A new visibility
+// Fail-closed policy conformance: every spec maps through liveObservePolicy.
+// Open-visibility specs always serve live; dark NEVER does; hidden-identity
+// splits on the explicit symmetric/asymmetric classification. A new visibility
 // class fails the liveObservePolicy switch at compile time; a new spec is
 // covered here automatically via GAME_SPECS.
 // ---------------------------------------------------------------------------
@@ -29,19 +34,67 @@ import {
 test('liveObservePolicy is exhaustive over every game spec and only open serves live', () => {
   assert.ok(GAME_SPECS.length > 0);
   for (const spec of GAME_SPECS) {
-    const policy = liveObservePolicy(spec.visibility);
-    if (spec.visibility === 'open') {
-      assert.equal(policy, 'open', `${spec.id} should be live-servable`);
-      assert.equal(canServeLiveBoard(spec.id), true);
-    } else {
-      assert.notEqual(policy, 'open', `${spec.id} (${spec.visibility}) must NOT be live-servable`);
+    const policy = liveObservePolicy(spec.visibility, spec.id);
+    if (spec.visibility === 'dark') {
+      assert.equal(policy, 'sealed', `${spec.id} (fog) must stay sealed`);
       assert.equal(
         canServeLiveBoard(spec.id),
         false,
-        `${spec.id} (${spec.visibility}) must NOT serve a live board`,
+        `${spec.id} (fog) must NOT serve a live board`,
       );
+      continue;
     }
+    if (spec.visibility === 'open') {
+      assert.equal(policy, 'open', `${spec.id} should be live-servable`);
+      assert.equal(canServeLiveBoard(spec.id), true);
+      continue;
+    }
+    // hidden-identity: whatever the classification says, and canServeLiveBoard agrees.
+    assert.equal(
+      canServeLiveBoard(spec.id),
+      policy === 'open',
+      `${spec.id} live-servability must follow its hidden-identity classification`,
+    );
   }
+});
+
+// Every hidden-identity spec must be classified explicitly. A NEW one lands here
+// unclassified and fails, which is the point: it stays 'masked' (fail-closed) at
+// runtime until someone decides whether its mask is symmetric.
+test('every hidden-identity spec is explicitly classified symmetric or asymmetric', () => {
+  const hiddenIdentity = GAME_SPECS.filter((spec) => spec.visibility === 'hidden-identity').map(
+    (spec) => spec.id,
+  );
+  assert.ok(hiddenIdentity.length > 0);
+  for (const id of hiddenIdentity) {
+    assert.ok(
+      HIDDEN_IDENTITY_LIVE_OBSERVE[id] !== undefined,
+      `${id} is hidden-identity but unclassified in HIDDEN_IDENTITY_LIVE_OBSERVE`,
+    );
+  }
+  for (const id of Object.keys(HIDDEN_IDENTITY_LIVE_OBSERVE)) {
+    assert.ok(
+      hiddenIdentity.includes(id as (typeof hiddenIdentity)[number]),
+      `${id} is no longer hidden-identity`,
+    );
+  }
+});
+
+// The split itself. Symmetric masks (both seats see the identical board) go live;
+// asymmetric ones (a player knows something the other does not) stay masked.
+test('symmetric hidden-identity variants serve live; asymmetric ones do not', () => {
+  for (const id of ['banqi', 'jungle-flip']) {
+    assert.equal(canServeLiveBoard(id), true, `${id} is symmetric and should serve live`);
+  }
+  for (const id of ['jieqi', 'luzhanqi', 'reveal-chess']) {
+    assert.equal(canServeLiveBoard(id), false, `${id} is asymmetric and must NOT serve live`);
+  }
+});
+
+// An unclassified hidden-identity spec falls through to 'masked', never 'open'.
+test('an unclassified hidden-identity spec falls back to masked', () => {
+  assert.equal(liveObservePolicy('hidden-identity', 'not-a-real-spec'), 'masked');
+  assert.equal(liveObservePolicy('hidden-identity'), 'masked');
 });
 
 test('canServeLiveBoard refuses unknown spec ids (fail-closed)', () => {

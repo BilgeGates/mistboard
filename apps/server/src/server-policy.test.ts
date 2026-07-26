@@ -8,6 +8,7 @@ import {
   adminDebugTokenFromProtocolHeader,
   canExposeFullEventReplay,
   canObserveLiveRoom,
+  canServeLiveBoard,
   eventReplayResponse,
   isAdminDebugToken,
   isAllowedWebSocketOrigin,
@@ -217,10 +218,17 @@ test('canObserveLiveRoom admits a live room iff the spec hides nothing', () => {
   assert.equal(live('xiangqi'), true);
   assert.equal(live('jungle'), true);
   assert.equal(live('fortress-xiangqi'), true);
-  // 'masked': hidden-identity is symmetric, but the redacted spectator views are
-  // not built yet, so it stays closed while live (it opens at completion).
+  // Hidden-identity stays closed on the SOCKET path even where Mistboard TV can
+  // now broadcast it (banqi, jungle-flip): TV builds the masked payload itself,
+  // while viewForClient still hands a socket spectator an EMPTY board, so
+  // admitting one would trade a clean refusal for a blank board.
   assert.equal(live('jungle-flip'), false);
   assert.equal(live('banqi'), false);
+  assert.equal(canServeLiveBoard('jungle-flip'), true, 'TV may still broadcast it');
+  assert.equal(canServeLiveBoard('banqi'), true, 'TV may still broadcast it');
+  // Asymmetric hidden-identity: closed on both surfaces.
+  assert.equal(live('jieqi'), false);
+  assert.equal(canServeLiveBoard('jieqi'), false);
   // 'sealed': fog leaks on any pre-completion release.
   assert.equal(live('dark-xiangqi'), false);
   // Fail-closed on an id the spec registry cannot resolve.

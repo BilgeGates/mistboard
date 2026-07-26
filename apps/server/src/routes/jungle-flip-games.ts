@@ -15,14 +15,17 @@ import {
   resolveJungleFlipDecisions,
 } from './../jungle-flip-analysis.js';
 import { jungleFlipEngineBinaryAvailable } from './../jungle-flip-engine.js';
+import { jungleFlipRooms } from './../jungle-flip-registration.js';
 import type { JungleFlipEvent } from './../jungle-flip-runtime.js';
 import { jungleFlipTenant } from './../jungle-flip-tenant.js';
 import * as persistence from './../persistence.js';
+import type { JungleFlipLiveRoom } from './../server-ws-jungle-flip.js';
 import {
   applyTenantEvent,
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
+import { registerLiveWatchPayloadBuilder } from './../watch-live.js';
 import { createGameAnalysisRoutes } from './game-analysis-route.js';
 import {
   type HttpApiContext,
@@ -207,30 +210,99 @@ export async function jungleFlipPostgameForApi(
   };
 }
 
-function jungleFlipPostgameHistory(events: readonly JungleFlipEvent[]): {
+// `includeRevealed: false` builds ONLY the masked as-played track. That is the
+// live-broadcast shape: the spoiler overlay is the whole deal, so it must never
+// be built for an IN-PROGRESS game (see jungleFlipLiveWatchPayload).
+function jungleFlipPostgameHistory(
+  events: readonly JungleFlipEvent[],
+  includeRevealed = true,
+): {
   truth: JungleFlipPostgameSnapshot[];
-  revealed: JungleFlipPostgameSnapshot[];
+  revealed?: JungleFlipPostgameSnapshot[];
 } {
   const created = events[0];
-  if (created?.type !== 'room-created') return { truth: [], revealed: [] };
+  if (created?.type !== 'room-created') {
+    return includeRevealed ? { truth: [], revealed: [] } : { truth: [] };
+  }
   let projection = replayTenantEvents(jungleFlipTenant, [created]);
   let ply = 0;
   const truth: JungleFlipPostgameSnapshot[] = [
     { ply, view: getJungleFlipPlayerView(projection.state, 'red') },
   ];
-  const revealed: JungleFlipPostgameSnapshot[] = [
-    { ply, view: jungleFlipTruthView(projection.state) },
-  ];
+  const revealed: JungleFlipPostgameSnapshot[] = includeRevealed
+    ? [{ ply, view: jungleFlipTruthView(projection.state) }]
+    : [];
 
   for (const event of events.slice(1)) {
     projection = applyTenantEvent(jungleFlipTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     truth.push({ ply, view: getJungleFlipPlayerView(projection.state, 'red') });
-    revealed.push({ ply, view: jungleFlipTruthView(projection.state) });
+    if (includeRevealed) revealed.push({ ply, view: jungleFlipTruthView(projection.state) });
   }
-  return { truth, revealed };
+  return includeRevealed ? { truth, revealed } : { truth };
 }
+
+// Mistboard TV live payload: the postgame shape built from an IN-PROGRESS room's
+// events so far, so the watch renderer can draw and follow the live board.
+//
+// HIDDEN-INFO BOUNDARY. Flip Jungle is SYMMETRIC hidden-identity: a face-down tile
+// hides its identity from both seats equally, so the masked per-seat view is what
+// BOTH players are looking at and a spectator holding it learns nothing. Two fields
+// of the finished-game payload are the deal itself and must never appear here:
+//   - `view`: the finished route serves jungleFlipTruthView (every identity shown);
+//   - `history.revealed`: the spoiler overlay, ditto.
+// Both are replaced by / reduced to the masked track. Regression: watch-live.test.ts
+// asserts no face-down tile in this payload carries a colour or role.
+export function jungleFlipLiveWatchPayloadFor(
+  roomId: string,
+  room: Pick<JungleFlipLiveRoom, 'id' | 'events' | 'projection'>,
+): Record<string, unknown> | null {
+  if (room.id !== roomId) return null;
+  const projection = room.projection;
+  if (projection.state.status.type !== 'playing') return null;
+  if (!isTenantEventLog(jungleFlipTenant, room.events, roomId)) return null;
+  const timeline = jungleFlipPostgameTimeline(room.events);
+  const isEngine = jungleFlipTenant.engine?.isEngineClientId ?? (() => false);
+  const hasEngineSeat = Object.values(projection.seats).some((clientId) => isEngine(clientId));
+  return {
+    game: {
+      roomId,
+      variant: JUNGLE_FLIP_SPEC_ID,
+      mode: hasEngineSeat ? 'pve' : 'pvp',
+      result: 'in-progress',
+      termination: 'in-progress',
+      plyCount: timeline.filter((entry) => entry.type === 'move-played').length,
+      startedAt: new Date(room.events[0]?.at ?? Date.now()).toISOString(),
+      endedAt: null,
+      rated: projection.rated,
+      visibility: 'public',
+      initialMs: projection.timeControl?.initialMs ?? null,
+      incrementMs: projection.timeControl?.incrementMs ?? null,
+    },
+    state: {
+      status: projection.state.status,
+      moveNumber: projection.state.moveNumber,
+      ...(projection.clock ? { clock: projection.clock } : {}),
+      ...(projection.timeControl ? { timeControl: projection.timeControl } : {}),
+    },
+    timeline,
+    // Masked view (either seat's — they are identical), NOT jungleFlipTruthView.
+    view: getJungleFlipPlayerView(projection.state, 'red'),
+    // Masked track only; no `revealed` overlay exists for a live game.
+    history: jungleFlipPostgameHistory(room.events, false),
+  };
+}
+
+async function jungleFlipLiveWatchPayload(roomId: string): Promise<Record<string, unknown> | null> {
+  if (!jungleFlipEnabled()) return null;
+  const room = jungleFlipRooms.get(roomId) ?? null;
+  if (!room) return null;
+  await room.pendingWrites.catch(() => undefined);
+  return jungleFlipLiveWatchPayloadFor(roomId, room);
+}
+
+registerLiveWatchPayloadBuilder('jungle-flip', jungleFlipLiveWatchPayload);
 
 function jungleFlipPostgameTimeline(
   events: readonly JungleFlipEvent[],

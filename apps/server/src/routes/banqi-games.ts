@@ -11,15 +11,18 @@ import {
 } from '@mistboard/game';
 import { resolveBanqiAnalysis, resolveBanqiDecisions } from './../banqi-analysis.js';
 import { banqiEngineBinaryAvailable } from './../banqi-engine.js';
+import { banqiRooms } from './../banqi-registration.js';
 import type { BanqiEvent } from './../banqi-runtime.js';
 import { banqiTenant } from './../banqi-tenant.js';
 import { banqiEnabled } from './../feature-flags.js';
 import * as persistence from './../persistence.js';
+import type { BanqiLiveRoom } from './../server-ws-banqi.js';
 import {
   applyTenantEvent,
   isTenantEventLog,
   replayTenantEvents,
 } from './../variant-tenant/runtime.js';
+import { registerLiveWatchPayloadBuilder } from './../watch-live.js';
 import { createGameAnalysisRoutes } from './game-analysis-route.js';
 import {
   type HttpApiContext,
@@ -211,28 +214,93 @@ export async function banqiPostgameForApi(
 //
 // The misnomer is historical: 'truth' is the canonical as-played replay surface
 // (the watch reads it), 'revealed' is the optional overlay.
-function banqiPostgameHistory(events: readonly BanqiEvent[]): {
+// `includeRevealed: false` builds ONLY the masked as-played track. That is the
+// live-broadcast shape: the spoiler overlay is the whole deal, so it must never
+// be built for an IN-PROGRESS game (see banqiLiveWatchPayload).
+function banqiPostgameHistory(
+  events: readonly BanqiEvent[],
+  includeRevealed = true,
+): {
   truth: BanqiPostgameSnapshot[];
-  revealed: BanqiPostgameSnapshot[];
+  revealed?: BanqiPostgameSnapshot[];
 } {
   const created = events[0];
-  if (created?.type !== 'room-created') return { truth: [], revealed: [] };
+  if (created?.type !== 'room-created') {
+    return includeRevealed ? { truth: [], revealed: [] } : { truth: [] };
+  }
   let projection = replayTenantEvents(banqiTenant, [created]);
   let ply = 0;
   const truth: BanqiPostgameSnapshot[] = [
     { ply, view: getBanqiPlayerView(projection.state, 'red') },
   ];
-  const revealed: BanqiPostgameSnapshot[] = [{ ply, view: banqiTruthView(projection.state) }];
+  const revealed: BanqiPostgameSnapshot[] = includeRevealed
+    ? [{ ply, view: banqiTruthView(projection.state) }]
+    : [];
 
   for (const event of events.slice(1)) {
     projection = applyTenantEvent(banqiTenant, projection, event);
     if (event.type !== 'move-played') continue;
     ply += 1;
     truth.push({ ply, view: getBanqiPlayerView(projection.state, 'red') });
-    revealed.push({ ply, view: banqiTruthView(projection.state) });
+    if (includeRevealed) revealed.push({ ply, view: banqiTruthView(projection.state) });
   }
-  return { truth, revealed };
+  return includeRevealed ? { truth, revealed } : { truth };
 }
+
+// Mistboard TV live payload for an IN-PROGRESS banqi room. Same hidden-info
+// boundary as Flip Jungle: banqi is SYMMETRIC hidden-identity, so the masked view
+// is what BOTH seats see and a spectator holding it learns nothing — but the
+// finished route's `view` (banqiTruthView) and `history.revealed` ARE the deal and
+// are excluded here. Regression: watch-live.test.ts.
+export function banqiLiveWatchPayloadFor(
+  roomId: string,
+  room: Pick<BanqiLiveRoom, 'id' | 'events' | 'projection'>,
+): Record<string, unknown> | null {
+  if (room.id !== roomId) return null;
+  const projection = room.projection;
+  if (projection.state.status.type !== 'playing') return null;
+  if (!isTenantEventLog(banqiTenant, room.events, roomId)) return null;
+  const timeline = banqiPostgameTimeline(room.events);
+  const isEngine = banqiTenant.engine?.isEngineClientId ?? (() => false);
+  const hasEngineSeat = Object.values(projection.seats).some((clientId) => isEngine(clientId));
+  return {
+    game: {
+      roomId,
+      variant: BANQI_SPEC_ID,
+      mode: hasEngineSeat ? 'pve' : 'pvp',
+      result: 'in-progress',
+      termination: 'in-progress',
+      plyCount: timeline.filter((entry) => entry.type === 'move-played').length,
+      startedAt: new Date(room.events[0]?.at ?? Date.now()).toISOString(),
+      endedAt: null,
+      rated: projection.rated,
+      visibility: 'public',
+      initialMs: projection.timeControl?.initialMs ?? null,
+      incrementMs: projection.timeControl?.incrementMs ?? null,
+    },
+    state: {
+      status: projection.state.status,
+      moveNumber: projection.state.moveNumber,
+      ...(projection.clock ? { clock: projection.clock } : {}),
+      ...(projection.timeControl ? { timeControl: projection.timeControl } : {}),
+    },
+    timeline,
+    // Masked view (either seat's — they are identical), NOT banqiTruthView.
+    view: getBanqiPlayerView(projection.state, 'red'),
+    // Masked track only; no `revealed` overlay exists for a live game.
+    history: banqiPostgameHistory(room.events, false),
+  };
+}
+
+async function banqiLiveWatchPayload(roomId: string): Promise<Record<string, unknown> | null> {
+  if (!banqiEnabled()) return null;
+  const room = banqiRooms.get(roomId) ?? null;
+  if (!room) return null;
+  await room.pendingWrites.catch(() => undefined);
+  return banqiLiveWatchPayloadFor(roomId, room);
+}
+
+registerLiveWatchPayloadBuilder('banqi', banqiLiveWatchPayload);
 
 function banqiPostgameTimeline(
   events: readonly BanqiEvent[],

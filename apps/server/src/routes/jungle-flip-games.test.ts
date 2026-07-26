@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { JUNGLE_FLIP_SPEC_ID, STANDARD_JUNGLE_FLIP_DEAL } from '@mistboard/game';
-import type { JungleFlipEvent } from '../jungle-flip-runtime.js';
-import type { RecentEveGameRecord } from '../persistence.js';
 import {
+  JUNGLE_FLIP_SPEC_ID,
+  type JungleFlipPlayerView,
+  STANDARD_JUNGLE_FLIP_DEAL,
+} from '@mistboard/game';
+import type { JungleFlipEvent } from '../jungle-flip-runtime.js';
+import { jungleFlipTenant } from '../jungle-flip-tenant.js';
+import type { RecentEveGameRecord } from '../persistence.js';
+import { replayTenantEvents } from '../variant-tenant/runtime.js';
+import {
+  jungleFlipLiveWatchPayloadFor,
   type JungleFlipPostgamePersistence,
   jungleFlipPostgameForApi,
 } from './jungle-flip-games.js';
@@ -98,7 +105,9 @@ test('Flip Jungle postgame ships masked + revealed per-ply histories', async () 
     role: 'rat',
     faceDown: false,
   });
-  // Spoiler overlay: a1's identity shown from ply 0.
+  // Spoiler overlay: a1's identity shown from ply 0. Only the FINISHED payload
+  // carries it (the live-broadcast shape omits `revealed` entirely).
+  assert.ok(payload.history.revealed);
   assert.deepEqual(payload.history.revealed[0]?.view.board.a1, {
     color: 'red',
     role: 'rat',
@@ -133,4 +142,76 @@ test('Flip Jungle postgame rejects a non-jungle-flip variant record', async () =
 test('Flip Jungle postgame returns null when there is no game or event log', async () => {
   assert.equal(await jungleFlipPostgameForApi(ROOM_ID, deps(null, finishedFlipEvents())), null);
   assert.equal(await jungleFlipPostgameForApi(ROOM_ID, deps(gameRecord(), null)), null);
+});
+
+// ---------------------------------------------------------------------------
+// Mistboard TV live broadcast. Flip Jungle is SYMMETRIC hidden-identity, so the
+// masked board a spectator gets is exactly what both players see. The regression
+// that matters is the FINISHED payload's two full-truth fields (`view` =
+// jungleFlipTruthView, `history.revealed`) never riding a live wire.
+// ---------------------------------------------------------------------------
+
+// One flip (a1 -> red rat), game still in progress. Every other tile is face-down
+// and its identity is the server's secret.
+function liveFlipEvents(): JungleFlipEvent[] {
+  return finishedFlipEvents().slice(0, -1); // drop the resignation
+}
+
+function liveRoom(events: JungleFlipEvent[] = liveFlipEvents()) {
+  return {
+    id: ROOM_ID,
+    events,
+    projection: replayTenantEvents(jungleFlipTenant, events),
+  };
+}
+
+test('live payload never ships a face-down tile identity', () => {
+  const payload = jungleFlipLiveWatchPayloadFor(ROOM_ID, liveRoom()) as {
+    view: JungleFlipPlayerView;
+    history: { truth: Array<{ view: JungleFlipPlayerView }>; revealed?: unknown };
+  } | null;
+  assert.ok(payload);
+
+  // The spoiler track is the whole deal — it must not exist at all.
+  assert.equal(payload.history.revealed, undefined);
+
+  // The flipped tile is public; every still-hidden tile carries NO colour and NO
+  // role, in the top-level view and in every per-ply snapshot.
+  const boards = [payload.view, ...payload.history.truth.map((entry) => entry.view)].map(
+    (view) => view.board,
+  );
+  assert.ok(boards.length >= 2);
+  for (const board of boards) {
+    let hidden = 0;
+    for (const [square, piece] of Object.entries(board)) {
+      if (!piece) continue;
+      if (!piece.faceDown) continue;
+      hidden += 1;
+      assert.deepEqual(piece, { faceDown: true }, `${square} leaks a face-down identity`);
+    }
+    // Serving the TRUTH view would turn every tile face-up and make the identity
+    // loop above pass vacuously, so require that tiles are still hidden at all:
+    // 16 at ply 0, 15 after the one flip.
+    assert.ok(hidden >= 15, `live board must still be masked (only ${hidden} hidden)`);
+  }
+  // ...and the one revealed tile still reads correctly, so this is not vacuous.
+  assert.deepEqual(payload.view.board.a1, { color: 'red', role: 'rat', faceDown: false });
+});
+
+test('live payload is withheld for a room that is not in progress', () => {
+  assert.equal(jungleFlipLiveWatchPayloadFor(ROOM_ID, liveRoom(finishedFlipEvents())), null);
+});
+
+test('live payload is withheld when the room id does not match', () => {
+  assert.equal(jungleFlipLiveWatchPayloadFor('jgf_other', liveRoom()), null);
+});
+
+test('live payload reports the game as in-progress with no end time', () => {
+  const payload = jungleFlipLiveWatchPayloadFor(ROOM_ID, liveRoom()) as {
+    game: { result: string; endedAt: string | null; plyCount: number };
+  } | null;
+  assert.ok(payload);
+  assert.equal(payload.game.result, 'in-progress');
+  assert.equal(payload.game.endedAt, null);
+  assert.equal(payload.game.plyCount, 1);
 });

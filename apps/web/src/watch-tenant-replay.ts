@@ -621,6 +621,10 @@ export async function mountTenantWatchReplay<
 
   const toggleReveal = (): void => {
     if (!adapter.reveal) return;
+    // A live game has no truth track to reveal — the server withholds it while the
+    // game is in progress (that IS the hidden-info boundary), so the control would
+    // silently fall back to the masked board. Refuse rather than pretend.
+    if (live) return;
     revealed = !revealed;
     if (revealBtn)
       revealBtn.textContent = revealed
@@ -825,7 +829,7 @@ export async function mountTenantWatchReplay<
     const last = controlButton('>|', t('watch.lastMove', {}, locale));
     const flip = controlButton('↕', t('watch.flipBoards', {}, locale));
     bar.append(first, prev, play, next, last, flip);
-    if (adapter.reveal) {
+    if (adapter.reveal && !live) {
       revealBtn = controlButton(
         revealed ? t('watch.hide', {}, locale) : t('watch.reveal', {}, locale),
         t('watch.revealHiddenIdentities', {}, locale),
