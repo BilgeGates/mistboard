@@ -13,7 +13,7 @@
  *
  * Like build.ts, this consumes the canonical MiniXiangqiGameState (full truth)
  * and emits ONLY what `engineColor`'s player can observe under FoW. The redaction
- * invariants are asserted in build-mini-xiangqi.test.ts.
+ * invariants are asserted in build-mini-xiangqi.parkedtest.ts.
  */
 
 import {

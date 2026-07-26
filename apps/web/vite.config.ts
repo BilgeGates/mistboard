@@ -201,7 +201,13 @@ export default defineConfig(({ command }) => {
       : {}),
     test: {
       environment: 'happy-dom',
-      include: ['src/**/*.test.ts'],
+      // Parked-variant suites live in *.parkedtest.ts so they stay out of the
+      // default run (see the parked block in packages/game/src/game-specs.ts);
+      // MISTBOARD_TEST_PARKED=1 (npm run test:parked) targets only those. Both
+      // sets keep typechecking so the parked code cannot silently rot.
+      include: process.env.MISTBOARD_TEST_PARKED
+        ? ['src/**/*.parkedtest.ts']
+        : ['src/**/*.test.ts'],
     },
   };
 });

@@ -11,6 +11,7 @@
     "test": "node scripts/learn-interface-smoke.mjs",
     "test:dark-xiangqi:persistent": "node scripts/dark-xiangqi-persistent-smoke.mjs",
     "test:unit": "vitest run",
+    "test:parked": "MISTBOARD_TEST_PARKED=1 vitest run",
     "video:frames": "tsx src/video/cli.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "i18n:check": "node scripts/app-i18n-check.mjs",

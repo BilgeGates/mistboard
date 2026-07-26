@@ -375,10 +375,21 @@ export const GAME_SPECS: readonly GameSpec[] = [
     publicSurface: 'hidden',
     runtimeStatus: 'future',
   },
+  // ── Mini Xiangqi cluster: PARKED as of 2026-07-24 ──────────────────────────
+  // The mini-xiangqi sub-family was retired from the product shelf in the
+  // 2026-07-03 xiangqi pivot (memory: project_xiangqi_pivot_track) and is
+  // flag-gated OFF in prod: Mini has no launch flag (the request gate answers
+  // `mini_xiangqi_not_integrated`); Dark/Drop Mini gate on
+  // MISTBOARD_{DARK,DROP}_MINI_XIANGQI_ENABLED (off outside the lab). The code,
+  // tenants, and rules stay fully wired for revival, so `runtimeStatus` remains
+  // 'live'; `publicSurface: 'hidden'` keeps them off every discoverability rail
+  // (same shape as luzhanqi above). Their test suites are parked in
+  // *.parkedtest.ts (run: npm run test:parked) rather than the default suite.
+  // To revive: flip the flag, restore publicSurface, and rename the tests back.
   {
     // Mini Xiangqi: the open-information 7x7 base game for the mini-xiangqi
     // cluster. It is the clean rules/puzzle/training substrate for Drop Mini
-    // Xiangqi and Dark Mini Xiangqi; casual-only until the pool earns rating.
+    // Xiangqi and Dark Mini Xiangqi.
     id: MINI_XIANGQI_SPEC_ID,
     publicName: 'Mini Xiangqi',
     family: 'xiangqi',
@@ -390,7 +401,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     reserves: 'none',
     dropPolicy: 'none',
     ratingPoolBase: 'mini_xiangqi',
-    publicSurface: 'casual',
+    publicSurface: 'hidden',
     runtimeStatus: 'live',
   },
   {
@@ -406,7 +417,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'none',
     ratingPoolBase: 'dark_mini_xiangqi',
     rated: true,
-    publicSurface: 'casual',
+    publicSurface: 'hidden',
     runtimeStatus: 'live',
   },
   {
@@ -425,7 +436,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     dropPolicy: 'not-enemy-palace',
     ratingPoolBase: 'drop_mini_xiangqi',
     rated: true,
-    publicSurface: 'casual',
+    publicSurface: 'hidden',
     runtimeStatus: 'live',
   },
   {

@@ -117,12 +117,12 @@ test('Dark Mini Xiangqi is a live xiangqi-family spec', () => {
   assert.equal(spec.reserves, 'none');
   assert.equal(spec.dropPolicy, 'none');
   assert.equal(spec.ratingPoolBase, 'dark_mini_xiangqi');
-  assert.equal(spec.publicSurface, 'casual');
+  assert.equal(spec.publicSurface, 'hidden');
   assert.equal(spec.runtimeStatus, 'live');
   assert.equal(spec.legacyLiveRoom, undefined);
 });
 
-test('Mini Xiangqi is a live open-info casual xiangqi-family spec', () => {
+test('Mini Xiangqi is a parked (hidden) open-info xiangqi-family spec', () => {
   const spec = gameSpecForId(MINI_XIANGQI_SPEC_ID);
 
   assert.equal(spec.publicName, 'Mini Xiangqi');
@@ -136,7 +136,7 @@ test('Mini Xiangqi is a live open-info casual xiangqi-family spec', () => {
   assert.equal(spec.dropPolicy, 'none');
   assert.equal(spec.ratingPoolBase, 'mini_xiangqi');
   assert.equal(spec.rated, undefined);
-  assert.equal(spec.publicSurface, 'casual');
+  assert.equal(spec.publicSurface, 'hidden');
   assert.equal(spec.runtimeStatus, 'live');
   assert.equal(spec.legacyLiveRoom, undefined);
 });
@@ -155,7 +155,7 @@ test('Drop Mini Xiangqi is a live open-info xiangqi reserve spec', () => {
   assert.equal(spec.dropPolicy, 'not-enemy-palace');
   assert.equal(spec.ratingPoolBase, 'drop_mini_xiangqi');
   assert.equal(spec.rated, true);
-  assert.equal(spec.publicSurface, 'casual');
+  assert.equal(spec.publicSurface, 'hidden');
   assert.equal(spec.runtimeStatus, 'live');
   assert.equal(spec.legacyLiveRoom, undefined);
 });
