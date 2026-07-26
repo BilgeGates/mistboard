@@ -24,10 +24,7 @@ import {
   jungleFlipCoordOf,
 } from '@mistboard/game';
 import { TOKEN_PIECE_RATIO } from './board-metrics.js';
-import {
-  currentJungleBoardSkin,
-  currentJunglePieceSkin,
-} from './jungle-appearance-storage.js';
+import { currentJungleBoardSkin, currentJunglePieceSkin } from './jungle-appearance-storage.js';
 import {
   framedTokenSvg,
   jungleBoardAssetHref,
@@ -38,11 +35,7 @@ import {
   jungleLastMoveToSvg,
   jungleShadowFilterDef,
 } from './jungle-art.js';
-import {
-  characterTokenSvg,
-  type JungleBoardSkin,
-  type JunglePieceSkin,
-} from './jungle-skins.js';
+import { characterTokenSvg, type JungleBoardSkin, type JunglePieceSkin } from './jungle-skins.js';
 import { type SvgBoardArrowStyle, svgBoardArrow } from './svg-board-arrow.js';
 import { type SvgBoardMarkerStyle, svgBoardCircleMarker } from './svg-board-marker.js';
 

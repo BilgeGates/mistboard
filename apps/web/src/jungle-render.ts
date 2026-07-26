@@ -34,10 +34,7 @@ import {
 } from '@mistboard/game';
 import { glideSvgPiece, pieceAnimationDurationMs } from './board-anim.js';
 import { TOKEN_PIECE_RATIO } from './board-metrics.js';
-import {
-  currentJungleBoardSkin,
-  currentJunglePieceSkin,
-} from './jungle-appearance-storage.js';
+import { currentJungleBoardSkin, currentJunglePieceSkin } from './jungle-appearance-storage.js';
 import {
   framedTokenSvg,
   jungleBoardAssetHref,
@@ -47,12 +44,12 @@ import {
   jungleShadowFilterDef,
 } from './jungle-art.js';
 import {
-  JUNGLE_BARE_TERRAIN,
   characterTokenSvg,
-  jungleBareDenSvg,
-  jungleBareTrapSvg,
+  JUNGLE_BARE_TERRAIN,
   type JungleBoardSkin,
   type JunglePieceSkin,
+  jungleBareDenSvg,
+  jungleBareTrapSvg,
 } from './jungle-skins.js';
 import { type SvgBoardArrowStyle, svgBoardArrow } from './svg-board-arrow.js';
 

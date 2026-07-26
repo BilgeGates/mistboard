@@ -46,7 +46,12 @@ function jungleDiagram(
   // just freeze whatever skin happened to be active on first load. Authored
   // teaching art stays authored; the same call the markers make.
   return responsive(
-    renderJungleBoardSvg(board, { ...options, idSuffix, boardSkin: 'illustrated', pieceSkin: 'animals' }),
+    renderJungleBoardSvg(board, {
+      ...options,
+      idSuffix,
+      boardSkin: 'illustrated',
+      pieceSkin: 'animals',
+    }),
     maxWidth,
   );
 }
@@ -63,7 +68,7 @@ function flipDiagram(
       selected: options.selected ?? null,
       targets: options.targets ?? [],
       boardSkin: 'illustrated',
-    pieceSkin: 'animals', // see jungleDiagram
+      pieceSkin: 'animals', // see jungleDiagram
     }),
     maxWidth,
   );

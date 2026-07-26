@@ -117,8 +117,7 @@ function lucideMarkSvg(
 export function jungleBareDenSvg(x: number, y: number, cell: number): string {
   const tile = `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${JUNGLE_BARE_TERRAIN.den}"/>`;
   return (
-    tile +
-    lucideMarkSvg(House, x + cell / 2, y + cell / 2, cell * 0.52, JUNGLE_BARE_TERRAIN.mark)
+    tile + lucideMarkSvg(House, x + cell / 2, y + cell / 2, cell * 0.52, JUNGLE_BARE_TERRAIN.mark)
   );
 }
 
