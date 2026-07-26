@@ -678,6 +678,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   const renderLiveMeta = (featured: LiveFeatured): void => {
     const players = liveMetaPlayers(featured);
     const variantName = variantDisplayLabel(featured.gameSpecId);
+    renderWatchMainReviewLink(watch.reviewLink, null);
     watch.metaRoot.replaceChildren();
     const badge = document.createElement('div');
     badge.className = 'watch-live-badge';
@@ -698,6 +699,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     if (!featured.payload) return; // need a payload to mount; the next poll carries one
     registerLiveNames(featured);
     livePayload = { roomId: featured.roomId, payload: featured.payload };
+    renderWatchMainReviewLink(watch.reviewLink, null);
     // The live board takes the center slot from the completed-feed board.
     replayHandle?.destroy();
     replayHandle = null;
@@ -1148,6 +1150,7 @@ type WatchSection = {
   metaRoot: HTMLElement;
   channelRoot: HTMLElement;
   replayRoot: HTMLElement;
+  reviewLink: HTMLAnchorElement;
   povRoot: HTMLElement;
   queueRoot: HTMLElement;
   gameTableRoot: HTMLElement;
@@ -1192,7 +1195,10 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
   boardBox.className = 'watch-board-box';
   const replayRoot = document.createElement('div');
   replayRoot.className = 'watch-tv-board';
-  boardBox.append(replayRoot);
+  const reviewLink = document.createElement('a');
+  reviewLink.className = 'watch-main-review-link';
+  reviewLink.hidden = true;
+  boardBox.append(replayRoot, reviewLink);
 
   // Fog-perspective toggle slot, directly under the board-box. Populated only for
   // asymmetric fog (dark) games with more than one available view; empty and
@@ -1227,6 +1233,7 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
     metaRoot,
     channelRoot,
     replayRoot,
+    reviewLink,
     povRoot,
     queueRoot,
     gameTableRoot: gameTable.el,
@@ -1283,8 +1290,29 @@ function renderWatchActiveGame(
 ): void {
   const game = activeWatchGame(feed, activeRoomId);
   renderWatchMetaCard(watch.metaRoot, game);
+  renderWatchMainReviewLink(watch.reviewLink, game);
   watch.gameTableRoot.hidden = !game;
   renderWatchPlayers(watch.playerTop, watch.playerBottom, game);
+}
+
+export function renderWatchMainReviewLink(
+  link: HTMLAnchorElement,
+  game: FeaturedGame | null,
+): void {
+  const reviewUrl = game ? reviewUrlForGame(game) : null;
+  if (!game || !reviewUrl) {
+    link.hidden = true;
+    link.removeAttribute('href');
+    link.removeAttribute('aria-label');
+    link.removeAttribute('title');
+    return;
+  }
+
+  const label = `Review ${watchQueueMatchupLabel(game)}`;
+  link.href = reviewUrl;
+  link.hidden = false;
+  link.setAttribute('aria-label', label);
+  link.title = label;
 }
 
 function renderWatchMetaCard(root: HTMLElement, game: FeaturedGame | null): void {

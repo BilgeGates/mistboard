@@ -31,9 +31,23 @@
 
 /* ── Center: frameless, naturally proportioned main board ────────────────── */
 .watch-board-box {
+  position: relative;
   width: min(var(--watch-board-max, 560px), 100%);
   margin: 0 auto;
   overflow: visible;
+}
+
+.watch-main-review-link {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: var(--site-radius);
+  cursor: pointer;
+}
+
+.watch-main-review-link:focus-visible {
+  outline: 3px solid var(--site-accent);
+  outline-offset: 3px;
 }
 
 /* The empty / skeleton states render into the mount root (inside the box); let
