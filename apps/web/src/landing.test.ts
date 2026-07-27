@@ -166,11 +166,11 @@ describe('landing shell', () => {
     const link = about?.querySelector<HTMLAnchorElement>('a[href="/about"]');
 
     expect(about?.textContent).toBe(
-      'Xiangqi (Chinese chess) in English. Free in your browser. About Mistboard...',
+      'Chinese chess and the games around it. Free in your browser. About Mistboard...',
     );
     expect(link?.textContent).toBe('About Mistboard...');
     expect(about?.childNodes[0]?.textContent).toBe(
-      'Xiangqi (Chinese chess) in English. Free in your browser. ',
+      'Chinese chess and the games around it. Free in your browser. ',
     );
   });
 });
