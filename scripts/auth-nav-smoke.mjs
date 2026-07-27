@@ -1,11 +1,12 @@
 import { mkdir } from 'node:fs/promises';
-import { chromium } from '@playwright/test';
+
+import { launchChromium } from './lib/launch-browser.mjs';
 
 const baseUrl = normalizeBaseUrl(process.env.MISTBOARD_WEB_URL ?? 'http://127.0.0.1:3000');
 const email = process.env.MISTBOARD_AUTH_SMOKE_EMAIL ?? 'local-auth-smoke@example.com';
 const screenshotPath = '/private/tmp/mistboard-auth-nav-smoke.png';
 
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+const browser = await launchChromium();
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   const errors = [];

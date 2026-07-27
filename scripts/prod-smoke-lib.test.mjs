@@ -11,6 +11,7 @@ import {
   revisionMatches,
 } from './lib/base-url.mjs';
 import { fetchJson, fetchText, parseJsonResponse } from './lib/http.mjs';
+import { isSandboxLaunchFailure } from './lib/launch-browser.mjs';
 import {
   formatHelp,
   parsePositiveInteger,
@@ -321,4 +322,46 @@ test('evaluateSmokeMessage: finished before completion fails and names the room'
   assert.equal(effects.length, 1);
   assert.equal(effects[0].kind, 'failure');
   assert.match(effects[0].message, /DXQ game room-1 finished before smoke completed/);
+});
+
+// ── launch-browser ───────────────────────────────────────────────────────────
+
+// Verbatim shape of the failure an agent harness produces: Playwright's generic
+// closed-target text, with the real cause buried in the browser logs.
+const SANDBOX_LAUNCH_ERROR = [
+  'browserType.launch: Target page, context or browser has been closed',
+  'Browser logs:',
+  '',
+  '<launching> /Users/x/Library/Caches/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell --no-sandbox --headless',
+  '<launched> pid=8193',
+  '[pid=8193][err] [0726/150710.229832:FATAL:base/apple/mach_port_rendezvous_mac.cc:159] Check failed: kr == KERN_SUCCESS. bootstrap_',
+].join('\n');
+
+test('isSandboxLaunchFailure: recognises the seatbelt Mach-registration wall', () => {
+  assert.equal(isSandboxLaunchFailure(new Error(SANDBOX_LAUNCH_ERROR)), true);
+});
+
+test('isSandboxLaunchFailure: matches when the cause only shows up in the stack', () => {
+  const error = new Error('browserType.launch: Target page, context or browser has been closed');
+  error.stack = `${error.message}\n${SANDBOX_LAUNCH_ERROR}`;
+  assert.equal(isSandboxLaunchFailure(error), true);
+});
+
+test('isSandboxLaunchFailure: an ordinary browser crash is not the sandbox wall', () => {
+  const crash = new Error(
+    [
+      'browserType.launch: Target page, context or browser has been closed',
+      'Browser logs:',
+      '',
+      '<launched> pid=4242',
+      '[pid=4242][err] Received signal 11 SEGV_MAPERR',
+    ].join('\n'),
+  );
+  assert.equal(isSandboxLaunchFailure(crash), false);
+});
+
+test('isSandboxLaunchFailure: tolerates missing / non-Error input', () => {
+  assert.equal(isSandboxLaunchFailure(undefined), false);
+  assert.equal(isSandboxLaunchFailure(null), false);
+  assert.equal(isSandboxLaunchFailure('mach_port_rendezvous_mac.cc'), true);
 });

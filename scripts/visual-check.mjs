@@ -1,5 +1,6 @@
 import { mkdir } from 'node:fs/promises';
-import { chromium } from '@playwright/test';
+
+import { launchChromium } from './lib/launch-browser.mjs';
 
 const outputDir = '/private/tmp/mistboard-visual-check';
 const baseUrl = process.env.MISTBOARD_WEB_URL ?? 'http://127.0.0.1:3000';
@@ -10,7 +11,7 @@ const viewports = [
 
 await mkdir(outputDir, { recursive: true });
 
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+const browser = await launchChromium();
 const failures = [];
 const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 

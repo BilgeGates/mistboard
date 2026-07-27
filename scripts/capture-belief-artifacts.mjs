@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { chromium } from '@playwright/test';
+
+import { launchChromium } from './lib/launch-browser.mjs';
 
 const repoRoot = process.cwd();
 const publicRoot = path.join(repoRoot, 'apps', 'web', 'public');
@@ -45,7 +46,7 @@ const selected = annotations.slice(
 );
 await mkdir(outputDir, { recursive: true });
 
-const browser = await chromium.launch({ args: ['--no-sandbox'] });
+const browser = await launchChromium();
 const page = await browser.newPage({ viewport, deviceScaleFactor });
 const captures = [];
 

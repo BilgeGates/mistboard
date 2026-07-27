@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { chromium } from '@playwright/test';
+
+import { launchChromium } from './lib/launch-browser.mjs';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const externalBaseUrl = process.env.MISTBOARD_WEB_URL?.trim();
@@ -36,7 +37,7 @@ try {
 }
 
 async function smokeCreatorFlow() {
-  const browser = await chromium.launch({ args: ['--no-sandbox'] });
+  const browser = await launchChromium();
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   const page = await context.newPage();
   const pageErrors = [];

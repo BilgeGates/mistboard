@@ -28,7 +28,7 @@
 // smoke locally. MISTBOARD_CEVAL_SMOKE_BACKEND is the env equivalent.
 import { readFileSync } from 'node:fs';
 
-import { chromium } from '@playwright/test';
+import { launchChromium } from './lib/launch-browser.mjs';
 
 const options = parseArgs(process.argv.slice(2));
 const baseUrl = normalizeBaseUrl(
@@ -38,14 +38,14 @@ const timeoutMs = Number(process.env.MISTBOARD_CEVAL_SMOKE_TIMEOUT_MS ?? 45000);
 const moves = process.env.MISTBOARD_CEVAL_SMOKE_MOVES ?? 'b3e3,h8e8,b1c3';
 const backend = options.backend;
 
-const browserArgs = ['--no-sandbox'];
+const browserArgs = [];
 if (baseUrl.startsWith('http://') && !/^http:\/\/(?:localhost|127\.0\.0\.1)(?::|$)/.test(baseUrl)) {
   // Docker-based local smoke reaches the host through a LAN/bridge address.
   // Treat only that explicitly supplied origin as secure so COOP/COEP can
   // create the same cross-origin-isolated environment as production HTTPS.
   browserArgs.push(`--unsafely-treat-insecure-origin-as-secure=${baseUrl}`);
 }
-const browser = await chromium.launch({ args: browserArgs });
+const browser = await launchChromium({ args: browserArgs });
 const failures = [];
 try {
   if (backend === 'fsf' || backend === 'all') {
