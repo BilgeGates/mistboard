@@ -50,6 +50,7 @@ import {
   type ShogiReplayBlock,
   type StaticBoardsBlock,
   type SubHeadingBlock,
+  type SvgRowBlock,
   withXiangqiBoardLayout,
   withXiangqiPieceSet,
   type XiangqiReplayBlock,
@@ -1105,6 +1106,7 @@ function renderBlock(block: ArticleBlock, lang?: ArticleLang): HTMLElement {
   if (block.kind === 'static-boards') return renderStaticBoardsBlock(block);
   if (block.kind === 'cta') return renderCtaBlock(block);
   if (block.kind === 'raw-svg') return renderRawSvgBlock(block, lang);
+  if (block.kind === 'svg-row') return renderSvgRowBlock(block, lang);
   if (block.kind === 'raw-svg-stepper') return renderRawSvgStepperBlock(block, lang);
   if (block.kind === 'code') return renderCodeBlock(block);
   if (block.kind === 'live-boards') return renderLiveBoardsBlock(block);
@@ -1569,6 +1571,27 @@ function renderRawSvgBlock(block: RawSvgBlock, lang?: ArticleLang): HTMLElement 
     figure.append(cap);
   }
   return figure;
+}
+
+// A row of raw-SVG figures. Each item goes through renderRawSvgBlock, so the
+// per-family tracking (shogi / crossroads / xiangqi appearance re-render),
+// localization and caption handling stay in ONE place; this only owns the
+// layout wrapper.
+function renderSvgRowBlock(block: SvgRowBlock, lang?: ArticleLang): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'article-figure-row';
+  if (block.className) row.classList.add(...block.className.split(/\s+/).filter(Boolean));
+  row.dataset.columns = String(block.items.length);
+  for (const item of block.items) {
+    row.append(renderRawSvgBlock({ kind: 'raw-svg', ...item }, lang));
+  }
+  if (block.caption) {
+    const cap = document.createElement('p');
+    cap.className = 'article-figure-caption article-figure-row-caption';
+    cap.textContent = block.caption;
+    row.append(cap);
+  }
+  return row;
 }
 
 function renderRawSvgStepperBlock(block: RawSvgStepperBlock, lang?: ArticleLang): HTMLElement {

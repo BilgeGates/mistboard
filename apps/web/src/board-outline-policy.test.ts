@@ -21,6 +21,13 @@ function articleSvgSamples(article: Article): SvgSample[] {
   for (const [index, block] of articleBlocks(article).entries()) {
     if (block.kind === 'raw-svg') {
       samples.push({ label: `${article.slug}:raw-svg:${index}`, svg: renderSvg(block.svg) });
+    } else if (block.kind === 'svg-row') {
+      for (const [item, entry] of block.items.entries()) {
+        samples.push({
+          label: `${article.slug}:svg-row:${index}:${item}`,
+          svg: renderSvg(entry.svg),
+        });
+      }
     } else if (block.kind === 'raw-svg-stepper') {
       for (const [step, entry] of block.steps.entries()) {
         samples.push({

@@ -834,6 +834,40 @@
   display: block;
 }
 
+/* Side-by-side figures (svg-row): two cases the reader is meant to compare.
+   The row owns the columns; each child keeps being a plain .article-figure, so
+   its own max-width caps still apply. Below the article's one-column breakpoint
+   the pair stacks, because two boards at half of a phone width teach nothing. */
+.article-figure-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 20px;
+  align-items: start;
+  margin: 24px 0;
+}
+
+.article-figure-row[data-columns="3"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.article-figure-row > .article-figure {
+  margin: 0;
+}
+
+.article-figure-row-caption {
+  grid-column: 1 / -1;
+  margin: 0;
+  justify-self: center;
+}
+
+@media (max-width: 640px) {
+  .article-figure-row,
+  .article-figure-row[data-columns="3"] {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+}
+
 /* Single xiangqi board: cap at its natural width instead of stretching to
    fill the article column. The SVG carries its natural width as the inline
    --xq-svg-width custom property. */

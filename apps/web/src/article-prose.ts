@@ -72,6 +72,7 @@ const BLOCK_PROSE: {
   interactive: caption,
   'live-boards': caption,
   'raw-svg': caption,
+  'svg-row': (b) => [...caption(b), ...b.items.flatMap(caption)],
   'raw-svg-stepper': (b) => [
     ...caption(b),
     ...b.steps.flatMap((step) => {

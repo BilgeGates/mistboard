@@ -231,6 +231,18 @@ export type RawSvgBlock = {
   className?: string;
 };
 
+// Two or three raw-SVG figures on one row (stacking on narrow screens). Rules
+// pages teach by contrast — leap across vs leap along, tiger vs lion from the
+// same square — and a contrast only lands when both cases are on screen at
+// once. Each item is a RawSvgBlock payload; the renderer builds the same
+// <figure> for each, so per-item captions and sizing classes work unchanged.
+export type SvgRowBlock = {
+  kind: 'svg-row';
+  items: Array<{ svg: string | (() => string); caption?: string; className?: string }>;
+  caption?: string;
+  className?: string;
+};
+
 export type RawSvgStepperStep = {
   // String, or a render thunk re-run on xiangqi appearance change (see RawSvgBlock).
   svg: string | (() => string);
@@ -266,6 +278,7 @@ export type ArticleBlock =
   | LiveBoardsBlock
   | CtaBlock
   | RawSvgBlock
+  | SvgRowBlock
   | RawSvgStepperBlock
   | XiangqiReplayBlock
   | ChessReplayBlock
