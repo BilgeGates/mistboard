@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { Color, GameEvent, TimeClass } from '@mistboard/game';
+import { type Color, type GameEvent, type TimeClass, XIANGQI_SPEC_ID } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
 import { attachBanqiFirstColors } from './../banqi-first-color.js';
 import {
@@ -12,7 +12,7 @@ import { buildGamePgn, buildGamePublicationJson } from './../game-export.js';
 import * as persistence from './../persistence.js';
 import type { RecentEveGameRecord } from './../persistence-games.js';
 import { eventReplayResponse, parsePositiveInteger } from './../server-policy.js';
-import { listWatchChannels, watchChannelForId } from './../watch-channels.js';
+import { listWatchChannels, TOP_CHANNEL_ID, watchChannelForId } from './../watch-channels.js';
 import {
   collectLiveTvCandidates,
   electLiveTvFeatured,
@@ -37,6 +37,28 @@ const WATCH_REPLAY_LIMIT = 64;
 const WATCH_SEALED_ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type WatchChannelTopPlayer = { name: string; rating: number | null };
+
+// With no live game, /watch falls through to the ordinary completed-replay
+// path, and both the server's seeded replay and the client's default selection
+// key off unlocked[0]. That list is ordered by ended_at alone, so on the
+// cross-variant Top Rated channel whichever variant finished last takes the
+// hero board — in practice a bot game on a mini variant, on the default landing
+// channel of a xiangqi-first site.
+//
+// Move the newest standard-xiangqi game to the front so the flagship leads, and
+// leave every other entry in recency order so the queue underneath still reads
+// as recent activity. A full reorder (all xiangqi first) would win the hero and
+// lose the queue's meaning. Only the Top Rated channel is touched: a variant
+// channel holds one variant, so the hoist would be a no-op there anyway.
+//
+// Mutates in place; the caller owns this array and passes it straight on.
+export function hoistFlagshipToFront(channelId: string, games: RecentEveGameRecord[]): void {
+  if (channelId !== TOP_CHANNEL_ID) return;
+  const index = games.findIndex((game) => game.variant === XIANGQI_SPEC_ID);
+  if (index <= 0) return;
+  const [flagship] = games.splice(index, 1);
+  if (flagship) games.unshift(flagship);
+}
 
 // Bot and engine seats. Everything else ('guest', 'user', and the 'manual' /
 // 'imported' seats carried by historical games) is a person.
@@ -230,6 +252,7 @@ export async function tryHandle(
       }),
     );
     const active = channelResults.find((result) => result.channel.id === channel.id)!;
+    hoistFlagshipToFront(active.channel.id, active.unlocked);
     // Banqi results are seat-keyed; attach each banqi game's derived firstColor so
     // the queue can label them by ink. Only the active channel's list is sent.
     await attachBanqiFirstColors(active.unlocked);
