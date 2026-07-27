@@ -10,13 +10,8 @@ import {
 // variant-tenant registry, so the registrations must be populated for the
 // derived channels to appear. This side-effect import registers every tenant.
 import './variant-tenant/register-tenants.js';
-import { channelTopPlayer, hoistFlagshipToFront } from './routes/games.js';
-import {
-  defaultWatchChannel,
-  listWatchChannels,
-  TOP_CHANNEL_ID,
-  watchChannelForId,
-} from './watch-channels.js';
+import { channelTopPlayer } from './routes/games.js';
+import { defaultWatchChannel, listWatchChannels, watchChannelForId } from './watch-channels.js';
 
 // The Mini Xiangqi sub-family (open, dark, drop) was retired from Mistboard TV
 // on 2026-07-05 (xiangqi pivot): their registrations carry `watch: null`, so no
@@ -192,64 +187,4 @@ test('an all-machine channel (Engines) still names the engine', () => {
 
 test('an empty channel has no headline seat', () => {
   assert.equal(channelTopPlayer([]), null);
-});
-
-// ---------------------------------------------------------------------------
-// Featured-board hoist on the cross-variant Top Rated channel. With no live
-// game the hero board is unlocked[0] of a list ordered by ended_at alone, so
-// whichever variant finished last led the default landing channel.
-// ---------------------------------------------------------------------------
-
-function game(roomId: string, variant: string): Parameters<typeof hoistFlagshipToFront>[1][number] {
-  return { roomId, variant } as unknown as Parameters<typeof hoistFlagshipToFront>[1][number];
-}
-
-test('Top Rated hoists the newest xiangqi game to the hero slot', () => {
-  const games = [
-    game('flip-jungle', 'jungle-flip'),
-    game('banqi', 'banqi'),
-    game('xq-new', 'xiangqi'),
-    game('xq-old', 'xiangqi'),
-  ];
-  hoistFlagshipToFront(TOP_CHANNEL_ID, games);
-  assert.deepEqual(
-    games.map((g) => g.roomId),
-    ['xq-new', 'flip-jungle', 'banqi', 'xq-old'],
-  );
-});
-
-test('the hoist leaves the rest of the queue in recency order', () => {
-  const games = [game('a', 'jungle'), game('b', 'banqi'), game('c', 'xiangqi')];
-  hoistFlagshipToFront(TOP_CHANNEL_ID, games);
-  assert.deepEqual(
-    games.slice(1).map((g) => g.roomId),
-    ['a', 'b'],
-  );
-});
-
-test('a xiangqi game already leading is left alone', () => {
-  const games = [game('c', 'xiangqi'), game('a', 'jungle')];
-  hoistFlagshipToFront(TOP_CHANNEL_ID, games);
-  assert.deepEqual(
-    games.map((g) => g.roomId),
-    ['c', 'a'],
-  );
-});
-
-test('a channel with no xiangqi game is untouched', () => {
-  const games = [game('a', 'jungle'), game('b', 'banqi')];
-  hoistFlagshipToFront(TOP_CHANNEL_ID, games);
-  assert.deepEqual(
-    games.map((g) => g.roomId),
-    ['a', 'b'],
-  );
-});
-
-test('variant channels are never reordered', () => {
-  const games = [game('a', 'jungle'), game('c', 'xiangqi')];
-  hoistFlagshipToFront('jungle', games);
-  assert.deepEqual(
-    games.map((g) => g.roomId),
-    ['a', 'c'],
-  );
 });

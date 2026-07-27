@@ -1610,6 +1610,15 @@
   color: var(--site-accent);
 }
 
+/* The homepage TV freezes on completed games, so a winner treatment would be
+   permanent chrome rather than a useful momentary cue. Keep the board footprint
+   stable and unframed while leaving winner styling intact on replay/review pages. */
+.landing-board-column #landing-replay .replay-pane.winner .replay-board {
+  box-shadow: none;
+  animation: none;
+  border-radius: 0;
+}
+
 /* Renderer-swap skeleton (replay-skeleton.ts): watch-route.css styles this class
    on /watch, but that stylesheet never loads on the homepage, so without these
    rules the widget collapsed to a bare text line between games. Hold the shared
