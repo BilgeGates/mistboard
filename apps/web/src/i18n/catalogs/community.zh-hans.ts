@@ -88,6 +88,8 @@ export const ZH_HANS_COMMUNITY = {
   'profile.anonymousOnline': '另有 {count} 位匿名在线',
   'profile.noPlayersOnline': '当前没有玩家在线。',
   'profile.noRatedGames': '还没有计分对局。',
+  'profile.leaderboardAwaiting': '第一盘计分对局结束后，排行榜就会开启。',
+  'profile.leaderboardAwaitingCta': '下一盘计分对局',
   'profile.ratingsLoadFailed': '评分无法加载。',
   'profile.yourProfile': '你的资料',
   'profile.playerProfile': '玩家资料',

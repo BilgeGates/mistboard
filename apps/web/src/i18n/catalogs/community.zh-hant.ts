@@ -88,6 +88,8 @@ export const ZH_HANT_COMMUNITY = {
   'profile.anonymousOnline': '另有 {count} 位匿名在線',
   'profile.noPlayersOnline': '目前沒有玩家在線上。',
   'profile.noRatedGames': '還沒有計分對局。',
+  'profile.leaderboardAwaiting': '第一盤計分對局結束後，排行榜就會開啟。',
+  'profile.leaderboardAwaitingCta': '下一盤計分對局',
   'profile.ratingsLoadFailed': '評分無法載入。',
   'profile.yourProfile': '你的個人資料',
   'profile.playerProfile': '玩家個人資料',

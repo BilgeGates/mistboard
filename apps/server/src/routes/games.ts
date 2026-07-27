@@ -38,34 +38,59 @@ const WATCH_SEALED_ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type WatchChannelTopPlayer = { name: string; rating: number | null };
 
-// The headline seat for a channel's rail row (lichess shows the featured game's
-// top player under the channel name): the highest-rated participant across the
-// channel's currently-unlocked games. Falls back to the freshest named seat when
-// no seat carries a rating (all-guest or unrated-engine channels). null for an
-// empty channel, so the rail row renders name-only.
-function channelTopPlayer(games: RecentEveGameRecord[]): WatchChannelTopPlayer | null {
+// Bot and engine seats. Everything else ('guest', 'user', and the 'manual' /
+// 'imported' seats carried by historical games) is a person.
+const MACHINE_SUBJECT_TYPES: ReadonlySet<string> = new Set(['bot', 'engine-version']);
+
+type ChannelSeat = { name: string; rating: number | null; machine: boolean };
+
+// Highest-rated seat, else the first named one, over whichever pool it is given.
+function pickHeadlineSeat(seats: ChannelSeat[]): WatchChannelTopPlayer | null {
   let best: WatchChannelTopPlayer | null = null;
   let fallback: WatchChannelTopPlayer | null = null;
-  for (const game of games) {
-    const seats =
-      game.participants.length > 0
-        ? game.participants.map((participant) => ({
-            name: participant.displayName?.trim() || null,
-            rating: participant.ratingAfter ?? participant.ratingBefore ?? null,
-          }))
-        : [
-            { name: game.whiteName?.trim() || null, rating: null },
-            { name: game.blackName?.trim() || null, rating: null },
-          ];
-    for (const seat of seats) {
-      if (!seat.name) continue;
-      fallback ??= { name: seat.name, rating: seat.rating };
-      if (seat.rating != null && (best === null || seat.rating > best.rating!)) {
-        best = { name: seat.name, rating: seat.rating };
-      }
+  for (const seat of seats) {
+    fallback ??= { name: seat.name, rating: seat.rating };
+    if (seat.rating != null && (best === null || seat.rating > best.rating!)) {
+      best = { name: seat.name, rating: seat.rating };
     }
   }
   return best ?? fallback;
+}
+
+// The headline seat for a channel's rail row (lichess shows the featured game's
+// top player under the channel name).
+//
+// People come first. Ranking purely by rating put the BOT on most PvE channels'
+// rail rows, because a bot carries a calibrated rating while its human opponent
+// is usually an unrated guest, so the rail advertised "Misty" across half the
+// variants. A channel with any human seat now names a human; only a channel
+// with no human seat at all (Engines, which is EvE by construction) falls back
+// to naming the machine.
+//
+// Within the chosen pool the old rule stands: highest-rated seat, else the
+// freshest named one. null for an empty channel, so the row renders name-only.
+export function channelTopPlayer(games: RecentEveGameRecord[]): WatchChannelTopPlayer | null {
+  const seats: ChannelSeat[] = [];
+  for (const game of games) {
+    const gameSeats: ChannelSeat[] =
+      game.participants.length > 0
+        ? game.participants.map((participant) => ({
+            name: participant.displayName?.trim() || '',
+            rating: participant.ratingAfter ?? participant.ratingBefore ?? null,
+            machine: MACHINE_SUBJECT_TYPES.has(participant.subjectType),
+          }))
+        : // Legacy/imported rows carry no participant subjects; both seats are
+          // people as far as this rail is concerned.
+          [
+            { name: game.whiteName?.trim() || '', rating: null, machine: false },
+            { name: game.blackName?.trim() || '', rating: null, machine: false },
+          ];
+    for (const seat of gameSeats) {
+      if (seat.name) seats.push(seat);
+    }
+  }
+  const humans = seats.filter((seat) => !seat.machine);
+  return pickHeadlineSeat(humans.length > 0 ? humans : seats);
 }
 
 export async function tryHandle(

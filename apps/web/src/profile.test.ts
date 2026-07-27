@@ -519,10 +519,21 @@ describe('profile ratings rail', () => {
     });
   }
 
+  // One populated ladder, so the all-empty collapse doesn't swallow the grid
+  // that these gating assertions count panels in.
+  const ONE_POPULATED_LADDER = [
+    {
+      variant: 'fog',
+      leaderboard: [
+        { rank: 1, handle: 'misty', displayName: 'Misty', eloRating: 1710, provisional: false },
+      ],
+    },
+  ];
+
   it('hides Crossroads rated leaderboard panels when play is not enabled', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'false');
-    const fetchSpy = stubLeaderboardFetch();
+    const fetchSpy = stubLeaderboardFetch({ ladders: ONE_POPULATED_LADDER });
     const root = document.createElement('div');
     const { mountLeaderboard } = await import('./profile.js');
 
@@ -681,7 +692,7 @@ describe('profile ratings rail', () => {
   it('shows Crossroads rated leaderboard panels behind the play flag', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
-    stubLeaderboardFetch();
+    stubLeaderboardFetch({ ladders: ONE_POPULATED_LADDER });
     const root = document.createElement('div');
     const { mountLeaderboard } = await import('./profile.js');
 
@@ -691,6 +702,39 @@ describe('profile ratings rail', () => {
     // 5 rated ladders (Dark Chess + always-on Fortress, Jungle, Flip Jungle +
     // Crossroads behind the flag).
     expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(5);
+  });
+
+  it('collapses the ladder grid to one line when no ladder has a rated game', async () => {
+    vi.stubEnv('DEV', false);
+    stubLeaderboardFetch({ ladders: [] });
+    const root = document.createElement('div');
+    const { mountLeaderboard } = await import('./profile.js');
+
+    await mountLeaderboard(root);
+
+    // The repeated per-variant "No rated games yet." panels are gone, replaced
+    // by a single line pointing at the thing a visitor can do about it.
+    expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(0);
+    expect(root.textContent).not.toContain('No rated games yet.');
+    expect(root.textContent).toContain('The ladders open with the first rated game.');
+    expect(root.querySelector('.leaderboard-awaiting a')?.getAttribute('href')).toBe('/play');
+    // The online-players column still renders beside it.
+    expect(root.textContent).toContain('Online players');
+  });
+
+  it('keeps every ladder panel when at least one ladder has a rated game', async () => {
+    vi.stubEnv('DEV', false);
+    stubLeaderboardFetch({ ladders: ONE_POPULATED_LADDER });
+    const root = document.createElement('div');
+    const { mountLeaderboard } = await import('./profile.js');
+
+    await mountLeaderboard(root);
+
+    expect(root.querySelectorAll('.leaderboard-panel').length).toBeGreaterThan(1);
+    // Partial emptiness keeps the per-variant line: it is legible next to a
+    // ladder that has rows.
+    expect(root.textContent).toContain('No rated games yet.');
+    expect(root.textContent).toContain('Misty');
   });
 
   it('renders rating stats from leaderboard data', async () => {

@@ -2285,6 +2285,15 @@
   line-height: 1.45;
 }
 
+/* Replaces the whole ladder grid before any ladder has a rated game, so the
+   page states the absence once rather than once per variant. */
+.leaderboard-awaiting {
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 /* Online players column (unboxed) */
 .leaderboard-online-body {
   grid-area: online;

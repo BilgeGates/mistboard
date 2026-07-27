@@ -10,6 +10,7 @@ import {
 // variant-tenant registry, so the registrations must be populated for the
 // derived channels to appear. This side-effect import registers every tenant.
 import './variant-tenant/register-tenants.js';
+import { channelTopPlayer } from './routes/games.js';
 import { defaultWatchChannel, listWatchChannels, watchChannelForId } from './watch-channels.js';
 
 // The Mini Xiangqi sub-family (open, dark, drop) was retired from Mistboard TV
@@ -129,4 +130,61 @@ test('retired Mini Xiangqi sub-family has no watch channel', () => {
     assert.equal(ids.includes(id), false, `${id} must not appear in the watch rail`);
     assert.equal(watchChannelForId(id), null, `${id} must not resolve by deep link`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Rail headline seat. Ranking purely by rating named the BOT on PvE channels,
+// because bots carry calibrated ratings and their human opponents are usually
+// unrated guests.
+// ---------------------------------------------------------------------------
+
+function record(
+  participants: { displayName: string; subjectType: string; rating?: number }[],
+): Parameters<typeof channelTopPlayer>[0][number] {
+  return {
+    participants: participants.map((p, index) => ({
+      color: index === 0 ? 'red' : 'black',
+      displayName: p.displayName,
+      subjectType: p.subjectType,
+      subjectId: null,
+      visibility: 'public',
+      ratingBefore: p.rating ?? null,
+      ratingAfter: p.rating ?? null,
+    })),
+  } as unknown as Parameters<typeof channelTopPlayer>[0][number];
+}
+
+test('channel rail names the human, not the higher-rated bot, in a PvE game', () => {
+  const top = channelTopPlayer([
+    record([
+      { displayName: 'Misty', subjectType: 'bot', rating: 1881 },
+      { displayName: 'Guest', subjectType: 'guest' },
+    ]),
+  ]);
+  assert.equal(top?.name, 'Guest');
+});
+
+test('channel rail still ranks humans by rating among themselves', () => {
+  const top = channelTopPlayer([
+    record([
+      { displayName: 'ada', subjectType: 'user', rating: 1500 },
+      { displayName: 'grace', subjectType: 'user', rating: 1700 },
+    ]),
+  ]);
+  assert.equal(top?.name, 'grace');
+  assert.equal(top?.rating, 1700);
+});
+
+test('an all-machine channel (Engines) still names the engine', () => {
+  const top = channelTopPlayer([
+    record([
+      { displayName: 'Fairy-Stockfish - Level 4', subjectType: 'engine-version', rating: 1600 },
+      { displayName: 'Pikafish', subjectType: 'engine-version', rating: 2400 },
+    ]),
+  ]);
+  assert.equal(top?.name, 'Pikafish');
+});
+
+test('an empty channel has no headline seat', () => {
+  assert.equal(channelTopPlayer([]), null);
 });

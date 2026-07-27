@@ -289,6 +289,20 @@ function buildLeaderboardFrame(locale: Locale): {
   return { shell, onlineBody, grid, ladderPanels };
 }
 
+// Stands in for the whole ladder grid while no ladder has a rated game. Points
+// at the thing a visitor can actually do about it instead of restating the
+// absence eight times.
+function buildLeaderboardAwaitingRatedGames(locale: Locale): HTMLElement {
+  const empty = document.createElement('p');
+  empty.className = 'leaderboard-awaiting';
+  empty.append(t('profile.leaderboardAwaiting', {}, locale), ' ');
+  const link = document.createElement('a');
+  link.href = localizedHref('/play', locale);
+  link.textContent = t('profile.leaderboardAwaitingCta', {}, locale);
+  empty.append(link);
+  return empty;
+}
+
 // Build-time static render of the players page frame (nav + rail + headings +
 // loading panels), baked by the prerender so first paint gets the full layout
 // instead of the empty SPA shell. Live data (ladder rows, online list) stays a
@@ -307,7 +321,7 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   // Playstrategy-style players page: the frame renders immediately from the
   // build-time variant registry; the two fetches below only fill in rows, so
   // no layout waits on the network.
-  const { shell, onlineBody, ladderPanels } = buildLeaderboardFrame(locale);
+  const { shell, onlineBody, grid, ladderPanels } = buildLeaderboardFrame(locale);
   root.append(buildNav(locale), shell);
 
   const [summary, onlinePlayers] = await Promise.all([
@@ -328,6 +342,18 @@ export async function mountLeaderboard(root: HTMLElement): Promise<void> {
   // buildLeaderboardFrame, and CANONICAL_VARIANT_ORDER is what the picker,
   // profile grid, and watch rail all key off — so the leaderboard must not
   // reorder by which ladders happen to have rated games yet.
+  // Before rated liquidity exists, every panel renders the same "no rated games
+  // yet" line, so the page reads as eight repetitions of "nobody is here".
+  // Collapse that whole state to one sentence: the grid only earns its space
+  // once at least one ladder has a player. Partial emptiness keeps the full
+  // grid, because the canonical order below is what makes a missing ladder
+  // legible against the ones that have rows.
+  if (summary && !summary.ladders.some((ladder) => ladder.leaderboard.length > 0)) {
+    grid.replaceChildren(buildLeaderboardAwaitingRatedGames(locale));
+    renderOnlinePlayers(onlineBody, onlinePlayers, locale);
+    return;
+  }
+
   for (const { bucket, shell: panelShell } of ladderPanels) {
     // A ladder missing from the summary just has no rated games yet; a null
     // summary means the fetch itself failed.

@@ -16,13 +16,15 @@
  *   over public state) ever feature, so nothing hand-rolled leaves the server.
  *
  * Election: PvP outranks PvE (a live human game takes the hero over an engine
- * game); within a tier, the most recently active room. Hysteresis: the
- * currently featured room keeps the board while it is still live and its tier
- * is unbeaten, so recency alone never yanks a game mid-broadcast. EvE never
- * appears here — engine-vs-engine games run headless in the worker and reach
- * TV only as completed games.
+ * game); at equal composition, standard xiangqi outranks other variants on the
+ * cross-variant 'top' channel; within a tier, the most recently active room.
+ * Hysteresis: the currently featured room keeps the board while it is still
+ * live and its tier is unbeaten, so recency alone never yanks a game
+ * mid-broadcast. EvE never appears here — engine-vs-engine games run headless
+ * in the worker and reach TV only as completed games.
  */
 
+import { XIANGQI_SPEC_ID } from '@mistboard/game';
 import type { HttpApiContext } from './routes/lib.js';
 import { canServeLiveBoard, isServerEngineClient } from './server-policy.js';
 import type { Room } from './server-types.js';
@@ -253,8 +255,22 @@ export function resetLiveTvFeaturedForTest(): void {
   featuredRoomByChannel.clear();
 }
 
+// Ranking score for the featured board. Two signals, in priority order:
+//
+//   1. Composition: a human game always outranks an engine game (worth 2, so
+//      the flagship bonus below can never lift a PvE game over a PvP one).
+//   2. Flagship variant: at equal composition, standard xiangqi wins (worth 1).
+//
+// The flagship bonus exists because the cross-variant 'top' channel is the
+// default landing channel, and its only other signal is recency. A visitor
+// arriving from xiangqi content would otherwise land on whichever variant
+// happened to move most recently, which in practice is a bot game on a mini
+// variant. On a variant-filtered channel every candidate shares a gameSpecId,
+// so the bonus cancels out and this is exactly the old pvp-over-pve rule.
 function tier(candidate: LiveTvCandidate): number {
-  return candidate.composition === 'pvp' ? 1 : 0;
+  const composition = candidate.composition === 'pvp' ? 2 : 0;
+  const flagship = candidate.gameSpecId === XIANGQI_SPEC_ID ? 1 : 0;
+  return composition + flagship;
 }
 
 export function electLiveTvFeatured(

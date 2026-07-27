@@ -57,16 +57,26 @@
   margin: 0 auto;
 }
 
-/* The homepage's single h1, styled as a quiet one-line about link rather than a
-   marketing hero (small, body-weight, muted). */
+/* The homepage's single h1. Sized as a headline rather than a footnote: it is
+   the only thing above the fold that says what the site is, and at 13px muted
+   a first-time visitor read the bot lobby before they read the product. Kept in
+   the right rail above the Play button instead of promoted to a full-width hero
+   band, so the three-band grid is untouched. The "About Mistboard..." tail
+   stays small and muted so it reads as a secondary link, not part of the
+   headline. Follows .site-section-heading's light-weight display style. */
 .landing-about {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.4;
+  margin: 0 0 4px;
+  font-size: clamp(20px, 2.2vw, 26px);
+  font-weight: 300;
+  line-height: 1.2;
+  color: var(--site-heading);
+  letter-spacing: 0;
 }
 
 .landing-about a {
+  display: inline-block;
+  font-size: 13px;
+  line-height: 1.4;
   color: var(--site-muted);
   text-decoration: none;
 }

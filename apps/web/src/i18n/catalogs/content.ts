@@ -135,13 +135,13 @@ export const EN_CONTENT = {
   'contact.networkError': 'Network error. Try again.',
   'about.heading': 'About Mistboard',
   'about.lede':
-    'Mistboard is a free, open-source platform for original strategy games, built for serious play.',
+    'Mistboard is a free, open-source place to play xiangqi (Chinese chess) in English, built for serious play.',
   'about.whyHeading': 'Why this site exists',
   'about.whyBody':
-    'Original strategy games ask for more than a playable board. They need precise rules, fair hidden-information boundaries when the game calls for them, durable replays, and tools that help players understand what happened. Mistboard exists to make those games easy to start, fair to finish, and worth studying.',
+    'Xiangqi is among the most played board games in the world, and most places to play it online assume you already read Chinese. Mistboard is built for the people that assumption leaves out. Pieces render as icons you can identify before you can read 車 or 砲, the rules and articles are written in English rather than translated into it, and a beginner course teaches the game from the first move. Past the basics, the site aims at what serious play needs: precise rules, durable replays, fair hidden-information boundaries when a game calls for them, and tools that explain what happened.',
   'about.darkChessHeading': 'What Mistboard builds',
   'about.darkChessBody':
-    'Mistboard hosts original games and serious variants across chess, xiangqi, shogi, Jungle, and related families. Some games are open-information; others use fog, hidden identities, drops, flipped pieces, compact boards, or new objectives. Each one gets a clear rules page and server-enforced play.',
+    'Standard xiangqi is the core: play against people or engines, tactics puzzles mined from real games, an analysis board, and tournament broadcasts. Around it sits a family of serious variants across xiangqi, chess, and Jungle. Some are open-information; others use fog, hidden identities, flipped pieces, or compact boards. Each one gets a clear rules page and server-enforced play.',
   'about.playStudyHeading': 'Play and study',
   'about.playStudyBody':
     "Start a game over a link, join the lobby, or play an engine where one is available. Afterward, review the game from either player's perspective or with the full board revealed when the rules allow it. Rules and articles cover both how to play and why the variants work.",

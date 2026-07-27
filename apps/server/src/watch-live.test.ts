@@ -345,6 +345,89 @@ test('elector: pvp outranks pve; hysteresis holds within a tier; pool empty clea
   assert.equal(featured, null);
 });
 
+// The 'top' channel is the default landing channel and its only tiebreak used
+// to be recency, so a bot game on any variant could hold the hero board while
+// standard xiangqi was live. These drive electLiveTvFeatured with literal
+// candidates rather than the room scan, because the flagship rule keys on
+// gameSpecId and needs two different specs in one pool.
+function candidate(args: {
+  roomId: string;
+  gameSpecId: string;
+  composition: 'pvp' | 'pve';
+  lastActivityAt: number;
+}): Parameters<typeof electLiveTvFeatured>[1][number] {
+  return {
+    roomId: args.roomId,
+    gameSpecId: args.gameSpecId,
+    channelId: args.gameSpecId,
+    composition: args.composition,
+    players: [],
+    ply: 4,
+    rated: false,
+    startedAt: NOW - 60_000,
+    lastActivityAt: args.lastActivityAt,
+    timeControl: null,
+    clock: null,
+  };
+}
+
+test('elector: standard xiangqi takes the hero over a fresher non-xiangqi game at equal composition', () => {
+  resetLiveTvFeaturedForTest();
+  const featured = electLiveTvFeatured(LIVE_TV_TOP_CHANNEL_ID, [
+    candidate({
+      roomId: 'jungle',
+      gameSpecId: 'jungle-flip',
+      composition: 'pve',
+      lastActivityAt: NOW - 1_000,
+    }),
+    candidate({
+      roomId: 'xq',
+      gameSpecId: 'xiangqi',
+      composition: 'pve',
+      lastActivityAt: NOW - 30_000,
+    }),
+  ]);
+  assert.equal(featured?.roomId, 'xq');
+});
+
+test('elector: the flagship bonus never lifts a xiangqi engine game over a human game', () => {
+  resetLiveTvFeaturedForTest();
+  const featured = electLiveTvFeatured(LIVE_TV_TOP_CHANNEL_ID, [
+    candidate({
+      roomId: 'xq-bot',
+      gameSpecId: 'xiangqi',
+      composition: 'pve',
+      lastActivityAt: NOW - 1_000,
+    }),
+    candidate({
+      roomId: 'jungle-humans',
+      gameSpecId: 'jungle-flip',
+      composition: 'pvp',
+      lastActivityAt: NOW - 30_000,
+    }),
+  ]);
+  assert.equal(featured?.roomId, 'jungle-humans');
+});
+
+test('elector: on a variant-filtered channel the flagship bonus cancels and recency still wins', () => {
+  resetLiveTvFeaturedForTest();
+  const featured = electLiveTvFeatured('jungle-flip', [
+    candidate({
+      roomId: 'old',
+      gameSpecId: 'jungle-flip',
+      composition: 'pve',
+      lastActivityAt: NOW - 30_000,
+    }),
+    candidate({
+      roomId: 'fresh',
+      gameSpecId: 'jungle-flip',
+      composition: 'pve',
+      lastActivityAt: NOW - 1_000,
+    }),
+  ]);
+  assert.equal(featured?.roomId, 'fresh');
+});
+
 test('GET /api/watch/live: empty pool answers featured null', async () => {
   const { payload, status } = await getLive();
   assert.equal(status, 200);
