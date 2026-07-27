@@ -35,7 +35,7 @@ export const EN_SHELL = {
   'nav.signIn': 'Sign in',
   'nav.register': 'Register',
   'nav.language': 'Language',
-  'home.tagline': 'Xiangqi (Chinese chess) in English. Free in your browser. About Mistboard...',
+  'home.tagline': 'Chinese chess and the games around it. Free in your browser. About Mistboard...',
   'home.supportTitle': 'Love Mistboard?',
   'home.supportSubtitle': 'Become a patron',
   'home.storeTitle': 'Store',
