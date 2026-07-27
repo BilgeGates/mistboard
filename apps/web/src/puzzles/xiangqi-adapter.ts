@@ -300,7 +300,7 @@ function puzzleAnalysisFen(state: XiangqiGameState): string {
 
 export const xiangqiPuzzleAdapter: PuzzleBoardAdapter = {
   variant: XIANGQI_SPEC_ID,
-  label: 'Xiangqi',
+  labelKey: 'variant.xiangqi.name',
   markerId: 'xiangqi',
   paintBoard,
   animateMove: (board, session, move, opts) => {

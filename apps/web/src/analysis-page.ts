@@ -6,6 +6,7 @@
 
 import './analysis-picker.css';
 import { ANALYSIS_VARIANTS, type AnalysisVariantId } from './analysis-catalog.js';
+import { type I18nKey, t } from './i18n/catalog.js';
 import { renderVariantMarker } from './variant-markers.js';
 import { variantMiniIdForGameSpec } from './variants.js';
 
@@ -31,6 +32,20 @@ function variantMount(id: Exclude<AnalysisVariantId, 'xiangqi'>): Promise<Analys
   );
 }
 
+// Dropdown labels come from the catalog, not the spec's English publicName, so
+// the picker follows the visitor's locale. Record over the union: a new catalog
+// member without a name key is a type error, and there is no default branch.
+const VARIANT_NAME_KEYS: Record<AnalysisVariantId, I18nKey> = {
+  xiangqi: 'variant.xiangqi.name',
+  banqi: 'variant.banqi.name',
+  jungle: 'variant.jungle.name',
+  'jungle-flip': 'variant.jungleFlip.name',
+  'fortress-xiangqi': 'variant.fortressXiangqi.name',
+  jieqi: 'variant.jieqi.name',
+  'dark-xiangqi': 'variant.darkXiangqi.name',
+  'dark-chess': 'variant.darkChess.name',
+};
+
 export async function mountAnalysisPage(
   root: HTMLElement,
   variant: AnalysisVariantId,
@@ -55,11 +70,11 @@ function buildVariantPicker(current: AnalysisVariantId): HTMLElement {
   if (miniId) icon.innerHTML = renderVariantMarker(miniId, { size: 28 });
   const select = document.createElement('select');
   select.className = 'analysis-variant-picker__select';
-  select.setAttribute('aria-label', 'Analysis variant');
+  select.setAttribute('aria-label', t('analysis.variantPicker'));
   for (const variant of ANALYSIS_VARIANTS) {
     const option = document.createElement('option');
     option.value = variant.id;
-    option.textContent = variant.label;
+    option.textContent = t(VARIANT_NAME_KEYS[variant.id]);
     select.append(option);
   }
   // Select AFTER the options are attached: pre-attach `option.selected = true`

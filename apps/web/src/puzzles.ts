@@ -13,6 +13,7 @@
 
 import { resolvePuzzleShortCode, XIANGQI_SPEC_ID } from '@mistboard/game';
 import './puzzles.css';
+import { t } from './i18n/catalog.js';
 import { initLiveSound, playSound } from './live-sound.js';
 import {
   clonePuzzleState,
@@ -94,7 +95,7 @@ export async function mountPuzzles(
   header.className = 'puzzles-header';
   const title = document.createElement('h1');
   title.className = 'site-section-heading';
-  title.textContent = 'Puzzles';
+  title.textContent = t('puzzle.heading');
   header.append(title);
 
   const layout = document.createElement('div');
@@ -177,7 +178,7 @@ export async function mountPuzzles(
         } else {
           selectedId = null;
           session = null;
-          renderStatus(detail, 'No puzzles');
+          renderStatus(detail, t('puzzle.none'));
         }
       },
       onAutoNextChange: (enabled) => {
@@ -235,13 +236,13 @@ export async function mountPuzzles(
     }
     selectedId = id;
     renderControls();
-    renderStatus(detail, 'Loading');
+    renderStatus(detail, t('puzzle.loading'));
     const token = ++loadToken;
     const puzzle = await fetchPuzzleDetail(id);
     if (token !== loadToken) return;
     if (!puzzle) {
       session = null;
-      renderStatus(detail, 'Puzzle not found');
+      renderStatus(detail, t('puzzle.notFound'));
       return;
     }
     const nextPath = `/puzzles/${encodeURIComponent(id)}`;
@@ -296,8 +297,8 @@ export async function mountPuzzles(
   };
   window.addEventListener('keydown', onPuzzleKeyDown);
 
-  renderStatus(controls, 'Loading');
-  renderStatus(detail, 'Loading');
+  renderStatus(controls, t('puzzle.loading'));
+  renderStatus(detail, t('puzzle.loading'));
   summaries = await fetchPuzzleList();
   const targetRatings = new Map<string, number>();
   await Promise.all(
@@ -331,7 +332,7 @@ export async function mountPuzzles(
   if (firstId) {
     await selectPuzzle(firstId, false);
   } else {
-    renderStatus(detail, 'No puzzles');
+    renderStatus(detail, t('puzzle.none'));
   }
 
   window.addEventListener('popstate', () => {
@@ -366,7 +367,7 @@ function createPuzzleSession(puzzle: PuzzleDetail): PuzzleSession {
     selectedSquare: null,
     selectedDrop: null,
     draggingFrom: null,
-    feedback: { kind: 'neutral', text: 'Find the best move.' },
+    feedback: { kind: 'neutral', text: t('puzzle.findBestMove') },
     submitting: false,
     solved: false,
     failed: false,
@@ -506,19 +507,31 @@ function actionPanel(session: PuzzleSession, renderSession: () => void): HTMLEle
   const first = actionButton(
     'puzzleReplayFirst',
     ICON_FIRST,
-    'First move',
+    t('puzzle.firstMove'),
     atStart,
     scrub('first'),
   );
   const previous = actionButton(
     'puzzleReplayPrevious',
     ICON_PREV,
-    'Previous move',
+    t('puzzle.previousMove'),
     atStart,
     scrub('previous'),
   );
-  const next = actionButton('puzzleReplayNext', ICON_NEXT, 'Next move', atEnd, scrub('next'));
-  const last = actionButton('puzzleReplayLast', ICON_LAST, 'Last move', atEnd, scrub('last'));
+  const next = actionButton(
+    'puzzleReplayNext',
+    ICON_NEXT,
+    t('puzzle.nextMove'),
+    atEnd,
+    scrub('next'),
+  );
+  const last = actionButton(
+    'puzzleReplayLast',
+    ICON_LAST,
+    t('puzzle.lastMove'),
+    atEnd,
+    scrub('last'),
+  );
   panel.append(first, previous, next, last);
   return panel;
 }
@@ -553,7 +566,7 @@ async function submitMove(
   // locked replay: no further moves are submitted.
   if (session.revealed || session.solved) return;
   session.submitting = true;
-  session.feedback = { kind: 'pending', text: 'Checking move.' };
+  session.feedback = { kind: 'pending', text: t('puzzle.checkingMove') };
   renderSession();
   const beforeCount = puzzlePieceCount(session.state);
   const playedCountBefore = session.playedMoves.length;
@@ -577,8 +590,8 @@ async function submitMove(
       onSolved?.(session.puzzle.id);
     }
     session.feedback = attempt.complete
-      ? { kind: 'good', text: 'Solved.' }
-      : { kind: 'good', text: 'Correct.' };
+      ? { kind: 'good', text: t('puzzle.solved') }
+      : { kind: 'good', text: t('puzzle.correct') };
     // A solve gets its own warm confirmation cue. A correct-but-incomplete move
     // sounds like the move it was (capture if the line reduced piece count,
     // otherwise a step).
@@ -595,7 +608,7 @@ async function submitMove(
     // Persist the failed state so the escape hatches (hint / view solution /
     // next) survive the piece-select feedback reset on the next render.
     session.failed = true;
-    session.feedback = { kind: 'bad', text: 'Try another move.' };
+    session.feedback = { kind: 'bad', text: t('puzzle.tryAnotherMove') };
     // A wrong try is NOT a lost game: 'lose' is the full defeat sting (a second
     // of falling pitch on the file sets), which is both too heavy for a miss and
     // punishing when you probe several moves in a row. 'learn-failure' is the
@@ -622,7 +635,7 @@ async function submitMove(
 async function requestHint(session: PuzzleSession, renderSession: () => void): Promise<void> {
   if (session.submitting || session.revealed || session.solved) return;
   session.submitting = true;
-  session.feedback = { kind: 'pending', text: 'Fetching a hint.' };
+  session.feedback = { kind: 'pending', text: t('puzzle.fetchingHint') };
   renderSession();
   const { move, rating } = await fetchPuzzleHint(
     session.puzzle.id,
@@ -631,7 +644,7 @@ async function requestHint(session: PuzzleSession, renderSession: () => void): P
   );
   session.submitting = false;
   if (!move) {
-    session.feedback = { kind: 'neutral', text: 'No hint available.' };
+    session.feedback = { kind: 'neutral', text: t('puzzle.noHint') };
     renderSession();
     return;
   }
@@ -645,7 +658,7 @@ async function requestHint(session: PuzzleSession, renderSession: () => void): P
     session.selectedSquare = move.from;
     session.selectedDrop = null;
   }
-  session.feedback = { kind: 'neutral', text: 'Hint: move the highlighted piece.' };
+  session.feedback = { kind: 'neutral', text: t('puzzle.hintMoveHighlighted') };
   if (rating) reportAttemptRating(rating);
   renderSession();
 }
@@ -656,7 +669,7 @@ async function requestHint(session: PuzzleSession, renderSession: () => void): P
 async function revealSolution(session: PuzzleSession, renderSession: () => void): Promise<void> {
   if (session.submitting || session.revealed) return;
   session.submitting = true;
-  session.feedback = { kind: 'pending', text: 'Loading the solution.' };
+  session.feedback = { kind: 'pending', text: t('puzzle.loadingSolution') };
   renderSession();
   const { solution, rating } = await fetchPuzzleSolution(
     session.puzzle.id,
@@ -664,7 +677,7 @@ async function revealSolution(session: PuzzleSession, renderSession: () => void)
   );
   session.submitting = false;
   if (!solution || solution.length === 0) {
-    session.feedback = { kind: 'neutral', text: 'No solution available.' };
+    session.feedback = { kind: 'neutral', text: t('puzzle.noSolution') };
     renderSession();
     return;
   }
@@ -684,7 +697,7 @@ async function revealSolution(session: PuzzleSession, renderSession: () => void)
   }
   session.state = state;
   session.viewPly = startPly;
-  session.feedback = { kind: 'neutral', text: 'Solution' };
+  session.feedback = { kind: 'neutral', text: t('puzzle.solution') };
   if (rating) reportAttemptRating(rating);
   renderSession();
   playbackSolution(session, renderSession);

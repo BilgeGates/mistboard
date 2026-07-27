@@ -91,15 +91,16 @@ const APP_I18N_DOMAIN_DEFS: readonly AppI18nDomainDef[] = [
   },
   {
     name: 'play',
-    prefixes: ['game', 'play', 'lobby', 'setup', 'variant', 'live', 'result'],
+    prefixes: ['game', 'play', 'lobby', 'setup', 'variant', 'live', 'result', 'puzzle'],
     english: EN_PLAY,
     critical: CRITICAL_PLAY_I18N_KEYS,
   },
   {
     name: 'review',
-    // 'study' rides the review domain: the study surface IS the review shell,
-    // so its chrome loads with the same lazy chunk rather than a fourth one.
-    prefixes: ['replay', 'watch', 'study'],
+    // 'study' and 'analysis' ride the review domain: both surfaces ARE the
+    // review shell, so their chrome loads with the same lazy chunk rather than
+    // a chunk apiece.
+    prefixes: ['replay', 'watch', 'study', 'analysis'],
     english: EN_REVIEW,
     critical: CRITICAL_REVIEW_I18N_KEYS,
   },

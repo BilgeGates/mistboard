@@ -236,4 +236,69 @@ export const ZH_HANS_CONTENT = {
   'privacy.promisesHeading': '我们承诺什么，以及不承诺什么',
   'privacy.promisesBody':
     '我们承诺把隐藏信息保留在服务器端，并告诉你我们收集什么。我们不承诺你的数据、账号或评分能在开发期间保留。它们可能会在不另行通知的情况下改变或消失。不要把任何你承受不起丢失的东西放在 Mistboard 上。',
+  'patron.heading': '支持 Mistboard',
+  'patron.heroTitle': '帮 Mistboard 继续成长。',
+  'patron.heroSubtitle': '没有广告，没有付费变强。只是一个你可以出手让它活下去的独立项目。',
+  'patron.frequencyMonthly': '按月',
+  'patron.frequencyLifetime': '终身',
+  'patron.intro':
+    'Mistboard 是一个独立、无广告的项目。核心的对弈与学习功能始终免费。如果它对你有价值，赞助能帮忙付服务器的钱，也能让这项工作继续下去。',
+  'patron.perkTitle': '赞助包含什么',
+  'patron.perk':
+    '赞助者的资料页上会有一个小爪印徽章。赞助不解锁功能，也不带来对局上的优势。今后可能会有单独收费的工具或产品。',
+  'patron.supportLine': 'Mistboard 是一个人的项目，你的支持能起很大作用。',
+  'patron.chooseTitle': '选择金额',
+  'patron.monthlySuffix': '/ 月',
+  'patron.oneTime': '单次',
+  'patron.lifetimeLabel': '终身',
+  'patron.donate': '支持 Mistboard',
+  'patron.manage': '管理你的赞助',
+  'patron.alreadyPatron': '你已经是赞助者。感谢你让 Mistboard 运转下去。',
+  'patron.signInFirst': '登录后即可支持 Mistboard',
+  'patron.unavailable': '赞助功能还没开放。请稍后再来。',
+  'patron.checkoutError': '发起结账时出了问题，请重试。',
+  'patron.transparencyTitle': '这些钱用在哪里',
+  'patron.transparency':
+    '赞助用来支付托管开销（服务器、数据库和带宽），以及继续开发的时间。Mistboard 由一个人运营。',
+  'patron.faqTitle': '常见问题',
+  'patron.faqPerkQuestion': '有赞助者专属的内容吗？',
+  'patron.faqPerkAnswer':
+    '赞助换来的是一份认可，不是功能权限。核心的对弈与学习功能始终免费。今后可能会有单独收费的工具或产品。',
+  'patron.faqTaxQuestion': '赞助可以抵税吗？',
+  'patron.faqTaxAnswer': '不可以。Mistboard 不是注册慈善机构，赞助不能抵税。',
+  'patron.faqCancelQuestion': '怎样取消或调整我的赞助？',
+  'patron.faqCancelAnswer':
+    '随时可以从本页打开账单管理页面来调整金额或取消。周期性赞助会在当前周期结束时停止。',
+  'contribute.heading': '参与贡献',
+  'contribute.intro':
+    'Mistboard 是免费开源的，由一个小团队公开开发。要做的事还有很多，无论你写不写代码，都有很多种帮忙的方式。',
+  'contribute.playHeading': '下棋并给出反馈',
+  'contribute.playBody':
+    '眼下你能做的最有用的事，就是下棋，然后告诉我们哪里坏了、哪里别扭。真实对局暴露规则漏洞、含糊之处和缺失功能的速度，比任何其他方式都快。',
+  'contribute.reportHeading': '报告问题、提出想法',
+  'contribute.reportPrefix': '发现了问题，或者有什么想法？可以在 ',
+  'contribute.reportMiddle': ' 上开一个 issue，或者通过',
+  'contribute.reportSuffix': '页面找到我们。能复现问题的清晰步骤价值很大。',
+  'contribute.codeHeading': '改进代码',
+  'contribute.codePrefix': 'Mistboard 以 AGPL-3.0-or-later 许可发布在 ',
+  'contribute.codeSuffix':
+    ' 上。你可以认领一个开放的 issue，或者直接提交 pull request。源码页面列出了代码仓库，以及 Mistboard 所依赖的库。',
+  'contribute.translateHeading': '帮忙翻译',
+  'contribute.translateBody':
+    'Mistboard 以英文为主，简体中文和繁体中文都只译了一部分。如果你能改进某条翻译，或者想开启一门新语言，欢迎提交 issue 或 pull request。',
+  'contribute.supportHeading': '支持这个项目',
+  'contribute.supportPrefix': '服务器和开发都要花钱。如果你想帮 Mistboard 保持免费、无广告，可以',
+  'contribute.supportLink': '赞助 Mistboard',
+  'contribute.supportSuffix': '。哪怕一点也有用，而且下棋从来不需要付费。',
+  'thanks.heading': '致谢',
+  'thanks.intro':
+    'Mistboard 站在许多人和项目的开源工作之上，也站在每一位下棋、报告问题、帮它变得更好的人之上。',
+  'thanks.playersHeading': '玩家与贡献者',
+  'thanks.playersBody':
+    '感谢每一位下过一局棋、报过一个问题、提过一个想法、支持过这个项目的人。你们每做一次，Mistboard 就更锋利一分。',
+  'thanks.openSourceHeading': '开源项目',
+  'thanks.openSourcePrefix': 'Mistboard 建立在开源的库和工具之上。',
+  'thanks.openSourceLink': '源码',
+  'thanks.openSourceSuffix': '页面列出了 Mistboard 依赖的项目及其许可证。',
+  'thanks.stubNote': '这个页面今后会扩展成一份更完整的致谢名单。',
 } satisfies Partial<Record<ContentI18nKey, string>>;

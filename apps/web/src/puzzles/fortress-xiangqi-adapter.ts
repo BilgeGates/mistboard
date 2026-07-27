@@ -326,7 +326,7 @@ function isFortressDropRole(value: string): value is FortressXiangqiDropRole {
 
 export const fortressXiangqiPuzzleAdapter: PuzzleBoardAdapter = {
   variant: FORTRESS_XIANGQI_SPEC_ID,
-  label: 'Fortress Xiangqi',
+  labelKey: 'variant.fortressXiangqi.name',
   markerId: 'fortress-xiangqi',
   installStyles: installFortressXiangqiBoardStyles,
   paintBoard,

@@ -11,6 +11,7 @@ import { localizedStudyName } from './study-i18n.js';
 import './study.css';
 import './study-index.css';
 import { normalizeStartFen } from '@mistboard/game';
+import { type I18nKey, t } from './i18n/catalog.js';
 import { buildNav } from './site-shell.js';
 import {
   buildStudyVariantSelect,
@@ -48,11 +49,11 @@ type StudySummary = {
 type StudyTab = 'all' | 'mine' | 'favorites' | 'staff';
 
 // The left rail mirrors lichess /study. Every tab is backed by a real query.
-const RAIL_TABS: { label: string; tab: StudyTab }[] = [
-  { label: 'All studies', tab: 'all' },
-  { label: 'My studies', tab: 'mine' },
-  { label: 'Favorites', tab: 'favorites' },
-  { label: 'Staff picks', tab: 'staff' },
+const RAIL_TABS: { labelKey: I18nKey; tab: StudyTab }[] = [
+  { labelKey: 'study.indexAll', tab: 'all' },
+  { labelKey: 'study.indexMine', tab: 'mine' },
+  { labelKey: 'study.indexFavorites', tab: 'favorites' },
+  { labelKey: 'study.indexStaff', tab: 'staff' },
 ];
 
 const TAB_NEEDS_AUTH: Record<StudyTab, boolean> = {
@@ -91,32 +92,32 @@ export function mountStudyIndex(root: HTMLElement): void {
   root.classList.add('landing-page');
   const tab = activeTab();
   const q = searchQuery();
-  root.replaceChildren(buildNav(), notice('Loading studies'));
+  root.replaceChildren(buildNav(), notice(t('study.loadingList')));
   void fetch(endpointFor(tab, q), { headers: { accept: 'application/json' } })
     .then(async (response) => {
       if (TAB_NEEDS_AUTH[tab] && response.status === 401) {
         renderMessage(
           root,
-          tab === 'favorites' ? 'Sign in to see your favorites' : 'Sign in to see your studies',
-          'This list is tied to your account.',
+          tab === 'favorites' ? t('study.signInFavorites') : t('study.signInMine'),
+          t('study.signInBody'),
         );
         return;
       }
       if (!response.ok) {
-        renderMessage(root, 'Studies unavailable', 'Studies could not be loaded.');
+        renderMessage(root, t('study.unavailable'), t('study.unavailableBody'));
         return;
       }
       const body = (await response.json()) as { studies: StudySummary[] };
       renderList(root, tab, q, body.studies);
     })
-    .catch(() => renderMessage(root, 'Studies unavailable', 'Studies could not be loaded.'));
+    .catch(() => renderMessage(root, t('study.unavailable'), t('study.unavailableBody')));
 }
 
-const TAB_TITLES: Record<StudyTab, string> = {
-  all: 'All studies',
-  mine: 'My studies',
-  favorites: 'Favorites',
-  staff: 'Staff picks',
+const TAB_TITLE_KEYS: Record<StudyTab, I18nKey> = {
+  all: 'study.indexAll',
+  mine: 'study.indexMine',
+  favorites: 'study.indexFavorites',
+  staff: 'study.indexStaff',
 };
 
 function renderList(root: HTMLElement, tab: StudyTab, q: string, studies: StudySummary[]): void {
@@ -142,7 +143,7 @@ function buildRail(active: StudyTab): HTMLElement {
     const item = document.createElement('li');
     const link = document.createElement('a');
     link.className = 'study-index__rail-tab';
-    link.textContent = tab.label;
+    link.textContent = t(tab.labelKey);
     link.href = tabHref(tab.tab);
     if (tab.tab === active) {
       link.classList.add('is-active');
@@ -184,23 +185,22 @@ function buildContent(tab: StudyTab, q: string, studies: StudySummary[]): HTMLEl
 }
 
 function emptyMessage(tab: StudyTab, q: string): string {
-  if (q) return `No studies match “${q}”.`;
+  if (q) return t('study.emptySearch', { query: q });
   if (tab === 'mine') {
-    return 'No studies yet. Create one to get started.';
+    return t('study.emptyMine');
   }
-  if (tab === 'favorites') return 'No favorites yet. Like a public study to save it here.';
-  if (tab === 'staff') return 'No staff picks yet.';
-  return 'No public studies yet.';
+  if (tab === 'favorites') return t('study.emptyFavorites');
+  if (tab === 'staff') return t('study.emptyStaff');
+  return t('study.emptyPublic');
 }
 
 function staffPicksIntro(): HTMLElement {
   const intro = document.createElement('div');
   intro.className = 'study-index__staff-intro';
   const title = document.createElement('strong');
-  title.textContent = 'Curated by Mistboard';
+  title.textContent = t('study.staffIntroTitle');
   const copy = document.createElement('span');
-  copy.textContent =
-    'Annotated classics, archival transcriptions, and studies chosen for careful learning.';
+  copy.textContent = t('study.staffIntroBody');
   intro.append(title, copy);
   return intro;
 }
@@ -222,14 +222,14 @@ function searchForm(tab: StudyTab, q: string): HTMLElement {
   const input = document.createElement('input');
   input.type = 'search';
   input.className = 'study-index__search-input';
-  input.placeholder = TAB_TITLES[tab];
+  input.placeholder = t(TAB_TITLE_KEYS[tab]);
   input.value = q;
-  input.setAttribute('aria-label', 'Search studies by name');
+  input.setAttribute('aria-label', t('study.searchByName'));
 
   const button = document.createElement('button');
   button.type = 'submit';
   button.className = 'study-index__search-button';
-  button.setAttribute('aria-label', 'Search');
+  button.setAttribute('aria-label', t('study.search'));
   // Static markup (no interpolation) — safe innerHTML for the inline icon.
   button.innerHTML = SEARCH_ICON;
 
@@ -252,7 +252,7 @@ function newStudyButton(): HTMLElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'study-index__create';
-  button.textContent = 'New study';
+  button.textContent = t('study.newStudy');
   button.addEventListener('click', () => openCreateStudyDialog());
   return button;
 }
@@ -269,32 +269,32 @@ function openCreateStudyDialog(): void {
 
   const heading = document.createElement('h2');
   heading.className = 'study-create-dialog__title';
-  heading.textContent = 'Create study';
+  heading.textContent = t('study.createTitle');
 
   const form = document.createElement('form');
   form.className = 'study-create-dialog__form';
 
-  const nameField = dialogField('Name');
+  const nameField = dialogField(t('study.fieldName'));
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
   nameInput.className = 'study-create-dialog__control';
   nameInput.maxLength = 100;
-  nameInput.value = 'Untitled study';
-  nameInput.setAttribute('aria-label', 'Study name');
+  nameInput.value = t('study.untitled');
+  nameInput.setAttribute('aria-label', t('study.nameAria'));
   nameField.append(nameInput);
 
-  const visField = dialogField('Visibility');
+  const visField = dialogField(t('study.fieldVisibility'));
   const visSelect = document.createElement('select');
   visSelect.className = 'study-create-dialog__control';
-  visSelect.setAttribute('aria-label', 'Study visibility');
-  for (const [value, label] of [
-    ['private', 'Private'],
-    ['unlisted', 'Unlisted'],
-    ['public', 'Public'],
-  ] as const) {
+  visSelect.setAttribute('aria-label', t('study.visibilityAria'));
+  for (const [value, labelKey] of [
+    ['private', 'study.visibilityPrivate'],
+    ['unlisted', 'study.visibilityUnlisted'],
+    ['public', 'study.visibilityPublic'],
+  ] as const satisfies readonly (readonly [string, I18nKey])[]) {
     const option = document.createElement('option');
     option.value = value;
-    option.textContent = label;
+    option.textContent = t(labelKey);
     visSelect.append(option);
   }
   visSelect.value = 'private';
@@ -302,19 +302,19 @@ function openCreateStudyDialog(): void {
 
   // The study's variant, chosen once here: every chapter inherits it (the server
   // refuses a chapter that names a different one).
-  const variantField = dialogField('Variant');
-  const variantSelect = buildStudyVariantSelect('Study variant', DEFAULT_STUDY_VARIANT);
+  const variantField = dialogField(t('study.fieldVariant'));
+  const variantSelect = buildStudyVariantSelect(t('study.variantAria'), DEFAULT_STUDY_VARIANT);
   variantField.append(variantSelect);
 
   // Optional hand-set start position (a composition / endgame study). Left
   // empty, the chapter opens at the standard start. Only shown for variants that
   // can parse a FEN back into a position.
-  const fenField = dialogField('Start position (FEN, optional)');
+  const fenField = dialogField(t('study.fieldStartFen'));
   const fenInput = document.createElement('input');
   fenInput.type = 'text';
   fenInput.className = 'study-create-dialog__control';
-  fenInput.placeholder = 'Standard start';
-  fenInput.setAttribute('aria-label', 'Start position FEN');
+  fenInput.placeholder = t('study.startFenPlaceholder');
+  fenInput.setAttribute('aria-label', t('study.startFenAria'));
   fenField.append(fenInput);
   const fenError = document.createElement('p');
   fenError.className = 'study-create-dialog__error';
@@ -328,12 +328,12 @@ function openCreateStudyDialog(): void {
   const cancel = document.createElement('button');
   cancel.type = 'button';
   cancel.className = 'study-create-dialog__cancel';
-  cancel.textContent = 'Cancel';
+  cancel.textContent = t('study.cancel');
   cancel.addEventListener('click', () => dialog.close('cancel'));
   const start = document.createElement('button');
   start.type = 'submit';
   start.className = 'study-create-dialog__start';
-  start.textContent = 'Start';
+  start.textContent = t('study.start');
   actions.append(cancel, start);
 
   const syncFenField = (): void => {
@@ -364,15 +364,15 @@ function openCreateStudyDialog(): void {
       rootFen = parsed.fen;
     }
     start.disabled = true;
-    start.textContent = 'Creating…';
+    start.textContent = t('study.creating');
     void createStudy(
-      nameInput.value.trim() || 'Untitled study',
+      nameInput.value.trim() || t('study.untitled'),
       visSelect.value as StudyVisibility,
       variant,
       rootFen,
     ).catch(() => {
       start.disabled = false;
-      start.textContent = 'Sign in to create';
+      start.textContent = t('study.signInToCreate');
     });
   });
 
@@ -413,7 +413,7 @@ async function createStudy(
     body: JSON.stringify({
       name,
       visibility,
-      chapter: { name: 'Chapter 1', variant, root },
+      chapter: { name: t('study.firstChapter'), variant, root },
     }),
   });
   if (!response.ok) throw new Error(`create failed: ${response.status}`);

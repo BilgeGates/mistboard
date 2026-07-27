@@ -88,7 +88,7 @@ export function mountStudy(root: HTMLElement, studyId: string, initialChapterId?
   const token = {};
   studyMountTokens.set(root, token);
   root.classList.add('landing-page', 'xiangqi-postgame-route');
-  root.replaceChildren(buildNav(), notice('Loading study'));
+  root.replaceChildren(buildNav(), notice(t('study.loadingOne')));
   void loadStudy(studyId)
     .then((result) => {
       if (studyMountTokens.get(root) !== token) return;
@@ -236,7 +236,7 @@ function renderStudy(
     rootFen?: string,
     sourceRoot?: SerializedTree,
   ): Promise<string | null> => {
-    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
+    if (!(await flushActive())) return t('study.resolveFirst');
     // rootFen rides inside the tree blob (SerializedTree.rootFen). Duplicating a
     // chapter supplies the whole source tree instead.
     const chapterRoot: SerializedTree = sourceRoot
@@ -252,7 +252,7 @@ function renderStudy(
         root: chapterRoot,
       }),
     });
-    if (!response.ok) return responseError(response, 'Could not create the chapter.');
+    if (!response.ok) return responseError(response, t('study.createChapterFailed'));
     const { chapter } = (await response.json()) as { chapter: ChapterDto };
     chapters.push(chapter);
     await switchTo(chapter.id);
@@ -265,9 +265,9 @@ function renderStudy(
     );
 
   const removeChapter = async (id: string): Promise<string | null> => {
-    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
+    if (!(await flushActive())) return t('study.resolveFirst');
     const response = await fetch(`/api/studies/${study.id}/chapters/${id}`, { method: 'DELETE' });
-    if (!response.ok) return responseError(response, 'Could not delete the chapter.');
+    if (!response.ok) return responseError(response, t('study.deleteChapterFailed'));
     const index = chapters.findIndex((chapter) => chapter.id === id);
     if (index >= 0) chapters.splice(index, 1);
     if (activeId === id) {
@@ -280,20 +280,19 @@ function renderStudy(
   };
 
   const reorderChapters = async (nextIds: string[]): Promise<string | null> => {
-    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
+    if (!(await flushActive())) return t('study.resolveFirst');
     const response = await fetch(`/api/studies/${study.id}/chapters`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ chapterIds: nextIds }),
     });
-    if (!response.ok) return responseError(response, 'Could not reorder the chapters.');
+    if (!response.ok) return responseError(response, t('study.reorderChaptersFailed'));
     const byId = new Map(chapters.map((chapter) => [chapter.id, chapter]));
     const reordered = nextIds.flatMap((id) => {
       const chapter = byId.get(id);
       return chapter ? [chapter] : [];
     });
-    if (reordered.length !== chapters.length)
-      return 'The chapter list changed. Reload and try again.';
+    if (reordered.length !== chapters.length) return t('study.chapterListChanged');
     chapters.splice(0, chapters.length, ...reordered);
     disposeActive();
     renderActive();
@@ -310,14 +309,14 @@ function renderStudy(
     rerender = true,
   ): Promise<string | null> => {
     const chapter = chapters.find((entry) => entry.id === chapterId);
-    if (!chapter) return 'Chapter not found.';
-    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
+    if (!chapter) return t('study.chapterNotFound');
+    if (!(await flushActive())) return t('study.resolveFirst');
     const response = await fetch(`/api/studies/${study.id}/chapters/${chapterId}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ gamebook: on }),
     });
-    if (!response.ok) return responseError(response, 'Could not update lesson mode.');
+    if (!response.ok) return responseError(response, t('study.lessonModeFailed'));
     chapter.gamebook = on;
     if (!on) previewMode = false;
     if (rerender) {
@@ -337,13 +336,13 @@ function renderStudy(
   };
 
   const saveStudySettings = async (patch: StudySettingsPatch): Promise<string | null> => {
-    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
+    if (!(await flushActive())) return t('study.resolveFirst');
     const response = await fetch(`/api/studies/${study.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(patch),
     });
-    if (!response.ok) return responseError(response, 'Could not save study settings.');
+    if (!response.ok) return responseError(response, t('study.saveSettingsFailed'));
     study.name = patch.name;
     study.description = patch.description;
     study.visibility = patch.visibility;
@@ -354,7 +353,7 @@ function renderStudy(
 
   const deleteStudy = async (): Promise<string | null> => {
     const response = await fetch(`/api/studies/${study.id}`, { method: 'DELETE' });
-    if (!response.ok) return responseError(response, 'Could not delete the study.');
+    if (!response.ok) return responseError(response, t('study.deleteStudyFailed'));
     activeAutosave?.discard();
     disposeActive();
     window.location.href = localizedHref('/study?tab=mine');
@@ -367,7 +366,7 @@ function renderStudy(
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ featured }),
     });
-    if (!response.ok) return responseError(response, 'Could not update Staff picks.');
+    if (!response.ok) return responseError(response, t('study.staffPicksFailed'));
     const body = (await response.json()) as { featuredAt: string | null };
     study.featuredAt = body.featuredAt;
     return null;
@@ -377,14 +376,14 @@ function renderStudy(
     chapter: ChapterDto,
     patch: ChapterSettingsPatch,
   ): Promise<string | null> => {
-    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
+    if (!(await flushActive())) return t('study.resolveFirst');
     if (patch.name !== chapter.name) {
       const response = await fetch(`/api/studies/${study.id}/chapters/${chapter.id}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: patch.name }),
       });
-      if (!response.ok) return responseError(response, 'Could not rename the chapter.');
+      if (!response.ok) return responseError(response, t('study.renameChapterFailed'));
       chapter.name = patch.name;
     }
     if (patch.gamebook !== chapter.gamebook) {
@@ -400,7 +399,7 @@ function renderStudy(
     chapter: ChapterDto,
     nextRoot: SerializedTree,
   ): Promise<string | null> => {
-    if (!(await flushActive())) return 'Resolve or retry the current chapter save first.';
+    if (!(await flushActive())) return t('study.resolveFirst');
     const response = await fetch(`/api/studies/${study.id}/chapters/${chapter.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
@@ -408,8 +407,8 @@ function renderStudy(
     });
     if (!response.ok) {
       return response.status === 409
-        ? 'This chapter changed in another tab. Reload before editing it.'
-        : responseError(response, 'Could not update the chapter.');
+        ? t('study.chapterChangedReload')
+        : responseError(response, t('study.updateChapterFailed'));
     }
     const body = (await response.json()) as { chapter: { version: number } };
     chapter.root = nextRoot;
@@ -520,7 +519,7 @@ function renderStudy(
           status.setAttribute('role', 'button');
           status.tabIndex = 0;
           status.title =
-            state === 'conflict' ? 'Choose which chapter copy to keep' : 'Retry saving this draft';
+            state === 'conflict' ? t('study.chooseCopyToKeep') : t('study.retrySavingDraft');
         } else {
           status.removeAttribute('role');
           status.removeAttribute('tabindex');
@@ -569,7 +568,7 @@ function renderStudy(
     void mountStudyReview(variant, root, {
       reviewSurface: 'study',
       pageClassName: `${variant}-review study-review`,
-      ariaLabel: 'Study',
+      ariaLabel: t('study.ariaStudy'),
       // Empty eyebrow: the info card leads with the study name itself.
       eyebrow: '',
       title: localizedStudyName(study.name, study.i18n),
@@ -651,7 +650,7 @@ function statusSpan(): HTMLElement {
   const status = document.createElement('span');
   status.className = 'study-actions__status';
   status.dataset.state = 'saved';
-  status.textContent = 'Saved';
+  status.textContent = t('study.saved');
   return status;
 }
 
@@ -674,7 +673,7 @@ function aboutPanel(study: StudyDto, chapter: ChapterDto): HTMLElement {
   const description = document.createElement('p');
   description.className = 'study-about__description';
   description.textContent =
-    desc || (study.isOwner ? 'Add a description from Study settings.' : 'No description yet.');
+    desc || (study.isOwner ? t('study.addDescription') : t('study.noDescription'));
   if (!desc) description.classList.add('is-empty');
   panel.append(description);
 
@@ -728,7 +727,7 @@ function likeButton(study: StudyDto): HTMLButtonElement {
     button.classList.toggle('is-liked', study.likedByViewer);
     button.textContent = `${study.likedByViewer ? '♥' : '♡'} ${study.likeCount}`;
     button.setAttribute('aria-pressed', String(study.likedByViewer));
-    button.setAttribute('aria-label', `${study.likedByViewer ? 'Unlike' : 'Like'} this study`);
+    button.setAttribute('aria-label', study.likedByViewer ? t('study.unlike') : t('study.like'));
   };
   render();
   button.addEventListener('click', () => {
@@ -740,7 +739,7 @@ function likeButton(study: StudyDto): HTMLButtonElement {
     })
       .then(async (response) => {
         if (response.status === 401) {
-          button.title = 'Sign in to like studies';
+          button.title = t('study.signInToLike');
           return;
         }
         if (!response.ok) return;
@@ -766,11 +765,9 @@ function buildLessonDock(opts: {
   panel.className = 'study-lesson-dock';
   const copy = document.createElement('div');
   const title = document.createElement('strong');
-  title.textContent = 'Interactive lesson';
+  title.textContent = t('study.lessonTitle');
   const description = document.createElement('p');
-  description.textContent = opts.enabled
-    ? 'Add a hint or a response for learners who leave the main line.'
-    : 'Ask readers to find each move instead of showing the continuation.';
+  description.textContent = opts.enabled ? t('study.lessonOnCopy') : t('study.lessonOffCopy');
   copy.append(title, description);
 
   const actions = document.createElement('div');
@@ -778,7 +775,7 @@ function buildLessonDock(opts: {
   const toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = opts.enabled ? 'study-lesson-dock__toggle is-on' : 'study-lesson-dock__toggle';
-  toggle.textContent = opts.enabled ? 'Lesson on' : 'Enable lesson';
+  toggle.textContent = opts.enabled ? t('study.lessonOn') : t('study.enableLesson');
   toggle.setAttribute('aria-pressed', String(opts.enabled));
   const feedback = document.createElement('span');
   feedback.className = 'study-lesson-dock__feedback';
@@ -794,7 +791,7 @@ function buildLessonDock(opts: {
       })
       .catch(() => {
         toggle.disabled = false;
-        feedback.textContent = 'The request failed. Check your connection and try again.';
+        feedback.textContent = t('study.requestFailed');
       });
   });
   actions.append(toggle);
@@ -802,7 +799,7 @@ function buildLessonDock(opts: {
     const preview = document.createElement('button');
     preview.type = 'button';
     preview.className = 'study-lesson-dock__preview';
-    preview.textContent = opts.preview ? 'Back to editing' : 'Preview lesson';
+    preview.textContent = opts.preview ? t('study.backToEditing') : t('study.previewLesson');
     preview.addEventListener('click', () => opts.onPreview(!opts.preview));
     actions.append(preview);
   }
@@ -856,7 +853,7 @@ function openAddChapterDialog(
 
   const heading = document.createElement('h2');
   heading.className = 'study-create-dialog__title';
-  heading.textContent = 'New chapter';
+  heading.textContent = t('study.newChapter');
 
   const form = document.createElement('form');
   form.className = 'study-create-dialog__form';
@@ -865,25 +862,25 @@ function openAddChapterDialog(
   nameField.className = 'study-create-dialog__field';
   const nameLabel = document.createElement('span');
   nameLabel.className = 'study-create-dialog__label';
-  nameLabel.textContent = 'Name';
+  nameLabel.textContent = t('study.fieldName');
   const nameInput = document.createElement('input');
   nameInput.type = 'text';
   nameInput.className = 'study-create-dialog__control';
   nameInput.maxLength = 80;
   nameInput.value = defaultName;
-  nameInput.setAttribute('aria-label', 'Chapter name');
+  nameInput.setAttribute('aria-label', t('study.chapterNameAria'));
   nameField.append(nameLabel, nameInput);
 
   const fenField = document.createElement('label');
   fenField.className = 'study-create-dialog__field';
   const fenLabel = document.createElement('span');
   fenLabel.className = 'study-create-dialog__label';
-  fenLabel.textContent = 'Start position (FEN, optional)';
+  fenLabel.textContent = t('study.fieldStartFen');
   const fenInput = document.createElement('input');
   fenInput.type = 'text';
   fenInput.className = 'study-create-dialog__control';
-  fenInput.placeholder = 'Standard start';
-  fenInput.setAttribute('aria-label', 'Start position FEN');
+  fenInput.placeholder = t('study.startFenPlaceholder');
+  fenInput.setAttribute('aria-label', t('study.startFenAria'));
   fenField.append(fenLabel, fenInput);
   const fenError = document.createElement('p');
   fenError.className = 'study-create-dialog__error';
@@ -893,12 +890,12 @@ function openAddChapterDialog(
   const cancel = document.createElement('button');
   cancel.type = 'button';
   cancel.className = 'study-create-dialog__cancel';
-  cancel.textContent = 'Cancel';
+  cancel.textContent = t('study.cancel');
   cancel.addEventListener('click', () => dialog.close('cancel'));
   const start = document.createElement('button');
   start.type = 'submit';
   start.className = 'study-create-dialog__start';
-  start.textContent = 'Add';
+  start.textContent = t('study.add');
   actions.append(cancel, start);
 
   // The chapter inherits the study's variant, so the only variant-dependent part
@@ -932,12 +929,12 @@ function openAddChapterDialog(
         }
         fenError.textContent = error;
         start.disabled = false;
-        start.textContent = 'Add';
+        start.textContent = t('study.add');
       })
       .catch(() => {
         fenError.textContent = 'The request failed. Check your connection and try again.';
         start.disabled = false;
-        start.textContent = 'Add';
+        start.textContent = t('study.add');
       });
   });
 

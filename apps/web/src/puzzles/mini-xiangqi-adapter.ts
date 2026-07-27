@@ -396,12 +396,12 @@ function sideIconSvg(puzzle: PuzzleDetail): string {
 
 function miniFamilyAdapter(
   variant: typeof MINI_XIANGQI_SPEC_ID | typeof DROP_MINI_XIANGQI_SPEC_ID,
-  label: string,
+  labelKey: PuzzleBoardAdapter['labelKey'],
   markerId: PuzzleBoardAdapter['markerId'],
 ): PuzzleBoardAdapter {
   return {
     variant,
-    label,
+    labelKey,
     markerId,
     installStyles: installMiniXiangqiBoardStyles,
     paintBoard,
@@ -417,12 +417,12 @@ function miniFamilyAdapter(
 
 export const miniXiangqiPuzzleAdapter = miniFamilyAdapter(
   MINI_XIANGQI_SPEC_ID,
-  'Mini Xiangqi',
+  'variant.miniXiangqi.name',
   'mini-xiangqi',
 );
 
 export const dropMiniXiangqiPuzzleAdapter = miniFamilyAdapter(
   DROP_MINI_XIANGQI_SPEC_ID,
-  'Drop Mini Xiangqi',
+  'variant.dropMiniXiangqi.name',
   'drop-mini-xiangqi',
 );

@@ -177,7 +177,7 @@ async function handleJungleBoardDrop(
 
 export const junglePuzzleAdapter: PuzzleBoardAdapter = {
   variant: JUNGLE_SPEC_ID,
-  label: 'Jungle',
+  labelKey: 'variant.jungle.name',
   markerId: 'jungle',
   paintBoard,
   animateMove: (board, session, move, opts) => {

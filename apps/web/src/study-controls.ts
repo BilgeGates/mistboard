@@ -1,3 +1,4 @@
+import { t } from './i18n/catalog.js';
 import type { SerializedNode, SerializedTree } from './review/tree-serialize.js';
 import { localizedStudyName } from './study-i18n.js';
 
@@ -39,12 +40,15 @@ export function buildStudyRail(
 ): HTMLElement {
   const panel = document.createElement('section');
   panel.className = 'study-chapters';
-  panel.setAttribute('aria-label', 'Chapters');
+  panel.setAttribute('aria-label', t('study.chapters'));
 
   const head = document.createElement('div');
   head.className = 'study-chapters__head';
   const count = document.createElement('span');
-  count.textContent = `${chapters.length} ${chapters.length === 1 ? 'Chapter' : 'Chapters'}`;
+  count.textContent =
+    chapters.length === 1
+      ? t('study.chapterCountOne')
+      : t('study.chapterCount', { count: chapters.length });
   head.append(count);
 
   const tools = document.createElement('span');
@@ -59,20 +63,20 @@ export function buildStudyRail(
       button.textContent = featured ? '★' : '☆';
       button.title =
         study.visibility !== 'public' && !featured
-          ? 'Make this study public before featuring it'
+          ? t('study.publicBeforeFeature')
           : featured
-            ? 'Remove from Staff picks'
-            : 'Feature in Staff picks';
+            ? t('study.removeFrom')
+            : t('study.featureIn');
       button.setAttribute('aria-label', button.title);
       button.setAttribute('aria-pressed', String(featured));
       button.disabled = study.visibility !== 'public' && !featured;
     };
-    const featured = iconButton('☆', 'Feature in Staff picks', 'study-chapters__featured');
+    const featured = iconButton('☆', t('study.featureIn'), 'study-chapters__featured');
     renderFeatured(featured);
     featured.addEventListener('click', () => {
       const next = !study.featuredAt;
       featured.disabled = true;
-      setRailStatus(status, 'saving', next ? 'Featuring…' : 'Removing…');
+      setRailStatus(status, 'saving', next ? t('study.featuring') : t('study.removing'));
       void actions
         .onToggleFeatured(next)
         .then((error) => {
@@ -82,18 +86,18 @@ export function buildStudyRail(
             return;
           }
           study.featuredAt = next ? new Date().toISOString() : null;
-          setRailStatus(status, 'saved', next ? 'Featured' : 'Removed');
+          setRailStatus(status, 'saved', next ? t('study.featured') : t('study.removed'));
           renderFeatured(featured);
         })
         .catch(() => {
-          setRailStatus(status, 'error', 'Curation failed');
+          setRailStatus(status, 'error', t('study.curationFailed'));
           renderFeatured(featured);
         });
     });
     tools.append(featured);
   }
   if (study.isOwner) {
-    const settings = iconButton('☰', 'Study settings', 'study-chapters__settings');
+    const settings = iconButton('☰', t('study.studySettings'), 'study-chapters__settings');
     settings.addEventListener('click', actions.onOpenStudySettings);
     tools.append(settings);
   }
@@ -112,7 +116,7 @@ export function buildStudyRail(
     const nextIds = moveChapterId(currentIds, chapterId, currentIndex + offset);
     if (nextIds.every((id, index) => id === currentIds[index])) return;
     reorderPending = true;
-    setRailStatus(status, 'saving', 'Reordering…');
+    setRailStatus(status, 'saving', t('study.reordering'));
     void actions
       .onReorder(nextIds)
       .then((error) => {
@@ -121,11 +125,11 @@ export function buildStudyRail(
           setRailStatus(status, 'error', error);
           return;
         }
-        setRailStatus(status, 'saved', 'Saved');
+        setRailStatus(status, 'saved', t('study.saved'));
       })
       .catch(() => {
         reorderPending = false;
-        setRailStatus(status, 'error', 'Reorder failed');
+        setRailStatus(status, 'error', t('study.reorderFailed'));
       });
   };
   const requestDrop = (chapterId: string, targetId: string): void => {
@@ -136,7 +140,7 @@ export function buildStudyRail(
     const nextIds = moveChapterId(currentIds, chapterId, targetIndex);
     if (nextIds.every((id, index) => id === currentIds[index])) return;
     reorderPending = true;
-    setRailStatus(status, 'saving', 'Reordering…');
+    setRailStatus(status, 'saving', t('study.reordering'));
     void actions
       .onReorder(nextIds)
       .then((error) => {
@@ -145,11 +149,11 @@ export function buildStudyRail(
           setRailStatus(status, 'error', error);
           return;
         }
-        setRailStatus(status, 'saved', 'Saved');
+        setRailStatus(status, 'saved', t('study.saved'));
       })
       .catch(() => {
         reorderPending = false;
-        setRailStatus(status, 'error', 'Reorder failed');
+        setRailStatus(status, 'error', t('study.reorderFailed'));
       });
   };
   chapters.forEach((chapter, index) => {
@@ -162,7 +166,7 @@ export function buildStudyRail(
     if (study.isOwner) {
       const drag = iconButton('⠿', `Reorder ${chapterLabel}`, 'study-chapters__drag');
       drag.draggable = true;
-      drag.title = 'Drag to reorder. Use arrow keys for precise movement.';
+      drag.title = t('study.dragToReorder');
       drag.addEventListener('dragstart', (event) => {
         draggedId = chapter.id;
         row.classList.add('is-dragging');
@@ -274,7 +278,7 @@ export function openStudySettingsDialog(
   actions: StudySettingsActions,
 ): void {
   closeExistingDialog('study-settings');
-  const dialog = baseDialog('study-settings', 'Study settings');
+  const dialog = baseDialog('study-settings', t('study.studySettings'));
   const form = document.createElement('form');
   form.className = 'study-settings__form';
 
@@ -284,12 +288,12 @@ export function openStudySettingsDialog(
   description.rows = 5;
   description.maxLength = 4000;
   description.value = study.description;
-  description.placeholder = 'What will readers learn from this study?';
+  description.placeholder = t('study.descriptionPlaceholder');
   const visibility = visibilitySelect(study.visibility);
   form.append(
-    field('Name', name),
-    field('Description', description),
-    field('Visibility', visibility),
+    field(t('study.fieldName'), name),
+    field(t('study.fieldDescription'), description),
+    field(t('study.fieldVisibility'), visibility),
   );
 
   const feedback = feedbackLine();
@@ -297,18 +301,18 @@ export function openStudySettingsDialog(
   footer.className = 'study-settings__footer';
   const danger = document.createElement('div');
   danger.className = 'study-settings__danger';
-  const remove = actionButton('Delete study', 'study-settings__delete');
-  armDanger(remove, feedback, 'Delete this study permanently?', async () => {
-    setPending(remove, 'Deleting…');
+  const remove = actionButton(t('study.deleteStudy'), 'study-settings__delete');
+  armDanger(remove, feedback, t('study.deleteStudyConfirm'), async () => {
+    setPending(remove, t('study.deleting'));
     try {
       const error = await actions.onDelete();
       if (!error) return;
       setFeedback(feedback, error, 'error');
-      restoreButton(remove, 'Delete study');
+      restoreButton(remove, t('study.deleteStudy'));
       remove.blur();
     } catch {
-      setFeedback(feedback, 'The request failed. Check your connection and try again.', 'error');
-      restoreButton(remove, 'Delete study');
+      setFeedback(feedback, t('study.requestFailed'), 'error');
+      restoreButton(remove, t('study.deleteStudy'));
       remove.blur();
     }
   });
@@ -316,9 +320,9 @@ export function openStudySettingsDialog(
 
   const primary = document.createElement('div');
   primary.className = 'study-create-dialog__actions';
-  const cancel = actionButton('Cancel', 'study-create-dialog__cancel');
+  const cancel = actionButton(t('study.cancel'), 'study-create-dialog__cancel');
   cancel.addEventListener('click', () => dialog.close('cancel'));
-  const save = actionButton('Save changes', 'study-create-dialog__start', 'submit');
+  const save = actionButton(t('study.saveChanges'), 'study-create-dialog__start', 'submit');
   primary.append(cancel, save);
   footer.append(danger, primary);
   form.append(feedback, footer);
@@ -326,10 +330,10 @@ export function openStudySettingsDialog(
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     if (!name.value.trim()) {
-      setFeedback(feedback, 'Study name is required.', 'error');
+      setFeedback(feedback, t('study.nameRequired'), 'error');
       return;
     }
-    setPending(save, 'Saving…');
+    setPending(save, t('study.saving'));
     void actions
       .onSave({
         name: name.value.trim(),
@@ -339,14 +343,14 @@ export function openStudySettingsDialog(
       .then((error) => {
         if (error) {
           setFeedback(feedback, error, 'error');
-          restoreButton(save, 'Save changes');
+          restoreButton(save, t('study.saveChanges'));
           return;
         }
         dialog.close('saved');
       })
       .catch(() => {
-        setFeedback(feedback, 'The request failed. Check your connection and try again.', 'error');
-        restoreButton(save, 'Save changes');
+        setFeedback(feedback, t('study.requestFailed'), 'error');
+        restoreButton(save, t('study.saveChanges'));
       });
   });
 
@@ -374,91 +378,102 @@ export function openChapterSettingsDialog(
   actions: ChapterSettingsActions,
 ): void {
   closeExistingDialog('chapter-settings');
-  const dialog = baseDialog('chapter-settings', 'Chapter settings');
+  const dialog = baseDialog('chapter-settings', t('study.chapterSettings'));
   const form = document.createElement('form');
   form.className = 'study-settings__form';
   const name = textInput(chapter.name, 80);
-  form.append(field('Name', name));
+  form.append(field(t('study.fieldName'), name));
 
   const gamebook = document.createElement('input');
   gamebook.type = 'checkbox';
   gamebook.checked = chapter.gamebook;
-  if (actions.canUseGamebook) form.append(checkField('Interactive lesson', gamebook));
+  if (actions.canUseGamebook) form.append(checkField(t('study.lessonTitle'), gamebook));
 
   const feedback = feedbackLine();
   const utilities = document.createElement('div');
   utilities.className = 'study-chapter-dialog__utilities';
-  const duplicate = actionButton('Duplicate chapter', 'study-settings__secondary');
+  const duplicate = actionButton(t('study.duplicateChapter'), 'study-settings__secondary');
   duplicate.addEventListener('click', () => {
-    setPending(duplicate, 'Duplicating…');
+    setPending(duplicate, t('study.duplicating'));
     void actions
       .onDuplicate()
       .then((error) => {
         if (error) {
           setFeedback(feedback, error, 'error');
-          restoreButton(duplicate, 'Duplicate chapter');
+          restoreButton(duplicate, t('study.duplicateChapter'));
           return;
         }
         dialog.close('duplicated');
       })
       .catch(() => {
-        setFeedback(feedback, 'The request failed. Check your connection and try again.', 'error');
-        restoreButton(duplicate, 'Duplicate chapter');
+        setFeedback(feedback, t('study.requestFailed'), 'error');
+        restoreButton(duplicate, t('study.duplicateChapter'));
       });
   });
   utilities.append(duplicate);
 
   const destructive = document.createElement('div');
   destructive.className = 'study-chapter-dialog__destructive';
-  const clearAnnotations = actionButton('Clear annotations', 'study-settings__danger-action');
-  armDanger(
-    clearAnnotations,
-    feedback,
-    'Remove every comment, glyph, shape, and lesson hint?',
-    () =>
-      runDialogAction(dialog, clearAnnotations, feedback, 'Clearing…', actions.onClearAnnotations),
+  const clearAnnotations = actionButton(
+    t('study.clearAnnotations'),
+    'study-settings__danger-action',
   );
-  const clearVariations = actionButton('Clear variations', 'study-settings__danger-action');
-  armDanger(clearVariations, feedback, 'Keep only the main line in this chapter?', () =>
-    runDialogAction(dialog, clearVariations, feedback, 'Clearing…', actions.onClearVariations),
+  armDanger(clearAnnotations, feedback, t('study.clearAnnotationsConfirm'), () =>
+    runDialogAction(
+      dialog,
+      clearAnnotations,
+      feedback,
+      t('study.clearing'),
+      actions.onClearAnnotations,
+    ),
+  );
+  const clearVariations = actionButton(t('study.clearVariations'), 'study-settings__danger-action');
+  armDanger(clearVariations, feedback, t('study.clearVariationsConfirm'), () =>
+    runDialogAction(
+      dialog,
+      clearVariations,
+      feedback,
+      t('study.clearing'),
+      actions.onClearVariations,
+    ),
   );
   destructive.append(clearAnnotations, clearVariations);
   if (actions.canDelete) {
-    const remove = actionButton('Delete chapter', 'study-settings__delete');
-    armDanger(remove, feedback, 'Delete this chapter permanently?', () =>
-      runDialogAction(dialog, remove, feedback, 'Deleting…', actions.onDelete),
+    const remove = actionButton(t('study.deleteChapter'), 'study-settings__delete');
+    armDanger(remove, feedback, t('study.deleteChapterConfirm'), () =>
+      runDialogAction(dialog, remove, feedback, t('study.deleting'), actions.onDelete),
     );
     destructive.append(remove);
   }
 
   const primary = document.createElement('div');
   primary.className = 'study-create-dialog__actions';
-  const cancel = actionButton('Cancel', 'study-create-dialog__cancel');
+  const cancel = actionButton(t('study.cancel'), 'study-create-dialog__cancel');
   cancel.addEventListener('click', () => dialog.close('cancel'));
-  const save = actionButton('Save chapter', 'study-create-dialog__start', 'submit');
+  const save = actionButton(t('study.saveChapter'), 'study-create-dialog__start', 'submit');
   primary.append(cancel, save);
 
   form.append(utilities, destructive, feedback, primary);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     if (!name.value.trim()) {
-      setFeedback(feedback, 'Chapter name is required.', 'error');
+      setFeedback(feedback, t('study.chapterNameRequired'), 'error');
       return;
     }
-    setPending(save, 'Saving…');
+    setPending(save, t('study.saving'));
     void actions
       .onSave({ name: name.value.trim(), gamebook: gamebook.checked })
       .then((error) => {
         if (error) {
           setFeedback(feedback, error, 'error');
-          restoreButton(save, 'Save chapter');
+          restoreButton(save, t('study.saveChapter'));
           return;
         }
         dialog.close('saved');
       })
       .catch(() => {
-        setFeedback(feedback, 'The request failed. Check your connection and try again.', 'error');
-        restoreButton(save, 'Save chapter');
+        setFeedback(feedback, t('study.requestFailed'), 'error');
+        restoreButton(save, t('study.saveChapter'));
       });
   });
 
@@ -473,30 +488,28 @@ export type StudySaveRecoveryActions = {
 
 export function openStudySaveRecoveryDialog(actions: StudySaveRecoveryActions): void {
   closeExistingDialog('save-recovery');
-  const dialog = baseDialog('save-recovery', 'Choose which chapter to keep');
+  const dialog = baseDialog('save-recovery', t('study.recoveryTitle'));
 
   const body = document.createElement('div');
   body.className = 'study-save-recovery';
   const explanation = document.createElement('p');
-  explanation.textContent =
-    'This chapter changed in another tab. Your local edits are safe on this device.';
+  explanation.textContent = t('study.recoveryBody');
   const guidance = document.createElement('p');
   guidance.className = 'study-save-recovery__guidance';
-  guidance.textContent =
-    'Keep your draft to replace the newer server copy, or use the server copy to discard this local draft.';
+  guidance.textContent = t('study.recoveryChoice');
   body.append(explanation, guidance);
 
   const feedback = feedbackLine();
   const actionsRow = document.createElement('div');
   actionsRow.className = 'study-create-dialog__actions';
-  const useServer = actionButton('Use server copy', 'study-settings__danger-action');
+  const useServer = actionButton(t('study.useServerCopy'), 'study-settings__danger-action');
   useServer.addEventListener('click', () => {
     actions.onUseServer();
     dialog.close('server');
   });
-  const keepLocal = actionButton('Keep my draft', 'study-create-dialog__start');
+  const keepLocal = actionButton(t('study.keepMyDraft'), 'study-create-dialog__start');
   keepLocal.addEventListener('click', () => {
-    setPending(keepLocal, 'Saving…');
+    setPending(keepLocal, t('study.saving'));
     useServer.disabled = true;
     void actions
       .onKeepLocal()
@@ -505,21 +518,13 @@ export function openStudySaveRecoveryDialog(actions: StudySaveRecoveryActions): 
           dialog.close('local');
           return;
         }
-        setFeedback(
-          feedback,
-          'The draft is still safe locally. Check your connection and retry.',
-          'error',
-        );
-        restoreButton(keepLocal, 'Keep my draft');
+        setFeedback(feedback, t('study.draftStillSafe'), 'error');
+        restoreButton(keepLocal, t('study.keepMyDraft'));
         useServer.disabled = false;
       })
       .catch(() => {
-        setFeedback(
-          feedback,
-          'The draft is still safe locally. Check your connection and retry.',
-          'error',
-        );
-        restoreButton(keepLocal, 'Keep my draft');
+        setFeedback(feedback, t('study.draftStillSafe'), 'error');
+        restoreButton(keepLocal, t('study.keepMyDraft'));
         useServer.disabled = false;
       });
   });
@@ -701,7 +706,7 @@ async function runDialogAction(
     restoreButton(button, button.dataset.defaultLabel ?? 'Try again');
     button.blur();
   } catch {
-    setFeedback(feedback, 'The request failed. Check your connection and try again.', 'error');
+    setFeedback(feedback, t('study.requestFailed'), 'error');
     restoreButton(button, button.dataset.defaultLabel ?? 'Try again');
     button.blur();
   }
