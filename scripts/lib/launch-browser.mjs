@@ -16,9 +16,13 @@
 // strength of it and shipped past a real release gate. Translate the failure
 // into the one sentence that resolves it.
 //
-// Note the trap: every call site already passes `--no-sandbox`, and it does
-// not help. That flag disables Chromium's *own* renderer sandbox; the denial
-// comes from the outer seatbelt the harness wraps the process in.
+// Note the two traps. Every call site already passes `--no-sandbox`, and it
+// does not help: that flag disables Chromium's *own* renderer sandbox, not the
+// outer seatbelt. And escalating inside the harness does not help either -
+// Codex re-ran this smoke with `sandbox_permissions: "require_escalated"` on
+// 2026-07-25 and hit the identical denial, so pre-approving a command prefix
+// would remove the prompt without removing the wall. The only fix is a
+// different runner.
 import { chromium } from '@playwright/test';
 
 // Signatures of the sandbox wall, matched against the whole Playwright error
@@ -38,13 +42,16 @@ export const SANDBOX_LAUNCH_MESSAGE = [
   'its Mach bootstrap registration.',
   '',
   'This is a permission wall, not a flaky browser, and not an optional check.',
-  'Re-run the same command with escalated (unsandboxed) permissions:',
-  '  - Codex: approve the escalation prompt, or pre-approve the command prefix',
-  '  - Claude Code: re-issue the Bash call with the sandbox disabled',
-  '  - a plain terminal outside any agent harness always works',
+  'Do not retry in place, and do not report the smoke as skipped. Re-run the',
+  'same command from somewhere that can actually launch a browser:',
+  '  - Claude Code: its Bash tool launches Chromium fine (verified 2026-07-27)',
+  '  - a plain terminal outside any agent harness',
   '',
-  "Passing --no-sandbox does not help. It disables Chromium's own renderer",
-  'sandbox, not the outer macOS seatbelt that produced this failure.',
+  'Two things that look like fixes and are not. Passing --no-sandbox: it turns',
+  "off Chromium's own renderer sandbox, not the outer seatbelt that produced",
+  'this failure, and every call site already passes it. Escalating within',
+  'Codex: `sandbox_permissions: "require_escalated"` was observed hitting this',
+  'same denial on 2026-07-25, so a persisted approval prefix buys nothing.',
 ].join('\n');
 
 // True when `error` is the sandbox wall rather than a genuine browser crash.
