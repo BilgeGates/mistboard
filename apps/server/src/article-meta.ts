@@ -138,17 +138,17 @@ export const ARTICLE_META: Record<
     description:
       'Crossroads Chess under Fog of War: each side sees only the squares its pieces reach, there are no check warnings, the king falls by capture, and the race to the far rank becomes a one-move gamble in the dark.',
   },
-  'reveal-xiangqi': {
-    title: 'Reveal Xiangqi Rules',
+  jieqi: {
+    title: 'Jieqi Rules (Reveal Xiangqi)',
     kind: 'rules',
     description:
-      'The complete rules of Reveal Xiangqi: every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Checkmate the general to win.',
+      'The complete rules of Jieqi, also called Reveal Xiangqi: every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Checkmate the general to win.',
   },
-  'flip-xiangqi': {
-    title: 'Flip Xiangqi Rules',
+  banqi: {
+    title: 'Banqi Rules (Flip Xiangqi)',
     kind: 'rules',
     description:
-      'The complete rules of Flip Xiangqi: flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
+      'The complete rules of Banqi, also called Flip Xiangqi or Half Chess: flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
   },
   jungle: {
     title: 'Jungle Chess Rules',

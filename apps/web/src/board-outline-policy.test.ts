@@ -77,22 +77,22 @@ describe('board outer-outline policy', () => {
     for (const sample of samples) expectOutlineFree(sample);
   });
 
-  it('keeps the Reveal and Flip Xiangqi replay widgets outline-free', () => {
-    const reveal = findArticle('reveal-xiangqi');
-    const flip = findArticle('flip-xiangqi');
+  it('keeps the Reveal and Banqi replay widgets outline-free', () => {
+    const reveal = findArticle('jieqi');
+    const flip = findArticle('banqi');
     const revealBlock =
       reveal && articleBlocks(reveal).find((block) => block.kind === 'jieqi-replay');
     const flipBlock = flip && articleBlocks(flip).find((block) => block.kind === 'banqi-replay');
-    if (revealBlock?.kind !== 'jieqi-replay') throw new Error('missing Reveal Xiangqi replay');
-    if (flipBlock?.kind !== 'banqi-replay') throw new Error('missing Flip Xiangqi replay');
+    if (revealBlock?.kind !== 'jieqi-replay') throw new Error('missing Jieqi replay');
+    if (flipBlock?.kind !== 'banqi-replay') throw new Error('missing Banqi replay');
 
     const revealHost = document.createElement('div');
     const flipHost = document.createElement('div');
     const revealController = mountJieqiReplay(revealHost, revealBlock.spec);
     const flipController = mountBanqiReplay(flipHost, flipBlock.spec);
 
-    expectOutlineFree({ label: 'reveal-xiangqi:replay', svg: revealHost.innerHTML });
-    expectOutlineFree({ label: 'flip-xiangqi:replay', svg: flipHost.innerHTML });
+    expectOutlineFree({ label: 'jieqi:replay', svg: revealHost.innerHTML });
+    expectOutlineFree({ label: 'banqi:replay', svg: flipHost.innerHTML });
 
     revealController.destroy();
     flipController.destroy();

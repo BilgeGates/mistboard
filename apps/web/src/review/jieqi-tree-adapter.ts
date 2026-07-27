@@ -1,4 +1,4 @@
-// Reveal Xiangqi (jieqi) adapter for the shared GameTree spine. Jieqi is
+// Jieqi adapter for the shared GameTree spine. Jieqi is
 // IDENTITY-hidden, not position-hidden: the 15 non-general pieces per side are
 // shuffled face-down onto the home squares and reveal WHEN THEY MOVE (there is no
 // flip self-move — a dark piece moves by its starting-square role, then flips to its

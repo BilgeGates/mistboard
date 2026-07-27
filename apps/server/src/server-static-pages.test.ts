@@ -212,15 +212,15 @@ test('serveArticlePage 301s legacy /articles/<rules-slug> to /rules/<clean>', as
   assert.equal(response.headers.location, '/rules/fog-chess');
 });
 
-test('serveArticlePage 301s stable game ids to reader-facing rules slugs', async () => {
+test('serveArticlePage 301s legacy rules slugs to their canonical slug', async () => {
   const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
   await writeFile(join(staticDir, 'index.html'), indexHtml(), 'utf-8');
 
   for (const [slug, canonical] of [
-    ['banqi', 'flip-xiangqi'],
+    ['flip-xiangqi', 'banqi'],
     ['dark-chess', 'fog-chess'],
     ['dark-xiangqi', 'fog-xiangqi'],
-    ['jieqi', 'reveal-xiangqi'],
+    ['reveal-xiangqi', 'jieqi'],
   ] as const) {
     const response = captureResponse();
     await serveArticlePage({

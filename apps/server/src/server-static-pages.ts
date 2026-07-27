@@ -105,10 +105,10 @@ const RENAMED_ARTICLE_SLUGS: Record<string, string> = {
   'mini-xiangqi-rules': 'mini-xiangqi',
   'dark-mini-xiangqi-rules': 'dark-mini-xiangqi',
   draft960: 'dark-draft960',
-  banqi: 'flip-xiangqi',
+  'flip-xiangqi': 'banqi',
   'dark-chess': 'fog-chess',
   'dark-xiangqi': 'fog-xiangqi',
-  jieqi: 'reveal-xiangqi',
+  'reveal-xiangqi': 'jieqi',
 };
 
 export function injectPageMeta(html: string, meta: PageMeta): string {

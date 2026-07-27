@@ -1,4 +1,4 @@
-// Client-side Reveal Xiangqi analysis powered by the classical-evaluation
+// Client-side Jieqi analysis powered by the classical-evaluation
 // PikaJieQi WebAssembly build. The engine runs as a persistent UCI session in a
 // dedicated worker and streams iterative-deepening MultiPV updates.
 import type {
@@ -29,7 +29,7 @@ type EngineMessage =
   | { type: 'stderr'; line: string }
   | { type: 'error'; error?: string };
 
-/** True only for the Reveal Xiangqi backend. */
+/** True only for the Jieqi backend. */
 export function isPikaJieqiCevalVariant(variant: CevalVariant): boolean {
   return variant === 'jieqi';
 }

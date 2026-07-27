@@ -62,7 +62,7 @@ describe('Banqi postgame page', () => {
     expect(fetchSpy).toHaveBeenCalledWith('/api/banqi/games/bq_postgame');
     // Single clean left rail (meta card + spectator room) — no action buttons.
     expect(root.textContent).toContain('Spectator room');
-    expect(root.textContent).toContain('Flip Xiangqi');
+    expect(root.textContent).toContain('Banqi');
     expect(root.textContent).toContain('Black is victorious');
     expect(root.querySelector('.game-meta-card')).not.toBeNull();
     expect(root.querySelector('[role="separator"][aria-label="Resize chat"]')).not.toBeNull();

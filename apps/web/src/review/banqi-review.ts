@@ -1,4 +1,4 @@
-// Flip Xiangqi (banqi) review surface: the banqi presentation bundle over the
+// Banqi review surface: the banqi presentation bundle over the
 // generic tree-review controller (mountTreeReview). The client engine is the in-browser
 // MistyBanqi wasm build (a Misty ceval backend, fed the per-node redacted FEN), so the
 // eval gauge + MultiPV panel light up alongside the interactive branching board (flip +
@@ -92,7 +92,7 @@ function makeBanqiPresentation(
     formatBestMove: formatFlipVariantBestMove,
     boardHostClassName: 'banqi-postgame-board banqi-live-board',
     boardWrapClassName: 'dxq-postgame__board-wrap review-board-host',
-    defaultBoardAriaLabel: 'Flip Xiangqi board',
+    defaultBoardAriaLabel: 'Banqi board',
     // 8×4 board (WIDTH 568 / HEIGHT 312 from live-banqi-render).
     boardAspect: 568 / 312,
     // Discs sit inset within their cell, so capture tiles size a touch under one

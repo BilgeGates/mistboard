@@ -10,6 +10,7 @@ import './bots.css';
 import { bindBotPlayControl } from './bot-play.js';
 import { buildCommunityLayout } from './community-rail.js';
 import type { FeaturedGame } from './game-display.js';
+import { type I18nKey, t } from './i18n/catalog.js';
 import { buildBotSummaryCard } from './profile-summary-card.js';
 import {
   buildProfileDashboard,
@@ -72,13 +73,13 @@ type BotProfile = {
 
 class BotNotFound extends Error {}
 
-const GAME_SPEC_LABELS: Record<string, string> = {
-  'dark-chess': 'Fog Chess',
-  'dark-mini-xiangqi': 'Dark Mini Xiangqi',
-  jieqi: 'Reveal Xiangqi',
-  banqi: 'Flip Xiangqi',
-  'crossroads-chess': 'Crossroads Chess',
-  'fortress-xiangqi': 'Fortress Xiangqi',
+const GAME_SPEC_LABEL_KEYS: Record<string, I18nKey> = {
+  'dark-chess': 'variant.darkChess.name',
+  'dark-mini-xiangqi': 'variant.darkMiniXiangqi.name',
+  jieqi: 'variant.jieqi.name',
+  banqi: 'variant.banqi.name',
+  'crossroads-chess': 'variant.crossroadsChess.name',
+  'fortress-xiangqi': 'variant.fortressXiangqi.name',
 };
 
 const HIDDEN_BOT_GAME_SPEC_IDS = new Set(['dark-draft960']);
@@ -645,7 +646,9 @@ function primaryRating(bot: BotProfile): BotRatingSnapshot | null {
 }
 
 function gameSpecLabel(gameSpecId: string): string {
-  return GAME_SPEC_LABELS[gameSpecId] ?? maybeGameSpecForId(gameSpecId)?.publicName ?? gameSpecId;
+  const key = GAME_SPEC_LABEL_KEYS[gameSpecId];
+  if (key) return t(key);
+  return maybeGameSpecForId(gameSpecId)?.publicName ?? gameSpecId;
 }
 
 function timeControlLabel(timeControl: BotProfile['play']['timeControl']): string {

@@ -95,7 +95,7 @@ describe('landing announcements', () => {
     const hrefs = new Set(announcements().map((entry) => entry.href));
 
     expect(hrefs).toContain('/forum');
-    expect(hrefs).toContain('/rules/flip-xiangqi');
+    expect(hrefs).toContain('/rules/banqi');
     expect(hrefs).toContain('/rules/dark-mini-xiangqi');
     expect(hrefs).toContain('/?play=computer');
   });
@@ -177,10 +177,8 @@ describe('landing announcements', () => {
   it('has a rules announcement for every launched leaderboard variant', () => {
     const announcementHrefs = new Set(announcements().map((entry) => entry.href));
     const readerFacingRuleSlugs: Record<string, string> = {
-      banqi: 'flip-xiangqi',
       'dark-chess': 'fog-chess',
       'dark-xiangqi': 'fog-xiangqi',
-      jieqi: 'reveal-xiangqi',
     };
 
     for (const variant of leaderboardVariants) {

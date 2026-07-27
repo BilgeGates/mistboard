@@ -44,7 +44,7 @@ describe('Jieqi postgame page', () => {
     await flushPromises();
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/jieqi/games/jq_postgame');
-    expect(root.textContent).toContain('Reveal Xiangqi');
+    expect(root.textContent).toContain('Jieqi');
     expect(root.textContent).toContain('Red is victorious');
     // The review left column is button-free.
     expect(root.textContent).not.toContain('Play again');

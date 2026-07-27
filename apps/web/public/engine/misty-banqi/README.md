@@ -1,6 +1,6 @@
 # MistyBanqi client engine (vendored wasm)
 
-The in-browser Banqi (Flip Xiangqi) engine for the review/analysis panel's "Engine on"
+The in-browser Banqi engine for the review/analysis panel's "Engine on"
 toggle — single-threaded WebAssembly, no cross-origin isolation needed (unlike the
 Fairy-Stockfish build). Driven from `apps/web/src/review/engine/misty-ceval.ts` via
 `worker.js` (a module worker). See that file for the ceval contract.

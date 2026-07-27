@@ -40,8 +40,8 @@ export const TRANSLATED_ARTICLE_SLUGS = [
   'mini-xiangqi',
   'dark-mini-xiangqi',
   'drop-mini-xiangqi',
-  'reveal-xiangqi',
-  'flip-xiangqi',
+  'jieqi',
+  'banqi',
   'mistybanqi',
   'jungle',
   'jungle-flip',
@@ -766,10 +766,11 @@ const ZH_HANS: Record<string, string> = {
     '如果你还不熟悉象棋，请先阅读[象棋规则](/rules/xiangqi)。如果你已经会下象棋，下面只解释迷雾改变了什么。',
   'Orthodox xiangqi forbids facing generals. Fog Xiangqi allows the position; if one general sees the other on a clear file, it can capture across that file.':
     '正统象棋禁止将帅照面。迷雾象棋允许这个局面；如果一方将帅在无阻挡的直线上看见对方，就可以沿这条线直接擒获。',
-  'Flip Xiangqi Rules': '暗棋规则',
+  'Banqi Rules': '暗棋规则',
+  'Banqi Rules (Flip Xiangqi)': '暗棋规则',
   'Use [Xiangqi Rules](/rules/xiangqi) for the base game. This page covers what changes.':
     '基础规则请参考[象棋规则](/rules/xiangqi)。本页只说明变化之处。',
-  'Reveal Xiangqi': '揭棋',
+  Jieqi: '揭棋',
   'Fog Chess': '迷雾国际象棋',
   'Standard chess rules, the primer behind Fog Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.':
     '普通国际象棋规则，也就是迷雾国际象棋背后的基础：王车易位、升变、吃过路兵、和棋规则，以及一盘可逐步回放的名局。',
@@ -792,23 +793,23 @@ const ZH_HANS: Record<string, string> = {
   'Flip Jungle Rules': '翻翻棋规则',
   'The 4×4 flip version of Jungle Chess. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.':
     '斗兽棋的 4×4 翻面版本。所有动物开局均背面朝上，翻开即亮明身份，等级相同的双方同归于尽、一起离场。',
-  'Reveal Xiangqi Rules': '揭棋规则',
-  'Reveal Xiangqi rules: hidden non-general pieces first move by starting point, then reveal and play by identity.':
+  'Jieqi Rules (Reveal Xiangqi)': '揭棋规则',
+  'Jieqi rules: hidden non-general pieces first move by starting point, then reveal and play by identity.':
     '揭棋规则：除将帅外的棋子都隐藏身份，首次按所在起始位置的棋子走法行棋，然后翻开并按真实身份行棋。',
-  "Reveal Xiangqi keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
+  "Jieqi, also called Reveal Xiangqi, keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
     '揭棋保留象棋的棋盘和将死目标，但隐藏所有非将帅棋子的身份。暗子首次按它所在起始位置的棋子走法移动、攻击和吃子，走完后翻开，之后按真实身份行棋。',
-  'Flip Xiangqi rules: the 4 by 8 half-board game with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
-    '翻转象棋规则，传统名为暗棋：在 4×8 半盘上进行，棋子背面朝上，按等级吃子，炮隔子跳吃，也没有王棋。',
-  'Flip Xiangqi is a fast hidden-piece game played on half a xiangqi board. All thirty-two pieces begin shuffled and face-down. The first flip assigns colors. After that, each turn is a choice: flip a tile or move a revealed piece. Captures follow rank, except for the cannon.':
-    '翻转象棋是在半张象棋棋盘上进行的快节奏隐藏棋子游戏。三十二枚棋子全部洗匀并背面朝上。第一次翻子决定双方颜色。之后每回合都在两种行动中选择：翻开棋子，或移动一枚已翻开的棋子。除炮外，吃子按等级进行。',
+  'Banqi rules: the 4 by 8 half-board game with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
+    '暗棋规则：在 4×8 半盘上进行，棋子背面朝上，按等级吃子，炮隔子跳吃，也没有王棋。',
+  'Banqi, also called Flip Xiangqi, is a fast hidden-piece game played on half a xiangqi board. All thirty-two pieces begin shuffled and face-down. The first flip assigns colors. After that, each turn is a choice: flip a tile or move a revealed piece. Captures follow rank, except for the cannon.':
+    '暗棋是在半张象棋棋盘上进行的快节奏隐藏棋子游戏。三十二枚棋子全部洗匀并背面朝上。第一次翻子决定双方颜色。之后每回合都在两种行动中选择：翻开棋子，或移动一枚已翻开的棋子。除炮外，吃子按等级进行。',
   'Although it uses [Xiangqi](/rules/xiangqi) pieces, it is a separate game: pieces move one square, the general is not royal, and face-down tiles cannot be captured. This page describes the exact rules used on Mistboard.':
     '虽然它使用[象棋](/rules/xiangqi)棋子，但它是独立的游戏：棋子每次移动一格，将不是王棋，背面朝下的棋子不能被吃。本页说明 Mistboard 采用的确切规则。',
   'Most pieces capture by stepping one square onto an adjacent revealed enemy. They may capture the same rank or any lower rank. On Mistboard, the order is General > Advisor > Elephant > Chariot > Horse > Soldier. Two exceptions connect the ends of the ladder: a soldier can capture the general, and the general cannot capture soldiers.':
     '大多数棋子通过走一格到相邻的已翻开敌子上来吃子。它们可以吃同级或任何更低等级的棋子。Mistboard 的顺序是：将 > 士 > 象 > 车 > 马 > 卒。两个例外连接等级两端：卒可以吃将，将不能吃卒。',
   'Step through a real game between Mistboard’s strongest bot and a human. Red falls behind early, but its elephant becomes the highest-ranked piece left and turns the game around. Each tile reveals its dealt piece when it is first flipped.':
     '逐步回放 Mistboard 最强机器人与人类的一盘真实对局。红方开局落后，但它的象成为盘面剩余棋子中等级最高的一枚，并逆转了比赛。每枚棋子第一次翻开时会显示其被分配的身份。',
-  "MistyBanqi is the bot you play in [Flip Xiangqi](/rules/flip-xiangqi) on Mistboard. It's a classical engine: it searches ahead and scores positions with a hand-written evaluation, no neural network, and it's open source. It will outplay most people. It also has a few honest blind spots, and the one worth knowing is that it can draw a game it has completely won.":
-    'MistyBanqi 是你在 Mistboard 上对弈[翻转象棋](/rules/flip-xiangqi)时面对的机器人。它是一个经典引擎：向前搜索，用手写评估为局面打分，没有神经网络，而且开源。它能赢过大多数人，但也有几个坦诚的盲点，其中最值得了解的是：它会把已经完全赢定的棋下成和棋。',
+  "MistyBanqi is the bot you play in [Banqi](/rules/banqi) on Mistboard. It's a classical engine: it searches ahead and scores positions with a hand-written evaluation, no neural network, and it's open source. It will outplay most people. It also has a few honest blind spots, and the one worth knowing is that it can draw a game it has completely won.":
+    'MistyBanqi 是你在 Mistboard 上对弈[暗棋](/rules/banqi)时面对的机器人。它是一个经典引擎：向前搜索，用手写评估为局面打分，没有神经网络，而且开源。它能赢过大多数人，但也有几个坦诚的盲点，其中最值得了解的是：它会把已经完全赢定的棋下成和棋。',
   'The board is seven files wide and nine ranks deep. Your den sits at the center of your back rank, ringed by three trap squares. Two rivers, each a 2×3 block of water, split the middle of the board. Red moves first from the fixed starting position below.':
     '棋盘宽七列、深九行。你的兽穴位于底线中央，周围有三个陷阱格。两条河流各占 2×3 格，分开棋盘中部。红方从下方的固定初始局面先行。',
   'Ranks and captures': '等级与吃子',
@@ -844,13 +845,13 @@ const ZH_HANS: Record<string, string> = {
   'Find an opponent': '寻找对手',
   'Fortress Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.':
     '堡垒象棋可在 Mistboard 上对弈。挑战引擎或邀请好友，无需账户。',
-  'Flip Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.':
-    '翻转象棋可在 Mistboard 上对弈。挑战引擎或邀请好友，无需账户。',
+  'Banqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.':
+    '暗棋可在 Mistboard 上对弈。挑战引擎或邀请好友，无需账户。',
   'Jungle Chess is playable on Mistboard. Play against an engine or challenge a friend. No account required.':
     '斗兽棋可在 Mistboard 上对弈。挑战引擎或邀请好友，无需账户。',
   'Flip Jungle is playable on Mistboard. Play against an engine or challenge a friend. No account required.':
     '翻翻棋可在 Mistboard 上对弈。挑战引擎或邀请好友，无需账户。',
-  'Reveal Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.':
+  'Jieqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.':
     '揭棋可在 Mistboard 上对弈。挑战引擎或邀请好友，无需账户。',
   'Fog Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.':
     '迷雾象棋可在 Mistboard 上对弈。挑战引擎或邀请好友，无需账户。',
@@ -1554,10 +1555,11 @@ const ZH_HANT: Record<string, string> = {
     '如果你還不熟悉象棋，請先閱讀[象棋規則](/rules/xiangqi)。如果你已經會下象棋，下面只解釋迷霧改變了什麼。',
   'Orthodox xiangqi forbids facing generals. Fog Xiangqi allows the position; if one general sees the other on a clear file, it can capture across that file.':
     '正統象棋禁止將帥照面。迷霧象棋允許這個局面；如果一方將帥在無阻擋的直線上看見對方，就可以沿這條線直接擒獲。',
-  'Flip Xiangqi Rules': '暗棋規則',
+  'Banqi Rules': '暗棋規則',
+  'Banqi Rules (Flip Xiangqi)': '暗棋規則',
   'Use [Xiangqi Rules](/rules/xiangqi) for the base game. This page covers what changes.':
     '基礎規則請參考[象棋規則](/rules/xiangqi)。本頁只說明變化之處。',
-  'Reveal Xiangqi': '揭棋',
+  Jieqi: '揭棋',
   'Fog Chess': '迷霧國際象棋',
   'Standard chess rules, the primer behind Fog Chess: castling, promotion, en passant, the draw rules, and a famous game to play through.':
     '普通國際象棋規則，也就是迷霧國際象棋背後的基礎：王車易位、升變、吃過路兵、和棋規則，以及一盤可逐步回放的名局。',
@@ -1580,7 +1582,7 @@ const ZH_HANT: Record<string, string> = {
   'Flip Jungle Rules': '翻翻棋規則',
   'The 4×4 flip version of Jungle Chess. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.':
     '鬥獸棋的 4×4 翻面版本。所有動物開局均背面朝上，翻開即亮明身分，等級相同的雙方同歸於盡、一起離場。',
-  'Reveal Xiangqi Rules': '揭棋規則',
+  'Jieqi Rules (Reveal Xiangqi)': '揭棋規則',
   'Ranks and captures': '等級與吃子',
   'Each side has the same eight animals. Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A piece captures an adjacent enemy of equal or lower rank.':
     '雙方各有相同的八種動物。從強到弱是：象、獅、虎、豹、狼、狗、貓、鼠。棋子可吃相鄰的同級或低級敵子。',

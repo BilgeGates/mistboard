@@ -7,7 +7,7 @@ import { maybeGameSpecForId, type RatingVariant } from '@mistboard/game';
 import { bindBotPlayControl } from './bot-play.js';
 import { openChallengeDialog } from './challenge-dialog.js';
 import { correspondenceEnabled } from './feature-flags.js';
-import { t } from './i18n/catalog.js';
+import { type I18nKey, t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale } from './i18n/locale.js';
 import { buildTitleBadge } from './player-titles.js';
 import { renderVariantMarker } from './variant-markers.js';
@@ -82,13 +82,13 @@ export type BotSummaryProfile = {
 // should not grow into a full ratings rail). Highest-rated first.
 const MAX_RATING_TILES = 6;
 const HIDDEN_BOT_GAME_SPEC_IDS = new Set(['dark-draft960']);
-const GAME_SPEC_LABELS: Record<string, string> = {
-  'dark-chess': 'Fog Chess',
-  'dark-mini-xiangqi': 'Dark Mini Xiangqi',
-  jieqi: 'Reveal Xiangqi',
-  banqi: 'Flip Xiangqi',
-  'crossroads-chess': 'Crossroads Chess',
-  'fortress-xiangqi': 'Fortress Xiangqi',
+const GAME_SPEC_LABEL_KEYS: Record<string, I18nKey> = {
+  'dark-chess': 'variant.darkChess.name',
+  'dark-mini-xiangqi': 'variant.darkMiniXiangqi.name',
+  jieqi: 'variant.jieqi.name',
+  banqi: 'variant.banqi.name',
+  'crossroads-chess': 'variant.crossroadsChess.name',
+  'fortress-xiangqi': 'variant.fortressXiangqi.name',
 };
 
 // ── card body ───────────────────────────────────────────────────────────────
@@ -634,7 +634,9 @@ function botRatings(profile: BotSummaryProfile): BotSummaryRating[] {
 }
 
 function gameSpecLabel(gameSpecId: string): string {
-  return GAME_SPEC_LABELS[gameSpecId] ?? maybeGameSpecForId(gameSpecId)?.publicName ?? gameSpecId;
+  const key = GAME_SPEC_LABEL_KEYS[gameSpecId];
+  if (key) return t(key);
+  return maybeGameSpecForId(gameSpecId)?.publicName ?? gameSpecId;
 }
 
 function timeClassLabel(timeClass: BotSummaryRating['timeClass']): string {

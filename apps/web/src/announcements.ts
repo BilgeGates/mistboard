@@ -198,18 +198,18 @@ const baseAnnouncements: Announcement[] = [
   {
     date: '2026-06-17',
     kind: 'release',
-    headline: 'Flip Xiangqi is open for alpha play.',
-    body: 'Flip Xiangqi on an 8 by 4 board: all 32 pieces start face-down and flip as you play. Challenge a friend to a match.',
-    href: '/rules/flip-xiangqi',
+    headline: 'Banqi is open for alpha play.',
+    body: 'Banqi on an 8 by 4 board: all 32 pieces start face-down and flip as you play. Challenge a friend to a match.',
+    href: '/rules/banqi',
     cta: 'Read rules',
     showInHomeArticleWidget: false,
   },
   {
     date: '2026-06-15',
     kind: 'release',
-    headline: 'Reveal Xiangqi is open for alpha play.',
+    headline: 'Jieqi is open for alpha play.',
     body: 'Hidden-identity xiangqi: every non-general piece starts face-down and reveals as it moves. Take on PikaJieQi, our jieqi engine.',
-    href: '/rules/reveal-xiangqi',
+    href: '/rules/jieqi',
     cta: 'Read rules',
   },
   {

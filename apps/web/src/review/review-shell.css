@@ -718,7 +718,7 @@
     height: calc(var(--uni-board-width) / var(--uni-board-aspect, 1));
   }
 
-  /* Flip Xiangqi's 8×4 board is intentionally short. Let its info/chat rail use
+  /* Banqi's 8×4 board is intentionally short. Let its info/chat rail use
      the viewport-height grid row instead of inheriting the normal board-bottom
      lock, which otherwise leaves only ~130px for chat on a 1440×900 display. */
   .banqi-review .review-shell__left > .review-rail-group {

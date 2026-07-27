@@ -10,26 +10,26 @@ import { JIEQI_SAMPLE_GAME } from '../../jieqi-sample-game.js';
 import type { Article } from '../types.js';
 
 export const jieqiArticle: Article = {
-    slug: 'reveal-xiangqi',
+    slug: 'jieqi',
     gameSpecId: 'jieqi',
     boardFamily: 'xiangqi',
     kind: 'rules',
     playableOnMistboard: true,
-    title: 'Reveal Xiangqi Rules',
+    title: 'Jieqi Rules (Reveal Xiangqi)',
     summary:
-      'Reveal Xiangqi rules: hidden non-general pieces first move by starting point, then reveal and play by identity.',
+      'Jieqi rules: hidden non-general pieces first move by starting point, then reveal and play by identity.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-06-15',
     updatedAt: '2026-07-23',
     audience:
-      'Xiangqi players and hidden-information fans who want a clean English rules reference for Reveal Xiangqi.',
+      'Xiangqi players and hidden-information fans who want a clean English rules reference for Jieqi.',
     thumbnail: { kind: 'svg', svg: JIEQI_RULES_THUMBNAIL },
     intro: [
       {
         kind: 'paragraph',
         text:
-          "Reveal Xiangqi keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.",
+          "Jieqi, also called Reveal Xiangqi, keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.",
       },
       {
         kind: 'paragraph',
@@ -153,7 +153,7 @@ export const jieqiArticle: Article = {
       },
       playClosing({
         heading: 'Play on Mistboard',
-        lead: 'Reveal Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.',
+        lead: 'Jieqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.',
         playLabel: 'Play vs computer',
         playHref: '/?play=computer&gameSpecId=jieqi',
         secondary: [

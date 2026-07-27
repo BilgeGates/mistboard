@@ -19,7 +19,7 @@ import type { DecisionOverlay } from './review/tree-review.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
 
-// Postgame review for banqi (Flip Xiangqi). Banqi is a SYMMETRIC hidden-deal
+// Postgame review for Banqi. Banqi is a SYMMETRIC hidden-deal
 // variant: a face-down tile is hidden from both seats equally, so there is a single
 // review board. As of the review standardization it rides the shared interactive
 // tree (mountBanqiReview → mountTreeReview): the deal is reconstructed from the
@@ -80,7 +80,7 @@ export function mountBanqiPostgame(root: HTMLElement, roomId: string): void {
   installBanqiBoardStyles();
   root.replaceChildren(buildNav(), loadingView());
   if (!banqiEnabled()) {
-    renderError(root, 'Flip Xiangqi unavailable', 'This route is not enabled in this build.');
+    renderError(root, 'Banqi unavailable', 'This route is not enabled in this build.');
     return;
   }
   void loadBanqiPostgame(roomId)
@@ -167,7 +167,7 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
   );
   const { metaCard, details } = buildReviewMeta({
     markerId: 'banqi',
-    variantName: 'Flip Xiangqi',
+    variantName: 'Banqi',
     game: postgame.game,
     status,
     seatColors,
@@ -176,8 +176,8 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
   root.replaceChildren(buildNav());
   mountBanqiReview(root, postgame.game.roomId, deal, {
     pageClassName: 'banqi-review',
-    ariaLabel: 'Flip Xiangqi postgame',
-    title: 'Flip Xiangqi',
+    ariaLabel: 'Banqi postgame',
+    title: 'Banqi',
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
@@ -295,7 +295,7 @@ function errorTitle(status: number): string {
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return 'This Flip Xiangqi game is not available.';
+  if (result.status === 404) return 'This Banqi game is not available.';
   if (result.status === 503) return 'The postgame service is not available.';
   return result.error;
 }
