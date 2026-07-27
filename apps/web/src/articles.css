@@ -1398,6 +1398,15 @@
   margin-inline: auto;
 }
 
+/* A single Jungle diagram that teaches ONE case, sized to match the boards in
+   the paired rows around it instead of stretching to the full article column.
+   The inline max-width the diagram carries is its own cap; this narrows it
+   further, so keep the two in sync only in spirit, not in numbers. */
+.article-figure.jungle-figure-compact > svg {
+  width: min(330px, 100%);
+  margin-inline: auto;
+}
+
 /* Jungle board is a tall 7x9; cap it like the jieqi replay so it isn't oversized. */
 .raw-svg-stepper-frame.raw-svg-stepper-frame-jungle > svg {
   width: min(440px, 92%);

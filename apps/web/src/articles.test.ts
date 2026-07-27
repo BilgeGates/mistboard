@@ -6,9 +6,12 @@ import {
   BANQI_ENGINE_THUMBNAIL,
   BANQI_RULES_THUMBNAIL,
   BANQI_SETUP_BOARD,
+  JUNGLE_ELEPHANT_STUCK,
   JUNGLE_FLIP_REVEAL,
-  JUNGLE_LION_JUMP,
-  JUNGLE_TIGER_JUMP,
+  JUNGLE_LION_LEAP_ACROSS,
+  JUNGLE_LION_LEAP_CAPTURE,
+  JUNGLE_RAT_BLOCKS,
+  JUNGLE_TIGER_NO_HORIZONTAL,
   XQ_FOG_SAMPLE_STATES,
   XQ_FOG_SAMPLE_STEPS,
   XQ_PRIMER_FACING_LEGAL,
@@ -1002,13 +1005,35 @@ describe('rules variant sidebar', () => {
     expect(page.textContent).toContain('leaving your opponent with no legal move');
     expect(page.innerHTML).toContain('red-elephant.png');
     expect(page.innerHTML).toContain('black-elephant.png');
-    expect(page.innerHTML).toContain('tiger-jump');
+    expect(page.innerHTML).toContain('tiger-leap');
     expect(page.innerHTML).toContain('rat-elephant');
+    // Every movement case is paired with its contrast, two boards to a row.
+    expect(page.querySelectorAll('.article-figure-row').length).toBeGreaterThanOrEqual(5);
   });
 
-  it('pins the Jungle jump directions and Flip Jungle reveal example', () => {
-    expect(JUNGLE_LION_JUMP).toContain('class="mb-grid-target-dot" cx="168" cy="216"');
-    expect(JUNGLE_TIGER_JUMP).toContain('class="mb-grid-target-dot" cx="72" cy="120"');
+  it('draws Jungle leaps as arrows and shows what cancels them', () => {
+    const arrows = (svg: string): number => (svg.match(/class="xq-arrow"/g) ?? []).length;
+
+    // The lion on the dry lane clears BOTH rivers sideways; the tiger on the
+    // same square has no horizontal leap at all. Same position, different
+    // repertoire — the arrows are the whole difference.
+    expect(arrows(JUNGLE_LION_LEAP_ACROSS)).toBe(2);
+    expect(arrows(JUNGLE_TIGER_NO_HORIZONTAL)).toBe(0);
+
+    // A leap onto an occupied square keeps its capture ring, so the diagram
+    // shows the landing AND the capture.
+    expect(arrows(JUNGLE_LION_LEAP_CAPTURE)).toBe(1);
+    expect(JUNGLE_LION_LEAP_CAPTURE).toContain('mb-grid-target-ring');
+
+    // A rat in the water cancels the jump but not the ordinary steps.
+    expect(arrows(JUNGLE_RAT_BLOCKS)).toBe(0);
+    expect(JUNGLE_RAT_BLOCKS).toContain('mb-grid-target-dot');
+
+    // The rat-beats-elephant wrap runs one way only: the elephant beside a rat
+    // has steps but no capture ring to take it with.
+    expect(JUNGLE_ELEPHANT_STUCK).toContain('mb-grid-target-dot');
+    expect(JUNGLE_ELEPHANT_STUCK).not.toContain('mb-grid-target-ring');
+
     expect(JUNGLE_FLIP_REVEAL).toContain('red-elephant.png');
   });
 
@@ -1031,6 +1056,9 @@ describe('rules variant sidebar', () => {
     expect(page.innerHTML).toContain('flip-move');
     expect(page.innerHTML).toContain('flip-capture');
     expect(page.innerHTML).toContain('flip-mutual');
+    // The rat/elephant wrap is shown both ways, not just asserted in prose.
+    expect(page.innerHTML).toContain('flip-rat-elephant');
+    expect(page.innerHTML).toContain('flip-elephant-rat');
     expect(page.innerHTML).toContain('red-elephant.png');
     expect(page.innerHTML).toContain('black-elephant.png');
   });

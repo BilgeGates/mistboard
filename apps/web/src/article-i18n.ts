@@ -691,7 +691,26 @@ const ZH_HANS: Record<string, string> = {
   'Three rules give the game its character: the rat captures the elephant, only the rat can swim, and the lion and tiger leap the rivers.':
     '三条规则赋予了这盘棋的特色：老鼠能吃大象，只有老鼠能下水，狮和虎能跳过河。',
   'Strongest at the left, weakest at the right.': '最强在左，最弱在右。',
+  'One square, four directions.': '一格，四个方向。',
+  'The river is not a move for a land animal.': '对陆地动物来说，河格不是可走的一步。',
+  'The rat can step off the bank into the river.': '鼠可以从岸上走进河里。',
+  'In the water it is safe: the wolf is not a target, and it cannot reach the rat either.':
+    '在水中它很安全：狼不是它可吃的目标，狼也吃不到它。',
+  'The lion clears either river sideways.': '狮可以横向跳过任意一条河。',
+  'The same jump lengthwise, landing on the wolf and taking it.':
+    '同样的跳跃沿河的长边进行，落在狼所在格并把它吃掉。',
+  'The tiger clears the river the long way.': '虎沿河的长边跳过整条河。',
+  'The tiger on the lion’s square: no sideways jump.': '同一格换成虎：没有横向跳跃。',
+  'The rat takes the elephant.': '鼠吃掉象。',
+  'The elephant cannot take the rat back.': '象无法反过来吃掉鼠。',
+  'A revealed animal steps one square.': '已翻开的动物走一格。',
   Traps: '陷阱',
+  'On red’s trap the lion is rank 0, so a cat takes it.':
+    '站在红方陷阱上的狮等级归零，因此连猫也能吃掉它。',
+  'Red’s own trap costs red nothing: the cat still cannot touch the elephant.':
+    '红方停在自己的陷阱上毫无损失：猫依然吃不到象。',
+  'One step into the den ends the game. Rank does not matter, and neither does the trap square.':
+    '走进兽穴一步即可结束对局。等级无关紧要，脚下是不是陷阱格也无关紧要。',
   'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there, so any defending piece can take it, down to a rat capturing a trapped elephant. Only an enemy’s traps do this: a piece can sit on one of its own traps and keeps its full rank.':
     '把一枚棋子走进对方三个陷阱格之一，它在停留期间会丧失全部等级，因此任何防守方棋子都能吃掉它，哪怕是老鼠吃掉落入陷阱的大象。只有敌方的陷阱才有此效果：棋子可以停在自己的陷阱上，并保持全部等级。',
   'You win immediately by moving any piece into the enemy den, capturing every enemy piece, or leaving your opponent with no legal move. You cannot move into your own den.':
@@ -814,8 +833,6 @@ const ZH_HANS: Record<string, string> = {
   'A rat in the river blocks the leap.': '河中的鼠会挡住跳跃。',
   'Flip Jungle is a compact hidden-piece relative of [Jungle Chess](/rules/jungle). All sixteen animals begin face-down on a 4×4 board. There are no rivers, dens, or traps: reveal tiles, move your animals, and eliminate the other color.':
     '翻翻棋是[斗兽棋](/rules/jungle)的紧凑型隐藏棋子变体。十六枚动物棋子全部背面朝上放在 4×4 棋盘上。这里没有河流、兽穴或陷阱：翻开棋子、移动动物，并消灭另一种颜色。',
-  'Flip a tile': '翻开一枚棋子',
-  'Move an animal': '移动一枚动物',
   'A lion captures a lower-ranked wolf.': '狮吃掉等级较低的狼。',
   'Equal ranks work differently. When an animal captures an enemy of its own rank, both pieces leave the board, and neither side keeps the square.':
     '同等级的处理方式不同。当动物吃与自己同等级的敌子时，两枚棋子都离开棋盘，双方都不占据该格。',
@@ -1571,6 +1588,24 @@ const ZH_HANT: Record<string, string> = {
     '等級例外連接序列兩端：陸地上的鼠可以吃象，象不能吃鼠。',
   'On land, the lowest-ranked rat can capture the highest-ranked elephant.':
     '在陸地上，等級最低的鼠可以吃等級最高的象。',
+  'One square, four directions.': '一格，四個方向。',
+  'The river is not a move for a land animal.': '對陸地動物來說，河格不是可走的一步。',
+  'The rat can step off the bank into the river.': '鼠可以從岸上走進河裡。',
+  'In the water it is safe: the wolf is not a target, and it cannot reach the rat either.':
+    '在水中它很安全：狼不是它可吃的目標，狼也吃不到它。',
+  'The lion clears either river sideways.': '獅可以橫向跳過任意一條河。',
+  'The same jump lengthwise, landing on the wolf and taking it.':
+    '同樣的跳躍沿河的長邊進行，落在狼所在格並把它吃掉。',
+  'The tiger clears the river the long way.': '虎沿河的長邊跳過整條河。',
+  'The tiger on the lion’s square: no sideways jump.': '同一格換成虎：沒有橫向跳躍。',
+  'The elephant cannot take the rat back.': '象無法反過來吃掉鼠。',
+  'A revealed animal steps one square.': '已翻開的動物走一格。',
+  'On red’s trap the lion is rank 0, so a cat takes it.':
+    '站在紅方陷阱上的獅等級歸零，因此連貓也能吃掉它。',
+  'Red’s own trap costs red nothing: the cat still cannot touch the elephant.':
+    '紅方停在自己的陷阱上毫無損失：貓依然吃不到象。',
+  'One step into the den ends the game. Rank does not matter, and neither does the trap square.':
+    '走進獸穴一步即可結束對局。等級無關緊要，腳下是不是陷阱格也無關緊要。',
   'How the animals move': '動物如何移動',
   Rat: '鼠',
   'The rat is the only animal that can enter water. A rat in a river can move and capture another rat there, but no piece can capture across the shoreline: a land rat cannot capture into water, and a water rat cannot capture onto land.':
@@ -1581,8 +1616,6 @@ const ZH_HANT: Record<string, string> = {
     '虎可以在陸地上正常移動一格，也可縱向跳過河流。與獅不同，它不能橫向跳河。路徑上任何水格裡只要有一隻任意顏色的鼠，就會阻止兩種動物跳躍。',
   'Flip Jungle is a compact hidden-piece relative of [Jungle Chess](/rules/jungle). All sixteen animals begin face-down on a 4×4 board. There are no rivers, dens, or traps: reveal tiles, move your animals, and eliminate the other color.':
     '翻翻棋是[鬥獸棋](/rules/jungle)的緊湊型隱藏棋子變體。十六枚動物棋子全部背面朝上放在 4×4 棋盤上。這裡沒有河流、獸穴或陷阱：翻開棋子、移動動物，並消滅另一種顏色。',
-  'Flip a tile': '翻開一枚棋子',
-  'Move an animal': '移動一枚動物',
   'FIRST FLIP ASSIGNS COLOR': '首次翻子決定顏色',
   'CANNON SCREEN CAPTURE': '砲隔子吃',
   'CAPTURED PIECE KNOWLEDGE': '被吃暗子資訊',

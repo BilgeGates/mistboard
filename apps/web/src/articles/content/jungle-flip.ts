@@ -1,8 +1,10 @@
 import { JUNGLE_FLIP_SAMPLE_GAME } from '../../jungle-flip-sample-game.js';
 import {
   JUNGLE_FLIP_CAPTURE,
+  JUNGLE_FLIP_ELEPHANT_STUCK,
   JUNGLE_FLIP_MOVE,
   JUNGLE_FLIP_MUTUAL,
+  JUNGLE_FLIP_RAT_TAKES_ELEPHANT,
   JUNGLE_FLIP_REVEAL,
   JUNGLE_FLIP_SETUP,
   JUNGLE_RANK_LADDER,
@@ -19,7 +21,7 @@ export const jungleFlipArticle: Article = {
   showSummaryOnPage: false,
   status: 'published',
   publishedAt: '2026-06-30',
-  updatedAt: '2026-07-23',
+  updatedAt: '2026-07-26',
   playableOnMistboard: true,
   audience:
     'Jungle players who want the flip variant, and anyone who grew up playing a face-down animal game on a chalk grid.',
@@ -40,6 +42,7 @@ export const jungleFlipArticle: Article = {
         {
           kind: 'raw-svg',
           svg: JUNGLE_FLIP_SETUP,
+          className: 'jungle-figure-compact',
         },
       ],
     },
@@ -50,16 +53,15 @@ export const jungleFlipArticle: Article = {
           kind: 'paragraph',
           text: 'On your turn, do one thing: flip one face-down tile, or move one of your revealed animals one square up, down, left, or right. Face-down tiles block movement and cannot be captured. You cannot pass.',
         },
-        { kind: 'sub-heading', text: 'Flip a tile' },
         {
-          kind: 'raw-svg',
-          svg: JUNGLE_FLIP_REVEAL,
-          caption: 'A flip reveals both the animal and its color to both players.',
-        },
-        { kind: 'sub-heading', text: 'Move an animal' },
-        {
-          kind: 'raw-svg',
-          svg: JUNGLE_FLIP_MOVE,
+          kind: 'svg-row',
+          items: [
+            {
+              svg: JUNGLE_FLIP_REVEAL,
+              caption: 'A flip reveals both the animal and its color to both players.',
+            },
+            { svg: JUNGLE_FLIP_MOVE, caption: 'A revealed animal steps one square.' },
+          ],
         },
       ],
     },
@@ -77,21 +79,25 @@ export const jungleFlipArticle: Article = {
         },
         {
           kind: 'paragraph',
-          text: 'The rat and elephant reverse the usual order: a rat can capture an elephant, while an elephant cannot capture a rat.',
-        },
-        {
-          kind: 'raw-svg',
-          svg: JUNGLE_FLIP_CAPTURE,
-          caption: 'A lion captures a lower-ranked wolf.',
-        },
-        {
-          kind: 'paragraph',
           text: 'Equal ranks work differently. When an animal captures an enemy of its own rank, both pieces leave the board, and neither side keeps the square.',
         },
         {
-          kind: 'raw-svg',
-          svg: JUNGLE_FLIP_MUTUAL,
-          caption: 'Equal animals remove each other.',
+          kind: 'svg-row',
+          items: [
+            { svg: JUNGLE_FLIP_CAPTURE, caption: 'A lion captures a lower-ranked wolf.' },
+            { svg: JUNGLE_FLIP_MUTUAL, caption: 'Equal animals remove each other.' },
+          ],
+        },
+        {
+          kind: 'paragraph',
+          text: 'The rat and elephant reverse the usual order: a rat can capture an elephant, while an elephant cannot capture a rat.',
+        },
+        {
+          kind: 'svg-row',
+          items: [
+            { svg: JUNGLE_FLIP_RAT_TAKES_ELEPHANT, caption: 'The rat takes the elephant.' },
+            { svg: JUNGLE_FLIP_ELEPHANT_STUCK, caption: 'The elephant cannot take the rat back.' },
+          ],
         },
       ],
     },

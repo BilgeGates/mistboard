@@ -1,12 +1,20 @@
 import { JUNGLE_SAMPLE_GAME } from '../../jungle-sample-game.js';
 import {
-  JUNGLE_LION_JUMP,
+  JUNGLE_DEN_ENTRY,
+  JUNGLE_ELEPHANT_STUCK,
+  JUNGLE_LION_LEAP_ACROSS,
+  JUNGLE_LION_LEAP_CAPTURE,
+  JUNGLE_NO_WATER,
+  JUNGLE_OWN_TRAP,
   JUNGLE_RANK_LADDER,
   JUNGLE_RAT_BLOCKS,
   JUNGLE_RAT_ELEPHANT,
-  JUNGLE_RAT_SWIMS,
+  JUNGLE_RAT_ENTERS_WATER,
+  JUNGLE_RAT_SHORELINE,
   JUNGLE_START_BOARD,
-  JUNGLE_TIGER_JUMP,
+  JUNGLE_STEP,
+  JUNGLE_TIGER_LEAP,
+  JUNGLE_TIGER_NO_HORIZONTAL,
   JUNGLE_TRAP,
   playClosing,
 } from '../diagrams.js';
@@ -21,7 +29,7 @@ export const jungleArticle: Article = {
   showSummaryOnPage: false,
   status: 'published',
   publishedAt: '2026-06-30',
-  updatedAt: '2026-07-23',
+  updatedAt: '2026-07-26',
   playableOnMistboard: true,
   audience:
     'Experienced Jungle Chess players who want a clear reference, plus chess and xiangqi players meeting it for the first time.',
@@ -56,14 +64,31 @@ export const jungleArticle: Article = {
           kind: 'paragraph',
           text: 'Every animal moves one square up, down, left, or right. Animals never move diagonally. Most animals stay on land, so they cannot enter a river. The rat, lion, and tiger are the three movement exceptions.',
         },
+        {
+          kind: 'svg-row',
+          items: [
+            { svg: JUNGLE_STEP, caption: 'One square, four directions.' },
+            { svg: JUNGLE_NO_WATER, caption: 'The river is not a move for a land animal.' },
+          ],
+        },
         { kind: 'sub-heading', text: 'Rat' },
         {
           kind: 'paragraph',
           text: 'The rat is the only animal that can enter water. A rat in a river can move and capture another rat there, but no piece can capture across the shoreline: a land rat cannot capture into water, and a water rat cannot capture onto land.',
         },
         {
-          kind: 'raw-svg',
-          svg: JUNGLE_RAT_SWIMS,
+          kind: 'svg-row',
+          items: [
+            {
+              svg: JUNGLE_RAT_ENTERS_WATER,
+              caption: 'The rat can step off the bank into the river.',
+            },
+            {
+              svg: JUNGLE_RAT_SHORELINE,
+              caption:
+                'In the water it is safe: the wolf is not a target, and it cannot reach the rat either.',
+            },
+          ],
         },
         { kind: 'sub-heading', text: 'Lion' },
         {
@@ -71,8 +96,14 @@ export const jungleArticle: Article = {
           text: 'The lion can move one land square normally, or leap straight across a river horizontally or vertically. It lands on the first square beyond the water and may capture an animal there if rank allows.',
         },
         {
-          kind: 'raw-svg',
-          svg: JUNGLE_LION_JUMP,
+          kind: 'svg-row',
+          items: [
+            { svg: JUNGLE_LION_LEAP_ACROSS, caption: 'The lion clears either river sideways.' },
+            {
+              svg: JUNGLE_LION_LEAP_CAPTURE,
+              caption: 'The same jump lengthwise, landing on the wolf and taking it.',
+            },
+          ],
         },
         { kind: 'sub-heading', text: 'Tiger' },
         {
@@ -80,12 +111,19 @@ export const jungleArticle: Article = {
           text: 'The tiger can move one land square normally or leap vertically across a river. Unlike the lion, it cannot leap horizontally. A rat of either color on any water square in the path blocks either animal’s jump.',
         },
         {
-          kind: 'raw-svg',
-          svg: JUNGLE_TIGER_JUMP,
+          kind: 'svg-row',
+          items: [
+            { svg: JUNGLE_TIGER_LEAP, caption: 'The tiger clears the river the long way.' },
+            {
+              svg: JUNGLE_TIGER_NO_HORIZONTAL,
+              caption: 'The tiger on the lion’s square: no sideways jump.',
+            },
+          ],
         },
         {
           kind: 'raw-svg',
           svg: JUNGLE_RAT_BLOCKS,
+          className: 'jungle-figure-compact',
           caption: 'A rat in the river blocks the leap.',
         },
       ],
@@ -107,9 +145,14 @@ export const jungleArticle: Article = {
           text: 'The rank exception connects the ends of the ladder: a rat on land can capture an elephant, while an elephant cannot capture a rat.',
         },
         {
-          kind: 'raw-svg',
-          svg: JUNGLE_RAT_ELEPHANT,
-          caption: 'On land, the lowest-ranked rat can capture the highest-ranked elephant.',
+          kind: 'svg-row',
+          items: [
+            {
+              svg: JUNGLE_RAT_ELEPHANT,
+              caption: 'On land, the lowest-ranked rat can capture the highest-ranked elephant.',
+            },
+            { svg: JUNGLE_ELEPHANT_STUCK, caption: 'The elephant cannot take the rat back.' },
+          ],
         },
       ],
     },
@@ -121,8 +164,14 @@ export const jungleArticle: Article = {
           text: 'Step a piece onto one of your opponent’s three trap squares and it loses all rank while it stands there, so any defending piece can take it, down to a rat capturing a trapped elephant. Only an enemy’s traps do this: a piece can sit on one of its own traps and keeps its full rank.',
         },
         {
-          kind: 'raw-svg',
-          svg: JUNGLE_TRAP,
+          kind: 'svg-row',
+          items: [
+            { svg: JUNGLE_TRAP, caption: 'On red’s trap the lion is rank 0, so a cat takes it.' },
+            {
+              svg: JUNGLE_OWN_TRAP,
+              caption: 'Red’s own trap costs red nothing: the cat still cannot touch the elephant.',
+            },
+          ],
         },
       ],
     },
@@ -132,6 +181,13 @@ export const jungleArticle: Article = {
         {
           kind: 'paragraph',
           text: 'You win immediately by moving any piece into the enemy den, capturing every enemy piece, or leaving your opponent with no legal move. You cannot move into your own den.',
+        },
+        {
+          kind: 'raw-svg',
+          svg: JUNGLE_DEN_ENTRY,
+          className: 'jungle-figure-compact',
+          caption:
+            'One step into the den ends the game. Rank does not matter, and neither does the trap square.',
         },
         {
           kind: 'paragraph',
