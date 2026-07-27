@@ -10,6 +10,7 @@
 
 import {
   applyJungleMove,
+  createInitialJungleState,
   getJungleLegalMoves,
   isJungleLegalMove,
   JUNGLE_DENS,
@@ -20,6 +21,7 @@ import {
   type JunglePieceRole,
   type JungleSquare,
   jungleCoordOf,
+  jungleRepSeedFens,
   jungleTrapOwner,
   oppositeJungleColor,
 } from '@mistboard/game';
@@ -273,6 +275,7 @@ async function playJungleRustEngineMove(
   if (!rustTier) return;
   const state = room.projection.state;
   const fen = jungleStateToEngineFen(state);
+  const repSeedFens = jungleRepSeedFensForRoom(room);
   // Clock-aware per-move budget (shared allocator). Strength = the rust tier's NODE
   // budget; this movetime is the latency ceiling + time-pressure guard. Existing
   // ceiling preserved — behavior-neutral for untimed play; adds increment awareness.
@@ -291,7 +294,11 @@ async function playJungleRustEngineMove(
   } = await resolveValidatedEngineMove<JungleMove>({
     maxAttempts: ENGINE_MOVE_MAX_ATTEMPTS,
     requestMove: () =>
-      jungleLiveEngineMove(engineId, fen, { nodes: rustTier.nodes, movetimeCapMs }),
+      jungleLiveEngineMove(engineId, fen, {
+        nodes: rustTier.nodes,
+        movetimeCapMs,
+        repSeedFens,
+      }),
     validate: (uci) => {
       const parsed = engineUciToJungleMove(uci);
       return parsed && isJungleLegalMove(state, parsed) ? parsed : null;
@@ -357,6 +364,22 @@ async function playJungleRustEngineMove(
   };
   const seq = await ctx.appendEvent(room, event);
   ctx.broadcastEventAppended(room, event, seq);
+}
+
+/**
+ * Replay the canonical event tape and seed every position already seen twice. The live
+ * projection carries counts but not a FEN representative for each digest, so replay is the
+ * single source for the engine wire context and matches postgame analysis.
+ */
+function jungleRepSeedFensForRoom(room: JungleEngineRoom): string[] {
+  let state = createInitialJungleState(room.id);
+  const states: JungleGameState[] = [state];
+  for (const event of room.events) {
+    if (event.type !== 'move-played') continue;
+    state = applyJungleMove(state, event.move);
+    states.push(state);
+  }
+  return jungleRepSeedFens(states);
 }
 
 export function chooseJungleEngineMove(

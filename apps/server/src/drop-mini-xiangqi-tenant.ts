@@ -146,6 +146,7 @@ export const dropMiniXiangqiTenant: DropMiniXiangqiTenant = {
     viewForClient: (state, client) => getDropMiniXiangqiClientView(state, client),
   },
   engine: {
+    terminalContext: 'full-history',
     isEngineClientId: isDropMiniXiangqiEngineClientId,
     displayName: dropMiniXiangqiEngineDisplayName,
     engineVersion: dropMiniXiangqiEngineVersion,

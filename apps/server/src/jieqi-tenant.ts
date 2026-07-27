@@ -170,6 +170,7 @@ export const jieqiTenant: JieqiTenant = {
     viewForClient: (state, client) => getJieqiClientView(state, client),
   },
   engine: {
+    terminalContext: 'repetition-window',
     isEngineClientId: isJieqiEngineClientId,
     displayName: jieqiEngineDisplayName,
     engineVersion: jieqiEngineVersion,

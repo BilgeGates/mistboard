@@ -48,8 +48,13 @@ export const BANQI_ANALYSIS_DEPTH = 12;
 // Red-SEAT-POV cp for a decisive finished position (no engine query is made there).
 const TERMINAL_CP = 30_000;
 
-// Cache engine id, version-suffixed so an engine/config change invalidates stored evals.
-export const BANQI_ANALYSIS_ENGINE_ID = `misty-banqi-analysis@${BANQI_ENGINE_VERSION}`;
+// The history suffix invalidates earlier FEN-only cached sweeps.
+export const BANQI_ANALYSIS_ENGINE_ID = `misty-banqi-analysis@${BANQI_ENGINE_VERSION}+history1`;
+
+export type BanqiRepetitionWindow = {
+  fen: string;
+  moves: readonly string[];
+};
 
 export type BanqiPositionEval = {
   /** Centipawns from the RED SEAT's POV (positive = Red better); null when mate is set. */
@@ -67,12 +72,19 @@ export type BanqiPositionEval = {
  * when Black is to move — exactly as jungle does. Throws (via banqiEnginePath) when the
  * binary is absent; callers pre-check availability and fail closed.
  */
-export async function evaluateBanqiPosition(state: BanqiGameState): Promise<BanqiPositionEval> {
+export async function evaluateBanqiPosition(
+  state: BanqiGameState,
+  repetitionWindow: BanqiRepetitionWindow = {
+    fen: banqiStateToEngineFen(state),
+    moves: [],
+  },
+): Promise<BanqiPositionEval> {
   const mover: BanqiSeat = state.status.type === 'playing' ? state.status.turn : 'red';
   const sign = mover === 'red' ? 1 : -1;
-  const evaluation = await evaluateBanqiFenNodes(banqiStateToEngineFen(state), {
+  const evaluation = await evaluateBanqiFenNodes(repetitionWindow.fen, {
     nodes: BANQI_ANALYSIS_NODES,
     movetimeCapMs: BANQI_ANALYSIS_MOVETIME_CAP_MS,
+    moves: repetitionWindow.moves,
   });
   return {
     cp: evaluation.cp == null ? null : evaluation.cp * sign,
@@ -97,6 +109,22 @@ export type BanqiGameAnalysis = {
   plies: SweepPlyEval[];
 };
 
+export function banqiAnalysisRepetitionWindow(
+  states: readonly BanqiGameState[],
+  moves: readonly BanqiMove[],
+  ply: number,
+): BanqiRepetitionWindow {
+  const state = states[ply];
+  if (!state) throw new Error(`missing Banqi analysis state at ply ${ply}`);
+  const startPly = Math.max(0, ply - state.noProgressClock);
+  const startState = states[startPly];
+  if (!startState) throw new Error(`missing Banqi repetition-window state at ply ${startPly}`);
+  return {
+    fen: banqiStateToEngineFen(startState),
+    moves: moves.slice(startPly, ply).map(banqiMoveToEngineUci),
+  };
+}
+
 /**
  * Reconstruct every ply from the per-game DEAL + move list and evaluate it (red-seat POV).
  * Ply 0 is the initial position; ply k is the position after k moves. Reconstruction uses
@@ -108,7 +136,10 @@ export type BanqiGameAnalysis = {
 export async function analyzeBanqiPostgame(
   moves: readonly BanqiMove[],
   deal: BanqiDeal,
-  evaluate: (state: BanqiGameState) => Promise<BanqiPositionEval> = evaluateBanqiPosition,
+  evaluate: (
+    state: BanqiGameState,
+    repetitionWindow?: BanqiRepetitionWindow,
+  ) => Promise<BanqiPositionEval> = evaluateBanqiPosition,
   progress?: AnalysisProgressStore<SweepPlyEval>,
 ): Promise<BanqiGameAnalysis> {
   let state = createInitialBanqiState('analysis', deal);
@@ -127,7 +158,7 @@ export async function analyzeBanqiPostgame(
       plies.push(terminalPlyEval(ply, s));
       continue;
     }
-    const evaluation = await evaluate(s);
+    const evaluation = await evaluate(s, banqiAnalysisRepetitionWindow(states, moves, ply));
     plies.push({ ply, cp: evaluation.cp, mate: evaluation.mate, best: evaluation.best });
     if (progress) await progress.save({ nextIndex: ply + 1, items: plies });
   }
@@ -247,23 +278,43 @@ export type BanqiDecisionDeps = {
    *  baseline alongside the played move. Unlike jieqi we use rank-1 only (MistyBanqi is a custom
    *  αβ engine with no verified MultiPV), which makes the ceiling conservative: a better move the
    *  engine ranked #2 is missed, so decision loss is only ever UNDER-reported (never a false flag). */
-  bestMove: (fen: string) => Promise<string | null>;
+  bestMove: (fen: string, repetitionWindow?: BanqiRepetitionWindow) => Promise<string | null>;
   /** Single-position eval (side-to-move POV) at decision budget — the pool-mean's per-tile term. */
-  evalPosition: (fen: string) => Promise<{ cp: number | null; mate: number | null }>;
+  evalPosition: (
+    fen: string,
+    repetitionWindow?: BanqiRepetitionWindow,
+  ) => Promise<{ cp: number | null; mate: number | null }>;
 };
 
 const liveDecisionDeps: BanqiDecisionDeps = {
-  bestMove: (fen) =>
-    evaluateBanqiFenNodes(fen, {
+  bestMove: (fen, repetitionWindow) =>
+    evaluateBanqiFenNodes(repetitionWindow?.fen ?? fen, {
       nodes: BANQI_DECISION_NODES,
       movetimeCapMs: BANQI_DECISION_MOVETIME_CAP_MS,
+      moves: repetitionWindow?.moves,
     }).then((e) => e.best),
-  evalPosition: (fen) =>
-    evaluateBanqiFenNodes(fen, {
+  evalPosition: (fen, repetitionWindow) =>
+    evaluateBanqiFenNodes(repetitionWindow?.fen ?? fen, {
       nodes: BANQI_DECISION_NODES,
       movetimeCapMs: BANQI_DECISION_MOVETIME_CAP_MS,
+      moves: repetitionWindow?.moves,
     }).then((e) => ({ cp: e.cp, mate: e.mate })),
 };
+
+function banqiRepetitionWindowAfterMove(
+  state: BanqiGameState,
+  move: BanqiMove,
+  post: BanqiGameState,
+  repetitionWindow: BanqiRepetitionWindow,
+): BanqiRepetitionWindow {
+  const irreversible = move.from === move.to || state.board[move.to] != null;
+  return irreversible
+    ? { fen: banqiStateToEngineFen(post), moves: [] }
+    : {
+        fen: repetitionWindow.fen,
+        moves: [...repetitionWindow.moves, banqiMoveToEngineUci(move)],
+      };
+}
 
 // Win% for a POST-move position from the MOVER's (seat's) POV. Terminal positions score directly
 // (no engine); otherwise the position has the OPPONENT to move, so the engine's side-to-move score
@@ -272,12 +323,13 @@ async function moverWinAfter(
   post: BanqiGameState,
   mover: BanqiSeat,
   evalPosition: BanqiDecisionDeps['evalPosition'],
+  repetitionWindow: BanqiRepetitionWindow,
 ): Promise<number> {
   if (post.status.type === 'finished') {
     const winner = post.status.winner;
     return winner === mover ? 100 : winner === null ? 50 : 0;
   }
-  const { cp, mate } = await evalPosition(banqiStateToEngineFen(post));
+  const { cp, mate } = await evalPosition(banqiStateToEngineFen(post), repetitionWindow);
   return winPercent(cp == null ? null : -cp, mate == null ? null : -mate);
 }
 
@@ -291,11 +343,18 @@ async function poolMeanWin(
   move: BanqiMove,
   mover: BanqiSeat,
   evalPosition: BanqiDecisionDeps['evalPosition'],
+  repetitionWindow: BanqiRepetitionWindow,
 ): Promise<{ baseline: number; realized: number }> {
   const source = state.board[move.from];
   const isFlip = move.from === move.to;
   if (!isFlip || !source?.faceDown) {
-    const win = await moverWinAfter(applyBanqiMove(state, move), mover, evalPosition);
+    const post = applyBanqiMove(state, move);
+    const win = await moverWinAfter(
+      post,
+      mover,
+      evalPosition,
+      banqiRepetitionWindowAfterMove(state, move, post, repetitionWindow),
+    );
     return { baseline: win, realized: win };
   }
   // Pool: every still-face-down tile, keyed by ink+role (both colours — the deal is hidden from
@@ -342,7 +401,13 @@ async function poolMeanWin(
       // `entry`), so a donor always exists; guard defensively regardless.
       if (donor) cf.board[donor] = { color: source.color, role: source.role, faceDown: true };
     }
-    return moverWinAfter(applyBanqiMove(cf, move), mover, evalPosition);
+    const post = applyBanqiMove(cf, move);
+    return moverWinAfter(
+      post,
+      mover,
+      evalPosition,
+      banqiRepetitionWindowAfterMove(cf, move, post, repetitionWindow),
+    );
   });
   let baseline = 0;
   let realized = 50;
@@ -368,6 +433,10 @@ export async function analyzeBanqiDecisions(
   progress?: AnalysisProgressStore<BanqiDecision>,
 ): Promise<BanqiDecision[]> {
   let state = createInitialBanqiState('analysis', deal);
+  let repetitionWindow: BanqiRepetitionWindow = {
+    fen: banqiStateToEngineFen(state),
+    moves: [],
+  };
   // With a progress store, checkpoint after every graded flip and resume from
   // the saved move cursor (quiet moves before it just re-advance the state —
   // kernel replay is free; the engine fan-outs are what we refuse to redo).
@@ -377,7 +446,9 @@ export async function analyzeBanqiDecisions(
   for (let i = 0; i < moves.length; i += 1) {
     const move = moves[i]!;
     if (i < startIndex) {
-      state = applyBanqiMove(state, move);
+      const post = applyBanqiMove(state, move);
+      repetitionWindow = banqiRepetitionWindowAfterMove(state, move, post, repetitionWindow);
+      state = post;
       continue;
     }
     const source = state.board[move.from];
@@ -387,7 +458,7 @@ export async function analyzeBanqiDecisions(
     if (isFlip) {
       const fen = banqiStateToEngineFen(state);
       const playedUci = banqiMoveToEngineUci(move);
-      const best = await deps.bestMove(fen);
+      const best = await deps.bestMove(fen, repetitionWindow);
       // Candidate ceiling moves: the engine's best plus the played flip (deduped).
       const candidateUcis = new Set<string>([playedUci]);
       if (best) candidateUcis.add(best);
@@ -402,6 +473,7 @@ export async function analyzeBanqiDecisions(
           candidate,
           mover,
           deps.evalPosition,
+          repetitionWindow,
         );
         baselines.push(baseline);
         if (uci === playedUci) {
@@ -415,7 +487,9 @@ export async function analyzeBanqiDecisions(
       decisions.push({ ply: i + 1, mover, bestWin, playedWin, realizedWin, playedRank });
       if (progress) await progress.save({ nextIndex: i + 1, items: decisions });
     }
-    state = applyBanqiMove(state, move);
+    const post = applyBanqiMove(state, move);
+    repetitionWindow = banqiRepetitionWindowAfterMove(state, move, post, repetitionWindow);
+    state = post;
   }
   return decisions;
 }
@@ -423,9 +497,9 @@ export async function analyzeBanqiDecisions(
 // Cache engine id for the decomposition blob — a DIFFERENT engine_id than the basic analysis, so
 // both live in the same game_analysis table without collision (see persistence-game-analysis).
 // The `+dN` suffix versions the DECOMPOSITION ALGORITHM independently of the engine binary: bump it
-// to invalidate cached decisions when the pool-mean math changes without an engine change. d2 =
-// pool-rebalance fix (counterfactuals preserve the hidden multiset; earlier rows were luck-biased).
-export const BANQI_DECISIONS_ENGINE_ID = `misty-banqi-decisions@${BANQI_ENGINE_VERSION}+d2`;
+// to invalidate cached decisions when the algorithm changes without an engine change. d3 adds
+// the live repetition window; d2 fixed counterfactual hidden-multiset preservation.
+export const BANQI_DECISIONS_ENGINE_ID = `misty-banqi-decisions@${BANQI_ENGINE_VERSION}+d3`;
 
 export type BanqiDecisionsCache = {
   get(roomId: string, engineId: string, depth: number): Promise<BanqiDecision[] | null>;

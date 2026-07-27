@@ -59,6 +59,31 @@ export function jungleStateToEngineFen(state: JungleGameState): string {
   return `${rows.join('/')} ${turnChar} ${state.progressClock} ${state.moveNumber}`;
 }
 
+/**
+ * Representative FENs for positions that have already occurred twice in a game.
+ *
+ * The engine hashes only board + side to move, ignoring the progress clock and move
+ * number carried by the FEN. Seeding one representative for every twice-seen kernel
+ * repetition key lets the search score re-entering that position as the third occurrence
+ * and therefore a draw. Finished states are excluded because their status no longer
+ * carries the side to move that belongs to the repetition key.
+ */
+export function jungleRepSeedFens(states: readonly JungleGameState[]): string[] {
+  const firstFen = new Map<string, string>();
+  const counts = new Map<string, number>();
+  for (const state of states) {
+    if (state.status.type !== 'playing') continue;
+    const key = junglePositionRepetitionKey(state);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    if (!firstFen.has(key)) firstFen.set(key, jungleStateToEngineFen(state));
+  }
+  const seeds: string[] = [];
+  for (const [key, count] of counts) {
+    if (count >= 2) seeds.push(firstFen.get(key)!);
+  }
+  return seeds;
+}
+
 // The binary speaks "<from><to>" in the SAME algebraic coords as the kernel
 // (files a..g, ranks 1..9), e.g. "d8d9". Jungle has no promotions/flips, so there
 // is never a suffix.

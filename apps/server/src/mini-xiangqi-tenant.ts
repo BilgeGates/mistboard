@@ -119,6 +119,7 @@ export const miniXiangqiTenant: MiniXiangqiTenant = {
     viewForClient: (state, client) => getMiniXiangqiClientView(state, client),
   },
   engine: {
+    terminalContext: 'full-history',
     isEngineClientId: isMiniXiangqiEngineClientId,
     displayName: miniXiangqiEngineDisplayName,
     engineVersion: miniXiangqiEngineVersion,

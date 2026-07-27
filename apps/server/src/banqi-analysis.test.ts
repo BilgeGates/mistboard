@@ -20,9 +20,11 @@ import {
   type BanqiDecision,
   type BanqiDecisionsCache,
   type BanqiGameAnalysis,
+  banqiAnalysisRepetitionWindow,
   resolveBanqiAnalysis,
   resolveBanqiDecisions,
 } from './banqi-analysis.js';
+import { buildBanqiPositionCommand } from './banqi-engine.js';
 import { banqiMoveToEngineUci, banqiStateToEngineFen } from './banqi-fen.js';
 import type { SweepPlyEval } from './game-analysis-sweep.js';
 import { VacuousAnalysisError } from './game-analysis-sweep.js';
@@ -74,6 +76,22 @@ test('analyzeBanqiPostgame reconstructs N+1 plies from the deal and evaluates ea
   assert.deepEqual(seenTurns, ['red', 'black', 'red', 'black', 'red']);
   assert.ok(analysis.plies.every((ply) => ply.cp === 42));
   assert.equal(analysis.engineId, BANQI_ANALYSIS_ENGINE_ID);
+});
+
+test('Banqi analysis rebuilds a quiet-move repetition window', () => {
+  const initial = createInitialBanqiState('window', STANDARD_BANQI_DEAL);
+  const moves: BanqiMove[] = [
+    { from: 'a1', to: 'a2' },
+    { from: 'b1', to: 'b2' },
+  ];
+  const states = [initial, { ...initial, noProgressClock: 1 }, { ...initial, noProgressClock: 2 }];
+  const window = banqiAnalysisRepetitionWindow(states, moves, 2);
+  assert.equal(window.fen, banqiStateToEngineFen(initial));
+  assert.deepEqual(window.moves, moves.map(banqiMoveToEngineUci));
+  assert.equal(
+    buildBanqiPositionCommand(window.fen, window.moves),
+    `position fen ${window.fen} moves a0a1 b0b1`,
+  );
 });
 
 test('resolveBanqiAnalysis: pure cache read misses without computing', async () => {

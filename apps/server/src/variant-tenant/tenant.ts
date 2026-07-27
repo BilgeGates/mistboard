@@ -46,6 +46,12 @@ export type TenantGameStateLike<C extends string> = {
 // race, ...) never pass through here — they come out of rules.applyMove.
 export type TenantEndReason = 'timeout' | 'resignation' | 'abandonment';
 
+export type TenantEngineTerminalContext =
+  | 'full-history'
+  | 'repetition-window'
+  | 'repetition-seed'
+  | 'fog-observation';
+
 export type TenantClockState<C extends string> = {
   activeColor: C | null;
   incrementMs: number;
@@ -280,6 +286,10 @@ export type VariantTenant<
     ): View;
   };
   engine?: {
+    // Required declaration of how the live engine preserves history-dependent terminal
+    // semantics. Adding an engine tenant without choosing one fails typecheck. Fog engines
+    // deliberately receive only their redacted observation stream, never canonical truth.
+    terminalContext: TenantEngineTerminalContext;
     isEngineClientId(clientId: string | undefined): boolean;
     displayName(engineId: string): string;
     // External engine-service tenants must reacquire their per-game compute

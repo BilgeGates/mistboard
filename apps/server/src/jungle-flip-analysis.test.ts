@@ -8,6 +8,7 @@ import {
   type JungleFlipDeal,
   type JungleFlipMove,
   type JungleFlipPieceRole,
+  jungleFlipRepSeedFens,
   STANDARD_JUNGLE_FLIP_DEAL,
   winPercent,
 } from '@mistboard/game';
@@ -59,12 +60,14 @@ function memoryCache(): JungleFlipAnalysisCache & { saves: number } {
 test('analyzeJungleFlipPostgame reconstructs N+1 plies from the deal and evaluates each', async () => {
   const moves = openingMoves(STANDARD_JUNGLE_FLIP_DEAL, 4);
   const seenTurns: string[] = [];
+  const seenSeeds: (readonly string[])[] = [];
   const analysis = await analyzeJungleFlipPostgame(
     moves,
     STANDARD_JUNGLE_FLIP_DEAL,
-    async (state) => {
+    async (state, repSeedFens = []) => {
       assert.equal(state.status.type, 'playing');
       seenTurns.push(state.status.type === 'playing' ? state.status.turn : 'x');
+      seenSeeds.push(repSeedFens);
       return { cp: 42, mate: null, best: 'z' };
     },
   );
@@ -75,6 +78,16 @@ test('analyzeJungleFlipPostgame reconstructs N+1 plies from the deal and evaluat
   });
   // Red seat moves first; a flip passes the turn, so the mover alternates.
   assert.deepEqual(seenTurns, ['red', 'black', 'red', 'black', 'red']);
+  let state = createInitialJungleFlipState('expected-seeds', STANDARD_JUNGLE_FLIP_DEAL);
+  const states = [state];
+  for (const move of moves) {
+    state = applyJungleFlipMove(state, move);
+    states.push(state);
+  }
+  assert.deepEqual(
+    seenSeeds,
+    states.map((_, ply) => jungleFlipRepSeedFens(states.slice(0, ply + 1))),
+  );
   assert.ok(analysis.plies.every((ply) => ply.cp === 42));
   assert.equal(analysis.engineId, JUNGLE_FLIP_ANALYSIS_ENGINE_ID);
 });

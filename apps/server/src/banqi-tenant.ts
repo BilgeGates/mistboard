@@ -182,6 +182,7 @@ export const banqiTenant: BanqiTenant = {
   // engine seat reads as "disconnected" and the game self-forfeits mid-play
   // ("the human wins by abandonment") once the forfeit window elapses.
   engine: {
+    terminalContext: 'repetition-window',
     isEngineClientId: isBanqiEngineClientId,
     displayName: banqiEngineDisplayName,
     engineVersion: banqiEngineVersion,

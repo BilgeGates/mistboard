@@ -245,17 +245,17 @@ export function jungleFlipEngineMove(
 // engine's `info … score` for a redacted current-position FEN, side-to-move POV. Same
 // node-budget dial as play, so the eval is CPU-independent and reproducible — which keeps
 // the cached analysis stable. Gated through the dedicated ANALYSIS pool so a sweep can
-// never occupy a live bot-move slot. Each position is evaluated standalone (no `reps` seed — a single-position
-// eval needs no threefold history); the redacted FEN is sent as-is (hidden ids stay hidden).
+// never occupy a live bot-move slot. The caller supplies repeated-position seeds reconstructed
+// from the game history; the redacted FENs keep hidden ids hidden.
 export async function evaluateJungleFlipFenNodes(
   fen: string,
-  opts: { nodes: number; movetimeCapMs: number },
+  opts: { nodes: number; movetimeCapMs: number; repSeedFens?: readonly string[] },
 ): Promise<UciEval> {
   const commands = [
     'uci',
     'ucinewgame',
     'isready',
-    buildJungleFlipPositionCommand(fen),
+    buildJungleFlipPositionCommand(fen, opts.repSeedFens),
     `go nodes ${opts.nodes} movetime ${opts.movetimeCapMs}`,
   ];
   const release = await analysisPool.acquire();

@@ -21,7 +21,7 @@ import { runUciBestmove, runUciEval, UciEnginePool, type UciEval } from './uci-e
 
 // The binary self-reports "MistyJungle <version>" over UCI; bump on every shipped
 // eval/search change so the per-game configHash stays meaningful.
-export const JUNGLE_RUST_ENGINE_VERSION = '0.0.2';
+export const JUNGLE_RUST_ENGINE_VERSION = '0.0.3';
 
 export type JungleRustTier = {
   id: string;
@@ -103,7 +103,7 @@ export function jungleEnginePath(): string {
 export async function jungleLiveEngineMove(
   engineId: string,
   fen: string,
-  opts: { nodes?: number; movetimeCapMs?: number } = {},
+  opts: { nodes?: number; movetimeCapMs?: number; repSeedFens?: readonly string[] } = {},
 ): Promise<string | null> {
   const tier = jungleRustTierFor(engineId);
   if (!tier) throw new Error(`unknown Jungle engine: ${engineId}`);
@@ -112,6 +112,7 @@ export async function jungleLiveEngineMove(
     return await jungleEngineMove(fen, {
       nodes: opts.nodes ?? tier.nodes,
       movetimeCapMs: opts.movetimeCapMs ?? tier.movetimeCapMs,
+      repSeedFens: opts.repSeedFens,
     });
   } finally {
     release();
@@ -120,7 +121,11 @@ export async function jungleLiveEngineMove(
 
 export function jungleEngineMove(
   fen: string,
-  opts: { nodes?: number; movetimeCapMs?: number } = {},
+  opts: {
+    nodes?: number;
+    movetimeCapMs?: number;
+    repSeedFens?: readonly string[];
+  } = {},
 ): Promise<string | null> {
   const nodes = opts.nodes ?? 1_000_000;
   const movetimeCapMs = opts.movetimeCapMs ?? 5_000;
@@ -130,7 +135,7 @@ export function jungleEngineMove(
     'uci',
     'ucinewgame',
     'isready',
-    `position fen ${fen}`,
+    buildJunglePositionCommand(fen, opts.repSeedFens),
     `go nodes ${nodes} movetime ${movetimeCapMs}`,
   ];
   return runUciBestmove({
@@ -139,6 +144,19 @@ export function jungleEngineMove(
     timeoutMs: movetimeCapMs + 4000,
     timeoutMessage: 'jungle-engine move timed out',
   });
+}
+
+/**
+ * Build the Jungle engine's history-aware UCI position command. A seed contains
+ * representative FENs for positions already seen twice, separated by semicolons because
+ * each FEN itself contains spaces.
+ */
+export function buildJunglePositionCommand(
+  fen: string,
+  repSeedFens: readonly string[] = [],
+): string {
+  if (repSeedFens.length === 0) return `position fen ${fen}`;
+  return `position fen ${fen} reps ${repSeedFens.join(';')}`;
 }
 
 // Per-process concurrency cap (mirrors banqi-engine.ts; shared harness).
@@ -171,13 +189,13 @@ const analysisPool = new UciEnginePool({
 // normalization; the fog-free full board is sent as-is (jungle is perfect information).
 export async function evaluateJungleFenNodes(
   fen: string,
-  opts: { nodes: number; movetimeCapMs: number },
+  opts: { nodes: number; movetimeCapMs: number; repSeedFens?: readonly string[] },
 ): Promise<UciEval> {
   const commands = [
     'uci',
     'ucinewgame',
     'isready',
-    `position fen ${fen}`,
+    buildJunglePositionCommand(fen, opts.repSeedFens),
     `go nodes ${opts.nodes} movetime ${opts.movetimeCapMs}`,
   ];
   const release = await analysisPool.acquire();

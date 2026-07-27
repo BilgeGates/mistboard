@@ -5,6 +5,8 @@ import {
   createInitialJungleState,
   type JungleMove,
   type JungleSquare,
+  jungleRepSeedFens,
+  parseJungleFen,
 } from '@mistboard/game';
 import {
   engineUciToJungleMove,
@@ -106,4 +108,22 @@ test('engine UCI move round-trips', () => {
   assert.equal(engineUciToJungleMove(null), null);
   assert.equal(engineUciToJungleMove('h1h2'), null); // file out of range
   assert.equal(engineUciToJungleMove('a0a1'), null); // rank 0 not valid
+});
+
+test('repetition seeds include positions already seen twice in the reported draw cycle', () => {
+  const repeatedFen = '7/3p3/1Tcedl1/3w3/1R1L3/4r2/4WE1/2t1C2/2D4 r 4 42';
+  const parsed = parseJungleFen(repeatedFen, 'reported-draw');
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) return;
+
+  let state = parsed.state;
+  const states = [state];
+  for (const uci of ['c1b1', 'c2b2', 'b1c1', 'b2c2', 'c1b1', 'c2b2', 'b1c1']) {
+    state = applyJungleMove(state, uciToMove(uci));
+    states.push(state);
+  }
+
+  const seeds = jungleRepSeedFens(states);
+  assert.equal(seeds.length, 4);
+  assert.ok(seeds.includes(repeatedFen));
 });

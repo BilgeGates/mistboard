@@ -150,6 +150,7 @@ export const crossroadsChessTenant: CrossroadsChessTenant = {
     viewForClient: (state, client) => getCrossroadsChessClientView(state, client.seat),
   },
   engine: {
+    terminalContext: 'full-history',
     isEngineClientId: isCrossroadsChessEngineClientId,
     displayName: crossroadsChessEngineDisplayName,
     engineVersion: crossroadsChessEngineVersion,

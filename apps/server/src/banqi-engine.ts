@@ -163,8 +163,12 @@ export function banqiEngineVersion(clientId: string | undefined): string | null 
 export type BanqiEngineOptions = {
   nodes?: number;
   movetimeCapMs?: number;
-  moves?: string[];
+  moves?: readonly string[];
 };
+
+export function buildBanqiPositionCommand(fen: string, moves: readonly string[] = []): string {
+  return moves.length > 0 ? `position fen ${fen} moves ${moves.join(' ')}` : `position fen ${fen}`;
+}
 
 /**
  * Ask MistyBanqi for a move given a redacted FEN (see banqi-fen.ts) and an optional
@@ -240,10 +244,7 @@ export async function banqiEngineMove(
 ): Promise<string | null> {
   const nodes = opts.nodes ?? 500_000;
   const movetimeCapMs = opts.movetimeCapMs ?? 2500;
-  const position =
-    opts.moves && opts.moves.length > 0
-      ? `position fen ${fen} moves ${opts.moves.join(' ')}`
-      : `position fen ${fen}`;
+  const position = buildBanqiPositionCommand(fen, opts.moves);
   // Node budget = CPU-independent strength; movetime cap bounds latency (halt at whichever first).
   const commands = [
     'uci',
@@ -276,13 +277,13 @@ export async function banqiEngineMove(
 // redacted (as-played info-state) FEN is sent as-is — the engine never sees a hidden id.
 export async function evaluateBanqiFenNodes(
   fen: string,
-  opts: { nodes: number; movetimeCapMs: number },
+  opts: { nodes: number; movetimeCapMs: number; moves?: readonly string[] },
 ): Promise<UciEval> {
   const commands = [
     'uci',
     'ucinewgame',
     'isready',
-    `position fen ${fen}`,
+    buildBanqiPositionCommand(fen, opts.moves),
     `go nodes ${opts.nodes} movetime ${opts.movetimeCapMs}`,
   ];
   const release = await analysisPool.acquire();

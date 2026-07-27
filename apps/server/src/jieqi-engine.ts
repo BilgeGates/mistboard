@@ -156,14 +156,14 @@ export function jieqiEngineBinaryAvailable(): boolean {
 // never sees a hidden id.
 export async function evaluateJieqiFen(
   fen: string,
-  opts: { depth: number; movetimeMs: number },
+  opts: { depth: number; movetimeMs: number; moves?: readonly string[] },
 ): Promise<UciEval> {
   const commands = [
     'uci',
     ...netOption(),
     'ucinewgame',
     'isready',
-    `position fen ${fen}`,
+    buildJieqiPositionCommand(fen, opts.moves),
     `go depth ${Math.max(1, Math.floor(opts.depth))} movetime ${opts.movetimeMs}`,
   ];
   const release = await analysisPool.acquire();
@@ -193,7 +193,10 @@ export async function evaluateJieqiFen(
  */
 export async function withJieqiAnalysisSession<T>(
   fn: (
-    evaluateFen: (fen: string, opts: { depth: number; movetimeMs: number }) => Promise<UciEval>,
+    evaluateFen: (
+      fen: string,
+      opts: { depth: number; movetimeMs: number; moves?: readonly string[] },
+    ) => Promise<UciEval>,
   ) => Promise<T>,
 ): Promise<T> {
   const release = await analysisPool.acquire();
@@ -206,7 +209,7 @@ export async function withJieqiAnalysisSession<T>(
     await session.ready();
     return await fn((fen, opts) =>
       session.evalPosition({
-        positionCommand: `position fen ${fen}`,
+        positionCommand: buildJieqiPositionCommand(fen, opts.moves),
         goCommand: `go depth ${Math.max(1, Math.floor(opts.depth))} movetime ${opts.movetimeMs}`,
         timeoutMs: opts.movetimeMs + 4_000,
         timeoutMessage: 'pikafish-jieqi analysis eval timed out',
@@ -228,7 +231,7 @@ export async function withJieqiAnalysisSession<T>(
 // with it). Scores are side-to-move POV; the caller normalizes. Gated through the analysis pool.
 export async function evaluateJieqiMultiPv(
   fen: string,
-  opts: { depth: number; movetimeMs: number; multiPv: number },
+  opts: { depth: number; movetimeMs: number; multiPv: number; moves?: readonly string[] },
 ): Promise<UciMultiPvLine[]> {
   const commands = [
     'uci',
@@ -236,7 +239,7 @@ export async function evaluateJieqiMultiPv(
     `setoption name MultiPV value ${Math.max(1, Math.floor(opts.multiPv))}`,
     'ucinewgame',
     'isready',
-    `position fen ${fen}`,
+    buildJieqiPositionCommand(fen, opts.moves),
     `go depth ${Math.max(1, Math.floor(opts.depth))} movetime ${opts.movetimeMs}`,
   ];
   const release = await analysisPool.acquire();
@@ -257,14 +260,14 @@ export async function evaluateJieqiMultiPv(
 export async function evaluateJieqiMoveEv(
   fen: string,
   move: string,
-  opts: { depth: number; movetimeMs: number },
+  opts: { depth: number; movetimeMs: number; moves?: readonly string[] },
 ): Promise<UciEval> {
   const commands = [
     'uci',
     ...netOption(),
     'ucinewgame',
     'isready',
-    `position fen ${fen}`,
+    buildJieqiPositionCommand(fen, opts.moves),
     `go depth ${Math.max(1, Math.floor(opts.depth))} movetime ${opts.movetimeMs} searchmoves ${move}`,
   ];
   const release = await analysisPool.acquire();
@@ -298,7 +301,15 @@ export function jieqiEngineVersion(clientId: string | undefined): string | null 
 // perpetual-check / perpetual-chase rules instead of being blind to threefold. Omit for the
 // prior FEN-only behavior. Safe under redaction: a window has no reveal, so the window-start
 // FEN's dark tiles stay dark and the replayed moves are all of already-revealed pieces.
-export type JieqiEngineOptions = { movetimeMs?: number; depth?: number; moves?: string[] };
+export type JieqiEngineOptions = {
+  movetimeMs?: number;
+  depth?: number;
+  moves?: readonly string[];
+};
+
+export function buildJieqiPositionCommand(fen: string, moves: readonly string[] = []): string {
+  return moves.length > 0 ? `position fen ${fen} moves ${moves.join(' ')}` : `position fen ${fen}`;
+}
 
 /**
  * Ask PikaJieQi for a move given a redacted FEN (see jieqi-fen.ts) and an optional
@@ -308,7 +319,7 @@ export type JieqiEngineOptions = { movetimeMs?: number; depth?: number; moves?: 
 export async function jieqiLiveEngineMove(
   engineId: string,
   fen: string,
-  opts: { movetimeMs?: number; moves?: string[] } = {},
+  opts: { movetimeMs?: number; moves?: readonly string[] } = {},
 ): Promise<string | null> {
   const tier = jieqiEngineTierFor(engineId);
   if (!tier) throw new Error(`unknown Jieqi engine: ${engineId}`);
@@ -330,10 +341,7 @@ export function jieqiEngineMove(
 ): Promise<string | null> {
   const movetimeMs = opts.movetimeMs ?? 500;
   const depth = opts.depth !== undefined ? Math.max(1, Math.floor(opts.depth)) : null;
-  const position =
-    opts.moves && opts.moves.length > 0
-      ? `position fen ${fen} moves ${opts.moves.join(' ')}`
-      : `position fen ${fen}`;
+  const position = buildJieqiPositionCommand(fen, opts.moves);
   const commands = [
     'uci',
     ...netOption(),

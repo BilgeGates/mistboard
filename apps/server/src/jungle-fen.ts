@@ -4,5 +4,6 @@
 export {
   engineUciToJungleMove,
   jungleMoveToEngineUci,
+  jungleRepSeedFens,
   jungleStateToEngineFen,
 } from '@mistboard/game';

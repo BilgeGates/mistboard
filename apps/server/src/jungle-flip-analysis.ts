@@ -18,6 +18,7 @@ import {
   type JungleFlipMove,
   type JungleFlipPieceRole,
   type JungleFlipSeat,
+  jungleFlipRepSeedFens,
   winPercent,
 } from '@mistboard/game';
 import {
@@ -51,8 +52,8 @@ export const JUNGLE_FLIP_ANALYSIS_DEPTH = 12;
 // Red-SEAT-POV cp for a decisive finished position (no engine query is made there).
 const TERMINAL_CP = 30_000;
 
-// Cache engine id, version-suffixed so an engine/config change invalidates stored evals.
-export const JUNGLE_FLIP_ANALYSIS_ENGINE_ID = `misty-jungle-flip-analysis@${JUNGLE_FLIP_ENGINE_VERSION}`;
+// The history suffix invalidates earlier FEN-only cached sweeps.
+export const JUNGLE_FLIP_ANALYSIS_ENGINE_ID = `misty-jungle-flip-analysis@${JUNGLE_FLIP_ENGINE_VERSION}+history1`;
 
 export type JungleFlipPositionEval = {
   /** Centipawns from the RED SEAT's POV (positive = Red better); null when mate is set. */
@@ -71,12 +72,14 @@ export type JungleFlipPositionEval = {
  */
 export async function evaluateJungleFlipPosition(
   state: JungleFlipGameState,
+  repSeedFens: readonly string[] = [],
 ): Promise<JungleFlipPositionEval> {
   const mover: JungleFlipSeat = state.status.type === 'playing' ? state.status.turn : 'red';
   const sign = mover === 'red' ? 1 : -1;
   const evaluation = await evaluateJungleFlipFenNodes(jungleFlipStateToEngineFen(state), {
     nodes: JUNGLE_FLIP_ANALYSIS_NODES,
     movetimeCapMs: JUNGLE_FLIP_ANALYSIS_MOVETIME_CAP_MS,
+    repSeedFens,
   });
   return {
     cp: evaluation.cp == null ? null : evaluation.cp * sign,
@@ -112,6 +115,7 @@ export async function analyzeJungleFlipPostgame(
   deal: JungleFlipDeal,
   evaluate: (
     state: JungleFlipGameState,
+    repSeedFens?: readonly string[],
   ) => Promise<JungleFlipPositionEval> = evaluateJungleFlipPosition,
   progress?: AnalysisProgressStore<SweepPlyEval>,
 ): Promise<JungleFlipGameAnalysis> {
@@ -131,7 +135,7 @@ export async function analyzeJungleFlipPostgame(
       plies.push(terminalPlyEval(ply, s));
       continue;
     }
-    const evaluation = await evaluate(s);
+    const evaluation = await evaluate(s, jungleFlipRepSeedFens(states.slice(0, ply + 1)));
     plies.push({ ply, cp: evaluation.cp, mate: evaluation.mate, best: evaluation.best });
     if (progress) await progress.save({ nextIndex: ply + 1, items: plies });
   }
@@ -251,21 +255,26 @@ export type JungleFlipDecisionDeps = {
    *  baseline alongside the played move. We use rank-1 only for now (MistyJungleFlip's binary
    *  supports MultiPV, but the server wrapper does not expose it yet), which makes the ceiling
    *  conservative: it can only UNDER-report decision loss, never false-flag. MultiPV parity: #211. */
-  bestMove: (fen: string) => Promise<string | null>;
+  bestMove: (fen: string, repSeedFens?: readonly string[]) => Promise<string | null>;
   /** Single-position eval (side-to-move POV) at decision budget — the pool-mean's per-tile term. */
-  evalPosition: (fen: string) => Promise<{ cp: number | null; mate: number | null }>;
+  evalPosition: (
+    fen: string,
+    repSeedFens?: readonly string[],
+  ) => Promise<{ cp: number | null; mate: number | null }>;
 };
 
 const liveDecisionDeps: JungleFlipDecisionDeps = {
-  bestMove: (fen) =>
+  bestMove: (fen, repSeedFens) =>
     evaluateJungleFlipFenNodes(fen, {
       nodes: JUNGLE_FLIP_DECISION_NODES,
       movetimeCapMs: JUNGLE_FLIP_DECISION_MOVETIME_CAP_MS,
+      repSeedFens,
     }).then((e) => e.best),
-  evalPosition: (fen) =>
+  evalPosition: (fen, repSeedFens) =>
     evaluateJungleFlipFenNodes(fen, {
       nodes: JUNGLE_FLIP_DECISION_NODES,
       movetimeCapMs: JUNGLE_FLIP_DECISION_MOVETIME_CAP_MS,
+      repSeedFens,
     }).then((e) => ({ cp: e.cp, mate: e.mate })),
 };
 
@@ -276,12 +285,16 @@ async function moverWinAfter(
   post: JungleFlipGameState,
   mover: JungleFlipSeat,
   evalPosition: JungleFlipDecisionDeps['evalPosition'],
+  history: readonly JungleFlipGameState[],
 ): Promise<number> {
   if (post.status.type === 'finished') {
     const winner = post.status.winner;
     return winner === mover ? 100 : winner === null ? 50 : 0;
   }
-  const { cp, mate } = await evalPosition(jungleFlipStateToEngineFen(post));
+  const { cp, mate } = await evalPosition(
+    jungleFlipStateToEngineFen(post),
+    jungleFlipRepSeedFens([...history, post]),
+  );
   return winPercent(cp == null ? null : -cp, mate == null ? null : -mate);
 }
 
@@ -295,11 +308,12 @@ async function poolMeanWin(
   move: JungleFlipMove,
   mover: JungleFlipSeat,
   evalPosition: JungleFlipDecisionDeps['evalPosition'],
+  history: readonly JungleFlipGameState[],
 ): Promise<{ baseline: number; realized: number }> {
   const source = state.board[move.from];
   const isFlip = move.from === move.to;
   if (!isFlip || !source?.faceDown) {
-    const win = await moverWinAfter(applyJungleFlipMove(state, move), mover, evalPosition);
+    const win = await moverWinAfter(applyJungleFlipMove(state, move), mover, evalPosition, history);
     return { baseline: win, realized: win };
   }
   type PoolEntry = { color: JungleFlipColor; role: JungleFlipPieceRole; count: number };
@@ -342,7 +356,7 @@ async function poolMeanWin(
       // `entry`), so a donor always exists; guard defensively regardless.
       if (donor) cf.board[donor] = { color: source.color, role: source.role, faceDown: true };
     }
-    return moverWinAfter(applyJungleFlipMove(cf, move), mover, evalPosition);
+    return moverWinAfter(applyJungleFlipMove(cf, move), mover, evalPosition, history);
   });
   let baseline = 0;
   let realized = 50;
@@ -368,6 +382,7 @@ export async function analyzeJungleFlipDecisions(
   progress?: AnalysisProgressStore<JungleFlipDecision>,
 ): Promise<JungleFlipDecision[]> {
   let state = createInitialJungleFlipState('analysis', deal);
+  const states: JungleFlipGameState[] = [state];
   // With a progress store, checkpoint after every graded flip and resume from
   // the saved move cursor (quiet moves before it just re-advance the state —
   // kernel replay is free; the engine fan-outs are what we refuse to redo).
@@ -378,6 +393,7 @@ export async function analyzeJungleFlipDecisions(
     const move = moves[i]!;
     if (i < startIndex) {
       state = applyJungleFlipMove(state, move);
+      states.push(state);
       continue;
     }
     const source = state.board[move.from];
@@ -387,7 +403,7 @@ export async function analyzeJungleFlipDecisions(
     if (isFlip) {
       const fen = jungleFlipStateToEngineFen(state);
       const playedUci = jungleFlipMoveToEngineUci(move);
-      const best = await deps.bestMove(fen);
+      const best = await deps.bestMove(fen, jungleFlipRepSeedFens(states));
       const candidateUcis = new Set<string>([playedUci]);
       if (best) candidateUcis.add(best);
       let playedWin = 50;
@@ -401,6 +417,7 @@ export async function analyzeJungleFlipDecisions(
           candidate,
           mover,
           deps.evalPosition,
+          states,
         );
         baselines.push(baseline);
         if (uci === playedUci) {
@@ -414,6 +431,7 @@ export async function analyzeJungleFlipDecisions(
       if (progress) await progress.save({ nextIndex: i + 1, items: decisions });
     }
     state = applyJungleFlipMove(state, move);
+    states.push(state);
   }
   return decisions;
 }
@@ -421,9 +439,9 @@ export async function analyzeJungleFlipDecisions(
 // Cache engine id for the decomposition blob — a DIFFERENT engine_id than the basic analysis, so
 // both live in the same game_analysis table without collision.
 // The `+dN` suffix versions the DECOMPOSITION ALGORITHM independently of the engine binary: bump it
-// to invalidate cached decisions when the pool-mean math changes without an engine change. d2 =
-// pool-rebalance fix (counterfactuals preserve the hidden multiset; earlier rows were luck-biased).
-export const JUNGLE_FLIP_DECISIONS_ENGINE_ID = `misty-jungle-flip-decisions@${JUNGLE_FLIP_ENGINE_VERSION}+d2`;
+// to invalidate cached decisions when the algorithm changes without an engine change. d3 adds
+// repetition seeds; d2 fixed counterfactual hidden-multiset preservation.
+export const JUNGLE_FLIP_DECISIONS_ENGINE_ID = `misty-jungle-flip-decisions@${JUNGLE_FLIP_ENGINE_VERSION}+d3`;
 
 export type JungleFlipDecisionsCache = {
   get(roomId: string, engineId: string, depth: number): Promise<JungleFlipDecision[] | null>;

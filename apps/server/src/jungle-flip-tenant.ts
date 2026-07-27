@@ -179,6 +179,7 @@ export const jungleFlipTenant: JungleFlipTenant = {
   // showing the "Invite opponent" panel for a seated bot. Without this the flip
   // PvE room renders as an open PvP invite even though the engine is playing.
   engine: {
+    terminalContext: 'repetition-seed',
     isEngineClientId: isJungleFlipEngineClientId,
     displayName: jungleFlipEngineDisplayName,
     engineVersion: jungleFlipEngineVersion,

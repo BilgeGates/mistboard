@@ -132,6 +132,7 @@ export const xiangqiTenant: XiangqiTenant = {
     viewForClient: (state, client) => getXiangqiClientView(state, client),
   },
   engine: {
+    terminalContext: 'full-history',
     // Mainline Pikafish PvE (server-xiangqi-engine.ts). Open information, so the
     // engine sees the full truth board and replays from `position startpos moves`.
     isEngineClientId: isXiangqiEngineClientId,

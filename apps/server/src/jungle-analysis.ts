@@ -16,6 +16,7 @@ import {
   type JungleColor,
   type JungleGameState,
   type JungleMove,
+  jungleRepSeedFens,
 } from '@mistboard/game';
 import {
   type AnalysisProgressStore,
@@ -64,12 +65,16 @@ export type JunglePositionEval = {
  * Black is to move. Throws (via jungleEnginePath) when the binary is absent — callers
  * pre-check availability and fail closed.
  */
-export async function evaluateJunglePosition(state: JungleGameState): Promise<JunglePositionEval> {
+export async function evaluateJunglePosition(
+  state: JungleGameState,
+  repSeedFens: readonly string[] = [],
+): Promise<JunglePositionEval> {
   const mover: JungleColor = state.status.type === 'playing' ? state.status.turn : 'red';
   const sign = mover === 'red' ? 1 : -1;
   const evaluation = await evaluateJungleFenNodes(jungleStateToEngineFen(state), {
     nodes: JUNGLE_ANALYSIS_NODES,
     movetimeCapMs: JUNGLE_ANALYSIS_MOVETIME_CAP_MS,
+    repSeedFens,
   });
   return {
     cp: evaluation.cp == null ? null : evaluation.cp * sign,
@@ -107,7 +112,10 @@ export { isVacuousAnalysis, VacuousAnalysisError };
  */
 export async function analyzeJunglePostgame(
   moves: readonly JungleMove[],
-  evaluate: (state: JungleGameState) => Promise<JunglePositionEval> = evaluateJunglePosition,
+  evaluate: (
+    state: JungleGameState,
+    repSeedFens?: readonly string[],
+  ) => Promise<JunglePositionEval> = evaluateJunglePosition,
   progress?: AnalysisProgressStore<SweepPlyEval>,
 ): Promise<JungleGameAnalysis> {
   let state = createInitialJungleState('analysis');
@@ -126,7 +134,7 @@ export async function analyzeJunglePostgame(
       plies.push(terminalPlyEval(ply, s));
       continue;
     }
-    const evaluation = await evaluate(s);
+    const evaluation = await evaluate(s, jungleRepSeedFens(states.slice(0, ply + 1)));
     plies.push({ ply, cp: evaluation.cp, mate: evaluation.mate, best: evaluation.best });
     if (progress) await progress.save({ nextIndex: ply + 1, items: plies });
   }

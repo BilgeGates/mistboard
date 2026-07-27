@@ -169,6 +169,7 @@ export const fortressXiangqiTenant: FortressXiangqiTenant = {
     viewForClient: (state, client) => getFortressXiangqiClientView(state, client),
   },
   engine: {
+    terminalContext: 'full-history',
     isEngineClientId: isFortressXiangqiEngineClientId,
     displayName: fortressXiangqiEngineDisplayName,
     engineVersion: fortressXiangqiEngineVersion,

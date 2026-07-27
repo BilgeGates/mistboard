@@ -65,8 +65,13 @@ export const JIEQI_ANALYSIS_DEPTH = 12;
 // Red-SEAT-POV cp for a decisive finished position (no engine query is made there).
 const TERMINAL_CP = 30_000;
 
-// Cache engine id, version-suffixed so an engine/config change invalidates stored evals.
-export const JIEQI_ANALYSIS_ENGINE_ID = `pikafish-jieqi-analysis@${JIEQI_ENGINE_VERSION}`;
+// The history suffix invalidates earlier FEN-only cached sweeps.
+export const JIEQI_ANALYSIS_ENGINE_ID = `pikafish-jieqi-analysis@${JIEQI_ENGINE_VERSION}+history1`;
+
+export type JieqiRepetitionWindow = {
+  fen: string;
+  moves: readonly string[];
+};
 
 export type JieqiPositionEval = {
   /** Centipawns from the RED SEAT's POV (positive = Red better); null when mate is set. */
@@ -90,14 +95,19 @@ export async function evaluateJieqiPosition(
   state: JieqiGameState,
   evaluateFen: (
     fen: string,
-    opts: { depth: number; movetimeMs: number },
+    opts: { depth: number; movetimeMs: number; moves?: readonly string[] },
   ) => Promise<{ cp: number | null; mate: number | null; best: string | null }> = evaluateJieqiFen,
+  repetitionWindow: JieqiRepetitionWindow = {
+    fen: jieqiStateToPikafishFen(state),
+    moves: [],
+  },
 ): Promise<JieqiPositionEval> {
   const mover: JieqiColor = state.status.type === 'playing' ? state.status.turn : 'red';
   const sign = mover === 'red' ? 1 : -1;
-  const evaluation = await evaluateFen(jieqiStateToPikafishFen(state), {
+  const evaluation = await evaluateFen(repetitionWindow.fen, {
     depth: JIEQI_ANALYSIS_DEPTH_SEARCH,
     movetimeMs: JIEQI_ANALYSIS_MOVETIME_CAP_MS,
+    moves: repetitionWindow.moves,
   });
   return {
     cp: evaluation.cp == null ? null : evaluation.cp * sign,
@@ -122,6 +132,33 @@ export type JieqiGameAnalysis = {
   plies: SweepPlyEval[];
 };
 
+export function jieqiAnalysisRepetitionWindows(
+  moves: readonly JieqiMove[],
+  deal: JieqiDeal,
+): JieqiRepetitionWindow[] {
+  let state = createInitialJieqiState('analysis-window', deal);
+  let startState = state;
+  let windowMoves: JieqiMove[] = [];
+  const windows: JieqiRepetitionWindow[] = [
+    { fen: jieqiStateToPikafishFen(startState), moves: [] },
+  ];
+  for (const move of moves) {
+    const irreversible = state.board[move.from]?.faceDown === true || state.board[move.to] != null;
+    state = applyJieqiMove(state, move);
+    if (irreversible) {
+      startState = state;
+      windowMoves = [];
+    } else {
+      windowMoves.push(move);
+    }
+    windows.push({
+      fen: jieqiStateToPikafishFen(startState),
+      moves: windowMoves.map(jieqiMoveToPikafishUci),
+    });
+  }
+  return windows;
+}
+
 /**
  * Reconstruct every ply from the per-game DEAL + move list and evaluate it (red-seat POV).
  * Ply 0 is the initial position; ply k is the position after k moves. Reconstruction uses the
@@ -143,10 +180,14 @@ export async function analyzeJieqiPostgame(
     state = applyJieqiMove(state, move);
     states.push(state);
   }
+  const repetitionWindows = jieqiAnalysisRepetitionWindows(moves, deal);
   // With a progress store the sweep checkpoints after every evaluated ply and
   // resumes from the last checkpoint (persist expensive output incrementally).
   const sweep = async (
-    evaluatePosition: (state: JieqiGameState) => Promise<JieqiPositionEval>,
+    evaluatePosition: (
+      state: JieqiGameState,
+      repetitionWindow: JieqiRepetitionWindow,
+    ) => Promise<JieqiPositionEval>,
   ): Promise<SweepPlyEval[]> => {
     const resumed = progress ? await progress.load() : null;
     const plies: SweepPlyEval[] = resumed ? [...resumed.items] : [];
@@ -156,7 +197,7 @@ export async function analyzeJieqiPostgame(
         plies.push(terminalPlyEval(ply, s));
         continue;
       }
-      const evaluation = await evaluatePosition(s);
+      const evaluation = await evaluatePosition(s, repetitionWindows[ply]!);
       plies.push({ ply, cp: evaluation.cp, mate: evaluation.mate, best: evaluation.best });
       if (progress) await progress.save({ nextIndex: ply + 1, items: plies });
     }
@@ -165,7 +206,7 @@ export async function analyzeJieqiPostgame(
   const plies = evaluate
     ? await sweep(evaluate)
     : await withJieqiAnalysisSession((evaluateFen) =>
-        sweep((s) => evaluateJieqiPosition(s, evaluateFen)),
+        sweep((s, repetitionWindow) => evaluateJieqiPosition(s, evaluateFen, repetitionWindow)),
       );
   return { engineId: JIEQI_ANALYSIS_ENGINE_ID, depth: JIEQI_ANALYSIS_DEPTH, plies };
 }
@@ -305,24 +346,44 @@ export type JieqiDecision = {
 export type JieqiDecisionDeps = {
   /** Top candidate moves (engine ranking) for a pre-move FEN — used only to pick which moves to
    *  true-baseline as the ceiling; the returned scores are not used in the output. */
-  multiPv: (fen: string) => Promise<UciMultiPvLine[]>;
+  multiPv: (fen: string, repetitionWindow?: JieqiRepetitionWindow) => Promise<UciMultiPvLine[]>;
   /** Single-position eval (side-to-move POV) at decision depth — the pool-mean's per-role term. */
-  evalPosition: (fen: string) => Promise<{ cp: number | null; mate: number | null }>;
+  evalPosition: (
+    fen: string,
+    repetitionWindow?: JieqiRepetitionWindow,
+  ) => Promise<{ cp: number | null; mate: number | null }>;
 };
 
 const liveDecisionDeps: JieqiDecisionDeps = {
-  multiPv: (fen) =>
-    evaluateJieqiMultiPv(fen, {
+  multiPv: (fen, repetitionWindow) =>
+    evaluateJieqiMultiPv(repetitionWindow?.fen ?? fen, {
       depth: JIEQI_DECISION_DEPTH,
       movetimeMs: JIEQI_DECISION_MOVETIME_CAP_MS,
       multiPv: JIEQI_DECISION_MULTIPV,
+      moves: repetitionWindow?.moves,
     }),
-  evalPosition: (fen) =>
-    evaluateJieqiFen(fen, {
+  evalPosition: (fen, repetitionWindow) =>
+    evaluateJieqiFen(repetitionWindow?.fen ?? fen, {
       depth: JIEQI_DECISION_DEPTH,
       movetimeMs: JIEQI_DECISION_MOVETIME_CAP_MS,
+      moves: repetitionWindow?.moves,
     }).then((e) => ({ cp: e.cp, mate: e.mate })),
 };
+
+function jieqiRepetitionWindowAfterMove(
+  state: JieqiGameState,
+  move: JieqiMove,
+  post: JieqiGameState,
+  repetitionWindow: JieqiRepetitionWindow,
+): JieqiRepetitionWindow {
+  const irreversible = state.board[move.from]?.faceDown === true || state.board[move.to] != null;
+  return irreversible
+    ? { fen: jieqiStateToPikafishFen(post), moves: [] }
+    : {
+        fen: repetitionWindow.fen,
+        moves: [...repetitionWindow.moves, jieqiMoveToPikafishUci(move)],
+      };
+}
 
 // Win% for a POST-move position from the MOVER's POV. Terminal positions score directly (no
 // engine); otherwise the position has the OPPONENT to move, so the engine's side-to-move score is
@@ -331,12 +392,13 @@ async function moverWinAfter(
   post: JieqiGameState,
   mover: JieqiColor,
   evalPosition: JieqiDecisionDeps['evalPosition'],
+  repetitionWindow: JieqiRepetitionWindow,
 ): Promise<number> {
   if (post.status.type === 'finished') {
     const winner = post.status.winner;
     return winner === mover ? 100 : winner === null ? 50 : 0;
   }
-  const { cp, mate } = await evalPosition(jieqiStateToPikafishFen(post));
+  const { cp, mate } = await evalPosition(jieqiStateToPikafishFen(post), repetitionWindow);
   return winPercent(cp == null ? null : -cp, mate == null ? null : -mate);
 }
 
@@ -350,10 +412,17 @@ async function poolMeanWin(
   move: JieqiMove,
   mover: JieqiColor,
   evalPosition: JieqiDecisionDeps['evalPosition'],
+  repetitionWindow: JieqiRepetitionWindow,
 ): Promise<{ baseline: number; realized: number }> {
   const source = state.board[move.from];
   if (!source?.faceDown) {
-    const win = await moverWinAfter(applyJieqiMove(state, move), mover, evalPosition);
+    const post = applyJieqiMove(state, move);
+    const win = await moverWinAfter(
+      post,
+      mover,
+      evalPosition,
+      jieqiRepetitionWindowAfterMove(state, move, post, repetitionWindow),
+    );
     return { baseline: win, realized: win };
   }
   const pool = new Map<JieqiPieceRole, number>();
@@ -389,7 +458,13 @@ async function poolMeanWin(
       // `source.role` ≠ `role`), so a donor always exists; guard defensively regardless.
       if (donor) cf.board[donor] = { color: mover, role: source.role, faceDown: true };
     }
-    return moverWinAfter(applyJieqiMove(cf, move), mover, evalPosition);
+    const post = applyJieqiMove(cf, move);
+    return moverWinAfter(
+      post,
+      mover,
+      evalPosition,
+      jieqiRepetitionWindowAfterMove(cf, move, post, repetitionWindow),
+    );
   });
   let baseline = 0;
   let realized = 50;
@@ -415,6 +490,10 @@ export async function analyzeJieqiDecisions(
   progress?: AnalysisProgressStore<JieqiDecision>,
 ): Promise<JieqiDecision[]> {
   let state = createInitialJieqiState('analysis', deal);
+  let repetitionWindow: JieqiRepetitionWindow = {
+    fen: jieqiStateToPikafishFen(state),
+    moves: [],
+  };
   // With a progress store, checkpoint after every graded reveal and resume from
   // the saved move cursor (quiet moves before it just re-advance the state —
   // kernel replay is free; the engine fan-outs are what we refuse to redo).
@@ -424,7 +503,9 @@ export async function analyzeJieqiDecisions(
   for (let i = 0; i < moves.length; i += 1) {
     const move = moves[i]!;
     if (i < startIndex) {
-      state = applyJieqiMove(state, move);
+      const post = applyJieqiMove(state, move);
+      repetitionWindow = jieqiRepetitionWindowAfterMove(state, move, post, repetitionWindow);
+      state = post;
       continue;
     }
     const source = state.board[move.from];
@@ -433,7 +514,7 @@ export async function analyzeJieqiDecisions(
     if (isReveal) {
       const fen = jieqiStateToPikafishFen(state);
       const playedUci = jieqiMoveToPikafishUci(move);
-      const table = await deps.multiPv(fen);
+      const table = await deps.multiPv(fen, repetitionWindow);
       // Candidate ceiling moves: the engine's top-N plus the played move (deduped).
       const candidateUcis = new Set<string>([
         ...table.slice(0, JIEQI_DECISION_CANDIDATES).map((row) => row.move),
@@ -450,6 +531,7 @@ export async function analyzeJieqiDecisions(
           candidate,
           mover,
           deps.evalPosition,
+          repetitionWindow,
         );
         baselines.push(baseline);
         if (uci === playedUci) {
@@ -463,7 +545,9 @@ export async function analyzeJieqiDecisions(
       decisions.push({ ply: i + 1, mover, bestWin, playedWin, realizedWin, playedRank });
       if (progress) await progress.save({ nextIndex: i + 1, items: decisions });
     }
-    state = applyJieqiMove(state, move);
+    const post = applyJieqiMove(state, move);
+    repetitionWindow = jieqiRepetitionWindowAfterMove(state, move, post, repetitionWindow);
+    state = post;
   }
   return decisions;
 }
@@ -471,9 +555,9 @@ export async function analyzeJieqiDecisions(
 // Cache engine id for the decomposition blob — a DIFFERENT engine_id than the basic analysis, so
 // both live in the same game_analysis table without collision (see persistence-game-analysis).
 // The `+dN` suffix versions the DECOMPOSITION ALGORITHM independently of the engine binary: bump it
-// to invalidate cached decisions when the pool-mean math changes without an engine change. d2 =
-// pool-rebalance fix (counterfactuals preserve the mover's hidden-role multiset).
-export const JIEQI_DECISIONS_ENGINE_ID = `pikafish-jieqi-decisions@${JIEQI_ENGINE_VERSION}+d2`;
+// to invalidate cached decisions when the algorithm changes without an engine change. d3 adds
+// the live repetition window; d2 fixed counterfactual hidden-role-multiset preservation.
+export const JIEQI_DECISIONS_ENGINE_ID = `pikafish-jieqi-decisions@${JIEQI_ENGINE_VERSION}+d3`;
 
 export type JieqiDecisionsCache = {
   get(roomId: string, engineId: string, depth: number): Promise<JieqiDecision[] | null>;

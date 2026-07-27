@@ -198,6 +198,7 @@ export const darkChessTenant: DarkChessTenant = {
       getClientView(snapshotRoomSliceFor(state), snapshotClientFor(client)),
   },
   engine: {
+    terminalContext: 'fog-observation',
     isEngineClientId: isServerEngineClient,
     displayName: engineVersionDisplayName,
     reservationReleaseTag: 'dark-chess',

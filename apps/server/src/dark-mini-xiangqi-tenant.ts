@@ -165,6 +165,7 @@ export const darkMiniXiangqiTenant: DarkMiniXiangqiTenant = {
       ),
   },
   engine: {
+    terminalContext: 'fog-observation',
     isEngineClientId: isDarkMiniXiangqiEngineClientId,
     displayName: engineVersionDisplayName,
     reservationColor: (color) => (color === 'red' ? 'white' : 'black'),

@@ -127,6 +127,7 @@ export const jungleTenant: JungleTenant = {
   // Mark the in-process Misty Jungle engine seat as always-present so the
   // disconnect-forfeit logic never forfeits it (a PvE engine has no WS client).
   engine: {
+    terminalContext: 'repetition-seed',
     isEngineClientId: isJungleEngineClientId,
     displayName: jungleEngineDisplayName,
     engineVersion: jungleEngineVersion,

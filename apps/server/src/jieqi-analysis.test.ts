@@ -22,10 +22,12 @@ import {
   type JieqiDecisionDeps,
   type JieqiDecisionsCache,
   type JieqiGameAnalysis,
+  jieqiAnalysisRepetitionWindows,
   jieqiChancePlies,
   resolveJieqiAnalysis,
   resolveJieqiDecisions,
 } from './jieqi-analysis.js';
+import { buildJieqiPositionCommand } from './jieqi-engine.js';
 import { jieqiMoveToPikafishUci, jieqiStateToPikafishFen } from './jieqi-fen.js';
 import type { UciMultiPvLine } from './uci-engine-harness.js';
 
@@ -96,6 +98,30 @@ test('jieqiChancePlies flags reveals (dark-piece moves), not already-revealed mo
   assert.ok(chance.length < moves.length, 'expected some non-reveal (graded) plies');
   // jieqiChancePlies re-derives exactly the same set by an independent replay.
   assert.deepEqual(jieqiChancePlies(moves, STANDARD_JIEQI_DEAL), chance);
+});
+
+test('Jieqi analysis resets repetition history on reveal/capture and replays quiet moves', () => {
+  const { moves } = playGame(STANDARD_JIEQI_DEAL, 16);
+  const windows = jieqiAnalysisRepetitionWindows(moves, STANDARD_JIEQI_DEAL);
+  assert.equal(windows.length, moves.length + 1);
+
+  let state = createInitialJieqiState('window', STANDARD_JIEQI_DEAL);
+  let expectedMoves: string[] = [];
+  for (let ply = 1; ply < windows.length; ply += 1) {
+    const move = moves[ply - 1]!;
+    const irreversible = state.board[move.from]?.faceDown === true || state.board[move.to] != null;
+    state = applyJieqiMove(state, move);
+    expectedMoves = irreversible ? [] : [...expectedMoves, jieqiMoveToPikafishUci(move)];
+    assert.deepEqual(windows[ply]!.moves, expectedMoves);
+  }
+
+  const last = windows.at(-1)!;
+  assert.equal(
+    buildJieqiPositionCommand(last.fen, last.moves),
+    last.moves.length > 0
+      ? `position fen ${last.fen} moves ${last.moves.join(' ')}`
+      : `position fen ${last.fen}`,
+  );
 });
 
 test('resolveJieqiAnalysis: pure cache read misses without computing', async () => {
