@@ -5,6 +5,7 @@
  */
 
 import { FORTRESS_XIANGQI_SPEC_ID, puzzleShortCode, XIANGQI_SPEC_ID } from '@mistboard/game';
+import { t } from '../i18n/catalog.js';
 import { renderVariantMarker } from '../variant-markers.js';
 import { colorLabel, type PuzzleSummary } from './adapter.js';
 import type { UserPuzzleRating } from './api.js';
@@ -56,8 +57,10 @@ export function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): voi
     infoCard.append(
       puzzleInfoRow('target', [
         puzzleCodeLine(current),
-        puzzleInfoLine('Rating: hidden'),
-        puzzleInfoLine(solvedIds.has(current.id) ? 'Solved' : 'Played locally'),
+        puzzleInfoLine(t('puzzle.ratingHidden')),
+        puzzleInfoLine(
+          solvedIds.has(current.id) ? t('puzzle.statusSolved') : t('puzzle.playedLocally'),
+        ),
       ]),
       puzzleInfoDivider(),
       puzzleInfoRow(
@@ -72,8 +75,11 @@ export function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): voi
           // once the puzzle is solved, like the puzzle rating.
           puzzleInfoLine(
             solvedIds.has(current.id)
-              ? `${goalLabel(current)} | ${colorLabel(current.sideToMove)} to move`
-              : `${colorLabel(current.sideToMove)} to move`,
+              ? t('puzzle.goalToMove', {
+                  goal: goalLabel(current),
+                  color: colorLabel(current.sideToMove),
+                })
+              : t('puzzle.toMove', { color: colorLabel(current.sideToMove) }),
           ),
         ],
         current.variant,
@@ -82,7 +88,7 @@ export function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): voi
   } else {
     const empty = document.createElement('p');
     empty.className = 'puzzle-card-empty';
-    empty.textContent = 'No puzzles for this variant.';
+    empty.textContent = t('puzzle.noneForVariant');
     infoCard.append(empty);
   }
 
@@ -104,7 +110,7 @@ export function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): voi
   ratedSwitch.setAttribute('aria-hidden', 'true');
   const ratedName = document.createElement('span');
   ratedName.className = 'puzzle-toggle-label';
-  ratedName.textContent = 'Rated';
+  ratedName.textContent = t('puzzle.rated');
   ratedToggle.append(ratedInput, ratedSwitch, ratedName);
   ratingCard.append(ratedToggle);
   if (ratedEnabled) {
@@ -120,28 +126,27 @@ export function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): voi
         ratingValue.append(delta);
       }
     } else {
-      ratingValue.textContent = 'Unrated';
+      ratingValue.textContent = t('puzzle.unrated');
     }
     const ratingMeta = document.createElement('span');
     ratingMeta.className = 'puzzle-rating-meta';
-    ratingMeta.textContent = `${solvedCount} solved of ${queue.length}`;
+    ratingMeta.textContent = t('puzzle.solvedOf', { solved: solvedCount, total: queue.length });
     ratingSummary.append(ratingValue, ratingMeta);
     ratingCard.append(ratingSummary);
   }
   if (!ratedEnabled) {
     const ratedNote = document.createElement('p');
     ratedNote.className = 'puzzle-rated-note';
-    ratedNote.textContent =
-      'Your puzzle rating will not change. Note that puzzles are not a competition. Your rating helps select the most appropriate puzzles for your skill level.';
+    ratedNote.textContent = t('puzzle.ratingNote');
     ratingCard.append(ratedNote);
   }
 
   const themesCard = document.createElement('section');
   themesCard.className = 'puzzle-left-card puzzle-theme-card';
   const themesTitle = document.createElement('h2');
-  themesTitle.textContent = 'Puzzle themes';
+  themesTitle.textContent = t('puzzle.themesTitle');
   const themesCopy = document.createElement('p');
-  themesCopy.textContent = 'Forcing lines grouped by mate pattern, piece, and variant.';
+  themesCopy.textContent = t('puzzle.themesCopy');
   themesCard.append(themesTitle);
   if (current && solvedIds.has(current.id)) {
     // Themes name the piece/pattern (e.g. "Drop", "Treasure"), so reveal them
@@ -150,19 +155,19 @@ export function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): voi
   } else if (current) {
     const hidden = document.createElement('p');
     hidden.className = 'puzzle-card-empty';
-    hidden.textContent = 'Revealed after you solve it.';
+    hidden.textContent = t('puzzle.themesHidden');
     themesCard.append(hidden);
   } else {
     const empty = document.createElement('p');
     empty.className = 'puzzle-card-empty';
-    empty.textContent = 'No themes';
+    empty.textContent = t('puzzle.themesEmpty');
     themesCard.append(empty);
   }
 
   const settingsCard = document.createElement('section');
   settingsCard.className = 'puzzle-left-card puzzle-settings-card';
   const settingsTitle = document.createElement('h2');
-  settingsTitle.textContent = 'Settings';
+  settingsTitle.textContent = t('puzzle.settings');
   const form = document.createElement('div');
   form.className = 'puzzle-settings';
   // The variant picker only appears when more than one variant is surfaced.
@@ -170,7 +175,7 @@ export function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): voi
     const field = document.createElement('label');
     field.className = 'puzzle-field';
     const fieldLabel = document.createElement('span');
-    fieldLabel.textContent = 'Variant';
+    fieldLabel.textContent = t('puzzle.variantField');
     const select = document.createElement('select');
     select.className = 'puzzle-select';
     select.dataset.puzzleVariant = 'true';
@@ -201,7 +206,7 @@ export function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): voi
   autoNextSwitch.setAttribute('aria-hidden', 'true');
   const autoNextLabel = document.createElement('span');
   autoNextLabel.className = 'puzzle-toggle-label';
-  autoNextLabel.textContent = 'Jump to next puzzle immediately';
+  autoNextLabel.textContent = t('puzzle.autoNext');
   autoNextToggle.append(autoNextInput, autoNextSwitch, autoNextLabel);
   form.append(autoNextToggle);
   settingsCard.append(settingsTitle, form);
@@ -210,7 +215,7 @@ export function renderQueuePanel(host: HTMLElement, props: QueuePanelProps): voi
 }
 
 function variantLabel(variant: PuzzleVariant): string {
-  return puzzleBoardAdapter(variant).label;
+  return t(puzzleBoardAdapter(variant).labelKey);
 }
 
 function parseVariantFilter(value: string): PuzzleVariant {
@@ -262,7 +267,7 @@ export function sourceGameLines(
     source !== undefined &&
     (source.event !== undefined || source.redName !== undefined || source.blackName !== undefined);
   if (!source || !hasAttribution) {
-    return [puzzleInfoLine(`From set ${variantLabel(puzzle.variant)}`)];
+    return [puzzleInfoLine(t('puzzle.fromSet', { variant: variantLabel(puzzle.variant) }))];
   }
   const lines: HTMLElement[] = [puzzleInfoLine(sourceGameHeader(source))];
   if (source.redName !== undefined || source.blackName !== undefined) {
@@ -280,7 +285,9 @@ function sourceGameHeader(source: NonNullable<PuzzleSummary['sourceGame']>): str
   const parts = [source.event, year ? `(${year})` : undefined].filter(
     (part): part is string => part !== undefined && part.length > 0,
   );
-  return parts.length > 0 ? `From game · ${parts.join(' ')}` : 'From game';
+  return parts.length > 0
+    ? t('puzzle.fromGameWith', { details: parts.join(' ') })
+    : t('puzzle.fromGame');
 }
 
 // One player row: a color disc, the player name, and a result glyph on the
@@ -297,7 +304,8 @@ function sourceGamePlayerLine(
   disc.setAttribute('aria-hidden', 'true');
   const label = document.createElement('span');
   label.className = 'puzzle-source-player-name';
-  label.textContent = name && name.length > 0 ? name : color === 'red' ? 'Red' : 'Black';
+  label.textContent =
+    name && name.length > 0 ? name : color === 'red' ? t('setup.red') : t('setup.black');
   line.append(disc, label);
   const glyph = sourceGameResultGlyph(color, result);
   if (glyph) {
@@ -328,7 +336,7 @@ function puzzleInfoDivider(): HTMLHRElement {
 // hand-typing /puzzles/<code> also resolves (see resolveToFullPuzzleId).
 function puzzleCodeLine(puzzle: PuzzleSummary): HTMLSpanElement {
   const line = document.createElement('span');
-  line.append('Puzzle ');
+  line.append(t('puzzle.label'));
   const link = document.createElement('a');
   link.className = 'puzzle-code-link';
   link.href = `/puzzles/${encodeURIComponent(puzzle.id)}`;
@@ -360,12 +368,12 @@ function themeLabel(theme: string): string {
 
 function goalLabel(puzzle: Pick<PuzzleSummary, 'goal' | 'solutionPlyCount'>): string {
   if (puzzle.goal.type === 'checkmate') {
-    return `Mate in ${Math.ceil(puzzle.solutionPlyCount / 2)}`;
+    return t('puzzle.mateIn', { count: Math.ceil(puzzle.solutionPlyCount / 2) });
   }
   if (puzzle.goal.type === 'win') {
-    return `Win in ${Math.ceil(puzzle.solutionPlyCount / 2)}`;
+    return t('puzzle.winIn', { count: Math.ceil(puzzle.solutionPlyCount / 2) });
   }
-  return 'Winning';
+  return t('puzzle.winning');
 }
 
 function targetAvatarSvg(): string {

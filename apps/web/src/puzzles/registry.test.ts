@@ -90,7 +90,7 @@ describe('puzzle board adapter registry', () => {
     for (const variant of PUZZLE_VARIANT_IDS) {
       const adapter = puzzleBoardAdapter(variant);
       expect(adapter.variant).toBe(variant);
-      expect(adapter.label.length).toBeGreaterThan(0);
+      expect(adapter.labelKey.length).toBeGreaterThan(0);
       expect(adapter.markerId.length).toBeGreaterThan(0);
       expect(typeof adapter.paintBoard).toBe('function');
       expect(typeof adapter.animateMove).toBe('function');

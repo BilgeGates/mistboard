@@ -15,6 +15,7 @@
  * types at the boundary, exactly like the live tenants do.
  */
 
+import { type I18nKey, t } from '../i18n/catalog.js';
 import type { VariantMiniId } from '../variant-mini-boards.js';
 import type { PuzzleVariant } from './variant-ids.js';
 
@@ -163,8 +164,9 @@ export type PuzzleBoardContext = {
 export type PuzzleBoardAdapter = {
   /** The GameSpecId this adapter serves (mirrors its registry key). */
   variant: string;
-  /** Display name (variant picker, info card, "From set X"). */
-  label: string;
+  /** Catalog key for the display name (variant picker, info card, "From set X").
+   *  A key, not a literal: the name has to follow the visitor's locale. */
+  labelKey: I18nKey;
   /** Variant marker id for the info-card icon. */
   markerId: VariantMiniId;
   /** Install the variant's board CSS once per puzzles mount. */
@@ -227,8 +229,8 @@ export function oppositePuzzleColor(color: PuzzleColor): PuzzleColor {
 }
 
 export function colorLabel(color: PuzzleColor | null): string {
-  if (color === 'black') return 'Black';
-  return 'Red';
+  if (color === 'black') return t('setup.black');
+  return t('setup.red');
 }
 
 export function dropRoleLabel(role: string): string {

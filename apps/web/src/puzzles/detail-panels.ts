@@ -4,6 +4,7 @@
  * and Solution panels with the next-puzzle CTA + thumb vote.
  */
 
+import { t } from '../i18n/catalog.js';
 import {
   colorLabel,
   isSessionSolved,
@@ -67,7 +68,7 @@ function assistRow(
   hint.type = 'button';
   hint.className = 'puzzle-feedback-skip puzzle-assist-hint';
   hint.dataset.puzzleHint = 'true';
-  hint.textContent = 'Get a hint';
+  hint.textContent = t('puzzle.getHint');
   hint.disabled = session.submitting;
   hint.addEventListener('click', assist.onHint);
 
@@ -75,7 +76,7 @@ function assistRow(
   solution.type = 'button';
   solution.className = 'puzzle-feedback-skip puzzle-assist-solution';
   solution.dataset.puzzleReveal = 'true';
-  solution.textContent = 'View solution';
+  solution.textContent = t('puzzle.viewSolution');
   solution.disabled = session.submitting;
   solution.addEventListener('click', assist.onReveal);
 
@@ -86,7 +87,7 @@ function assistRow(
     skip.type = 'button';
     skip.className = 'puzzle-feedback-skip puzzle-assist-next';
     skip.dataset.puzzleSkip = 'true';
-    skip.textContent = 'Skip to the next puzzle';
+    skip.textContent = t('puzzle.skipToNext');
     skip.addEventListener('click', navigation.goNext);
     row.append(skip);
   }
@@ -101,14 +102,14 @@ function revealedPanel(navigation: PuzzleNavigation): HTMLElement {
   panel.className = 'puzzle-solved-panel puzzle-revealed-panel';
 
   const title = document.createElement('h2');
-  title.textContent = 'Solution';
+  title.textContent = t('puzzle.solution');
 
   const cont = document.createElement('button');
   cont.type = 'button';
   cont.className = 'puzzle-continue-button';
   cont.dataset.puzzleNext = 'true';
   cont.innerHTML = `${ICON_PLAY}<span>Next puzzle</span>`;
-  cont.setAttribute('aria-label', 'Next puzzle');
+  cont.setAttribute('aria-label', t('puzzle.nextPuzzle'));
   cont.disabled = !navigation.hasNext;
   cont.addEventListener('click', navigation.goNext);
 
@@ -126,7 +127,7 @@ function solvedPanel(
   panel.className = 'puzzle-solved-panel';
 
   const title = document.createElement('h2');
-  title.textContent = 'Success!';
+  title.textContent = t('puzzle.success');
 
   // Prominent primary CTA (lichess-style bar), in Mistboard's own accent. It
   // advances along the visit's rotated queue and is focused on solve (see
@@ -146,7 +147,7 @@ function solvedPanel(
   // renderPuzzleDetail), so the old disabled "analysis board" stub is gone.
   const prompt = document.createElement('span');
   prompt.className = 'puzzle-vote-prompt';
-  prompt.textContent = session.vote ? 'Thanks for the feedback!' : 'Did you like this puzzle?';
+  prompt.textContent = session.vote ? t('puzzle.voteThanks') : t('puzzle.votePrompt');
   const votes = document.createElement('div');
   votes.className = 'puzzle-vote-actions';
   votes.append(
@@ -174,10 +175,7 @@ function puzzleVoteButton(
   button.className = `puzzle-vote-button puzzle-vote-button--${kind}${
     selected ? ' puzzle-vote-button--selected' : ''
   }`;
-  button.setAttribute(
-    'aria-label',
-    kind === 'up' ? 'Puzzle was helpful' : 'Puzzle was not helpful',
-  );
+  button.setAttribute('aria-label', kind === 'up' ? t('puzzle.voteUp') : t('puzzle.voteDown'));
   button.setAttribute('aria-pressed', selected ? 'true' : 'false');
   button.innerHTML = kind === 'up' ? THUMB_UP_SVG : THUMB_DOWN_SVG;
   button.addEventListener('click', () => {
@@ -193,15 +191,15 @@ function puzzleVoteButton(
 function feedbackTitle(session: PuzzleSession): string {
   switch (session.feedback.kind) {
     case 'good':
-      return isSessionSolved(session) ? 'Solved' : 'Correct';
+      return isSessionSolved(session) ? t('puzzle.statusSolved') : t('puzzle.statusCorrect');
     case 'bad':
-      return 'Try again';
+      return t('puzzle.statusTryAgain');
     case 'pending':
-      return 'Checking';
+      return t('puzzle.statusChecking');
     case 'neutral':
       // Deliberately generic: the puzzle title names the piece + mate depth,
       // which would give the solution away.
-      return `${colorLabel(session.puzzle.sideToMove)} to move`;
+      return t('puzzle.toMove', { color: colorLabel(session.puzzle.sideToMove) });
   }
 }
 

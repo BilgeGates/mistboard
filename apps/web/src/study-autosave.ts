@@ -1,3 +1,4 @@
+import { t } from './i18n/catalog.js';
 import type { SerializedTree } from './review/tree-serialize.js';
 
 const DRAFT_SCHEMA_VERSION = 1;
@@ -123,7 +124,7 @@ export function createStudyAutosave(options: StudyAutosaveOptions): StudyAutosav
       } catch {
         if (attempt === retryDelaysMs.length) return { ok: false, kind: 'error' };
       }
-      emit('retrying', 'Connection interrupted, retrying…');
+      emit('retrying', t('study.retrying'));
       await delay(retryDelaysMs[attempt]!);
     }
     return { ok: false, kind: 'error' };
@@ -136,14 +137,14 @@ export function createStudyAutosave(options: StudyAutosaveOptions): StudyAutosav
     const targetTree = tree;
     const targetRevision = revision;
     const baseVersion = serverVersion;
-    emit('saving', 'Saving…');
+    emit('saving', t('study.saving'));
     const result = await requestSave(targetTree, baseVersion);
     if (!result.ok) {
       if (result.kind === 'conflict') {
         conflict = true;
-        emit('conflict', 'Resolve save conflict');
+        emit('conflict', t('study.resolveConflict'));
       } else {
-        emit('error', 'Draft saved locally, retry');
+        emit('error', t('study.draftLocalRetry'));
       }
       return false;
     }
@@ -154,7 +155,7 @@ export function createStudyAutosave(options: StudyAutosaveOptions): StudyAutosav
       dirty = false;
       draftBaseVersion = serverVersion;
       clearStoredDraft();
-      emit('saved', 'Saved');
+      emit('saved', t('study.saved'));
       return true;
     }
 
@@ -162,7 +163,7 @@ export function createStudyAutosave(options: StudyAutosaveOptions): StudyAutosav
     // now the just-confirmed version, and flush() will immediately send it.
     draftBaseVersion = serverVersion;
     persist();
-    emit('dirty', 'Editing…');
+    emit('dirty', t('study.editing'));
     return true;
   };
 
@@ -198,13 +199,13 @@ export function createStudyAutosave(options: StudyAutosaveOptions): StudyAutosav
     if (!dirty) return true;
     if (timer) clearTimeout(timer);
     timer = null;
-    emit('saving', 'Checking latest version…');
+    emit('saving', t('study.checkingVersion'));
     try {
       const response = await fetcher(`/api/studies/${encodeURIComponent(options.studyId)}`, {
         headers: { accept: 'application/json' },
       });
       if (!response.ok) {
-        emit('error', 'Could not load latest version, retry');
+        emit('error', t('study.versionLoadFailed'));
         return false;
       }
       const body = (await response.json()) as {
@@ -212,7 +213,7 @@ export function createStudyAutosave(options: StudyAutosaveOptions): StudyAutosav
       };
       const latest = body.chapters?.find((chapter) => chapter.id === options.chapterId)?.version;
       if (typeof latest !== 'number') {
-        emit('error', 'Could not load latest version, retry');
+        emit('error', t('study.versionLoadFailed'));
         return false;
       }
       serverVersion = latest;
@@ -221,7 +222,7 @@ export function createStudyAutosave(options: StudyAutosaveOptions): StudyAutosav
       persist();
       return flush();
     } catch {
-      emit('error', 'Could not load latest version, retry');
+      emit('error', t('study.versionLoadFailed'));
       return false;
     }
   };
@@ -234,10 +235,10 @@ export function createStudyAutosave(options: StudyAutosaveOptions): StudyAutosav
       dirty = true;
       persist();
       if (conflict) {
-        emit('conflict', 'Resolve save conflict');
+        emit('conflict', t('study.resolveConflict'));
         return;
       }
-      emit('dirty', 'Editing…');
+      emit('dirty', t('study.editing'));
       schedule();
     },
     flush,
@@ -249,7 +250,7 @@ export function createStudyAutosave(options: StudyAutosaveOptions): StudyAutosav
       dirty = false;
       conflict = false;
       clearStoredDraft();
-      emit('saved', 'Saved');
+      emit('saved', t('study.saved'));
     },
     hasPending: () => dirty || inFlight !== null,
     hasConflict: () => conflict,
@@ -261,12 +262,12 @@ export function createStudyAutosave(options: StudyAutosaveOptions): StudyAutosav
   };
 
   if (restored) {
-    if (conflict) emit('conflict', 'Review recovered draft');
+    if (conflict) emit('conflict', t('study.reviewRecovered'));
     else {
-      emit('dirty', 'Recovered local draft');
+      emit('dirty', t('study.recoveredDraft'));
       schedule();
     }
-  } else emit('saved', 'Saved');
+  } else emit('saved', t('study.saved'));
 
   return controller;
 }

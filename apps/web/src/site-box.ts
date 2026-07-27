@@ -2,6 +2,7 @@
 // grammar: a header row (title plus an optional "More »" link) over a content
 // body. Widgets (news feed, activity stats, spotlights) build their rows and
 // append them to `body`.
+import { t } from './i18n/catalog.js';
 import './site-box.css';
 
 export type SiteBoxOptions = {
@@ -31,7 +32,7 @@ export function buildSiteBox(options: SiteBoxOptions): SiteBox {
     top.href = options.href;
     const more = document.createElement('span');
     more.className = 'site-box-more';
-    more.textContent = options.moreLabel ?? 'More »';
+    more.textContent = options.moreLabel ?? t('site.more');
     top.append(title, more);
     box.append(top);
   } else {

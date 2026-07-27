@@ -5,18 +5,20 @@
 // needs the API up): rows render only for data we actually have, and the block
 // removes itself only in the rare case both fetches fail.
 
+import { t } from './i18n/catalog.js';
+
 type LiveStats = { playing: number; online: number };
 type PublicStats = { totalCompletedGames: number; last30dCompletedGames: number };
 
 export function buildLandingActivity(options: { hydrate?: boolean } = {}): HTMLElement {
   const box = document.createElement('section');
   box.className = 'landing-activity';
-  box.setAttribute('aria-label', 'Activity');
+  box.setAttribute('aria-label', t('home.activityAria'));
   const body = document.createElement('div');
   body.className = 'landing-activity-body';
   body.append(
-    activityPrimary([activityMetric('–', 'games played', '/stats')]),
-    activityLiveLine([activityInlineStat('–', 'games in play')]),
+    activityPrimary([activityMetric('–', t('home.gamesPlayed'), '/stats')]),
+    activityLiveLine([activityInlineStat('–', t('home.gamesInPlay'))]),
   );
   box.append(body);
   if (options.hydrate !== false) void hydrateLandingActivity(box, body);
@@ -26,7 +28,7 @@ export function buildLandingActivity(options: { hydrate?: boolean } = {}): HTMLE
 // The durable total is the headline; the month count rides along in a
 // parenthetical rather than as its own stat line.
 function gamesPlayedLabel(monthCount: number): string {
-  return `games played (${formatCount(monthCount)} this month)`;
+  return t('home.gamesPlayedMonth', { count: formatCount(monthCount) });
 }
 
 async function hydrateLandingActivity(box: HTMLElement, body: HTMLElement): Promise<void> {
@@ -53,7 +55,7 @@ async function hydrateLandingActivity(box: HTMLElement, body: HTMLElement): Prom
       activityLiveLine([
         activityInlineStat(
           formatCount(live.playing),
-          live.playing === 1 ? 'game in play' : 'games in play',
+          t(live.playing === 1 ? 'home.gameInPlay' : 'home.gamesInPlay'),
         ),
       ]),
     );

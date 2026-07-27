@@ -354,21 +354,21 @@ if (replaySample) {
     import('./profile.js').then(({ mountRatingStats }) => mountRatingStats(appRoot)),
   );
 } else if (analysisVariant) {
-  setTitle(`${analysisVariantLabel(analysisVariant)} analysis`);
+  setTitle(t('analysis.pageTitle', { variant: analysisVariantLabel(analysisVariant) }));
   void mountOrReport(() =>
     import('./analysis-page.js').then(({ mountAnalysisPage }) =>
       mountAnalysisPage(appRoot, analysisVariant),
     ),
   );
 } else if (wantsStudyIndex) {
-  setTitle('Studies');
+  setTitleKey('nav.studies');
   void mountOrReport(() =>
     import('./study-index.js').then(({ mountStudyIndex }) => {
       mountStudyIndex(appRoot);
     }),
   );
 } else if (studyId) {
-  setTitle('Study');
+  setTitleKey('nav.studies');
   void mountOrReport(() =>
     import('./study.js').then(({ mountStudy }) => {
       mountStudy(appRoot, studyId, studyChapterId ?? undefined);
