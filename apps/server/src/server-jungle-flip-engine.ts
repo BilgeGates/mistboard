@@ -155,9 +155,8 @@ export async function playJungleFlipEngineMoveIfReady(
 
   const fen = jungleFlipStateToEngineFen(room.projection.state);
   // Threefold awareness: replay the game so the engine learns which positions have already
-  // occurred twice (re-entering one is the 3rd = a draw). The deployed binary ignores the
-  // trailing `reps` token, so this is a no-op until the rep-aware binary ships. Fail-safe:
-  // on any replay error we send no seed (current behavior) rather than break the move.
+  // occurred twice (re-entering one is the 3rd = a draw). Fail-safe: on any replay error
+  // we send no seed rather than break the move.
   const repSeedFens = repSeedFensForRoom(room);
   // Strength = the tier's NODE budget; this movetime is the latency CEILING + a
   // clock-aware time-pressure guard (shared allocator). Existing ceiling preserved —

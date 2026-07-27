@@ -19,7 +19,9 @@
 //   the first flip binds an ink to the red seat).
 // - pool: the unrevealed multiset as <char><count> pairs (red UPPER then black lower),
 //   non-zero only; '-' if empty. Σpool === on-board face-down count.
-// - clock: noProgressClock. movenum: moveNumber (cosmetic for the engine).
+// - clock: noProgressClock. movenum: absolute ply (`state.ply`). Despite the legacy field
+//   name this is NOT cosmetic: the engine combines its parity with `turn` to reconstruct
+//   the opening ink, which is part of the repetition key.
 //
 // Redaction argument: the board only ever emits 'X' for a face-down tile, never its ink
 // or role, so no hidden identity reaches the engine. The pool carries only PER-(ink,role)
@@ -123,7 +125,7 @@ export function jungleFlipStateToEngineFen(state: JungleFlipGameState): string {
     turn,
     poolField(state.board),
     state.noProgressClock,
-    state.moveNumber,
+    state.ply,
   ].join(' ');
 }
 
@@ -136,7 +138,7 @@ export function jungleFlipStateToEngineFen(state: JungleFlipGameState): string {
 export function jungleFlipRepSignature(state: JungleFlipGameState): string {
   const ink = jungleFlipMoverInk(state);
   const turn = ink === null ? '-' : ink === 'red' ? 'r' : 'b';
-  return `${boardField(state.board)}|${turn}|${poolField(state.board)}|${state.moveNumber % 2}`;
+  return `${boardField(state.board)}|${turn}|${poolField(state.board)}|${state.ply % 2}`;
 }
 
 /**

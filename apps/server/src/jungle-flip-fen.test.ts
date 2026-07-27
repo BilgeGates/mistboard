@@ -34,7 +34,7 @@ test('jungle-flip FEN: opening is all face-down, unbound turn, full pool', () =>
   const state = createInitialJungleFlipState('g1');
   assert.equal(
     jungleFlipStateToEngineFen(state),
-    'XXXX/XXXX/XXXX/XXXX - R1C1D1W1P1T1L1E1r1c1d1w1p1t1l1e1 0 1',
+    'XXXX/XXXX/XXXX/XXXX - R1C1D1W1P1T1L1E1r1c1d1w1p1t1l1e1 0 0',
   );
 });
 
@@ -51,7 +51,7 @@ test('jungle-flip FEN: revealed pieces use ink casing; no face-down, empty pool'
     moveNumber: 0,
     noProgressClock: 0,
   };
-  assert.equal(jungleFlipStateToEngineFen(state), '4/4/c3/L3 r - 0 0');
+  assert.equal(jungleFlipStateToEngineFen(state), '4/4/c3/L3 r - 0 2');
 });
 
 test('jungle-flip FEN: face-down tiles emit X; pool is the hidden multiset (red then black)', () => {
@@ -82,7 +82,36 @@ test('jungle-flip FEN: a black-ink mover binds turn to b', () => {
     moveNumber: 3,
     noProgressClock: 1,
   };
-  assert.equal(jungleFlipStateToEngineFen(state), '4/4/4/r3 b - 1 3');
+  assert.equal(jungleFlipStateToEngineFen(state), '4/4/4/r3 b - 1 1');
+});
+
+test('jungle-flip FEN: live repetition position sends absolute ply, not full-move number', () => {
+  // jgf_bb8c8dc6-bcc3-4c45-b50a-ae3cc0340060 before Misty's 19th ply.
+  // The UCI engine reconstructs firstColor from turn + final-field parity. Sending
+  // moveNumber=10 here made it disagree with earlier repetition seeds; ply=18 preserves it.
+  const state: JungleFlipGameState = {
+    ...BASE,
+    board: {
+      b1: { color: 'red', role: 'lion', faceDown: false },
+      c1: { color: 'black', role: 'elephant', faceDown: true },
+      d1: { color: 'black', role: 'tiger', faceDown: false },
+      a2: { color: 'red', role: 'leopard', faceDown: false },
+      b2: { color: 'black', role: 'lion', faceDown: true },
+      c2: { color: 'black', role: 'dog', faceDown: true },
+      d2: { color: 'black', role: 'wolf', faceDown: true },
+      b3: { color: 'red', role: 'elephant', faceDown: false },
+      c3: { color: 'red', role: 'rat', faceDown: true },
+      d3: { color: 'red', role: 'tiger', faceDown: true },
+      a4: { color: 'black', role: 'leopard', faceDown: false },
+      c4: { color: 'red', role: 'dog', faceDown: true },
+      d4: { color: 'red', role: 'wolf', faceDown: true },
+    },
+    firstColor: 'red',
+    ply: 18,
+    moveNumber: 10,
+    noProgressClock: 6,
+  };
+  assert.equal(jungleFlipStateToEngineFen(state), 'p1XX/1EXX/PXXX/1LXt r R1D1W1T1d1w1l1e1 6 18');
 });
 
 test('jungle-flip UCI: square mapping is file + (rank-1)', () => {
@@ -132,10 +161,12 @@ const lion = (color: 'red' | 'black') => ({ color, role: 'lion', faceDown: false
 const BOARD_A: JungleFlipBoard = { a1: lion('red'), c3: lion('black') };
 const BOARD_B: JungleFlipBoard = { a2: lion('red'), c3: lion('black') }; // red lion shifted
 
-test('jungle-flip rep signature ignores the no-progress clock and absolute move number', () => {
-  // Same board + mover + pool, different clock and a different but same-parity move number.
+test('jungle-flip rep signature follows ply parity, not full-move-number parity', () => {
+  // A position can repeat after two plies: same board + mover, while the chess-style
+  // full-move number advances by one and flips parity. The old moveNumber-based signature
+  // split these genuine repeats and withheld the threefold seed from the engine.
   const s1 = repState(BOARD_A, 2, 2, 0);
-  const s2 = repState(BOARD_A, 2, 4, 9);
+  const s2 = repState(BOARD_A, 4, 3, 9);
   assert.equal(jungleFlipRepSignature(s1), jungleFlipRepSignature(s2));
   // A moved piece is a different position.
   assert.notEqual(jungleFlipRepSignature(s1), jungleFlipRepSignature(repState(BOARD_B, 2, 2, 0)));
@@ -144,10 +175,10 @@ test('jungle-flip rep signature ignores the no-progress clock and absolute move 
 test('jungle-flip rep seed = positions seen twice (3rd visit is the threefold draw)', () => {
   const states: JungleFlipGameState[] = [
     repState(BOARD_A, 2, 2, 0), // A #1
-    repState(BOARD_B, 2, 4, 1), // B #1
-    repState(BOARD_A, 2, 6, 2), // A #2
-    repState(BOARD_B, 2, 8, 3), // B #2
-    repState(BOARD_A, 2, 10, 4), // A #3
+    repState(BOARD_B, 3, 2, 1), // B #1
+    repState(BOARD_A, 4, 3, 2), // A #2
+    repState(BOARD_B, 5, 3, 3), // B #2
+    repState(BOARD_A, 6, 4, 4), // A #3
     repState({ d4: lion('red') }, 2, 2, 0), // singleton
   ];
   const seed = jungleFlipRepSeedFens(states);
