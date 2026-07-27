@@ -1,4 +1,4 @@
-// Whole-game "Computer analysis" for Jieqi (揭棋 / Reveal Xiangqi): a fixed-strength eval of
+// Whole-game "Computer analysis" for Jieqi (揭棋): a fixed-strength eval of
 // every ply, normalized to the RED SEAT's POV, cached + coalesced. Mirrors banqi-analysis.ts,
 // with two jieqi-specific wrinkles:
 //

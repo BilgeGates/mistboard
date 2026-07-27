@@ -9,26 +9,26 @@ import {
 import type { Article } from '../types.js';
 
 export const banqiArticle: Article = {
-    slug: 'flip-xiangqi',
+    slug: 'banqi',
     gameSpecId: 'banqi',
     boardFamily: 'xiangqi',
     kind: 'rules',
     playableOnMistboard: true,
-    title: 'Flip Xiangqi Rules',
+    title: 'Banqi Rules (Flip Xiangqi)',
     summary:
-      'Flip Xiangqi rules: the 4 by 8 half-board game with face-down pieces, rank captures, screen-jumping cannons, and no royal general.',
+      'Banqi rules: the 4 by 8 half-board game with face-down pieces, rank captures, screen-jumping cannons, and no royal general.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-06-15',
     updatedAt: '2026-07-23',
     audience:
-      'Experienced Flip Xiangqi players and newcomers who want the rank ladder, screen-jumping cannon, and Mistboard rules explained on one page.',
+      'Experienced Banqi players and newcomers who want the rank ladder, screen-jumping cannon, and Mistboard rules explained on one page.',
     thumbnail: { kind: 'svg', svg: BANQI_RULES_THUMBNAIL },
     intro: [
       {
         kind: 'paragraph',
         text:
-          'Flip Xiangqi is a fast hidden-piece game played on half a xiangqi board. All thirty-two pieces begin shuffled and face-down. The first flip assigns colors. After that, each turn is a choice: flip a tile or move a revealed piece. Captures follow rank, except for the cannon.',
+          'Banqi, also called Flip Xiangqi, is a fast hidden-piece game played on half a xiangqi board. All thirty-two pieces begin shuffled and face-down. The first flip assigns colors. After that, each turn is a choice: flip a tile or move a revealed piece. Captures follow rank, except for the cannon.',
       },
       {
         kind: 'paragraph',
@@ -138,7 +138,7 @@ export const banqiArticle: Article = {
       },
       playClosing({
         heading: 'Play on Mistboard',
-        lead: 'Flip Xiangqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.',
+        lead: 'Banqi is playable on Mistboard. Play against an engine or challenge a friend. No account required.',
         playLabel: 'Play vs computer',
         playHref: '/?play=computer&gameSpecId=banqi',
         secondary: [

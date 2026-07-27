@@ -347,7 +347,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: JIEQI_SPEC_ID,
     roomIdPrefix: 'jq_',
     enabled: alwaysEnabled,
-    pageTitle: 'Reveal Xiangqi',
+    pageTitle: 'Jieqi',
     gameRouteBase: '/jieqi/game',
     mountPostgame: (root, roomId) =>
       import('../live-jieqi-postgame.js').then(({ mountJieqiPostgame }) =>
@@ -403,7 +403,7 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
     gameSpecId: BANQI_SPEC_ID,
     roomIdPrefix: 'bq_',
     enabled: alwaysEnabled,
-    pageTitle: 'Flip Xiangqi',
+    pageTitle: 'Banqi',
     gameRouteBase: '/banqi/game',
     mountPostgame: (root, roomId) =>
       import('../live-banqi-postgame.js').then(({ mountBanqiPostgame }) =>

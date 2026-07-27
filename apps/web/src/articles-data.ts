@@ -64,10 +64,10 @@ export const articles: Article[] = [
 ];
 
 const ARTICLE_SLUG_ALIASES: Record<string, string> = {
-  banqi: 'flip-xiangqi',
+  'flip-xiangqi': 'banqi',
   'dark-chess': 'fog-chess',
   'dark-xiangqi': 'fog-xiangqi',
-  jieqi: 'reveal-xiangqi',
+  'reveal-xiangqi': 'jieqi',
 };
 
 export function findArticle(slug: string): Article | undefined {

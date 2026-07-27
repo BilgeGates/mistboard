@@ -280,7 +280,7 @@ async function discoverFinishedBanqiGame() {
   return game?.roomId ?? null;
 }
 
-// ── PikaJieQi wasm on the standalone Reveal Xiangqi analysis board ──────────
+// ── PikaJieQi wasm on the standalone Jieqi analysis board ──────────
 async function checkPika(browser) {
   await assertPikaAssetHeaders();
 

@@ -114,7 +114,7 @@ describe('site shell nav', () => {
   });
 
   it('localizes launch nav labels and translated content links', () => {
-    window.history.replaceState(null, '', '/zh-hant/rules/flip-xiangqi');
+    window.history.replaceState(null, '', '/zh-hant/rules/banqi');
 
     const nav = buildNav('zh-Hant');
     document.body.append(nav);

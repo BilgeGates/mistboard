@@ -415,7 +415,7 @@ describe('renderWatchQueue', () => {
             family: 'xiangqi',
             gameSpecIds: ['banqi'],
             id: 'banqi',
-            label: 'Flip Xiangqi',
+            label: 'Banqi',
             sealedCount: 0,
             unlockedCount: 2,
           },

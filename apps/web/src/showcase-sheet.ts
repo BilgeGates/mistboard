@@ -7,20 +7,21 @@
 
 import { displayParticipantName, type FeaturedGame, matchupSeats } from './game-display.js';
 import { gameMetaForGame } from './game-meta.js';
+import { type I18nKey, t } from './i18n/catalog.js';
 import { mountShowcaseBoard } from './showcase-board.js';
 import { specIdForShowcaseVariant } from './showcase-dispatch.js';
 import { buildNav } from './site-shell.js';
 
-const SHEET_VARIANTS: ReadonlyArray<{ label: string; channel: string }> = [
-  { label: 'Fog Chess', channel: 'dark-chess' },
-  { label: 'Jungle Chess', channel: 'jungle' },
-  { label: 'Flip Jungle', channel: 'jungle-flip' },
-  { label: 'Flip Xiangqi', channel: 'banqi' },
-  { label: 'Reveal Xiangqi', channel: 'jieqi' },
-  { label: 'Mini Xiangqi', channel: 'mini-xiangqi' },
-  { label: 'Dark Mini Xiangqi', channel: 'dark-mini-xiangqi' },
-  { label: 'Drop Mini Xiangqi', channel: 'drop-mini-xiangqi' },
-  { label: 'Fortress Xiangqi', channel: 'fortress-xiangqi' },
+const SHEET_VARIANTS: ReadonlyArray<{ labelKey: I18nKey; channel: string }> = [
+  { labelKey: 'variant.darkChess.name', channel: 'dark-chess' },
+  { labelKey: 'variant.jungle.name', channel: 'jungle' },
+  { labelKey: 'variant.jungleFlip.name', channel: 'jungle-flip' },
+  { labelKey: 'variant.banqi.name', channel: 'banqi' },
+  { labelKey: 'variant.jieqi.name', channel: 'jieqi' },
+  { labelKey: 'variant.miniXiangqi.name', channel: 'mini-xiangqi' },
+  { labelKey: 'variant.darkMiniXiangqi.name', channel: 'dark-mini-xiangqi' },
+  { labelKey: 'variant.dropMiniXiangqi.name', channel: 'drop-mini-xiangqi' },
+  { labelKey: 'variant.fortressXiangqi.name', channel: 'fortress-xiangqi' },
 ];
 
 async function firstGameForChannel(channel: string): Promise<FeaturedGame | null> {
@@ -66,7 +67,7 @@ export async function mountShowcaseSheet(root: HTMLElement): Promise<void> {
     item.className = 'showcase-sheet-item';
     const caption = document.createElement('div');
     caption.className = 'showcase-sheet-caption';
-    caption.textContent = variant.label;
+    caption.textContent = t(variant.labelKey);
     // .showcase-widget now carries the full production panel chrome (shared with
     // the homepage), so the board mounts into the real panel.
     const widget = document.createElement('div');

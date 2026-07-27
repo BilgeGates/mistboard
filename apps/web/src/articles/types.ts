@@ -340,7 +340,7 @@ export type ArticleThumbnail =
 type ArticleBase = {
   slug: string;
   // Public article URLs may use a reader-facing name while the game keeps a
-  // stable protocol/database id (for example flip-xiangqi -> banqi).
+  // stable protocol/database id (for example fog-chess -> dark-chess).
   gameSpecId?: GameSpecId;
   // Rules articles: the game is live on Mistboard today (drives the
   // playable / not-yet grouping in the variant rail). Omit when the page

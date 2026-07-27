@@ -110,7 +110,7 @@ function banqiLiveSeatInk(seat: BanqiSeat): BanqiColor | null {
 }
 
 const banqiWebTenant: WebVariantTenant<BanqiSeat> = {
-  displayName: 'Flip Xiangqi',
+  displayName: 'Banqi',
   metaMarkerId: 'banqi',
   metaGlyph: '象',
   colors: ['red', 'black'],
@@ -236,7 +236,7 @@ function banqiReasonPhrase(reason: string): string {
 
 function renderBoard(liveRefs: LiveRefs, view: BanqiWireView | null): void {
   liveRefs.board.className = 'board banqi-live-board';
-  liveRefs.board.setAttribute('aria-label', 'Flip Xiangqi board');
+  liveRefs.board.setAttribute('aria-label', 'Banqi board');
   if (!view) {
     liveRefs.board.replaceChildren();
     return;

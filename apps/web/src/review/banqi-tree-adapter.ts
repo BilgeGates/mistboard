@@ -1,4 +1,4 @@
-// Flip Xiangqi (banqi) adapter for the shared GameTree spine. Banqi is a
+// Banqi adapter for the shared GameTree spine. Banqi is a
 // HIDDEN-DEAL variant: the 32 pieces are shuffled face-down at the start and
 // revealed by flip moves as the game plays. In post-game review the game is over,
 // so the deal is KNOWN — recovered from the fully-revealed history stream and

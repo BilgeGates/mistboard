@@ -1,4 +1,4 @@
-// Client side of the banqi (Flip Xiangqi) decision-vs-luck decomposition (Layer 2). The server
+// Client side of the Banqi decision-vs-luck decomposition (Layer 2). The server
 // does the hard part: per FLIP ply it returns three win% numbers (mover POV) — the played flip's
 // TRUE pool-mean EV, the best move's pool-mean EV, and the realized outcome. Here we just turn
 // those into the display numbers: a DECISION-quality glyph (graded) and a LUCK value (shown per

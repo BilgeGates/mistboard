@@ -126,7 +126,7 @@ export function reviewTimeControlLabel(game: {
 /** Generic outcome word for the fixed-color variants (red/black/white + draw).
  *  Pass `variant` so the winning-side word honours the variant's canonical seat
  *  colors (the Jungle family shows "Blue", not "Black"). Variants with
- *  seat-relative results (Flip Jungle, Flip Xiangqi) compute their own label
+ *  seat-relative results (Flip Jungle, Banqi) compute their own label
  *  from `firstColor` instead. */
 export function reviewResultLabel(result: string, variant?: string): string {
   if (result === 'red-wins') return `${seatColorWord(variant, 'red')} wins`;

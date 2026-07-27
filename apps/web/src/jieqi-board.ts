@@ -1,4 +1,4 @@
-// Interactive Reveal Xiangqi (jieqi) board for the review/analysis surface: a
+// Interactive Jieqi board for the review/analysis surface: a
 // factory-wrapped select-and-move board, mirroring createBanqiInteractiveBoard
 // (banqi-board.ts) but with jieqi's rules — there is NO flip move; a dark piece is
 // selected and moved like any piece (it reveals on the move). It stands on the SAME

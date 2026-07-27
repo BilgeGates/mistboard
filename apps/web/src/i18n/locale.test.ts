@@ -25,10 +25,10 @@ describe('locale helpers', () => {
   });
 
   it('detects locales from current path prefixes', () => {
-    expect(localeFromPath('/zh-hans/rules/flip-xiangqi')).toBe('zh-Hans');
+    expect(localeFromPath('/zh-hans/rules/banqi')).toBe('zh-Hans');
     expect(localeFromPath('/zh-hant/blog')).toBe('zh-Hant');
     expect(localeFromPath('/ja')).toBeNull();
-    expect(localeFromPath('/rules/flip-xiangqi')).toBeNull();
+    expect(localeFromPath('/rules/banqi')).toBeNull();
   });
 
   it('maps browser language tags to supported locales', () => {
@@ -39,7 +39,7 @@ describe('locale helpers', () => {
   });
 
   it('persists a locale from localized content URLs', () => {
-    window.history.replaceState(null, '', '/zh-hant/rules/flip-xiangqi');
+    window.history.replaceState(null, '', '/zh-hant/rules/banqi');
 
     expect(initializeLocaleFromCurrentUrl()).toBe('zh-Hant');
     expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('zh-Hant');
@@ -66,7 +66,7 @@ describe('locale helpers', () => {
   });
 
   it('does not let account locale override explicit URL prefixes', () => {
-    window.history.replaceState(null, '', '/zh-hans/rules/flip-xiangqi');
+    window.history.replaceState(null, '', '/zh-hans/rules/banqi');
 
     expect(applyAccountLocalePreference('zh-Hant')).toBe(false);
     expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBeNull();
@@ -74,18 +74,14 @@ describe('locale helpers', () => {
   });
 
   it('keeps localized article and rules hrefs in supported content locales', () => {
-    expect(localizedHref('/rules/flip-xiangqi?play=1', 'zh-Hant')).toBe(
-      '/zh-hant/rules/flip-xiangqi?play=1',
-    );
+    expect(localizedHref('/rules/banqi?play=1', 'zh-Hant')).toBe('/zh-hant/rules/banqi?play=1');
     expect(localizedHref('/blog/misty', 'zh-Hans')).toBe('/zh-hans/blog/misty');
     expect(localizedHref('/account?tab=login', 'zh-Hant')).toBe('/account?tab=login');
   });
 
   it('strips existing locale prefixes before rebuilding hrefs', () => {
-    expect(stripLocalePrefix('/zh-hant/rules/flip-xiangqi#top')).toBe('/rules/flip-xiangqi#top');
-    expect(localizedHref('/zh-hans/rules/flip-xiangqi', 'zh-Hant')).toBe(
-      '/zh-hant/rules/flip-xiangqi',
-    );
+    expect(stripLocalePrefix('/zh-hant/rules/banqi#top')).toBe('/rules/banqi#top');
+    expect(localizedHref('/zh-hans/rules/banqi', 'zh-Hant')).toBe('/zh-hant/rules/banqi');
   });
 });
 

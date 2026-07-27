@@ -178,7 +178,7 @@
 }
 
 @media (min-width: 1260px) {
-  /* Flip Xiangqi's 8×4 board is much shorter than the viewport-height room
+  /* Banqi's 8×4 board is much shorter than the viewport-height room
      rails. Center it like the right-side game console instead of leaving both
      primary game surfaces stranded at different vertical positions. */
   .live-route--banqi .live-review__cluster .review-shell__center {

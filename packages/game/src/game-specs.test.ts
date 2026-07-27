@@ -182,7 +182,7 @@ test('Dark Shogi is a live shogi family spec', () => {
 test('Jieqi is an xiangqi-family spec on its own hidden-identity axis', () => {
   const spec = gameSpecForId(JIEQI_SPEC_ID);
 
-  assert.equal(spec.publicName, 'Reveal Xiangqi');
+  assert.equal(spec.publicName, 'Jieqi');
   assert.equal(spec.family, 'xiangqi');
   assert.equal(spec.board, 'xiangqi-9x10');
   assert.equal(spec.movement, 'xiangqi');
@@ -202,7 +202,7 @@ test('Jieqi is an xiangqi-family spec on its own hidden-identity axis', () => {
 test('Banqi is an xiangqi-family hidden-identity spec on the 8x4 board', () => {
   const spec = gameSpecForId(BANQI_SPEC_ID);
 
-  assert.equal(spec.publicName, 'Flip Xiangqi');
+  assert.equal(spec.publicName, 'Banqi');
   assert.equal(spec.family, 'xiangqi');
   assert.equal(spec.board, 'banqi-8x4');
   assert.equal(spec.movement, 'banqi');

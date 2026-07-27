@@ -68,7 +68,7 @@ registerVariantTenant({
   watch: {
     channelId: 'jieqi',
     family: 'xiangqi',
-    label: 'Reveal Xiangqi',
+    label: 'Jieqi',
     legacyVariants: ['jieqi'],
   },
   ownsSpecRouting: true,

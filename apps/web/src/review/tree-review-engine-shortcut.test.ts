@@ -33,8 +33,8 @@ function mount() {
   document.body.append(root);
   const handle = mountBanqiReview(root, 'shortcut-test', STANDARD_BANQI_DEAL, {
     reviewSurface: 'analysis',
-    ariaLabel: 'Flip Xiangqi analysis',
-    title: 'Flip Xiangqi',
+    ariaLabel: 'Banqi analysis',
+    title: 'Banqi',
     summary: '',
     moves: [],
     initialPosition: 'start',

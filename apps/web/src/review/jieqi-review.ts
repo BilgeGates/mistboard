@@ -1,4 +1,4 @@
-// Reveal Xiangqi (jieqi) review surface: the jieqi presentation bundle over the
+// Jieqi review surface: the jieqi presentation bundle over the
 // generic tree-review controller (mountTreeReview). The client engine is the
 // in-browser PikaJieQi wasm build, fed a redacted FEN for each node. Like banqi the
 // adapter is DEAL-BOUND (a factory over the reconstructed deal), so the
@@ -63,7 +63,7 @@ function makeJieqiPresentation(
     formatBestMove: formatJieqiBestMove,
     boardHostClassName: 'jieqi-postgame-board jieqi-live-board',
     boardWrapClassName: 'dxq-postgame__board-wrap review-board-host',
-    defaultBoardAriaLabel: 'Reveal Xiangqi board',
+    defaultBoardAriaLabel: 'Jieqi board',
     // 9×10 board (WIDTH 660 / HEIGHT 732 from live-jieqi-render).
     boardAspect: 660 / 732,
     boardCols: 16,

@@ -508,7 +508,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
   },
   {
     id: JIEQI_SPEC_ID,
-    publicName: 'Reveal Xiangqi',
+    publicName: 'Jieqi',
     family: 'xiangqi',
     board: 'xiangqi-9x10',
     movement: 'xiangqi',
@@ -529,7 +529,7 @@ export const GAME_SPECS: readonly GameSpec[] = [
     // the opponent with no legal move — the general is not royal. Rules engine:
     // packages/game/src/variants-banqi.ts.
     id: BANQI_SPEC_ID,
-    publicName: 'Flip Xiangqi',
+    publicName: 'Banqi',
     family: 'xiangqi',
     board: 'banqi-8x4',
     movement: 'banqi',

@@ -70,7 +70,7 @@ export function renderJieqiBoardSvg(
   const pieceSet = options.pieceSet ?? readStoredXiangqiPieceSet();
   const legalMoves = options.legalMoves ?? [];
   return `
-    <svg class="jieqi-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Reveal Xiangqi board">
+    <svg class="jieqi-board" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Jieqi board">
       <rect class="jieqi-board-bg" x="0" y="0" width="${WIDTH}" height="${HEIGHT}" rx="10"/>
       <g class="jieqi-grid">${gridLines()}${palaceCrosses(perspective)}</g>
       ${lastMoveMarkers(view, perspective)}

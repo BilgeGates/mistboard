@@ -35,10 +35,8 @@ const VARIANT_PUBLIC_SURFACE_ENABLED = {
 const gameSpecIds = new Set<string>(GAME_SPECS.map((spec) => spec.id));
 const HIDDEN_RULES_SLUGS = new Set(['shogi', 'shogi4']);
 const RULES_GAME_SPEC_BY_SLUG: Record<string, GameSpecId> = {
-  'flip-xiangqi': 'banqi',
   'fog-chess': 'dark-chess',
   'fog-xiangqi': 'dark-xiangqi',
-  'reveal-xiangqi': 'jieqi',
 };
 
 export function isGameSpecId(value: string): value is GameSpecId {

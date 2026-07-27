@@ -183,7 +183,7 @@ describe('article public listing gates', () => {
       page.querySelector('.article-toc-sidebar .article-toc-nav')?.getAttribute('aria-label'),
     ).toBe('目錄');
     expect(
-      page.querySelector('.article-variant-sidebar a[href="/zh-hant/rules/flip-xiangqi"]'),
+      page.querySelector('.article-variant-sidebar a[href="/zh-hant/rules/banqi"]'),
     ).not.toBeNull();
   });
 
@@ -304,9 +304,7 @@ describe('article public listing gates', () => {
 
     const cards = buildHomeArticleCards(50);
 
-    expect(
-      cards?.querySelector('.landing-announcement-card[href="/rules/flip-xiangqi"]'),
-    ).toBeNull();
+    expect(cards?.querySelector('.landing-announcement-card[href="/rules/banqi"]')).toBeNull();
     expect(cards?.textContent).not.toContain('Banqi (半棋) is open for alpha play.');
   });
 
@@ -314,7 +312,7 @@ describe('article public listing gates', () => {
     const rules = buildRulesIndex();
     expect(
       rules.querySelector(
-        '.rules-landing-tile[href="/rules/flip-xiangqi"] span[data-variant-marker-id="banqi"]',
+        '.rules-landing-tile[href="/rules/banqi"] span[data-variant-marker-id="banqi"]',
       ),
     ).not.toBeNull();
     expect(BANQI_RULES_THUMBNAIL()).not.toContain('data-banqi-thumbnail-crop');
@@ -335,9 +333,7 @@ describe('article public listing gates', () => {
     // index (it no longer rides the homepage editorial row)...
     const rulesIndex = buildRulesIndex();
     expect(
-      rulesIndex.querySelector(
-        'a[href="/rules/flip-xiangqi"] span[data-variant-marker-id="banqi"]',
-      ),
+      rulesIndex.querySelector('a[href="/rules/banqi"] span[data-variant-marker-id="banqi"]'),
     ).not.toBeNull();
 
     // ...while the MistyBanqi editorial card keeps the full-board thumbnail in
@@ -591,11 +587,11 @@ describe('article public listing gates', () => {
   it('uses quiet headers and one standardized closing on public playable rules pages', () => {
     const publicPlayableSlugs = [
       'xiangqi',
-      'flip-xiangqi',
+      'banqi',
       'jungle',
       'jungle-flip',
       'fortress-xiangqi',
-      'reveal-xiangqi',
+      'jieqi',
       'fog-xiangqi',
       'fog-chess',
     ];
@@ -697,10 +693,10 @@ describe('rules variant sidebar', () => {
     expect(nav?.querySelector('a[href="/rules/mini-xiangqi"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/dark-mini-xiangqi"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/fog-xiangqi"]')).not.toBeNull();
-    expect(nav?.querySelector('a[href="/rules/reveal-xiangqi"]')).not.toBeNull();
+    expect(nav?.querySelector('a[href="/rules/jieqi"]')).not.toBeNull();
     expect(nav?.querySelector('a[href="/rules/jungle"]')).not.toBeNull();
     expect(nav?.querySelector('a[href="/rules/jungle-flip"]')).not.toBeNull();
-    expect(nav?.querySelector('a[href="/rules/flip-xiangqi"]')).not.toBeNull();
+    expect(nav?.querySelector('a[href="/rules/banqi"]')).not.toBeNull();
     expect(nav?.querySelector('a[href="/rules/fog-chess"]')).not.toBeNull();
     // Xiangqi pivot: the chess reference article is de-listed from the rail.
     expect(nav?.querySelector('a[href="/rules/chess"]')).toBeNull();
@@ -708,13 +704,9 @@ describe('rules variant sidebar', () => {
     expect(nav?.querySelector('a[href="/rules/dark-draft960"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/shogi"]')).toBeNull();
     expect(nav?.querySelector('a[href="/rules/dark-shogi"]')).toBeNull();
-    expect(hrefs.indexOf('/rules/xiangqi')).toBeLessThan(hrefs.indexOf('/rules/flip-xiangqi'));
-    expect(hrefs.indexOf('/rules/flip-xiangqi')).toBeLessThan(
-      hrefs.indexOf('/rules/reveal-xiangqi'),
-    );
-    expect(hrefs.indexOf('/rules/reveal-xiangqi')).toBeLessThan(
-      hrefs.indexOf('/rules/fortress-xiangqi'),
-    );
+    expect(hrefs.indexOf('/rules/xiangqi')).toBeLessThan(hrefs.indexOf('/rules/banqi'));
+    expect(hrefs.indexOf('/rules/banqi')).toBeLessThan(hrefs.indexOf('/rules/jieqi'));
+    expect(hrefs.indexOf('/rules/jieqi')).toBeLessThan(hrefs.indexOf('/rules/fortress-xiangqi'));
     expect(hrefs.indexOf('/rules/fortress-xiangqi')).toBeLessThan(
       hrefs.indexOf('/rules/fog-xiangqi'),
     );
@@ -840,7 +832,7 @@ describe('rules variant sidebar', () => {
     expect(pageText).toContain('BLACK KNOWS');
   });
 
-  it('renders Flip Xiangqi diagrams and states the Mistboard cannon rule clearly', () => {
+  it('renders Banqi diagrams and states the Mistboard cannon rule clearly', () => {
     const page = buildArticlePage('banqi');
     const pageText = page.textContent ?? '';
 

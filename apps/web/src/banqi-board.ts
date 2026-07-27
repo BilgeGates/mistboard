@@ -1,4 +1,4 @@
-// Interactive Flip Xiangqi (banqi) board for the review/analysis surface: a
+// Interactive Banqi board for the review/analysis surface: a
 // factory-wrapped click-to-flip / click-or-drag-to-move board, mirroring
 // createJungleInteractiveBoard (jungle-board.ts). It stands on the SAME shared
 // primitives the live boards use — installBoardDrag (DOM `[data-square]`

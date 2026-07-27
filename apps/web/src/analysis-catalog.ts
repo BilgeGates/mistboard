@@ -22,7 +22,7 @@ export type AnalysisVariantId =
 
 export type AnalysisVariant = {
   id: AnalysisVariantId;
-  /** Site display name (the spec's publicName, e.g. "Flip Xiangqi"). */
+  /** Site display name (the spec's publicName, e.g. "Banqi"). */
   label: string;
 };
 

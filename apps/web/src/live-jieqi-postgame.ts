@@ -22,7 +22,7 @@ import type { DecisionOverlay } from './review/tree-review.js';
 import { isLikelySignedIn } from './signed-in-state.js';
 import { buildNav } from './site-shell.js';
 
-// Postgame review for Jieqi (Reveal Xiangqi). Jieqi hides piece IDENTITIES
+// Postgame review for Jieqi. Jieqi hides piece IDENTITIES
 // symmetrically (positions are public), so there is a single review board. As of the
 // review standardization it rides the shared interactive tree (mountJieqiReview →
 // mountTreeReview): the deal is reconstructed from the fully-revealed `history.truth`
@@ -164,7 +164,7 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
   );
   const { metaCard, details } = buildReviewMeta({
     markerId: 'jieqi',
-    variantName: 'Reveal Xiangqi',
+    variantName: 'Jieqi',
     game: postgame.game,
     status,
   });
@@ -173,7 +173,7 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
   mountJieqiReview(root, postgame.game.roomId, deal, {
     pageClassName: 'jieqi-review',
     ariaLabel: 'Jieqi postgame',
-    title: 'Reveal Xiangqi',
+    title: 'Jieqi',
     summary: `${status} · ${postgame.game.plyCount} plies`,
     metaCard,
     details,
