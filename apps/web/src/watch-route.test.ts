@@ -13,6 +13,7 @@ import {
   formatWatchScope,
   loadWatchMainBeforePreviews,
   renderWatchChannelList,
+  renderWatchMainReviewLink,
   renderWatchQueue,
   renderWatchReplaySkeleton,
   resultLabel,
@@ -471,5 +472,45 @@ describe('renderWatchQueue', () => {
     expect(previews).toEqual([]);
     expect(root.querySelector('[data-room-id="only"]')).toBeNull();
     expect(root.querySelector('.watch-previously-empty')?.textContent).toContain('No other');
+  });
+});
+
+describe('renderWatchMainReviewLink', () => {
+  const finishedGame: FeaturedGame = {
+    blackName: 'Black',
+    corpusId: null,
+    mode: 'pvp',
+    plyCount: 24,
+    result: 'white-wins',
+    roomId: 'focused',
+    termination: 'resignation',
+    variant: 'dark-chess',
+    whiteName: 'White',
+  };
+
+  it('links the focused finished board to its variant-aware review page', () => {
+    const link = document.createElement('a');
+
+    renderWatchMainReviewLink(link, finishedGame);
+
+    expect(link.hidden).toBe(false);
+    expect(link.getAttribute('href')).toBe('/game/focused');
+    expect(link.getAttribute('aria-label')).toBe('Review White vs Black');
+
+    renderWatchMainReviewLink(link, { ...finishedGame, roomId: 'bq_focused', variant: 'banqi' });
+    expect(link.getAttribute('href')).toBe('/banqi/game/bq_focused');
+  });
+
+  it('removes the link for live games and samples without review pages', () => {
+    const link = document.createElement('a');
+    renderWatchMainReviewLink(link, finishedGame);
+
+    renderWatchMainReviewLink(link, null);
+    expect(link.hidden).toBe(true);
+    expect(link.hasAttribute('href')).toBe(false);
+
+    renderWatchMainReviewLink(link, { ...finishedGame, corpusId: 'replay-samples' });
+    expect(link.hidden).toBe(true);
+    expect(link.hasAttribute('href')).toBe(false);
   });
 });
