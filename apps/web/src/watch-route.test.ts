@@ -513,4 +513,20 @@ describe('renderWatchMainReviewLink', () => {
     expect(link.hidden).toBe(true);
     expect(link.hasAttribute('href')).toBe(false);
   });
+
+  // The hover chip is built once with the overlay and re-targeted per game. A
+  // render that rebuilt the anchor's children would drop it on the first game
+  // switch, leaving an invisible link nobody can find.
+  it('keeps the hover chip across game switches and hides', () => {
+    const link = document.createElement('a');
+    const chip = document.createElement('span');
+    chip.className = 'watch-main-review-link__chip';
+    link.append(chip);
+
+    renderWatchMainReviewLink(link, finishedGame);
+    renderWatchMainReviewLink(link, null);
+    renderWatchMainReviewLink(link, { ...finishedGame, roomId: 'other' });
+
+    expect(link.querySelector('.watch-main-review-link__chip')).toBe(chip);
+  });
 });

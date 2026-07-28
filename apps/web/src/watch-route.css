@@ -37,17 +37,48 @@
   overflow: visible;
 }
 
+/* The whole finished board is the link to its review page (see buildWatchSection):
+   a transparent overlay, so the frozen final position stays the thing you look at
+   and only hover/focus reveals the affordance. */
 .watch-main-review-link {
   position: absolute;
   inset: 0;
   z-index: 2;
   border-radius: var(--site-radius);
   cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 6px;
+  box-sizing: border-box;
 }
 
 .watch-main-review-link:focus-visible {
   outline: 3px solid var(--site-accent);
   outline-offset: 3px;
+}
+
+.watch-main-review-link__chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.watch-main-review-link:hover .watch-main-review-link__chip,
+.watch-main-review-link:focus-visible .watch-main-review-link__chip {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .watch-main-review-link__chip {
+    transition: none;
+  }
 }
 
 /* The empty / skeleton states render into the mount root (inside the box); let
