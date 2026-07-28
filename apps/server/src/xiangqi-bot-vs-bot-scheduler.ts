@@ -18,6 +18,7 @@ import {
   createExperimentJob,
 } from './engine-experiments.js';
 import { upsertBuiltinEngineVersions } from './engine-registry.js';
+import { timeControlBucket } from './engine-time-policy.js';
 import { botVsBotEnabled } from './feature-flags.js';
 import { getPool, withTransaction } from './persistence-db.js';
 import {
@@ -26,6 +27,7 @@ import {
   pickPairing,
   xiangqiBotLadder,
 } from './xiangqi-bot-vs-bot-pairing.js';
+import { XIANGQI_RANDOM_ENGINE_ID } from './xiangqi-random-engine.js';
 
 const TICK_MS = 30_000;
 const DAY_MS = 86_400_000;
@@ -142,6 +144,53 @@ async function lastBotVsBotSuccessAtMs(): Promise<number | null> {
   return at === null || at === undefined ? null : Number(at);
 }
 
+// The rating policy stamped on CALIBRATION-lane jobs, mirroring what
+// enqueue-engine-tournament writes. The Elo report selects rows by
+// `rating_policy.rated = 'true'` (engine-elo-report.ts), so without this the
+// daily calibration trickle was generated, stored, and then ignored by the
+// only thing it exists to feed. Content-lane jobs stay unstamped: those
+// pairings are picked for watchability (top-heavy, mirrors allowed) and a
+// mirror carries no ranking signal.
+//
+// The pace matches the calibration tournaments (clockless → the `untimed`
+// bucket), so trickle games pool with them instead of forming a second bucket.
+function calibrationRatingPolicy(): Record<string, unknown> {
+  return {
+    rated: true,
+    method: 'anchor-relative-smoothed-logit-v1',
+    anchor_engine_id: XIANGQI_RANDOM_ENGINE_ID,
+    min_anchor_games: 8,
+    excluded_terminations: ['truncated'],
+    pool: {
+      variant: 'xiangqi',
+      time_control_bucket: timeControlBucket({ kind: 'none' }),
+    },
+  };
+}
+
+// The job config for one scheduled game. Pure + exported so the rated stamping
+// is testable without a database (the live enqueue path is injected away in the
+// scheduler tests).
+export function botVsBotJobConfig(input: {
+  lane: BotVsBotLane;
+  pairing: BotVsBotPairing;
+}): Record<string, unknown> {
+  return {
+    variant: 'xiangqi',
+    source: 'bot-vs-bot-scheduler',
+    lane: input.lane,
+    pairing: {
+      kind:
+        input.pairing.redEngineId === input.pairing.blackEngineId
+          ? 'self-play'
+          : 'engine-vs-engine',
+      white_engine_id: input.pairing.redEngineId,
+      black_engine_id: input.pairing.blackEngineId,
+    },
+    ...(input.lane === 'calibration' ? { rating_policy: calibrationRatingPolicy() } : {}),
+  };
+}
+
 // Live enqueue: one job + one task per game, shaped exactly like the enqueue CLI
 // so the worker's xiangqi runner picks it up unchanged. The lane is recorded on
 // the job so Phase 3 calibration can query only calibration-lane games.
@@ -157,19 +206,7 @@ async function enqueueLiveGame(input: EnqueueBotVsBotGameInput): Promise<void> {
     const job = await createExperimentJob(tx, {
       purpose: 'calibration',
       targetGames: 1,
-      config: {
-        variant: 'xiangqi',
-        source: 'bot-vs-bot-scheduler',
-        lane: input.lane,
-        pairing: {
-          kind:
-            input.pairing.redEngineId === input.pairing.blackEngineId
-              ? 'self-play'
-              : 'engine-vs-engine',
-          white_engine_id: input.pairing.redEngineId,
-          black_engine_id: input.pairing.blackEngineId,
-        },
-      },
+      config: botVsBotJobConfig(input),
       createdBy: 'bot-vs-bot-scheduler',
     });
     await createEngineGameTask(tx, {

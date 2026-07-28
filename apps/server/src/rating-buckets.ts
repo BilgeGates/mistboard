@@ -1,13 +1,13 @@
 import {
   DARK_CHESS_SPEC_ID,
   DARK_DRAFT960_SPEC_ID,
+  findTimeControl,
   type GameSpecId,
   isRatedPoolBase,
   maybeGameSpecForId,
   type RatingVariant,
   ratingPoolForSpec,
   type TimeClass,
-  timeClassFromTimeControl,
 } from '@mistboard/game';
 
 // Rated-pool vocabulary lives on the game spec (single source of truth):
@@ -21,7 +21,13 @@ export type RatingBucket = {
   timeClass: RatingTimeClass;
 };
 
+// The DEFAULT public ladder, not the only one: leaderboard/profile surfaces
+// show this class unless the caller asks for another. Every rated live pace
+// writes to its own bucket (bucketForGame below).
 export const PUBLIC_RATING_TIME_CLASS: RatingTimeClass = 'blitz';
+
+// Every time class that can hold rated games, ordered for display.
+export const PUBLIC_RATING_TIME_CLASSES: readonly RatingTimeClass[] = ['bullet', 'blitz', 'rapid'];
 
 export const DEFAULT_RATING_BUCKET: RatingBucket = {
   variant: currentRatingVariantForSpec(DARK_CHESS_SPEC_ID),
@@ -36,14 +42,16 @@ type BucketInput = {
 };
 
 export function bucketForGame(input: BucketInput): RatingBucket | null {
-  const timeClass = timeClassFromTimeControl(input.initialMs, input.incrementMs);
-  if (!timeClass) return null;
-  if (timeClass !== PUBLIC_RATING_TIME_CLASS) return null;
-  // Fail closed: a casual-only spec (no active rating pool) yields no bucket, so
-  // a rated game on it is simply not rated rather than mis-credited to fog.
+  // Fail closed twice over: an unofficial pace (including every correspondence
+  // cadence, whose ms values match no live spec) and a pace whose spec is not
+  // rated both yield no bucket, so the game is simply not rated.
+  const spec = findTimeControl(input.initialMs, input.incrementMs);
+  if (!spec || !spec.rated) return null;
+  // Same for a casual-only game spec (no active rating pool): no bucket rather
+  // than mis-crediting the game to fog.
   const variant = ratingPoolForSpec(ratingSpecForGame(input));
   if (!variant) return null;
-  return { variant, timeClass: PUBLIC_RATING_TIME_CLASS };
+  return { variant, timeClass: spec.timeClass };
 }
 
 // Accepts a canonical pool name ('fog'), a game spec id ('dark-chess'), or a

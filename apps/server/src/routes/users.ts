@@ -1,7 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { currentAccountUser } from './../account-session.js';
 import * as persistence from './../persistence.js';
-import { parseRatingVariant } from './../rating-buckets.js';
+import {
+  PUBLIC_RATING_TIME_CLASS,
+  parseRatingTimeClass,
+  parseRatingVariant,
+} from './../rating-buckets.js';
 import { requireMethod, requirePersistence, writeJson } from './lib.js';
 
 const HANDLE_PATTERN = /^[a-zA-Z0-9_-]{1,40}$/;
@@ -82,8 +86,22 @@ export async function tryHandle(
       writeJson(response, 400, { error: 'invalid_rating_variant' });
       return true;
     }
+    // An omitted timeClass keeps the pre-multi-pace default (blitz), so links
+    // minted before rated widened still resolve to the same ladder.
+    const timeClassParam = parsedUrl.searchParams.get('timeClass');
+    const timeClass =
+      timeClassParam === null ? PUBLIC_RATING_TIME_CLASS : parseRatingTimeClass(timeClassParam);
+    if (!timeClass) {
+      writeJson(response, 400, { error: 'invalid_rating_time_class' });
+      return true;
+    }
     const viewer = await currentAccountUser(request);
-    const history = await persistence.getUserRatingHistory(handle, viewer?.id ?? null, variant);
+    const history = await persistence.getUserRatingHistory(
+      handle,
+      viewer?.id ?? null,
+      variant,
+      timeClass,
+    );
     if (!history) {
       writeJson(response, 404, { error: 'not_found' });
       return true;

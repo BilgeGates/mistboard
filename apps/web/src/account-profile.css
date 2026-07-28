@@ -1572,6 +1572,18 @@
   text-transform: uppercase;
 }
 
+/* Named only when the row is not the default pace, so the usual row reads
+   exactly as before. */
+.profile-rating-pace,
+.profile-chart-pace {
+  color: var(--site-muted);
+  font-weight: 500;
+}
+
+.profile-chart-pace {
+  font-size: 0.8em;
+}
+
 /* Rating and games count on one line. */
 .profile-rating-figures {
   display: flex;
@@ -2223,9 +2235,42 @@
   grid-template-areas:
     "online-heading heading"
     ". sub"
+    "online paces"
     "online grid";
   gap: 4px 28px;
   align-items: start;
+}
+
+/* Pace tabs above the ladder wall: each rated time control is its own Glicko
+   pool, so the grid below always shows exactly one pace. */
+.leaderboard-paces {
+  grid-area: paces;
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.leaderboard-pace {
+  appearance: none;
+  border: 1px solid var(--site-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--site-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 12px;
+}
+
+.leaderboard-pace:hover {
+  color: var(--site-heading);
+}
+
+.leaderboard-pace.selected {
+  background: var(--site-surface-raised, transparent);
+  border-color: var(--site-heading);
+  color: var(--site-heading);
+  font-weight: 600;
 }
 
 .rating-stats-body {
@@ -2602,6 +2647,7 @@
       "sub"
       "online-heading"
       "online"
+      "paces"
       "grid";
   }
 

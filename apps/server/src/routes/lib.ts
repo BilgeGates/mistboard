@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import {
   findTimeControl,
+  isRatedTimeControl,
   type RoomTimeControl,
   type TimeControlId,
   type VariantId,
@@ -30,7 +31,6 @@ export const maxRoomClockIncrementMs = 60_000;
 // so they share the full allowlist; a lobby's allowlist must accept exactly what
 // its variant's picker offers, or a menu-listed control 400s at join time.
 const ALLOWED_FULL_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set(['1m1', '3m2', '5m5']);
-const ALLOWED_RATED_TIME_CONTROL_IDS: ReadonlySet<TimeControlId> = new Set(['3m2']);
 
 // ── Context ────────────────────────────────────────────────────────────────
 export interface HttpApiContext {
@@ -258,9 +258,12 @@ export function isAllowedFullTimeControl(tc: RoomTimeControl): boolean {
   return spec !== null && ALLOWED_FULL_TIME_CONTROL_IDS.has(spec.id);
 }
 
+// Rated eligibility derives from the time-control spec's own `rated` flag
+// (@mistboard/game), the same source the web time picker reads. Still ANDed
+// with the variant's playable allowlist by every caller: dark chess offers no
+// 5+5 at all, so rated 5+5 dark chess is rejected there, not here.
 export function isAllowedRatedTimeControl(tc: RoomTimeControl): boolean {
-  const spec = findTimeControl(tc.initialMs, tc.incrementMs);
-  return spec !== null && ALLOWED_RATED_TIME_CONTROL_IDS.has(spec.id);
+  return isRatedTimeControl(tc);
 }
 
 export function parseRoomTimeControl(value: unknown): RoomTimeControl | null {
