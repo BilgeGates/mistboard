@@ -1,12 +1,23 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import {
+  censusDeployGate,
+  countDeployGatingRooms,
+  type DeployGateCensus,
+  mergeDeployGateCensus,
+} from './deploy-gate.js';
 import { recordRoomLifecycleAuditSafe } from './room-lifecycle-audit.js';
 import { readJsonBody, writeJson } from './routes/lib.js';
 import { clientIpForRateLimit, isDrainToken, isProductionLikeRuntime } from './server-policy.js';
 import type { Room } from './server-types.js';
-import { variantTenantActiveGameCount, variantTenantBroadcast } from './variant-tenant/registry.js';
+import {
+  variantTenantActiveGameCount,
+  variantTenantBroadcast,
+  variantTenantDeployGateCensus,
+} from './variant-tenant/registry.js';
 
 export type DrainController = {
   activeGameCount(): number;
+  deployGateCensus(): DeployGateCensus;
   drainDeadlineMs(): number | null;
   restartPhase(): DrainPhase | null;
   handleRequest(
@@ -49,18 +60,30 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
     return isDraining() ? drainState.phase : null;
   }
 
-  // Number of rooms with a live in-progress game (playing state, not paused),
-  // across the chess map AND every registered variant tenant. Used by safe
-  // deploys and /api/server-status to gate deploys behind a drain window;
-  // counts trend to zero as games finish or get paused. Without the tenant
-  // sum, a live DMX/Crossroads game is invisible to the gate and a deploy
-  // can land mid-game.
+  // Number of rooms a deploy would actually interrupt, across the chess map AND
+  // every registered variant tenant. Used by safe deploys and
+  // /api/server-status to gate deploys behind a drain window. Without the
+  // tenant sum, a live DMX/Crossroads game is invisible to the gate and a
+  // deploy can land mid-game.
+  //
+  // The predicate lives in deploy-gate.ts, shared with the tenant side. This
+  // half used to count any unpaused playing room, so a chess correspondence
+  // game or an abandoned open tab pinned the count above zero indefinitely.
+  // Since safe-deploy BLOCKS when its window expires with games still active,
+  // that made releases impossible rather than merely slow.
   function activeGameCount(): number {
-    let count = variantTenantActiveGameCount();
-    for (const room of options.rooms.values()) {
-      if (room.projection.state.status.type === 'playing' && !room.projection.paused) count += 1;
-    }
-    return count;
+    return variantTenantActiveGameCount() + countDeployGatingRooms(options.rooms.values());
+  }
+
+  // The same walk, keeping what was skipped and why, so a stalled deploy (or a
+  // gate that reads suspiciously empty) is diagnosable from /api/server-status
+  // instead of by guessing. Aggregate counts only: no room ids, no seats.
+  function deployGateCensus(): DeployGateCensus {
+    const now = Date.now();
+    return mergeDeployGateCensus(
+      censusDeployGate(options.rooms.values(), now),
+      variantTenantDeployGateCensus(now),
+    );
   }
 
   function drainRateAllowed(ip: string): boolean {
@@ -226,6 +249,7 @@ export function createDrainController(options: DrainControllerOptions): DrainCon
 
   return {
     activeGameCount,
+    deployGateCensus,
     drainDeadlineMs,
     handleRequest,
     isDraining,

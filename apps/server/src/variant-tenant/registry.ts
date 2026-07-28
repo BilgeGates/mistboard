@@ -21,6 +21,13 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { RoomTimeControl } from '@mistboard/game';
 import type { WebSocket } from 'ws';
+import {
+  censusDeployGate,
+  type DeployGateCensus,
+  type DeployGateRoom,
+  emptyDeployGateCensus,
+  mergeDeployGateCensus,
+} from '../deploy-gate.js';
 
 // The structural slice of a live tenant room the dispatch layer touches.
 // Registration closures cast back to their concrete room type internally.
@@ -44,7 +51,9 @@ export type TenantManagedRoom = {
     state: { status: { type: string }; moveNumber?: number };
     seats?: Partial<Record<string, string>>;
     rated?: boolean;
-    timeControl?: unknown;
+    // Typed rather than `unknown` because the deploy-gate census reads
+    // daysPerMove off it; every TenantProjection already declares this shape.
+    timeControl?: RoomTimeControl;
     clock?: unknown;
   };
   events?: readonly { type: string; at?: number }[];
@@ -274,6 +283,22 @@ export function variantTenantActiveGameCount(): number {
     count += registration.activeGameCount();
   }
   return count;
+}
+
+// Why each tenant room did or didn't gate a deploy. Walks the room maps
+// directly rather than adding a per-registration binding: the census is
+// diagnostic (it explains a blocked or a suspiciously empty deploy gate), and
+// every registration already exposes `rooms` for the drain broadcast.
+export function variantTenantDeployGateCensus(nowMs: number = Date.now()): DeployGateCensus {
+  let census = emptyDeployGateCensus();
+  for (const registration of registrationsByPrefix.values()) {
+    const rooms: DeployGateRoom[] = [];
+    for (const room of registration.rooms.values()) {
+      if (room.projection) rooms.push({ events: room.events, projection: room.projection });
+    }
+    census = mergeDeployGateCensus(census, censusDeployGate(rooms, nowMs));
+  }
+  return census;
 }
 
 // Broadcast a raw wire message to every connected client of every registered

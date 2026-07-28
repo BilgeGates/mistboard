@@ -60,22 +60,33 @@ function responseJson(response: ResponseCapture): Record<string, unknown> {
   return JSON.parse(response.body) as Record<string, unknown>;
 }
 
+// A room only gates a deploy while something is still happening in it (see
+// deploy-gate.ts), so a fixture standing in for a live game needs a fresh event
+// timestamp. roomFixture's default log is stamped at epoch 1, which now reads
+// (correctly) as a room nobody has touched in decades.
+function playingRoom(id: string, options: { paused?: boolean; lastEventAt?: number } = {}) {
+  return roomFixture({
+    id,
+    events: [
+      {
+        type: 'room-created',
+        at: options.lastEventAt ?? Date.now(),
+        roomId: id,
+        variant: 'dark-chess',
+        offer: [],
+      },
+    ],
+    projection: gameProjectionFixture({
+      paused: options.paused ?? false,
+      roomId: id,
+      state: { status: { type: 'playing', turn: 'white' } },
+    }),
+  });
+}
+
 test('drain controller counts only unpaused playing rooms', () => {
-  const playing = roomFixture({
-    id: 'playing',
-    projection: gameProjectionFixture({
-      roomId: 'playing',
-      state: { status: { type: 'playing', turn: 'white' } },
-    }),
-  });
-  const paused = roomFixture({
-    id: 'paused',
-    projection: gameProjectionFixture({
-      paused: true,
-      roomId: 'paused',
-      state: { status: { type: 'playing', turn: 'white' } },
-    }),
-  });
+  const playing = playingRoom('playing');
+  const paused = playingRoom('paused', { paused: true });
   const pregame = roomFixture({
     id: 'pregame',
     projection: gameProjectionFixture({
@@ -96,6 +107,28 @@ test('drain controller counts only unpaused playing rooms', () => {
   });
 
   assert.equal(drain.activeGameCount(), 1);
+});
+
+// The gate protects players mid-game, and a room nobody has touched in hours
+// has no such player. It used to count anyway, which is how four abandoned tabs
+// held activeGames at 4 indefinitely and blocked every release: safe-deploy
+// gives up rather than proceeding when its window expires with games "active".
+test('an abandoned room stops gating deploys but stays visible in the census', () => {
+  const live = playingRoom('live');
+  const abandoned = playingRoom('abandoned', { lastEventAt: Date.now() - 6 * 60 * 60_000 });
+  const drain = createDrainController({
+    drainWindowDefaultMs: 1000,
+    drainWindowMaxMs: 2000,
+    rooms: new Map([
+      [live.id, live],
+      [abandoned.id, abandoned],
+    ]),
+  });
+
+  assert.equal(drain.activeGameCount(), 1);
+  const census = drain.deployGateCensus();
+  assert.equal(census.gating, 1);
+  assert.equal(census.idle, 1);
 });
 
 test('drain controller counts live variant-tenant games alongside chess rooms', () => {
@@ -126,13 +159,7 @@ test('drain controller counts live variant-tenant games alongside chess rooms', 
     createCorrespondenceGameForSeek: null,
   });
 
-  const chessRoom = roomFixture({
-    id: 'chess-playing',
-    projection: gameProjectionFixture({
-      roomId: 'chess-playing',
-      state: { status: { type: 'playing', turn: 'white' } },
-    }),
-  });
+  const chessRoom = playingRoom('chess-playing');
   const drain = createDrainController({
     drainWindowDefaultMs: 1000,
     drainWindowMaxMs: 2000,
@@ -196,12 +223,8 @@ test('restart commit requires zero active games and broadcasts immediately befor
       sent.push(message);
     },
   } as unknown as WebSocket;
-  const room = roomFixture({
-    clients: [clientFixture({ socket })],
-    projection: gameProjectionFixture({
-      state: { status: { type: 'playing', turn: 'white' } },
-    }),
-  });
+  const room = playingRoom('restart-commit');
+  room.clients.add(clientFixture({ socket }));
   const drain = createDrainController({
     drainWindowDefaultMs: 1000,
     drainWindowMaxMs: 2000,

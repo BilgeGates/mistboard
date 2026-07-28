@@ -6,7 +6,12 @@
 // not deploy.
 //
 // Usage:
-//   MISTBOARD_DRAIN_TOKEN=… node scripts/safe-deploy.mjs [options]
+//   node scripts/safe-deploy.mjs [options]
+//
+// The drain token comes from MISTBOARD_DRAIN_TOKEN, or from the macOS keychain
+// when that is unset (see scripts/lib/drain-token.mjs). Keychain storage is
+// what lets a release drain unattended without the token passing through a
+// shell, a log, or an agent transcript.
 //
 // Options:
 //   --base-url <url>      target server (default: https://mistboard.com)
@@ -24,6 +29,8 @@
 //   4   window elapsed with games still active (drain is cancelled)
 //   130 SIGINT — drain was cancelled
 
+import { DRAIN_TOKEN_KEYCHAIN_SERVICE, resolveDrainToken } from './lib/drain-token.mjs';
+
 const DEFAULT_BASE_URL = 'https://mistboard.com';
 const DEFAULT_WINDOW_MS = 15 * 60 * 1000;
 const DEFAULT_POLL_MS = 30 * 1000;
@@ -34,12 +41,16 @@ const baseUrl = normalizeBaseUrl(
 );
 const windowMs = options.windowMs ?? DEFAULT_WINDOW_MS;
 const pollMs = options.pollMs ?? DEFAULT_POLL_MS;
-const token = process.env.MISTBOARD_DRAIN_TOKEN;
+const token = resolveDrainToken();
 
 if (!token) {
-  console.error('error: MISTBOARD_DRAIN_TOKEN is not set in the environment.');
+  console.error('error: no drain token (checked MISTBOARD_DRAIN_TOKEN, then the keychain).');
   console.error('  - Get it from the Railway dashboard for the web service.');
-  console.error('  - Then re-run: MISTBOARD_DRAIN_TOKEN=… node scripts/safe-deploy.mjs');
+  console.error('  - Store it once; -w prompts, so it stays out of shell history:');
+  console.error(
+    `      security add-generic-password -a "$USER" -s ${DRAIN_TOKEN_KEYCHAIN_SERVICE} -w`,
+  );
+  console.error('  - Or for a single run: MISTBOARD_DRAIN_TOKEN=… node scripts/safe-deploy.mjs');
   process.exit(1);
 }
 
@@ -250,7 +261,9 @@ function parseArgs(argv) {
       console.log(
         'Usage: safe-deploy.mjs [--base-url URL] [--window-ms MS] [--poll-ms MS] [--yes] [--commit] [--cancel]',
       );
-      console.log('Requires MISTBOARD_DRAIN_TOKEN in env.');
+      console.log(
+        `Drain token: MISTBOARD_DRAIN_TOKEN, else keychain service "${DRAIN_TOKEN_KEYCHAIN_SERVICE}".`,
+      );
       process.exit(0);
     } else {
       console.error(`unknown arg: ${arg}`);

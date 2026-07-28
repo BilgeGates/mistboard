@@ -3,6 +3,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
+import { DRAIN_TOKEN_KEYCHAIN_SERVICE, resolveDrainToken } from './lib/drain-token.mjs';
 
 const DEFAULT_BASE_URL = 'https://mistboard.com';
 const DEFAULT_CI_WORKFLOW = 'ci.yml';
@@ -102,9 +103,16 @@ try {
     } else {
       console.log('production drain: not required (0 active games)');
     }
-    if (release.drainRequired && !process.env.MISTBOARD_DRAIN_TOKEN) {
+    // Precondition only. safe-deploy resolves the token itself from the same
+    // two sources, so the value never crosses this process's argv or output;
+    // checking here just keeps a release from running ci:quick and then dying
+    // at the drain step.
+    if (release.drainRequired && !resolveDrainToken()) {
       throw new Error(
-        'MISTBOARD_DRAIN_TOKEN is required to drain the active games for this deploy. Get it from the Railway web service dashboard, or wait until no games are live.',
+        'A drain token is required to drain the active games for this deploy, and neither ' +
+          'MISTBOARD_DRAIN_TOKEN nor the keychain has one. Get it from the Railway web service ' +
+          'dashboard, then store it once (prompts, so it stays out of shell history): ' +
+          `security add-generic-password -a "$USER" -s ${DRAIN_TOKEN_KEYCHAIN_SERVICE} -w`,
       );
     }
   }
@@ -823,9 +831,10 @@ Order:
 
 Options:
   --push                   Push --head to origin/main. Drains production first
-                           only when games are live (needs MISTBOARD_DRAIN_TOKEN
-                           then); an empty pool deploys token-free. Without this,
-                           assume it is already pushed.
+                           only when games are live (needs a drain token then:
+                           MISTBOARD_DRAIN_TOKEN, else the keychain); an empty
+                           pool deploys token-free. Without this, assume it is
+                           already pushed.
   --head <ref>             Commit/ref to release, default HEAD.
   --plan                   Dry run: print the deploy plan, hosted CI plan, and
                            resolved smoke tier, then exit. No ci, push, or smoke.
@@ -843,9 +852,11 @@ Options:
   --timeout-ms <ms>        Timeout for hosted CI and revision wait, default ${DEFAULT_TIMEOUT_MS}.
 
 Use --push instead of a standalone git push when you want this command to own
-the release order. A deploying push requires MISTBOARD_DRAIN_TOKEN only when
-production is serving live games (it drains them first and stops if they do not
-finish inside the drain window); with an empty pool the deploy runs token-free.
+the release order. A deploying push requires a drain token only when production
+is serving live games (it drains them first and stops if they do not finish
+inside the drain window); with an empty pool the deploy runs token-free. The
+token is read from MISTBOARD_DRAIN_TOKEN, or from the macOS keychain when that
+is unset, so an unattended release never needs it typed into a shell.
 For docs-only or other non-deploy commits, the planner skips
 the exact-revision wait because production is not expected to serve that SHA,
 but still waits for hosted CI when the diff matches the CI workflow paths. When

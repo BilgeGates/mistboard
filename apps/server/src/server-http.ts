@@ -484,6 +484,7 @@ function buildApiContext(options: ServerHttpHandlerOptions): HttpApiContext {
     drainDeadlineMs: options.drainController.drainDeadlineMs,
     restartPhase: options.drainController.restartPhase,
     activeGameCount: options.drainController.activeGameCount,
+    deployGateCensus: options.drainController.deployGateCensus,
     persistenceHealth: () => currentPersistenceHealth(options.persistenceErrors),
   };
 }
