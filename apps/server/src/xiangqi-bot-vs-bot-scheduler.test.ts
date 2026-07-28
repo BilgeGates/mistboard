@@ -4,6 +4,7 @@ import {
   type BotVsBotSchedulerConfig,
   type BotVsBotSchedulerDeps,
   botVsBotConfigFromEnv,
+  botVsBotJobConfig,
   clampBotVsBotDailyMax,
   clampBotVsBotTarget,
   clampCalibrationRatio,
@@ -192,4 +193,32 @@ test('botVsBotConfigFromEnv reads dailyMax and forces a pair only when both engi
   });
   assert.equal(botVsBotConfigFromEnv({} as NodeJS.ProcessEnv).forcedPairing, null);
   assert.equal(botVsBotConfigFromEnv({} as NodeJS.ProcessEnv).dailyMax, 2);
+});
+
+test('calibration-lane jobs are rated; content-lane jobs are not', () => {
+  const pairing = {
+    redEngineId: 'fairy-stockfish-xiangqi-level-3',
+    blackEngineId: 'fairy-stockfish-xiangqi-level-5',
+  };
+
+  // The Elo report selects rows on `rating_policy.rated = 'true'`, so this
+  // stamp is the whole difference between a calibration game that feeds the
+  // ladder and one that is stored and ignored.
+  const calibration = botVsBotJobConfig({ lane: 'calibration', pairing }) as {
+    rating_policy?: { rated?: boolean; anchor_engine_id?: string; pool?: Record<string, unknown> };
+  };
+  assert.equal(calibration.rating_policy?.rated, true);
+  assert.equal(calibration.rating_policy?.anchor_engine_id, 'random-legal-xiangqi');
+  // Clockless, matching the calibration tournaments, so both pool together.
+  assert.deepEqual(calibration.rating_policy?.pool, {
+    variant: 'xiangqi',
+    time_control_bucket: 'untimed',
+  });
+
+  // Content pairings are top-heavy and allow mirrors, which carry no ranking
+  // signal: they stay out of the rated set.
+  const content = botVsBotJobConfig({ lane: 'content', pairing }) as {
+    rating_policy?: unknown;
+  };
+  assert.equal(content.rating_policy, undefined);
 });

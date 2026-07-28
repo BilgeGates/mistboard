@@ -193,6 +193,7 @@ type CliArgs = {
   timeClass?: TimeClass;
   timeControlBucket?: string;
   tournamentId?: string;
+  variant?: string;
 };
 
 async function main(): Promise<void> {
@@ -206,6 +207,7 @@ async function main(): Promise<void> {
       tournamentId: args.tournamentId ?? process.env.ENGINE_TOURNAMENT_ID ?? null,
       timeControlBucket:
         args.timeControlBucket ?? process.env.ENGINE_RATING_TIME_CONTROL_BUCKET ?? null,
+      variant: args.variant ?? process.env.ENGINE_RATING_VARIANT ?? null,
     });
     const anchorEngineId =
       args.anchorEngineId ?? process.env.ENGINE_RATING_ANCHOR ?? DEFAULT_ANCHOR_ENGINE_ID;
@@ -318,6 +320,9 @@ function parseArgs(values: string[]): CliArgs {
       case 'tournament':
       case 'tournament-id':
         parsed.tournamentId = value;
+        break;
+      case 'variant':
+        parsed.variant = value;
         break;
       default:
         throw new Error(`unknown argument --${rawKey}`);
