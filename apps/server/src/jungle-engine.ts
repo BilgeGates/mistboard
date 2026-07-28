@@ -34,12 +34,37 @@ export type JungleRustTier = {
 
 // Same three engine ids the TS tiers expose, so the picker / existing PvE games keep
 // working; only the backend changes when the flag is on. Strength rises with the node
-// budget; level 3 uses the engine's "real" 1M budget.
+// budget.
+//
+// Budgets raised 2026-07-27 (level 2: 200k → 1M, level 3: 1M → 5M). The old level-2
+// budget left ~97% of its own latency cap unspent: 200k nodes returns in ~66ms (p50,
+// measured over 12 positions on the release binary, ~2.8M nps and linear in the budget)
+// against a 3000ms ceiling. That unspent headroom cost real games — in
+// jgl_d234f6d2 the bot shuffled a rat back and forth for four moves while a red rat
+// walked to its den, because a den race only enters the search ~10+ plies out and
+// eval_hand carries no den-defense term. Same position, same binary: 200k scores it
+// 0.00 and shuffles; 1M scores it +73 for the attacker and plays the defending
+// elephant move that holds. Level 2 is the only jungle bot the product exposes
+// (FIRST_PARTY_BOT_PROFILES maps jungle → level 2), so this is the tier that matters;
+// level 3 moves with it to keep the ladder monotonic.
+//
+// Measured p50 / max think time at these budgets: level 2 358ms / 436ms, level 3
+// 1839ms / 2133ms — both well inside their movetime ceilings, so the NODE budget stays
+// the binding constraint (CPU-independent strength) and the ceiling stays a
+// time-pressure guard, which is the contract budgetForMove assumes.
 const JUNGLE_RUST_TIERS: ReadonlyMap<string, JungleRustTier> = new Map([
   ['misty-jungle-level-1', { id: 'misty-jungle-level-1', nodes: 20_000, movetimeCapMs: 1_500 }],
-  ['misty-jungle-level-2', { id: 'misty-jungle-level-2', nodes: 200_000, movetimeCapMs: 3_000 }],
-  ['misty-jungle-level-3', { id: 'misty-jungle-level-3', nodes: 1_000_000, movetimeCapMs: 5_000 }],
+  ['misty-jungle-level-2', { id: 'misty-jungle-level-2', nodes: 1_000_000, movetimeCapMs: 3_000 }],
+  ['misty-jungle-level-3', { id: 'misty-jungle-level-3', nodes: 5_000_000, movetimeCapMs: 5_000 }],
 ]);
+
+// The ladder in rung order, so the ordering invariant (each rung strictly stronger and
+// allowed at least as much latency as the one below) is testable rather than eyeballed.
+export const JUNGLE_RUST_LADDER: readonly JungleRustTier[] = [
+  'misty-jungle-level-1',
+  'misty-jungle-level-2',
+  'misty-jungle-level-3',
+].map((id) => JUNGLE_RUST_TIERS.get(id) as JungleRustTier);
 
 export function jungleRustEngineEnabled(): boolean {
   return process.env.MISTBOARD_JUNGLE_RUST_ENGINE === 'true';
