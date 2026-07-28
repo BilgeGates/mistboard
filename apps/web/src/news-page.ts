@@ -2,6 +2,7 @@
 // News box "More" target. Mirrors lichess's updates-feed page shape: one
 // entry per update with date, headline, and the short body line.
 import './news-page.css';
+import { localizeAnnouncement } from './announcement-i18n.js';
 import { type Announcement, announcements } from './announcements.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale, type Locale, localizedHref } from './i18n/locale.js';
@@ -36,7 +37,8 @@ export function buildNewsPage(locale: Locale = currentLocale()): HTMLElement {
 
   const list = document.createElement('ol');
   list.className = 'news-page-list';
-  for (const entry of entries) {
+  for (const source of entries) {
+    const entry = localizeAnnouncement(source, locale);
     const item = document.createElement('li');
     item.className = 'news-page-entry';
 
@@ -81,16 +83,5 @@ export function buildNewsPage(locale: Locale = currentLocale()): HTMLElement {
 }
 
 function announcementCtaLabel(entry: Announcement, locale: Locale): string {
-  switch (entry.cta) {
-    case 'Read rules':
-      return t('news.readRules', {}, locale);
-    case 'Study the rules':
-      return t('news.studyRules', {}, locale);
-    case 'Send feedback':
-      return t('news.sendFeedback', {}, locale);
-    case 'Play the engine':
-      return t('news.playEngine', {}, locale);
-    default:
-      return entry.cta ?? t('news.readMore', {}, locale);
-  }
+  return entry.cta ?? t('news.readMore', {}, locale);
 }

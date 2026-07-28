@@ -17,6 +17,7 @@ import {
 } from '@mistboard/game';
 import './community-rail.css';
 import './articles.css';
+import { localizeAnnouncementString } from './announcement-i18n.js';
 import { type Announcement, announcements } from './announcements.js';
 import {
   type ArticleLang,
@@ -548,7 +549,7 @@ function landingAnnouncementCard(announcement: Announcement, locale: Locale): HT
 
   const title = document.createElement('strong');
   title.className = 'landing-article-card-title';
-  title.textContent = announcement.headline;
+  title.textContent = localizeAnnouncementString(announcement.headline, locale);
 
   link.append(thumb, title);
   return link;
