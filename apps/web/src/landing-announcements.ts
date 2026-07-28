@@ -1,5 +1,6 @@
 import './site-box.css';
 import './landing-announcements.css';
+import { localizeAnnouncement } from './announcement-i18n.js';
 import { type Announcement, announcements } from './announcements.js';
 import { t } from './i18n/catalog.js';
 import { currentLocale, LOCALE_META, type Locale, localizedHref } from './i18n/locale.js';
@@ -69,7 +70,8 @@ export function buildLandingAnnouncements(locale: Locale = currentLocale()): HTM
   return panel;
 }
 
-function renderFeedEntry(entry: Announcement, locale: Locale): HTMLElement {
+function renderFeedEntry(source: Announcement, locale: Locale): HTMLElement {
+  const entry = localizeAnnouncement(source, locale);
   const kindMeta = ANNOUNCEMENT_KIND_META[entry.kind];
   const row = document.createElement('article');
   row.className = `landing-news-update landing-news-update-${entry.kind}`;
@@ -139,18 +141,7 @@ function renderAllUpdates(locale: Locale): HTMLAnchorElement {
 }
 
 function ctaLabel(entry: Announcement, locale: Locale): string {
-  switch (entry.cta) {
-    case 'Read rules':
-      return t('news.readRules', {}, locale);
-    case 'Study the rules':
-      return t('news.studyRules', {}, locale);
-    case 'Send feedback':
-      return t('news.sendFeedback', {}, locale);
-    case 'Play the engine':
-      return t('news.playEngine', {}, locale);
-    default:
-      return entry.cta ?? t('news.readMore', {}, locale);
-  }
+  return entry.cta ?? t('news.readMore', {}, locale);
 }
 
 function formatAnnouncementRelativeDate(iso: string, locale: Locale): string {

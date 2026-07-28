@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { localizeAnnouncement } from './announcement-i18n.js';
 import { announcements } from './announcements.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
 import { buildNewsPage } from './news-page.js';
@@ -168,10 +169,13 @@ describe('landing announcements', () => {
     expect(
       landing.querySelector<HTMLAnchorElement>('a.landing-news-date')?.getAttribute('href'),
     ).toBe('/feed');
-    // Custom CTA labels fall through untranslated (only the shared CTA strings
-    // have catalog entries).
-    const newestCta = [...announcements()].sort((a, b) => b.date.localeCompare(a.date))[0]?.cta;
-    expect(news.querySelector('.news-page-link')?.textContent).toBe(newestCta);
+    // Authored announcement copy (headline, body, CTA label) is translated by
+    // announcement-i18n.ts, not the catalog, so the whole entry renders in zh.
+    const newest = [...announcements()].sort((a, b) => b.date.localeCompare(a.date))[0];
+    const localized = localizeAnnouncement(newest, 'zh-Hant');
+    expect(localized.headline).not.toBe(newest?.headline);
+    expect(news.querySelector('.news-page-link')?.textContent).toBe(localized.cta);
+    expect(news.querySelector('.news-page-headline')?.textContent).toBe(localized.headline);
   });
 
   it('has a rules announcement for every launched leaderboard variant', () => {
