@@ -14,19 +14,14 @@
  * reconnect is invisible at days-per-move cadence.
  */
 
-import {
-  type Color,
-  clockPolicyKindFor,
-  type DARK_CHESS_SPEC_ID,
-  type Move,
-  type RoomTimeControl,
-} from '@mistboard/game';
+import type { Color, DARK_CHESS_SPEC_ID, Move, RoomTimeControl } from '@mistboard/game';
 import { currentAccountUser } from './account-session.js';
 import {
   DARK_CHESS_TENANT_ROOM_ID_PREFIX,
   type DarkChessTenantState,
   darkChessTenant,
 } from './dark-chess-tenant.js';
+import { countDeployGatingRooms } from './deploy-gate.js';
 import { correspondenceEnabled } from './feature-flags.js';
 import * as persistence from './persistence.js';
 import {
@@ -157,15 +152,7 @@ registerVariantTenant({
   rooms: darkChessTenantRooms as unknown as ReadonlyMap<string, TenantManagedRoom>,
   // Correspondence rooms are exempt by design; live-policy dchx_ rooms (none
   // at C1) would still count.
-  activeGameCount: () => {
-    let count = 0;
-    for (const room of darkChessTenantRooms.values()) {
-      if (room.projection.state.status.type !== 'playing') continue;
-      if (clockPolicyKindFor(room.projection.timeControl) !== 'live') continue;
-      count += 1;
-    }
-    return count;
-  },
+  activeGameCount: () => countDeployGatingRooms(darkChessTenantRooms.values()),
   getOrLoadRoom: (roomId) =>
     getOrLoadDarkChessTenantRoom(roomId) as Promise<TenantManagedRoom | null>,
   attachWebSocket: (ctx, socket, request, room) =>

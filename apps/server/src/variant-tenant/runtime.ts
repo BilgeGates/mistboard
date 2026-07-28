@@ -15,6 +15,7 @@
 
 import type { ClockPolicyKind, RoomTimeControl } from '@mistboard/game';
 import { clockPolicyKindFor, isAbortReason } from '@mistboard/game';
+import { countDeployGatingRooms } from '../deploy-gate.js';
 import { firstPartyBotForEngine, firstPartyBotForId } from '../first-party-bots.js';
 import type {
   TenantClientEvent,
@@ -745,24 +746,22 @@ export function isTenantClockState<C extends string>(
 }
 
 // Live in-progress games in a tenant's room map, for the registration's
-// activeGameCount binding. Tenants have no pause, so playing status is the
-// whole liveness check. Correspondence (days-per-move) rooms are excluded on
+// activeGameCount binding. Correspondence (days-per-move) rooms are excluded on
 // purpose: this count is the deploy drain gate, and a multi-week correspondence
 // game must never pin it above zero (its deadline is durable via the sweeper,
-// and a mid-deploy reconnect is invisible at days-per-move cadence). This
-// mirrors the dark-chess tenant's hand-rolled counter.
+// and a mid-deploy reconnect is invisible at days-per-move cadence).
+//
+// The predicate itself lives in deploy-gate.ts so this half of the gate and the
+// chess map agree on what "live" means. They used to disagree: this side
+// dropped correspondence and the chess side didn't, so a single chess
+// correspondence room could block every deploy forever.
 export function countActiveTenantGames(
   rooms: Iterable<{
+    events?: readonly { at?: number }[];
     projection: { state: { status: { type: string } }; timeControl?: RoomTimeControl };
   }>,
 ): number {
-  let count = 0;
-  for (const room of rooms) {
-    if (room.projection.state.status.type !== 'playing') continue;
-    if (clockPolicyKindFor(room.projection.timeControl) !== 'live') continue;
-    count += 1;
-  }
-  return count;
+  return countDeployGatingRooms(rooms);
 }
 
 export function computeTenantConnectedSeats<C extends string>(

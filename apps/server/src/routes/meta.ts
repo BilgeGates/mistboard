@@ -29,6 +29,11 @@ export async function tryHandle(
       restartAt: ctx.drainDeadlineMs(),
       restartPhase: ctx.restartPhase?.() ?? null,
       activeGames: ctx.activeGameCount(),
+      // Why the gate reads what it reads: `gating` is activeGames restated, and
+      // the rest are the rooms a deploy is free to restart under (paused,
+      // correspondence, long-idle, already finished). A release that stalls is
+      // then a readable number rather than a mystery. Aggregate only.
+      deployGate: ctx.deployGateCensus?.() ?? null,
       build: getBuildInfo(),
       darkXiangqiEnabled: darkXiangqiEnabled(),
       ratedEnabled: ratedEnabled(),

@@ -14,6 +14,7 @@ import {
   type VariantId,
 } from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
+import type { DeployGateCensus } from './../deploy-gate.js';
 import * as persistence from './../persistence.js';
 import { isAdminDebugToken, isProductionLikeRuntime } from './../server-policy.js';
 import type { LobbyTicket, Room } from './../server-types.js';
@@ -71,6 +72,9 @@ export interface HttpApiContext {
   drainDeadlineMs(): number | null;
   restartPhase?(): 'pending' | 'restarting' | null;
   activeGameCount(): number;
+  // Optional: test contexts build this slice by hand and only the status route
+  // reads it.
+  deployGateCensus?(): DeployGateCensus;
   persistenceHealth?(): { count1m: number; lastAt: number | null };
 }
 
