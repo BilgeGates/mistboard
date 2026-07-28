@@ -9,11 +9,14 @@ import {
   type JunglePiece,
   type JunglePieceRole,
 } from '@mistboard/game';
-import { chooseJungleEngineMove, JUNGLE_PLAYABLE_ENGINES } from './server-jungle-engine.js';
+import { chooseJungleEngineMove, JUNGLE_ENGINE_TIERS } from './server-jungle-engine.js';
 
-const LEVEL_1 = JUNGLE_PLAYABLE_ENGINES[0]!;
-const LEVEL_2 = JUNGLE_PLAYABLE_ENGINES[1]!;
-const LEVEL_3 = JUNGLE_PLAYABLE_ENGINES[2]!;
+// The search itself is still exercised at every defined tier, retired ones included:
+// these cover the move chooser, not the menu, and a retired tier can still be asked for
+// a move by a legacy room that resumes.
+const LEVEL_1 = JUNGLE_ENGINE_TIERS[0]!;
+const LEVEL_2 = JUNGLE_ENGINE_TIERS[1]!;
+const LEVEL_3 = JUNGLE_ENGINE_TIERS[2]!;
 
 function p(color: JungleColor, role: JunglePieceRole): JunglePiece {
   return { color, role };

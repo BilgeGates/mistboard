@@ -32,39 +32,51 @@ export type JungleRustTier = {
   movetimeCapMs: number;
 };
 
-// Same three engine ids the TS tiers expose, so the picker / existing PvE games keep
-// working; only the backend changes when the flag is on. Strength rises with the node
-// budget.
+// Node budgets for every jungle engine id, playable or retired. Jungle ships ONE bot
+// (2026-07-27): `misty-jungle-level-2` is the only id a new room may be created against
+// — see JUNGLE_PLAYABLE_ENGINE_ID in server-jungle-engine.ts for why the retired ids
+// stay defined rather than deleted.
 //
-// Budgets raised 2026-07-27 (level 2: 200k → 1M, level 3: 1M → 5M). The old level-2
-// budget left ~97% of its own latency cap unspent: 200k nodes returns in ~66ms (p50,
-// measured over 12 positions on the release binary, ~2.8M nps and linear in the budget)
-// against a 3000ms ceiling. That unspent headroom cost real games — in
-// jgl_d234f6d2 the bot shuffled a rat back and forth for four moves while a red rat
-// walked to its den, because a den race only enters the search ~10+ plies out and
-// eval_hand carries no den-defense term. Same position, same binary: 200k scores it
-// 0.00 and shuffles; 1M scores it +73 for the attacker and plays the defending
-// elephant move that holds. Level 2 is the only jungle bot the product exposes
-// (FIRST_PARTY_BOT_PROFILES maps jungle → level 2), so this is the tier that matters;
-// level 3 moves with it to keep the ladder monotonic.
+// The playable tier carries the STRONGEST budget, which is the whole point of collapsing
+// a three-rung ladder into one bot: there is no longer a stronger setting being held
+// back for a rung nobody could select. Two measurements set it:
 //
-// Measured p50 / max think time at these budgets: level 2 358ms / 436ms, level 3
-// 1839ms / 2133ms — both well inside their movetime ceilings, so the NODE budget stays
-// the binding constraint (CPU-independent strength) and the ceiling stays a
-// time-pressure guard, which is the contract budgetForMove assumes.
+//   Why not 200k (what shipped until today). It left ~97% of its own latency cap unspent
+//   — 200k returns in ~66ms p50 against a 3000ms ceiling — and that unspent headroom
+//   lost games. In jgl_d234f6d2 the bot shuffled a rat back and forth for four moves
+//   while a red rat walked into its den, because a den race only enters the search ~10+
+//   plies out and eval_hand carries no den-defense term (#272). Same position, same
+//   binary: 200k scores it 0.00 and shuffles, 1M scores it +73 for the attacker and
+//   plays the defence that holds. Self-play over 120 games: 1M beat 200k by ~+64 Elo
+//   (W29-L7-D84, decisive record 29-7, p = 0.0003).
+//
+//   Why 5M and not 1M. Self-play over 60 games: 5M beat 1M by ~+89 Elo (W16-L1-D43,
+//   decisive record 16-1, p = 0.0001). The returns had not flattened, so the ceiling
+//   below — not diminishing strength — is what stops the budget here.
+//
+//   Why the budget stops at 5M. 5M costs ~1839ms p50 / 2133ms max on the release binary.
+//   The per-move allowance budgetForMove hands out is ~7.6s at the start of a 3+2 game
+//   and ~3.6s with a minute left, so the NODE budget binds and strength stays
+//   CPU-independent. The exception is 1+1, jungle's fastest preset: the allowance there
+//   falls to ~1.8s by the 30-second mark, which is exactly where 5M lands, so a bullet
+//   game clamps on time for its second half. That is the allocator working as designed
+//   (solvency beats strength under time pressure), but it does mean 1+1 Misty is not
+//   quite the same opponent as 3+2 Misty. Raising the budget further would widen that
+//   gap without helping the controls people actually play.
+//
+// The retired tiers keep the budgets they shipped with, so a legacy room that somehow
+// resumes plays as it originally did rather than at a strength nobody chose.
 const JUNGLE_RUST_TIERS: ReadonlyMap<string, JungleRustTier> = new Map([
   ['misty-jungle-level-1', { id: 'misty-jungle-level-1', nodes: 20_000, movetimeCapMs: 1_500 }],
-  ['misty-jungle-level-2', { id: 'misty-jungle-level-2', nodes: 1_000_000, movetimeCapMs: 3_000 }],
-  ['misty-jungle-level-3', { id: 'misty-jungle-level-3', nodes: 5_000_000, movetimeCapMs: 5_000 }],
+  ['misty-jungle-level-2', { id: 'misty-jungle-level-2', nodes: 5_000_000, movetimeCapMs: 4_000 }],
+  ['misty-jungle-level-3', { id: 'misty-jungle-level-3', nodes: 1_000_000, movetimeCapMs: 5_000 }],
 ]);
 
-// The ladder in rung order, so the ordering invariant (each rung strictly stronger and
-// allowed at least as much latency as the one below) is testable rather than eyeballed.
-export const JUNGLE_RUST_LADDER: readonly JungleRustTier[] = [
-  'misty-jungle-level-1',
-  'misty-jungle-level-2',
-  'misty-jungle-level-3',
-].map((id) => JUNGLE_RUST_TIERS.get(id) as JungleRustTier);
+// Every defined tier, so the single-bot invariant (the playable id is the strongest one
+// defined) is testable rather than eyeballed. With the ladder gone, "strictly increasing
+// rungs" is no longer the property worth guarding — "no retired id out-searches the bot
+// players actually get" is.
+export const JUNGLE_RUST_TIER_LIST: readonly JungleRustTier[] = [...JUNGLE_RUST_TIERS.values()];
 
 export function jungleRustEngineEnabled(): boolean {
   return process.env.MISTBOARD_JUNGLE_RUST_ENGINE === 'true';

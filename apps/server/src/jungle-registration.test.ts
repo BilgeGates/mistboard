@@ -15,6 +15,7 @@ import {
   type JungleCreateContext,
   requestsJungle,
 } from './routes/jungle-rooms.js';
+import { JUNGLE_RETIRED_ENGINE_IDS } from './server-jungle-engine.js';
 import { variantTenantForRoomId, variantTenantForSpecId } from './variant-tenant/registry.js';
 
 const jungleFlag = 'MISTBOARD_JUNGLE_ENABLED';
@@ -97,6 +98,21 @@ test('jungle create rejects rated (still unsupported) but accepts PvE vs the bot
     });
     assert.equal(badEngine.status, 400);
     assert.deepEqual(responseJson(badEngine), { error: 'invalid_engine' });
+
+    // Retired rungs are the case that matters: they are still REAL engine ids the
+    // runtime recognises for finished games, so a create gate keyed on "is this an
+    // engine?" would happily seat one. Jungle ships one bot; the API must say so, not
+    // just the picker.
+    for (const retired of JUNGLE_RETIRED_ENGINE_IDS) {
+      const response = captureResponse();
+      await handleJungleCreate(createContext(), response, {
+        gameSpecId: JUNGLE_SPEC_ID,
+        mode: 'pve',
+        engineId: retired,
+      });
+      assert.equal(response.status, 400, `${retired} must not be creatable`);
+      assert.deepEqual(responseJson(response), { error: 'invalid_engine' });
+    }
 
     const pve = captureResponse();
     await handleJungleCreate(createContext(), pve, { gameSpecId: JUNGLE_SPEC_ID, mode: 'pve' });

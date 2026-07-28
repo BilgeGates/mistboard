@@ -519,10 +519,11 @@ const WEB_VARIANT_TENANTS: readonly WebVariantTenant[] = [
       timePresetIds: ['1m1', '3m2', '5m5'],
       offerInMenu: jungleEnabled,
       acceptsDeepLink: jungleEnabled,
-      // In-process Misty Jungle alpha-beta engine (server-jungle-engine.ts).
-      // One public identity (bot-consolidation 2026-07-21): Misty fronts the
-      // depth-3 tier; levels 1/3 stay server-resolvable for history until the
-      // jungle engine gets a properly calibrated ladder.
+      // Misty Jungle: one bot, full strength. The three-rung ladder behind this
+      // picker was collapsed for real on 2026-07-27 — the server now REJECTS a
+      // create request naming level 1 or 3 (they stay resolvable only so finished
+      // games that recorded them still replay as PvE). This single entry is no
+      // longer just a UI choice hiding selectable rungs behind it.
       engineOptions: [
         {
           id: 'misty-jungle-level-2',
