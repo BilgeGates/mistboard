@@ -804,7 +804,7 @@ describe('landing play panel', () => {
     expect(visibleCorrespondenceOptions()).toEqual(['1 day', '3 days', '7 days']);
   });
 
-  it('limits rated setup time controls to 3+2', () => {
+  it('offers every rated-eligible pace in rated setup', () => {
     setRatedModeEnabled(true);
     setResolvedSignedIn(true);
     vi.stubGlobal(
@@ -814,14 +814,17 @@ describe('landing play panel', () => {
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
 
+    // Every official live pace is rated, so toggling casual/rated no longer
+    // changes what Fog Chess offers. A variant whose picker omits a pace still
+    // omits it rated: allowedTimePresetIds narrows the variant's own set.
     openPlaySetup(panel, 'Find opponent');
-    expect(visibleModalTimeControls()).toEqual(['3 + 2']);
+    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
 
     clickModalButton('Casual');
     expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
 
     clickModalButton('Rated');
-    expect(visibleModalTimeControls()).toEqual(['3 + 2']);
+    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
   });
 
   it('keeps rated setup disabled for signed-out players', () => {

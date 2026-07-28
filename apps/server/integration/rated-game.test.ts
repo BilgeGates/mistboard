@@ -61,27 +61,39 @@ if (!testDbUrl) {
     return serverInstance.url.replace(/^ws/, 'http');
   }
 
-  async function joinRatedLobby(cookie: string): Promise<{ status: string; roomId?: string }> {
+  // Every official live pace is rated, each into its own ladder.
+  const RATED_PACES = [
+    { label: '1+1', timeControl: { initialMs: 60_000, incrementMs: 1_000 }, timeClass: 'bullet' },
+    { label: '3+2', timeControl: { initialMs: 180_000, incrementMs: 2_000 }, timeClass: 'blitz' },
+    { label: '5+5', timeControl: { initialMs: 300_000, incrementMs: 5_000 }, timeClass: 'rapid' },
+  ] as const;
+
+  async function joinRatedLobby(
+    cookie: string,
+    timeControl: { initialMs: number; incrementMs: number },
+  ): Promise<{ status: string; roomId?: string }> {
     const resp = await fetch(`${httpBase()}/api/lobby`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', Cookie: cookie },
-      body: JSON.stringify({
-        rated: true,
-        timeControl: { initialMs: 180_000, incrementMs: 2_000 }, // 3+2 → blitz
-        hiddenDraft960: false,
-      }),
+      body: JSON.stringify({ rated: true, timeControl, hiddenDraft960: false }),
     });
     return (await resp.json()) as { status: string; roomId?: string };
   }
 
-  test('signed-in lobby match plays a rated game and moves both Glicko ratings', async () => {
+  for (const pace of RATED_PACES) {
+    test(`signed-in lobby match plays a rated ${pace.label} game into the ${pace.timeClass} ladder`, async () => {
+      await playRatedGame(pace);
+    });
+  }
+
+  async function playRatedGame(pace: (typeof RATED_PACES)[number]): Promise<void> {
     const alice = await signedInAccount(`alice${Date.now().toString(36)}`);
     const bob = await signedInAccount(`bob${Date.now().toString(36)}`);
 
     // Real lobby flow: alice queues rated (waiting), bob queues rated (matched).
-    const first = await joinRatedLobby(alice.cookie);
+    const first = await joinRatedLobby(alice.cookie, pace.timeControl);
     assert.equal(first.status, 'waiting', 'first rated ticket waits');
-    const second = await joinRatedLobby(bob.cookie);
+    const second = await joinRatedLobby(bob.cookie, pace.timeControl);
     assert.equal(second.status, 'matched', 'second rated ticket matches');
     const roomId = second.roomId!;
     assert.ok(roomId, 'match returned a room');
@@ -116,16 +128,27 @@ if (!testDbUrl) {
       (m as { state?: { status?: { type: string } } }).state?.status?.type === 'finished';
     await Promise.all([a.waitFor(finished), b.waitFor(finished)]);
 
-    // The decisive proof: both accounts have a rating row that moved off 1500.
-    // (Ratings only write for account-bound user seats, so rows existing proves
-    // the seats bound to accounts and the game recorded rated.)
-    const { rows } = await db.query<{ user_id: string; elo_rating: number; games_played: number }>(
-      `SELECT user_id, elo_rating, games_played FROM user_ratings
-       WHERE user_id = ANY($1) AND variant = 'fog' AND time_class = 'blitz'`,
+    // The decisive proof: both accounts have a rating row that moved off 1500,
+    // in the ladder for THIS pace. (Ratings only write for account-bound user
+    // seats, so rows existing proves the seats bound to accounts and the game
+    // recorded rated.)
+    const { rows } = await db.query<{
+      user_id: string;
+      time_class: string;
+      elo_rating: number;
+      games_played: number;
+    }>(
+      `SELECT user_id, time_class, elo_rating, games_played FROM user_ratings
+       WHERE user_id = ANY($1) AND variant = 'fog'`,
       [[alice.userId, bob.userId]],
     );
     assert.equal(rows.length, 2, 'both signed-in players got a rating row');
     for (const row of rows) {
+      assert.equal(
+        row.time_class,
+        pace.timeClass,
+        `${row.user_id} rated in the ${pace.label} pool`,
+      );
       assert.equal(row.games_played, 1, `${row.user_id} played 1 rated game`);
       assert.notEqual(row.elo_rating, 1500, `${row.user_id} rating moved off the 1500 base`);
     }
@@ -139,5 +162,5 @@ if (!testDbUrl) {
 
     await a.disconnect();
     await b.disconnect();
-  });
+  }
 }

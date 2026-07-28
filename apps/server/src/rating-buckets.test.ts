@@ -122,16 +122,28 @@ test('bucketForGame fails closed for future casual-only specs, never the fog poo
   );
 });
 
-test('bucketForGame only rates the public rated time control', () => {
-  assert.equal(bucketForGame({ initialMs: 60_000, incrementMs: 1_000 }), null);
-  assert.equal(
+test('bucketForGame buckets each rated live pace into its own time class', () => {
+  assert.deepEqual(bucketForGame({ initialMs: 60_000, incrementMs: 1_000 }), {
+    variant: 'fog',
+    timeClass: 'bullet',
+  });
+  assert.deepEqual(
     bucketForGame({
       variant: CROSSROADS_CHESS_SPEC_ID,
       initialMs: 300_000,
       incrementMs: 5_000,
     }),
-    null,
+    { variant: gameSpecForId(CROSSROADS_CHESS_SPEC_ID).ratingPoolBase, timeClass: 'rapid' },
   );
+});
+
+test('bucketForGame yields no bucket for an unofficial or correspondence pace', () => {
+  // Off-menu pace: no spec, so no bucket.
+  assert.equal(bucketForGame({ initialMs: 240_000, incrementMs: 0 }), null);
+  // Correspondence cadences are days-per-move; their ms values match no live
+  // spec, which is what keeps correspondence casual by construction (the
+  // perfect-information correspondence allowance rests on it).
+  assert.equal(bucketForGame({ initialMs: 24 * 60 * 60 * 1000, incrementMs: 0 }), null);
 });
 
 test('parseRatingVariant keeps legacy leaderboard API params stable', () => {

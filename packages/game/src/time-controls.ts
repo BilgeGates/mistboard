@@ -14,13 +14,53 @@ export type TimeControlSpec = {
   initialMs: number;
   incrementMs: number;
   timeClass: TimeClass;
+  // Whether a game at this pace can be rated. Mirrors the `rated` flag on
+  // GameSpec: one source of truth, so the server allowlist and the web time
+  // picker derive rather than each hand-maintaining a list (they drifted
+  // apart while rated was 3+2-only). A new pace ships casual-only until this
+  // is deliberately set.
+  rated: boolean;
 };
 
 export const TIME_CONTROLS: readonly TimeControlSpec[] = [
-  { id: '1m1', label: '1 + 1', initialMs: 60_000, incrementMs: 1_000, timeClass: 'bullet' },
-  { id: '3m2', label: '3 + 2', initialMs: 180_000, incrementMs: 2_000, timeClass: 'blitz' },
-  { id: '5m5', label: '5 + 5', initialMs: 300_000, incrementMs: 5_000, timeClass: 'rapid' },
+  {
+    id: '1m1',
+    label: '1 + 1',
+    initialMs: 60_000,
+    incrementMs: 1_000,
+    timeClass: 'bullet',
+    rated: true,
+  },
+  {
+    id: '3m2',
+    label: '3 + 2',
+    initialMs: 180_000,
+    incrementMs: 2_000,
+    timeClass: 'blitz',
+    rated: true,
+  },
+  {
+    id: '5m5',
+    label: '5 + 5',
+    initialMs: 300_000,
+    incrementMs: 5_000,
+    timeClass: 'rapid',
+    rated: true,
+  },
 ];
+
+// Rated eligibility for a live pace. Correspondence never qualifies: at
+// days-per-move cadence engine assistance is unenforceable, and the
+// perfect-information correspondence allowance (routes/correspondence-rooms.ts)
+// rests on correspondence being casual by construction.
+export function isRatedTimeControl(tc: RoomTimeControl): boolean {
+  if (tc.daysPerMove !== undefined) return false;
+  return findTimeControl(tc.initialMs, tc.incrementMs)?.rated === true;
+}
+
+export const RATED_TIME_CONTROLS: readonly TimeControlSpec[] = TIME_CONTROLS.filter(
+  (tc) => tc.rated,
+);
 
 export function findTimeControl(
   initialMs: number | null | undefined,

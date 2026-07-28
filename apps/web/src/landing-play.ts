@@ -20,6 +20,7 @@ import {
   JUNGLE_SPEC_ID,
   KRIEGSPIEL_SPEC_ID,
   MINI_XIANGQI_SPEC_ID,
+  RATED_TIME_CONTROLS,
   REVEAL_CHESS_SPEC_ID,
   TIME_CONTROLS,
   type TimeClass,
@@ -172,16 +173,23 @@ const LANDING_TIME_PRESETS: LandingTimePreset[] = TIME_CONTROLS.map((tc) => ({
 // Lichess pairs every quick-pairing pool with its speed category (Bullet / Blitz /
 // Rapid) under the clock. English-for-now, matching the rest of the lobby board.
 // Which time-control presets the picker offers, per variant. Tenant variants
-// declare their own choices in the web registry. Fog Chess uses all three
-// official live controls; rated play still collapses to the public 3+2 bucket.
+// declare their own choices in the web registry; Fog Chess uses all three
+// official live controls. Rated NARROWS that set to the rated-eligible paces
+// rather than replacing it, so a variant that does not offer a pace casually
+// (dark chess has no 5+5) never offers it rated either.
 function allowedTimePresetIds(
   gameSpecId: LandingGameSpecId,
   rated: boolean,
 ): ReadonlySet<LandingTimePresetId> {
-  if (rated) return new Set<LandingTimePresetId>(['3m2']);
   const tenantLanding = webVariantTenantForSpecId(gameSpecId)?.landing;
-  if (tenantLanding) return new Set<LandingTimePresetId>(tenantLanding.timePresetIds);
-  return new Set<LandingTimePresetId>(['1m1', '3m2', '5m5']);
+  const offered = tenantLanding
+    ? new Set<LandingTimePresetId>(tenantLanding.timePresetIds)
+    : new Set<LandingTimePresetId>(['1m1', '3m2', '5m5']);
+  if (!rated) return offered;
+  // Same source as the server's rated allowlist: the `rated` flag on each
+  // time-control spec (@mistboard/game), so the two cannot drift.
+  const ratedIds = new Set<string>(RATED_TIME_CONTROLS.map((tc) => tc.id));
+  return new Set<LandingTimePresetId>([...offered].filter((id) => ratedIds.has(id)));
 }
 // Dark chess is always offered. Integrated tenant variants join the normal play
 // entry points through their registry landing config.
@@ -1728,8 +1736,8 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
   // Re-scope the picker to the current variant/rated/mode. Hides the segmented
   // toggle (and forces real time) when correspondence isn't offered; shows exactly
   // one chip group for the active segment; keeps the allowed real-time presets in
-  // sync (5+5 is hidden for Crossroads casual, rated collapses to 3+2, and a pick
-  // that is no longer offered falls back to 3+2).
+  // sync (5+5 is hidden for Crossroads casual, rated keeps only rated-eligible
+  // paces, and a pick that is no longer offered falls back to 3+2).
   const syncTimeControls = () => {
     const corrAvailable = correspondenceAvailable();
     if (!corrAvailable) {

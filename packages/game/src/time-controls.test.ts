@@ -8,6 +8,8 @@ import {
   findTimeControl,
   isOfficialCorrespondenceTimeControl,
   isOfficialTimeControl,
+  isRatedTimeControl,
+  RATED_TIME_CONTROLS,
   TIME_CONTROLS,
   timeClassFromTimeControl,
 } from './time-controls.js';
@@ -93,6 +95,33 @@ test('isOfficialCorrespondenceTimeControl accepts only the official shapes', () 
   // A live time control is not a correspondence one.
   assert.equal(
     isOfficialCorrespondenceTimeControl({ initialMs: 180_000, incrementMs: 2_000 }),
+    false,
+  );
+});
+
+test('every official live pace is rated-eligible', () => {
+  assert.deepEqual(
+    RATED_TIME_CONTROLS.map((tc) => tc.id),
+    ['1m1', '3m2', '5m5'],
+  );
+  for (const tc of TIME_CONTROLS) {
+    assert.equal(
+      isRatedTimeControl({ initialMs: tc.initialMs, incrementMs: tc.incrementMs }),
+      tc.rated,
+      `rated flag drift for ${tc.id}`,
+    );
+  }
+});
+
+test('rated eligibility rejects unofficial and correspondence paces', () => {
+  assert.equal(isRatedTimeControl({ initialMs: 240_000, incrementMs: 0 }), false);
+  // Correspondence can never be rated: engine assistance is unenforceable at
+  // days-per-move, and the perfect-information correspondence allowance rests
+  // on it staying casual.
+  assert.equal(isRatedTimeControl(correspondenceTimeControl(1)), false);
+  // Including a forged claim whose ms values collide with a live spec.
+  assert.equal(
+    isRatedTimeControl({ initialMs: 180_000, incrementMs: 2_000, daysPerMove: 1 }),
     false,
   );
 });

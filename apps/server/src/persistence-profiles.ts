@@ -26,6 +26,7 @@ import type { PlayerTitle } from './persistence-titles.js';
 import {
   bucketForGame,
   PUBLIC_RATING_TIME_CLASS,
+  PUBLIC_RATING_TIME_CLASSES,
   type RatingTimeClass,
   type RatingVariant,
 } from './rating-buckets.js';
@@ -417,23 +418,32 @@ export async function getUserProfileByHandle(
   );
 
   const visibilityClause = profileVisibilityClause(isViewer);
+  // Every rated time class, not just the default one: each rated live pace has
+  // its own ladder, so a player's bullet rating must be reachable from their
+  // profile rather than silently existing in the database.
   const { rows: ratingRows } = await getPool().query<{
     variant: RatingVariant;
+    time_class: RatingTimeClass;
     elo_rating: number;
     rating_deviation: number;
     games_played: number;
   }>(
-    `SELECT variant, elo_rating, rating_deviation, games_played
+    `SELECT variant, time_class, elo_rating, rating_deviation, games_played
      FROM user_ratings
-     WHERE user_id = $1 AND time_class = $2`,
-    [user.id, PUBLIC_RATING_TIME_CLASS],
+     WHERE user_id = $1`,
+    [user.id],
   );
-  const ratingByVariant = new Map<
+  const ratingsByVariant = new Map<
     RatingVariant,
-    { eloRating: number; gamesPlayed: number; ratingDeviation: number }
+    Map<RatingTimeClass, { eloRating: number; gamesPlayed: number; ratingDeviation: number }>
   >();
   for (const row of ratingRows) {
-    ratingByVariant.set(row.variant, {
+    let byClass = ratingsByVariant.get(row.variant);
+    if (!byClass) {
+      byClass = new Map();
+      ratingsByVariant.set(row.variant, byClass);
+    }
+    byClass.set(row.time_class, {
       eloRating: row.elo_rating,
       gamesPlayed: row.games_played,
       ratingDeviation: row.rating_deviation,
@@ -483,23 +493,45 @@ export async function getUserProfileByHandle(
     variantGameCounts.set(row.variant, Number(row.games_played));
   }
 
+  // One row per rated (variant, time class) the player actually has, plus a
+  // single activity row per variant with no rated games at all — that row is
+  // what lets casual-only and correspondence play still show up on a profile,
+  // and its game count is variant-wide (paces are not comparable, but the
+  // "N games played" line was never a per-pace number).
   const variantKeys = new Set<RatingVariant>([
-    ...ratingByVariant.keys(),
+    ...ratingsByVariant.keys(),
     ...variantGameCounts.keys(),
   ]);
   const ratings: ProfileBucketRating[] = [];
   for (const variant of variantKeys) {
-    const rating = ratingByVariant.get(variant);
     const totalGames = variantGameCounts.get(variant) ?? 0;
-    if (totalGames === 0 && !rating) continue;
-    ratings.push({
-      variant,
-      timeClass: PUBLIC_RATING_TIME_CLASS,
-      eloRating: rating?.eloRating ?? null,
-      ratedGamesPlayed: rating?.gamesPlayed ?? 0,
-      totalGamesPlayed: totalGames,
-      provisional: rating ? rating.ratingDeviation > PROVISIONAL_RD : false,
-    });
+    const byClass = ratingsByVariant.get(variant);
+    const ratedClasses = PUBLIC_RATING_TIME_CLASSES.filter(
+      (timeClass) => (byClass?.get(timeClass)?.gamesPlayed ?? 0) > 0,
+    );
+    if (ratedClasses.length === 0) {
+      if (totalGames === 0) continue;
+      ratings.push({
+        variant,
+        timeClass: PUBLIC_RATING_TIME_CLASS,
+        eloRating: null,
+        ratedGamesPlayed: 0,
+        totalGamesPlayed: totalGames,
+        provisional: false,
+      });
+      continue;
+    }
+    for (const timeClass of ratedClasses) {
+      const rating = byClass?.get(timeClass);
+      ratings.push({
+        variant,
+        timeClass,
+        eloRating: rating?.eloRating ?? null,
+        ratedGamesPlayed: rating?.gamesPlayed ?? 0,
+        totalGamesPlayed: totalGames,
+        provisional: rating ? rating.ratingDeviation > PROVISIONAL_RD : false,
+      });
+    }
   }
 
   // Puzzle ratings (separate Glicko-2 pool). Show only variants the user has
@@ -567,6 +599,7 @@ export async function getUserRatingHistory(
   handle: string,
   viewerUserId: string | null,
   variant: RatingVariant,
+  timeClass: RatingTimeClass = PUBLIC_RATING_TIME_CLASS,
 ): Promise<ProfileRatingHistory | null> {
   const user = await loadProfileUser(handle);
   if (!user) return null;
@@ -608,7 +641,7 @@ export async function getUserRatingHistory(
         incrementMs: row.increment_ms,
         hiddenDraft960: row.hidden_draft960,
       });
-      return bucket?.variant === variant && bucket.timeClass === PUBLIC_RATING_TIME_CLASS;
+      return bucket?.variant === variant && bucket.timeClass === timeClass;
     })
     .map(
       (row): ProfileRatingHistoryPoint => ({
@@ -619,5 +652,5 @@ export async function getUserRatingHistory(
       }),
     );
 
-  return { variant, timeClass: PUBLIC_RATING_TIME_CLASS, points };
+  return { variant, timeClass, points };
 }

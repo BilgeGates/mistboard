@@ -221,6 +221,12 @@ function buildBotHeader(profile: BotSummaryProfile): HTMLElement {
   return header;
 }
 
+const TIME_CLASS_LABELS: Record<'bullet' | 'blitz' | 'rapid', string> = {
+  bullet: 'Bullet',
+  blitz: 'Blitz',
+  rapid: 'Rapid',
+};
+
 // Compact rating grid: rated variants only (a "?"-provisional or settled Elo),
 // highest first, each a variant marker beside its value. Returns null when the
 // player has no rated variant so the card collapses cleanly instead of showing
@@ -252,7 +258,10 @@ function buildRatingGrid(ratings: ProfileBucketRating[]): HTMLElement | null {
     const value = document.createElement('span');
     value.className = 'profile-summary-card-rating-value';
     value.textContent = `${bucket.eloRating}${bucket.provisional ? '?' : ''}`;
-    tile.title = label;
+    // A player can hold a rating in the same variant at more than one pace, so
+    // the tooltip carries the pace: two tiles with the same marker are
+    // otherwise indistinguishable.
+    tile.title = `${label} · ${TIME_CLASS_LABELS[bucket.timeClass]}`;
     tile.append(value);
 
     grid.append(tile);

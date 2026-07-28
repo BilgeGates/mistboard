@@ -306,7 +306,7 @@ describe('profile ratings rail', () => {
 
     expect(fetchSpy).toHaveBeenCalledWith('/api/users/dev-testing/profile');
     expect(fetchSpy).toHaveBeenCalledWith(
-      '/api/users/dev-testing/rating-history?variant=jungle_flip',
+      '/api/users/dev-testing/rating-history?variant=jungle_flip&timeClass=blitz',
     );
     await vi.waitFor(() => {
       expect(root.querySelector('.profile-rating-chart-line')).not.toBeNull();
@@ -547,7 +547,7 @@ describe('profile ratings rail', () => {
     // 4 rated ladders (Dark Chess + always-on Jungle, Flip Jungle, Fortress).
     expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(4);
     expect(root.textContent).not.toContain('Active players');
-    expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard/summary?limit=10');
+    expect(fetchSpy).toHaveBeenCalledWith('/api/leaderboard/summary?limit=10&timeClass=blitz');
     expect(fetchSpy).toHaveBeenCalledWith('/api/players/online');
   });
 
