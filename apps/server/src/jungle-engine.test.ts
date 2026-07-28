@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildJunglePositionCommand, JUNGLE_RUST_LADDER } from './jungle-engine.js';
+import { buildJunglePositionCommand, JUNGLE_RUST_TIER_LIST } from './jungle-engine.js';
+import {
+  isJungleEngineClientId,
+  isJunglePlayableEngineClientId,
+  JUNGLE_PLAYABLE_ENGINE_ID,
+  JUNGLE_RETIRED_ENGINE_IDS,
+} from './server-jungle-engine.js';
 
 test('Jungle position command carries semicolon-delimited repetition seeds', () => {
   const current = '7/7/7/7/7/7/7/7/R5e b 11 45';
@@ -12,23 +18,42 @@ test('Jungle position command carries semicolon-delimited repetition seeds', () 
   assert.equal(buildJunglePositionCommand(current), `position fen ${current}`);
 });
 
-// Node budget is the difficulty dial, so a rung that does not out-search the one below
-// it is a broken ladder, not a mild mis-tune. Raising one rung past the next is the easy
-// way to do that by hand (level 2 and level 3 were one bump apart before the 2026-07-27
-// budget raise). The latency ceiling must widen with the budget for the same reason: a
-// rung whose ceiling clamps before its node budget is spent is CPU-dependent rather than
-// CPU-independent strength, which is the property the node dial exists to give.
-test('Jungle Rust ladder is strictly stronger and no tighter on latency per rung', () => {
-  for (let i = 1; i < JUNGLE_RUST_LADDER.length; i += 1) {
-    const lower = JUNGLE_RUST_LADDER[i - 1]!;
-    const upper = JUNGLE_RUST_LADDER[i]!;
+// Jungle ships one bot, and it is meant to be the strongest one defined. A retired tier
+// carrying a bigger node budget than the playable one would mean the bot players get is
+// deliberately weaker than code that no longer serves anybody — the exact inversion the
+// single-bot collapse was meant to remove.
+test('the playable Jungle tier out-searches every retired one', () => {
+  const playable = JUNGLE_RUST_TIER_LIST.find((tier) => tier.id === JUNGLE_PLAYABLE_ENGINE_ID);
+  assert.ok(playable, `no Rust tier defined for the playable id ${JUNGLE_PLAYABLE_ENGINE_ID}`);
+  for (const tier of JUNGLE_RUST_TIER_LIST) {
+    if (tier.id === playable.id) continue;
     assert.ok(
-      upper.nodes > lower.nodes,
-      `${upper.id} (${upper.nodes} nodes) must out-search ${lower.id} (${lower.nodes} nodes)`,
+      playable.nodes >= tier.nodes,
+      `retired ${tier.id} (${tier.nodes} nodes) out-searches the playable ${playable.id} (${playable.nodes} nodes)`,
     );
-    assert.ok(
-      upper.movetimeCapMs >= lower.movetimeCapMs,
-      `${upper.id} searches more nodes than ${lower.id} but is allowed less time`,
-    );
+  }
+});
+
+// The two predicates must NOT agree. Create-time admits one id; the runtime recognises
+// every id ever seated, because finished games persist theirs. If a refactor collapses
+// them, one of two silent failures follows: retired ids become creatable again, or old
+// PvE games stop being recognised as PvE (their engine seat reads as a human).
+test('retired Jungle engine ids stay recognisable but are not creatable', () => {
+  assert.ok(isJunglePlayableEngineClientId(JUNGLE_PLAYABLE_ENGINE_ID));
+  assert.ok(isJungleEngineClientId(JUNGLE_PLAYABLE_ENGINE_ID));
+  assert.ok(JUNGLE_RETIRED_ENGINE_IDS.length > 0);
+  for (const id of JUNGLE_RETIRED_ENGINE_IDS) {
+    assert.equal(isJunglePlayableEngineClientId(id), false, `${id} must not be creatable`);
+    assert.equal(isJungleEngineClientId(id), true, `${id} must still read as an engine seat`);
+  }
+  assert.equal(isJunglePlayableEngineClientId('misty-jungle-level-9'), false);
+  assert.equal(isJungleEngineClientId('misty-jungle-level-9'), false);
+
+  // Every defined tier is accounted for as either the bot or a retirement. A tier that
+  // is neither is an id the runtime honours but nothing describes — the state this
+  // whole split exists to keep out of the codebase.
+  const accounted = new Set([JUNGLE_PLAYABLE_ENGINE_ID, ...JUNGLE_RETIRED_ENGINE_IDS]);
+  for (const tier of JUNGLE_RUST_TIER_LIST) {
+    assert.ok(accounted.has(tier.id), `${tier.id} is neither the playable bot nor retired`);
   }
 });

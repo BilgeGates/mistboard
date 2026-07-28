@@ -1,8 +1,11 @@
 // Sample game for the Jungle (Dou Shou Qi) rules article.
 //
-// A real game between two strengths of our own bot: Misty Jungle level 3 (Red)
-// vs Misty Jungle level 2 (Black), replayed move-for-move through the jungle
-// kernel. Jungle is perfect-information, so the spec is just the move list — no
+// A real game our own bot played against itself at two different search budgets
+// (the old level-3 tier as Red, the old level-2 tier as Black), replayed
+// move-for-move through the jungle kernel. The rung names are deliberately NOT in
+// the player-facing labels below: jungle ships one bot as of 2026-07-27, and a
+// rules article is the wrong place to advertise a ladder players cannot select.
+// Jungle is perfect-information, so the spec is just the move list — no
 // hidden deal. Red sends a lion across the river early, swims a rat up the far
 // lane, uses the rat to take Black's elephant, and marches into Black's den.
 // Every signature rule shows up: the lion's river jump, the swimming rat, the
@@ -17,8 +20,8 @@ export const JUNGLE_SAMPLE_GAME: {
   result: string;
   moves: string;
 } = {
-  red: 'Misty Jungle level 3',
-  black: 'Misty Jungle level 2',
+  red: 'Misty',
+  black: 'Misty',
   event: 'Engine vs engine',
   outcome: 'Red wins by reaching the den · 69 plies',
   result:

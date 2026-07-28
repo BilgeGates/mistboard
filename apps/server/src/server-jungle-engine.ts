@@ -57,7 +57,25 @@ const MIN_MOVETIME_MS = 50;
 const ENGINE_MOVE_MAX_ATTEMPTS = 2;
 
 export const JUNGLE_ENGINE_VERSION = '0.1.0';
-export const JUNGLE_DEFAULT_ENGINE_ID = 'misty-jungle-level-2';
+
+// Jungle ships ONE bot (2026-07-27). `misty-jungle-level-2` is it, at full strength;
+// levels 1 and 3 are RETIRED — no new game may be created against them. They stay
+// defined because engine ids are persisted: games played before the collapse carry a
+// retired id in their seats, and replay, postgame pve-vs-pvp detection, and engine
+// attribution all ask "is this seat an engine?" of those old rows. Deleting the ids
+// would answer "no" and silently reclassify finished games as PvP.
+//
+// Hence two predicates, deliberately different:
+//   isJunglePlayableEngineClientId — may a NEW room be created against this id? (one id)
+//   isJungleEngineClientId         — is this seat an engine at all? (every id, ever)
+// The create route takes the first; the tenant runtime takes the second. Collapsing
+// them back into one is the bug this split exists to prevent.
+// There is no "default" any more — with one bot, default and only are the same thing.
+export const JUNGLE_PLAYABLE_ENGINE_ID = 'misty-jungle-level-2';
+export const JUNGLE_RETIRED_ENGINE_IDS: readonly string[] = [
+  'misty-jungle-level-1',
+  'misty-jungle-level-3',
+];
 
 type JungleEngineRoom = TenantLiveRoom<
   'jungle',
@@ -85,7 +103,16 @@ export type JungleEngineTier = {
   softPickWindow: number;
 };
 
-export const JUNGLE_PLAYABLE_ENGINES: readonly JungleEngineTier[] = [
+// Every jungle engine id that has ever been seated, playable or retired — this is the
+// HISTORICAL set, not a menu (see JUNGLE_PLAYABLE_ENGINE_ID above). These depths drive
+// the in-process TS search, which serves only when MISTBOARD_JUNGLE_RUST_ENGINE is off
+// (dev); production runs the Rust binary's node budgets in jungle-engine.ts.
+//
+// The playable tier searches one ply deeper than it used to: with the ladder gone there
+// is no rung above it to leave room for, and the whole point of collapsing to one bot is
+// that the one bot is the strongest one. The retired tiers keep the depths they shipped
+// with, so a legacy room that somehow resumes plays as it originally did.
+export const JUNGLE_ENGINE_TIERS: readonly JungleEngineTier[] = [
   {
     id: 'misty-jungle-level-1',
     name: 'Misty Jungle level 1',
@@ -95,10 +122,10 @@ export const JUNGLE_PLAYABLE_ENGINES: readonly JungleEngineTier[] = [
     softPickWindow: 60,
   },
   {
-    id: JUNGLE_DEFAULT_ENGINE_ID,
-    name: 'Misty Jungle level 2',
+    id: JUNGLE_PLAYABLE_ENGINE_ID,
+    name: 'Misty',
     version: JUNGLE_ENGINE_VERSION,
-    depth: 3,
+    depth: 4,
     softPickRank: 0,
     softPickWindow: 0,
   },
@@ -112,7 +139,7 @@ export const JUNGLE_PLAYABLE_ENGINES: readonly JungleEngineTier[] = [
   },
 ];
 
-const ENGINE_BY_ID = new Map(JUNGLE_PLAYABLE_ENGINES.map((tier) => [tier.id, tier]));
+const ENGINE_BY_ID = new Map(JUNGLE_ENGINE_TIERS.map((tier) => [tier.id, tier]));
 
 // Overall piece strength. The rat is boosted well above its rank-1 floor: it kills
 // the elephant and swims, so it carries outsized tactical weight.
@@ -145,8 +172,16 @@ export function jungleEngineVersion(engineId: string | undefined): string | null
   return isJungleEngineClientId(engineId) ? JUNGLE_ENGINE_VERSION : null;
 }
 
+// "Is this seat an engine?" — true for retired ids too, because finished games still
+// carry them. Used by the tenant runtime (replay, mode detection, forfeit exemption).
 export function isJungleEngineClientId(clientId: string | undefined): boolean {
   return jungleEngineTierFor(clientId) !== null;
+}
+
+// "May a NEW room be created against this id?" — the create-route allowlist. Exactly one
+// id passes; a retired id is rejected as invalid_engine rather than quietly honoured.
+export function isJunglePlayableEngineClientId(clientId: string | undefined): boolean {
+  return clientId === JUNGLE_PLAYABLE_ENGINE_ID;
 }
 
 export function jungleEngineSeatFor(room: JungleEngineRoom): JungleColor | null {

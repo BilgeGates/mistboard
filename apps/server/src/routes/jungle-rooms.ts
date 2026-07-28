@@ -1,5 +1,8 @@
 import { JUNGLE_SPEC_ID, type RoomTimeControl } from '@mistboard/game';
-import { isJungleEngineClientId, JUNGLE_DEFAULT_ENGINE_ID } from './../server-jungle-engine.js';
+import {
+  isJunglePlayableEngineClientId,
+  JUNGLE_PLAYABLE_ENGINE_ID,
+} from './../server-jungle-engine.js';
 import {
   createTenantRoomsRoute,
   resolveFirstMoverHumanSeat,
@@ -35,8 +38,11 @@ const jungleRoute = createTenantRoomsRoute<
   preferredColors: ['red', 'black', 'random'],
   engine: {
     kind: 'seated',
-    defaultEngineId: JUNGLE_DEFAULT_ENGINE_ID,
-    isEngineClientId: isJungleEngineClientId,
+    defaultEngineId: JUNGLE_PLAYABLE_ENGINE_ID,
+    // PLAYABLE, not "is an engine": this is a create-time allowlist, so it must reject
+    // the retired level-1/level-3 ids that the tenant runtime still recognises for
+    // finished games. See server-jungle-engine.ts for why the two predicates differ.
+    isEngineClientId: isJunglePlayableEngineClientId,
     seats: JUNGLE_SEATS,
   },
   // PvP + PvE (the in-process Misty Jungle engine). Rated is still unsupported.
