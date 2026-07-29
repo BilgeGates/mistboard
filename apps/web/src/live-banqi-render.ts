@@ -253,11 +253,16 @@ export function renderBanqiBoardSvg(
 
 let stylesInstalled = false;
 
-export function installBanqiBoardStyles(): void {
-  if (stylesInstalled) return;
-  stylesInstalled = true;
-  const style = document.createElement('style');
-  style.textContent = `
+/**
+ * The board's presentation, as a stylesheet rather than presentation attributes.
+ *
+ * Exported because it is NOT optional decoration: `renderBanqiBoardSvg` emits class
+ * names (`banqi-board-bg`, `banqi-grid`, `banqi-back`, the last-move marks) and nothing
+ * else, so an SVG rendered without these rules has no board, no grid, and no face-down
+ * discs. Anything rasterizing the markup outside a page (resvg has no page stylesheet)
+ * must inline this string, and inlining a hand-copied duplicate is how the two drift.
+ */
+export const BANQI_BOARD_CSS = `
     .banqi-board {
       display: block;
       width: 100%;
@@ -315,5 +320,11 @@ export function installBanqiBoardStyles(): void {
     .banqi-back circle { fill: #2f8f6b; stroke: #184a38; stroke-width: 2; }
     .banqi-hit rect { fill: transparent; cursor: pointer; }
   `;
+
+export function installBanqiBoardStyles(): void {
+  if (stylesInstalled) return;
+  stylesInstalled = true;
+  const style = document.createElement('style');
+  style.textContent = BANQI_BOARD_CSS;
   document.head.append(style);
 }
