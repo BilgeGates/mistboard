@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { EngineTurnRequest, Move } from '@mistboard/game';
-import { startEngineHttpService } from './engine-service.js';
+import { engineTurnPoolPayload, startEngineHttpService } from './engine-service.js';
 
 const legalMove: Move = { from: 'e2', to: 'e4' };
 const xiangqiLegalMove = { from: 'i10', to: 'i9' } as unknown as Move;
@@ -289,3 +289,36 @@ async function reserveSeat(
   assert.equal(typeof body.reservationId, 'string');
   return body.reservationId;
 }
+
+// The worker derives its wall deadline from the payload, and its usable pick
+// window is that value minus ~1450ms of guards, vetoed below a 3000ms floor. When
+// the deadline was sourced from the COMPUTE budget, any compute budget under
+// ~4450ms sent every move to an unsearched deadline-guard — at 3+2, any clock
+// under ~29.8s. Keep the two quantities on two fields.
+test('pool payload separates the transport deadline from the compute budget', () => {
+  const payload = engineTurnPoolPayload(sampleRequest, 15_100, 5_100);
+
+  assert.equal(payload.workerDeadlineMs, 15_100, 'deadline must be the transport bound');
+  assert.equal(payload.computeBudgetMs, 5_100);
+  // Legacy key keeps its historical meaning (the compute budget) so a worker that
+  // has not been redeployed is unaffected. engine-worker does not auto-deploy, so
+  // the two sides must be able to ship in either order.
+  assert.equal(payload.watchdogTimeoutMs, 5_100);
+  assert.equal(payload.engineTurnRequest, sampleRequest);
+});
+
+test('pool payload never lets the compute budget become the deadline', () => {
+  // A late-game 3+2 move: ~25s on the clock yields a ~4.05s compute budget, which
+  // is below the old ~4450ms cliff.
+  const payload = engineTurnPoolPayload(sampleRequest, 14_050, 4_050);
+  const GUARDS_MS = 1_200 + 250; // DEADLINE_GUARD_MS + PICK_DEADLINE_GUARD_MS
+  const MIN_PICK_MS = 3_000; // MIN_STRATEGY_PICK_BUDGET_MS
+  const pickWindowMs = (payload.workerDeadlineMs as number) - GUARDS_MS;
+
+  assert.ok(
+    pickWindowMs > MIN_PICK_MS,
+    `pick window ${pickWindowMs}ms must clear the ${MIN_PICK_MS}ms floor; deriving it from ` +
+      `the ${payload.computeBudgetMs}ms compute budget yields ` +
+      `${(payload.computeBudgetMs as number) - GUARDS_MS}ms, which vetoes the search`,
+  );
+});

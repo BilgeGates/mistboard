@@ -96,6 +96,36 @@ export async function startEngineHttpService(
   };
 }
 
+/**
+ * The stdin payload for a python worker turn.
+ *
+ * The two budgets are two DIFFERENT quantities and get two fields: how long we
+ * will WAIT (`workerDeadlineMs`, the transport bound) and how long the engine may
+ * THINK (`computeBudgetMs`). They used to share one key, `watchdogTimeoutMs`, set
+ * to the compute budget — so the worker built its wall deadline from the compute
+ * budget. Its usable pick window is that value minus ~1450ms of guards, vetoed
+ * below a 3000ms floor, so any compute budget under ~4450ms sent EVERY move to an
+ * unsearched deadline-guard move. At 3+2 that is any clock under ~29.8s (prod game
+ * 8d08b93a ended at 32.6s, i.e. 233ms from the cliff).
+ *
+ * The legacy key is still sent, holding its historical meaning (the compute
+ * budget), so a worker that has not been redeployed behaves exactly as before.
+ * engine-worker does not auto-deploy, so the two sides must ship independently in
+ * either order.
+ */
+export function engineTurnPoolPayload(
+  request: EngineTurnRequest,
+  watchdogTimeoutMs: number,
+  computeBudgetMs: number,
+): Record<string, unknown> {
+  return {
+    engineTurnRequest: request,
+    workerDeadlineMs: watchdogTimeoutMs,
+    computeBudgetMs,
+    watchdogTimeoutMs: computeBudgetMs,
+  };
+}
+
 async function choosePythonEngineTurn(
   request: EngineTurnRequest,
   watchdogTimeoutMs: number,
@@ -105,7 +135,7 @@ async function choosePythonEngineTurn(
   const pool = await getPythonPool(request.engineId, { defaultSize: poolSize });
   if (!pool) throw new Error('python pool is disabled');
   const response = await pool.chooseMove(
-    { engineTurnRequest: request, watchdogTimeoutMs: computeBudgetMs },
+    engineTurnPoolPayload(request, watchdogTimeoutMs, computeBudgetMs),
     watchdogTimeoutMs,
   );
   const diagnostics: Record<string, unknown> = {
