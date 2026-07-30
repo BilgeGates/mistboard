@@ -538,9 +538,16 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
 // so the pool shows breadth ("not just dark chess") while volume sets the natural
 // weighting. The human tiers use a watch-style filter (any real finish except
 // abandon, since people resign/flag far more than king-capture); EvE is
-// decisive-only (result <> draw, variant-agnostic), one game per bakeoff run. All
-// tiers require >= 30 plies so a board never opens on a short game.
-const SHOWCASE_MIN_PLY = 30;
+// decisive-only (result <> draw, variant-agnostic), one game per bakeoff run.
+// Every tier has a ply floor so a board never opens on a near-starting position.
+//
+// The human floor dropped 30 → 20 on 2026-07-30: at Mistboard's liquidity a
+// decisive 20-ply game someone actually played is real activity worth showing,
+// and the abandonment filter already drops the rage-quits the floor was standing
+// in for. EvE is abundant (a bakeoff produces hundreds), so it can afford to stay
+// picky and keeps the 30-ply floor.
+const SHOWCASE_MIN_PLY_HUMAN = 20;
+const SHOWCASE_MIN_PLY_ENGINE = 30;
 // Pool size. Anchored on "games take minutes to finish, low liquidity"; tune from
 // traffic (see also the client poller).
 const SHOWCASE_POOL_SIZE = 14;
@@ -568,21 +575,40 @@ export async function listShowcaseGames(
     queryShowcasePve(fetchLimit, variants),
     queryShowcaseEngine(variants),
   ]);
-  return leadWithMostRecent(interleaveByVariant([...pvp, ...pve, ...eve], bounded));
+  const tiered = [...pvp, ...pve, ...eve];
+  return leadWithMostRecent(interleaveByVariant(tiered, bounded), tiered);
 }
 
 // Move the single most-recently-finished game to the front so the freshest real
 // activity greets a first-time visitor, while the rest keeps the de-clustered
 // breadth interleave (we deliberately do NOT recency-sort the whole pool — that
 // would re-cluster bakeoff dumps the interleave exists to break up).
-export function leadWithMostRecent(games: RecentEveGameRecord[]): RecentEveGameRecord[] {
-  if (games.length < 2) return games;
-  let leadIdx = 0;
-  for (let i = 1; i < games.length; i += 1) {
-    if (games[i].endedAt.getTime() > games[leadIdx].endedAt.getTime()) leadIdx = i;
+//
+// `candidates` is the FULL tiered input the pool was interleaved from, and the
+// lead is elected over it, not over the interleaved pool: the interleave
+// truncates to poolSize (at 7 watchable variants x 2 slots it is exactly
+// saturated) and EvE sorts last within a variant, so the freshest game on the
+// whole site routinely loses its variant's slot. Electing from survivors then led
+// the homepage with a game hours older than the site's latest activity, which is
+// the one thing this function exists to prevent. A lead injected this way can
+// share a variant with the pool's next entry — the recency override deliberately
+// outranks the interleave's no-repeat property.
+export function leadWithMostRecent(
+  pool: RecentEveGameRecord[],
+  candidates: RecentEveGameRecord[] = pool,
+): RecentEveGameRecord[] {
+  let lead: RecentEveGameRecord | null = null;
+  for (const candidate of candidates) {
+    if (!lead || candidate.endedAt.getTime() > lead.endedAt.getTime()) lead = candidate;
   }
-  if (leadIdx === 0) return games;
-  return [games[leadIdx], ...games.slice(0, leadIdx), ...games.slice(leadIdx + 1)];
+  if (!lead) return pool;
+  const leadGame = lead;
+  const at = pool.findIndex((game) => game.roomId === leadGame.roomId);
+  if (at === 0) return pool;
+  if (at > 0) return [pool[at], ...pool.slice(0, at), ...pool.slice(at + 1)];
+  // The freshest game did not survive the breadth truncation: inject it and drop
+  // the tail entry so the pool keeps its size.
+  return [leadGame, ...pool.slice(0, Math.max(0, pool.length - 1))];
 }
 
 // Round-robin the tier-ordered games across their variants: one per variant per
@@ -637,7 +663,7 @@ async function queryShowcasePvp(
        )
      ORDER BY games.ended_at DESC, games.room_id DESC
      LIMIT $2`,
-    [SHOWCASE_MIN_PLY, limit, variants],
+    [SHOWCASE_MIN_PLY_HUMAN, limit, variants],
   );
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
 }
@@ -664,7 +690,7 @@ async function queryShowcasePve(
        )
      ORDER BY games.ended_at DESC, games.room_id DESC
      LIMIT $2`,
-    [SHOWCASE_MIN_PLY, limit, variants],
+    [SHOWCASE_MIN_PLY_HUMAN, limit, variants],
   );
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
 }
@@ -691,7 +717,7 @@ async function queryShowcaseEngine(variants: readonly string[]): Promise<RecentE
          SELECT 1 FROM events WHERE events.room_id = games.room_id LIMIT 1
        )
      ORDER BY COALESCE(games.corpus_id, games.room_id), games.ended_at DESC`,
-    [SHOWCASE_MIN_PLY, variants],
+    [SHOWCASE_MIN_PLY_ENGINE, variants],
   );
   const records = await attachGameParticipants(rows.map(recentEveGameRecordFromRow));
   records.sort((a, b) => b.endedAt.getTime() - a.endedAt.getTime());

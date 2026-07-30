@@ -43,10 +43,13 @@ export type LandingTvOptions = {
 };
 
 export type LandingTvController = {
-  // Freshest-first completed games (the existing showcase pool). The head entry
-  // is "the last game" the board freezes on. Entries never seen in any prior
-  // pool are treated as games that finished DURING this session and air once;
-  // everything else is history and only ever shows frozen. `jumpNow` marks a
+  // The completed-games showcase pool. Its HEAD is the site's most recently
+  // finished game ("the last game" the board freezes on), but the rest is a
+  // breadth interleave across variants, NOT recency order — so anything that
+  // needs "the newest" out of the tail compares endedAt, never pool position.
+  // Entries never seen in any prior pool are treated as games that finished
+  // DURING this session and air once; everything else is history and only ever
+  // shows frozen. `jumpNow` marks a
   // BASELINE refresh (the first real pool replacing the static fallback):
   // nothing airs, the board re-freezes on the new head. A live game is never
   // cut by pool updates.
@@ -287,6 +290,25 @@ export async function mountLandingTv(
     await freezeOnHead();
   };
 
+  // The one entry allowed to air: the most recently FINISHED game among those the
+  // client has not shown yet. Pool position is the wrong signal — the server pool
+  // interleaves variants for breadth, so the first not-yet-aired entry is
+  // whichever variant sorts earliest in the round-robin and can easily be days
+  // old. Airing that one broadcasts stale history as if it had just finished.
+  // Entries with no endedAt (bundled demos) sort last and never win.
+  const finishedAtMs = (entry: ShowcaseEntry): number => {
+    const parsed = entry.endedAt ? Date.parse(entry.endedAt) : Number.NaN;
+    return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+  };
+  const newestUnaired = (entries: ShowcaseEntry[]): ShowcaseEntry | null => {
+    let best: ShowcaseEntry | null = null;
+    for (const entry of entries) {
+      if (airedRoomIds.has(entry.roomId)) continue;
+      if (!best || finishedAtMs(entry) > finishedAtMs(best)) best = entry;
+    }
+    return best;
+  };
+
   const stopPolling = (): void => {
     if (pollTimer !== null) {
       window.clearTimeout(pollTimer);
@@ -366,7 +388,7 @@ export async function mountLandingTv(
         if (mode !== 'live') enqueue(freezeOnHead);
         return;
       }
-      const candidate = fresh.find((entry) => !airedRoomIds.has(entry.roomId));
+      const candidate = newestUnaired(fresh);
       if (candidate) pendingAir = candidate;
       if (mode === 'live') return; // the airing waits out the live broadcast
       if (mode !== 'replay') enqueue(syncCompleted);
