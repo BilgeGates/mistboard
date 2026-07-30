@@ -27,8 +27,12 @@ definePersistenceTests('daily puzzles', () => {
   // (json column, seq ordering) reproduces the committed seed byte for byte —
   // the serving-contract pin for the persistence-ON path.
   test('puzzle store syncs the seed and round-trips it byte-identically', async () => {
-    // Defensive: a prior aborted run may have leaked the mined test row below.
-    await getPool().query(`DELETE FROM puzzles WHERE id = 'xq-mined-test-row-1'`);
+    // Defensive: any prior run may have leaked a mined row into this seed-backed
+    // table (the mined row below, or a promoted one from the publication test).
+    // The harness clears these per-test now; this stays as the belt because the
+    // assertion right after it is a COUNT against the committed seed, and a
+    // single stray row turns it into a confusing off-by-one.
+    await getPool().query(`DELETE FROM puzzles WHERE source_kind <> 'seed'`);
     resetPuzzleStoreForTests();
     const store = await getPuzzleStore();
     assert.equal(store.source, 'database');
