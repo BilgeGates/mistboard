@@ -71,7 +71,9 @@ async function tick(): Promise<void> {
   await flush();
 }
 
-function mountController(initialPool: Array<{ roomId: string; specId: string; pov: 'white' }>) {
+function mountController(
+  initialPool: Array<{ roomId: string; specId: string; pov: 'white'; endedAt?: string }>,
+) {
   return mountLandingTv(root, initialPool, {
     isConnected: () => true,
     loaderForId: async () => [],
@@ -137,6 +139,38 @@ test('a game that finishes DURING the session airs once, then freezes; history n
   await flush();
   await tick();
   expect(mounts).toHaveLength(2);
+  tv.destroy();
+});
+
+test('airs the NEWEST unseen game, not the first one in the breadth-interleaved pool', async () => {
+  // The server pool round-robins variants, so a refresh can reveal several
+  // never-seen rooms at once with a stale one sorting first. Only the game that
+  // actually finished most recently may air; the rest is history.
+  const staleJungle = {
+    endedAt: '2026-07-28T19:48:00Z',
+    pov: 'white' as const,
+    roomId: 'gameStaleJungle',
+    specId: 'jungle',
+  };
+  const freshXiangqi = {
+    endedAt: '2026-07-30T01:00:00Z',
+    pov: 'white' as const,
+    roomId: 'gameFreshXiangqi',
+    specId: 'xiangqi',
+  };
+  const tv = await mountController([{ ...entryA, endedAt: '2026-07-29T12:00:00Z' }]);
+  await flush();
+  expect(mounts).toHaveLength(1);
+
+  tv.updateCompletedPool([
+    { ...entryA, endedAt: '2026-07-29T12:00:00Z' },
+    staleJungle,
+    freshXiangqi,
+  ]);
+  await flush();
+  expect(mounts).toHaveLength(2);
+  expect(mounts[1]!.roomId).toBe('gameFreshXiangqi');
+  expect(mounts[1]!.options.autoplay).toBe(true);
   tv.destroy();
 });
 

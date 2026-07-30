@@ -124,7 +124,12 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     };
     endedAtByRoomId[game.roomId] = game.endedAt;
     variantByRoomId[game.roomId] = game.variant;
-    return { roomId: game.roomId, specId: specIdForShowcaseVariant(game.variant), pov };
+    return {
+      roomId: game.roomId,
+      specId: specIdForShowcaseVariant(game.variant),
+      pov,
+      ...(game.endedAt ? { endedAt: game.endedAt } : {}),
+    };
   };
   const params = new URLSearchParams(window.location.search);
   // Dev aid: ?only=<specId> pins the showcase to a single variant (e.g.

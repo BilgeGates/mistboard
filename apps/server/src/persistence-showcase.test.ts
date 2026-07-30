@@ -111,9 +111,106 @@ definePersistenceTests('showcase + browse queries', () => {
     // activity; the tiered interleave then fills, substantial PvP ahead of the rest.
     assert.equal(ids[0], 'sc-eve-x');
     assert.deepEqual(ids.slice(1, 3), ['sc-pvp-kc', 'sc-pvp-timeout']);
-    // <30 plies and abandonments are not demo-worthy.
+    // Under the ply floor and abandonments are not demo-worthy.
     assert.ok(!ids.includes('sc-pvp-short'));
     assert.ok(!ids.includes('sc-pvp-abandon'));
+  });
+
+  // Regression (2026-07-30): the recency lead is elected over the full tiered
+  // input, not over the interleaved pool. Two variants against limit 2 saturates
+  // the breadth interleave, so the site's freshest game (an EvE game, which sorts
+  // last inside its variant) is truncated out — it must still lead, or the
+  // homepage viewer freezes on a game hours older than the latest activity.
+  test('listShowcaseGames leads with the freshest game even when breadth truncates it', async () => {
+    const t = (min: number) => new Date(Date.UTC(2026, 5, 1, 15, min, 0));
+    await seed([
+      {
+        roomId: 'sc-trunc-dc-pvp',
+        mode: 'pvp',
+        result: 'white-wins',
+        termination: 'king-captured',
+        plyCount: 40,
+        endedAt: t(10),
+      },
+      {
+        roomId: 'sc-trunc-xq-pvp',
+        mode: 'pvp',
+        result: 'red-wins',
+        termination: 'checkmate',
+        plyCount: 40,
+        endedAt: t(9),
+        variant: 'xiangqi',
+      },
+      {
+        roomId: 'sc-trunc-dc-pvp-older',
+        mode: 'pvp',
+        result: 'black-wins',
+        termination: 'timeout',
+        plyCount: 40,
+        endedAt: t(8),
+      },
+      {
+        roomId: 'sc-trunc-freshest-eve',
+        mode: 'eve',
+        result: 'white-wins',
+        termination: 'king-captured',
+        plyCount: 60,
+        endedAt: t(50),
+        corpusId: 'run-trunc',
+      },
+    ]);
+
+    const games = await listShowcaseGames({ limit: 2, variants: ['dark-chess', 'xiangqi'] });
+    const ids = games.map((g) => g.roomId);
+    assert.equal(ids[0], 'sc-trunc-freshest-eve');
+    assert.equal(games.length, 2, 'the injected lead drops the tail, it does not grow the pool');
+  });
+
+  // The human floor is 20 plies (EvE keeps 30): a decisive game someone actually
+  // sat through is real activity, and abandonment filtering already covers quits.
+  test('listShowcaseGames admits 20+ ply human games and still rejects shorter ones', async () => {
+    const t = (min: number) => new Date(Date.UTC(2026, 5, 1, 16, min, 0));
+    await seed([
+      {
+        roomId: 'sc-floor-pvp-24',
+        mode: 'pvp',
+        result: 'black-wins',
+        termination: 'resignation',
+        plyCount: 24,
+        endedAt: t(2),
+      },
+      {
+        roomId: 'sc-floor-pve-20',
+        mode: 'pve',
+        result: 'white-wins',
+        termination: 'king-captured',
+        plyCount: 20,
+        endedAt: t(1),
+      },
+      {
+        roomId: 'sc-floor-pvp-19',
+        mode: 'pvp',
+        result: 'white-wins',
+        termination: 'resignation',
+        plyCount: 19,
+        endedAt: t(3),
+      },
+      {
+        roomId: 'sc-floor-eve-24',
+        mode: 'eve',
+        result: 'white-wins',
+        termination: 'king-captured',
+        plyCount: 24,
+        endedAt: t(4),
+        corpusId: 'run-floor',
+      },
+    ]);
+
+    const ids = (await listShowcaseGames({ limit: 8 })).map((g) => g.roomId);
+    assert.ok(ids.includes('sc-floor-pvp-24'), '24-ply PvP resignation is a real game');
+    assert.ok(ids.includes('sc-floor-pve-20'), '20 plies is exactly the human floor');
+    assert.ok(!ids.includes('sc-floor-pvp-19'), 'one ply under the human floor stays out');
+    assert.ok(!ids.includes('sc-floor-eve-24'), 'EvE is abundant and keeps the 30-ply floor');
   });
 
   test('listShowcaseGames falls back to EvE, one game per run, decisive only', async () => {

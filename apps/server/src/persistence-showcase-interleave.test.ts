@@ -11,8 +11,8 @@ const g = (roomId: string, variant: string): RecentEveGameRecord =>
   ({ roomId, variant }) as unknown as RecentEveGameRecord;
 
 // leadWithMostRecent also reads .endedAt.
-const gt = (roomId: string, endedAt: string): RecentEveGameRecord =>
-  ({ roomId, endedAt: new Date(endedAt) }) as unknown as RecentEveGameRecord;
+const gt = (roomId: string, endedAt: string, variant = 'A'): RecentEveGameRecord =>
+  ({ roomId, endedAt: new Date(endedAt), variant }) as unknown as RecentEveGameRecord;
 
 describe('showcase interleave', () => {
   test('round-robins across variants: breadth first, volume in the tail', () => {
@@ -77,5 +77,28 @@ describe('showcase recency lead', () => {
   test('handles 0- and 1-element pools', () => {
     assert.deepEqual(leadWithMostRecent([]), []);
     assert.equal(leadWithMostRecent([gt('a', '2026-07-01T12:00:00Z')]).length, 1);
+  });
+
+  // The regression this pair guards: the lead used to be elected from the
+  // interleaved pool, so when the breadth truncation dropped the site's freshest
+  // game (EvE sorts last inside its variant, and at 7 variants x 2 slots the pool
+  // is exactly saturated) the homepage led with a hours-old game instead.
+  test('injects the freshest candidate that lost its variant slot to truncation', () => {
+    const pool = [gt('a1', '2026-07-01T10:00:00Z', 'A'), gt('b1', '2026-07-01T09:00:00Z', 'B')];
+    const truncated = gt('a-eve', '2026-07-01T23:00:00Z', 'A');
+    assert.deepEqual(
+      leadWithMostRecent(pool, [...pool, truncated]).map((r) => r.roomId),
+      // Injected at the front, pool size preserved (the tail entry drops).
+      ['a-eve', 'a1'],
+    );
+  });
+
+  test('still hoists in place when the freshest candidate did survive', () => {
+    const pool = [gt('a1', '2026-07-01T10:00:00Z', 'A'), gt('b1', '2026-07-01T12:00:00Z', 'B')];
+    const alsoConsidered = gt('a2', '2026-07-01T08:00:00Z', 'A');
+    assert.deepEqual(
+      leadWithMostRecent(pool, [...pool, alsoConsidered]).map((r) => r.roomId),
+      ['b1', 'a1'],
+    );
   });
 });

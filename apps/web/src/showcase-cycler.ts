@@ -17,6 +17,11 @@ export type ShowcaseEntry = {
   roomId: string;
   specId: string;
   pov: 'white' | 'black';
+  // When the game finished (ISO, from the showcase API). Absent for the bundled
+  // cold-start demos, which have no real finish time. Pool ORDER cannot stand in
+  // for this: the server pool is variety-interleaved across variants, not sorted
+  // by recency, so anything that needs "the newest game" has to compare this.
+  endedAt?: string;
 };
 
 export type ShowcaseCyclerOptions = {
