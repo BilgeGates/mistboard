@@ -49,6 +49,14 @@ export function definePersistenceTests(area: string, registerTests: () => void):
       await client.query(
         `UPDATE puzzles SET mining_candidate_id = NULL WHERE mining_candidate_id IS NOT NULL`,
       );
+      // ...then drop the promoted rows themselves. The publication test's whole
+      // job is to insert 'mined' rows into this table, and puzzles is (rightly)
+      // held out of the TRUNCATE below because reseeding it is expensive — so
+      // without this the promoted rows outlive the run and the NEXT run sees
+      // more puzzles than the committed seed has, failing the seed round-trip.
+      // Hosted CI never caught it: it starts from a fresh database every time,
+      // while every local worktree shares one long-lived test DB.
+      await client.query(`DELETE FROM puzzles WHERE source_kind <> 'seed'`);
       await client.query(`DELETE FROM xiangqi_puzzle_mining_runs`);
       // Keep the historical-library tables out of the CASCADE truncate below.
       // Mining runs reference that library, and Postgres follows TRUNCATE's FK
