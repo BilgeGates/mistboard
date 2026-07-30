@@ -5,6 +5,7 @@
 
 import { type GameEvent, replayGameEvents } from '@mistboard/game';
 import type { BeliefRow, TraceRow } from './belief-panel.js';
+import type { PostgamePlayerRow } from './game-display.js';
 import type { EngineReviewPanels } from './replay.js';
 
 export type GameReviewPayload = {
@@ -66,6 +67,11 @@ type FeaturedGame = {
   blackEngineId?: string | null;
   timeControl?: Record<string, unknown> | null;
   participants?: GameParticipant[];
+  // Shaped seat roster from /api/games/:id/review. This mirror MUST declare it:
+  // loadGameForReview prefers the review endpoint over the summary, so a postgame
+  // page reading `game.players` (buildReviewMeta) sees only what this type admits.
+  // Omitting it here is what hid the review endpoint not sending it at all.
+  players?: PostgamePlayerRow[];
   playerColor?: 'white' | 'black';
 };
 

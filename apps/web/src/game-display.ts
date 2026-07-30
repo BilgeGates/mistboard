@@ -24,6 +24,18 @@ export type GameParticipant = {
   ratingAfter?: number | null;
 };
 
+// The shaped seat roster the postgame endpoints emit (`postgamePlayers` on the
+// server): private seats name-redacted, corpus names applied, engine seats tagged.
+// The review left rail reads THIS, not whiteName/blackName — see
+// review/game-review-meta.ts. Optional on FeaturedGame because the showcase/list
+// feeds don't carry it; every postgame endpoint does.
+export type PostgamePlayerRow = {
+  color: string;
+  name: string;
+  rating: number | null;
+  kind: 'account' | 'guest' | 'engine';
+};
+
 export type FeaturedGame = {
   roomId: string;
   variant: string;
@@ -50,6 +62,7 @@ export type FeaturedGame = {
   initialMs?: number | null;
   incrementMs?: number | null;
   participants?: GameParticipant[];
+  players?: PostgamePlayerRow[];
   playerColor?: GameParticipant['color'];
   // Banqi only: the ink bound to the first-mover seat on the opening flip, so list
   // surfaces can show the result by ink ("Black wins") rather than the seat token.
