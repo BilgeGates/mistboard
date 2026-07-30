@@ -24,6 +24,7 @@ import {
   type HttpApiContext,
   isHttpAdminAuthorized,
   isHttpAdminSession,
+  type PostgamePlayer,
   postgamePlayers,
   requireAdminSession,
   requireMethod,
@@ -429,12 +430,8 @@ export async function tryHandle(
     // already returns, so the flagship /game/:id review left rail reads identical
     // player rows. Existing consumers ignore the extra key; the raw record fields
     // (whiteName/blackName/timeControl) stay in place.
-    const players = postgamePlayers(game.participants ?? [], {
-      whiteName: game.whiteName,
-      blackName: game.blackName,
-    });
     response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({ game: { ...game, players } }));
+    response.end(JSON.stringify({ game: gameWithPostgamePlayers(game) }));
     return true;
   }
 
@@ -517,6 +514,26 @@ async function gameSummaryForApi(
   return persisted ?? ctx.inMemoryGameSummary(roomId);
 }
 
+// Attach the public seat roster (name/rating/kind, with private-seat redaction +
+// corpus-name override) to a persisted game record. EVERY endpoint that serves a
+// finished-game envelope to a postgame page must carry it: the web review loader
+// (review.ts loadGameForReview) PREFERS /api/games/:id/review and only falls back
+// to /api/games/:id, so shaping `players` on the summary alone left the review
+// payload without it — and buildReviewMeta reads `game.players`, so the Fog Chess
+// left rail rendered with zero player rows (no names, no seat colors) for every
+// game. Shape it in one place so the two endpoints cannot drift again.
+function gameWithPostgamePlayers(
+  game: persistence.RecentEveGameRecord,
+): persistence.RecentEveGameRecord & { players: PostgamePlayer[] } {
+  return {
+    ...game,
+    players: postgamePlayers(game.participants ?? [], {
+      whiteName: game.whiteName,
+      blackName: game.blackName,
+    }),
+  };
+}
+
 async function gameEventsForApi(ctx: HttpApiContext, roomId: string): Promise<GameEvent[] | null> {
   const persisted = persistence.isInitialized() ? await persistence.loadRoom(roomId) : null;
   return persisted ?? ctx.rooms.get(roomId)?.events ?? null;
@@ -586,7 +603,7 @@ async function gameReviewForApi(
   const traceColors = intersectionColors(engineColors, artifactColors(traceArtifacts));
 
   return {
-    game,
+    game: gameWithPostgamePlayers(game),
     events: replayResponse.body.events,
     capabilities: {
       canViewEngineArtifacts,
