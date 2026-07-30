@@ -644,7 +644,12 @@ function payloadDiagnostics(payload: Record<string, unknown>): Record<string, un
   const request = isRecord(payload.engineTurnRequest) ? payload.engineTurnRequest : null;
   const clock = request && isRecord(request.clock) ? request.clock : null;
   return {
-    worker_budget_ms: numberOrNull(payload.watchdogTimeoutMs),
+    // Two distinct quantities: the compute the engine may spend vs. the wall
+    // deadline the worker enforces. `worker_budget_ms` keeps its name for log
+    // consumers but now reads the explicit compute field, because the legacy
+    // `watchdogTimeoutMs` key carries the compute budget, not the deadline.
+    worker_budget_ms: numberOrNull(payload.computeBudgetMs ?? payload.watchdogTimeoutMs),
+    worker_deadline_ms: numberOrNull(payload.workerDeadlineMs),
     game_id: stringOrNull(request?.gameId),
     session_id: stringOrNull(request?.sessionId),
     engine_id: stringOrNull(request?.engineId),
