@@ -1,11 +1,25 @@
-cc959fb
+1bca757
 # ^ The mistboard-engine commit the prod build checks out (railpack build step).
+# Worker budget fields (2026-07-30): 1bca757 makes the worker read `workerDeadlineMs`
+# for its wall deadline and `computeBudgetMs` for the compute cap, instead of taking
+# both from the single `watchdogTimeoutMs` key that carried the COMPUTE budget. The
+# usable pick window is that value minus ~1450ms of guards, vetoed below 3000ms, so
+# any compute budget under ~4450ms sent EVERY move to an unsearched deadline-guard —
+# at 3+2, any clock below ~29.8s. Prod game 8d08b93a ended at 32.6s, 233ms from the
+# cliff. Paired with the web-side payload split (engine-service.ts
+# engineTurnPoolPayload), which still sends the legacy key so either side can deploy
+# first. Also carries cbe24d1 (jungle repetition context in UCI search), which was on
+# engine main but had not yet been deployed.
+# Rollback target: cc959fb (the previous pin; drops both of the above, no registry or
+# env changes needed since the legacy key is still sent).
+#
 # Dark Xiangqi v1.1 (2026-07-15): cc959fb ships python-fdx-v1.1 (guarded-64x32-20m:
 # faithful stack + adaptive material prune + general veto + fair blocker vision),
 # baked in the engine profile — no FOW_XIANGQI_* profile env needed. Human-validated
 # (beat author 3/3). Requires the two fair-vision lockstep env flags set on BOTH
 # services (FOW_XIANGQI_SHROUD_BLOCKERS + MISTBOARD_XIANGQI_SHROUD_BLOCKERS).
-# Rollback target: 170ab43 (before fdx v1.1; also repoint DARK_XIANGQI_DEFAULT_ENGINE_ID
+# Rollback target for fdx v1.1 specifically: 170ab43 (before fdx v1.1; also repoint
+# DARK_XIANGQI_DEFAULT_ENGINE_ID
 # -> python-fdx-v1.0 in registry.ts). Single source of truth for the deployed private
 # engine; bump this + railpack cachebust together before deploying. The railpack reads
 # only the first line; this comment is ignored.
