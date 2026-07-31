@@ -783,28 +783,6 @@
   font-size: 34px;
 }
 
-/* Board palette previews: diagonal split of light + dark squares. Values
-   mirror the --board-light/--board-dark pairs in the :root theme blocks
-   above. If a palette changes, update both. */
-.theme-tile-preview-board[data-id="green"] {
-  background: linear-gradient(135deg, #eeeed2 0 50%, #769656 50% 100%);
-}
-.theme-tile-preview-board[data-id="standard"] {
-  background: linear-gradient(135deg, #f0d9b5 0 50%, #b58863 50% 100%);
-}
-.theme-tile-preview-board[data-id="blue"] {
-  background: linear-gradient(135deg, #dee3e6 0 50%, #8ca2ad 50% 100%);
-}
-.theme-tile-preview-board[data-id="mono"] {
-  background: linear-gradient(135deg, #e6e6e6 0 50%, #8a8a8a 50% 100%);
-}
-.theme-tile-preview-board[data-id="contrast"] {
-  background: linear-gradient(135deg, #fdf2cc 0 50%, #5c6b7a 50% 100%);
-}
-.theme-tile-preview-board[data-id="colorblind"] {
-  background: linear-gradient(135deg, #f4e6b1 0 50%, #5c7fa0 50% 100%);
-}
-
 /* Fog previews: each shows the fog effect over a neutral dark-square
    background so the style reads at small size regardless of current palette. */
 .theme-tile-preview-fog {

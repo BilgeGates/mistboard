@@ -13,10 +13,11 @@ import {
   siteThemeOptions,
 } from './theme.js';
 
-// The chess board/piece and fog pickers are trimmed to options that change
-// LEGIBILITY rather than taste (2026-07-26). These lock the floor so the taste
-// options cannot drift back in without a deliberate edit, and so a player whose
-// stored preference was retired lands on a neighbour, not the default.
+// The chess board and piece pickers are GONE (board 2026-07-31, pieces
+// 2026-07-26): each family ships one, and the wood board carries the
+// accessibility floor itself rather than deferring to a High contrast tile. Fog
+// keeps its options. These lock that shape so tiles cannot drift back in without
+// a deliberate edit, and so any stored preference resolves to a shipping value.
 describe('appearance option floor', () => {
   beforeEach(() => {
     Object.defineProperty(window, 'localStorage', {
@@ -25,8 +26,8 @@ describe('appearance option floor', () => {
     });
   });
 
-  it('keeps only the accessibility-justified chess board themes', () => {
-    expect(boardThemes.map((theme) => theme.id)).toEqual(['green', 'contrast', 'colorblind']);
+  it('ships exactly one chess board, with no picker to choose it', () => {
+    expect(boardThemes.map((theme) => theme.id)).toEqual(['standard']);
   });
 
   it('ships exactly one chess piece set, with no picker to choose it', () => {
@@ -37,11 +38,15 @@ describe('appearance option floor', () => {
     expect(fogThemes.map((theme) => theme.id)).toEqual(['solid', 'veil', 'invisible']);
   });
 
-  it('maps a retired board theme to its nearest survivor, not the default', () => {
-    window.localStorage.setItem('mistboard.boardTheme', 'mono');
-    expect(readStoredTheme()).toBe('contrast');
-    window.localStorage.setItem('mistboard.boardTheme', 'blue');
-    expect(readStoredTheme()).toBe('green');
+  // With one board there is no "nearest survivor" left to map onto: a player who
+  // had picked High contrast or Tournament lands on the wood board like everyone
+  // else. Covered explicitly because those two were shipping options, not just
+  // legacy ids.
+  it('resolves every retired board preference to the single board', () => {
+    for (const retired of ['mono', 'blue', 'green', 'contrast', 'colorblind']) {
+      window.localStorage.setItem('mistboard.boardTheme', retired);
+      expect(readStoredTheme()).toBe('standard');
+    }
   });
 
   it('maps a retired piece set and fog style to their survivors', () => {
@@ -57,7 +62,7 @@ describe('appearance option floor', () => {
 
   it('still falls back to the default for an unknown value', () => {
     window.localStorage.setItem('mistboard.boardTheme', 'not-a-theme');
-    expect(readStoredTheme()).toBe('green');
+    expect(readStoredTheme()).toBe('standard');
   });
 });
 
@@ -241,13 +246,10 @@ describe('appearance family gating', () => {
 
     await rebuildThemePanel();
 
-    const familyGroup = document.querySelector<HTMLElement>('[data-board-family-select]');
-    expect(
-      [...familyGroup!.querySelectorAll<HTMLButtonElement>('[data-board-family-option]')].map(
-        (option) => option.dataset.boardFamilyOption,
-      ),
-    ).toEqual(['xiangqi', 'chess']);
-    // Chess ships one piece set, so the chess piece picker is gone entirely.
+    // Chess ships one board and one piece set, so both chess pickers are gone —
+    // and with nothing left to scope, so is the Game selector.
+    expect(document.querySelector('[data-board-family-select]')).toBeNull();
+    expect(document.querySelector('[data-theme-tile="board"]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="piece"]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="fog"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqlayout"]')).toBeNull();
@@ -275,7 +277,10 @@ describe('appearance family gating', () => {
     expect(document.documentElement.dataset.xiangqiBoardLayout).toBe('intersection');
   });
 
-  it('keeps Crossroads inside the xiangqi appearance family', async () => {
+  // Crossroads is a chess-family variant with xiangqi-side disks, so it used to
+  // be the case that pulled a chess option into the menu. With one chess board
+  // it must not bring back a chess tile or the Game selector.
+  it('adds no chess-family controls when Crossroads is enabled', async () => {
     vi.stubEnv('DEV', false);
     vi.stubEnv('VITE_CROSSROADS_CHESS_ENABLED', 'true');
     vi.stubEnv('VITE_DARK_XIANGQI_ENABLED', 'false');
@@ -283,45 +288,40 @@ describe('appearance family gating', () => {
 
     await rebuildThemePanel();
 
-    const familyGroup = document.querySelector<HTMLElement>('[data-board-family-select]');
-    expect(
-      [...familyGroup!.querySelectorAll<HTMLButtonElement>('[data-board-family-option]')].map(
-        (option) => option.dataset.boardFamilyOption,
-      ),
-    ).toEqual(['xiangqi', 'chess']);
-
+    expect(document.querySelector('[data-board-family-select]')).toBeNull();
+    expect(document.querySelector('[data-theme-tile="board"]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="piece"]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="xqlayout"]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
   });
 
-  it('surfaces the Game toggle + xiangqi pickers without xiangqi env flags', async () => {
+  it('surfaces the xiangqi pickers, with no Game toggle, without xiangqi env flags', async () => {
     await rebuildThemePanel();
 
-    expect(document.querySelector('[data-board-family-select]')).not.toBeNull();
+    expect(document.querySelector('[data-board-family-select]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="xqlayout"]')).toBeNull();
     expect(document.querySelector('[data-theme-tile="xqboard"]')).not.toBeNull();
     expect(document.querySelector('[data-theme-tile="xqpiece"]')).not.toBeNull();
   });
 
-  it('opens board settings on the first Xiangqi family option by default', async () => {
+  // Board and Pieces both drop straight into the xiangqi tiles now. This is the
+  // empty-panel guard: while a Game selector was still in the panel, choosing
+  // 'chess' gated away the only remaining field and left the sub-panel blank.
+  it('opens Board and Pieces straight onto xiangqi tiles, never an empty panel', async () => {
     await rebuildThemePanel();
 
-    // Board only: the Pieces panel dropped its Game selector along with the chess
-    // piece picker, since xiangqi is the sole family with a choice to scope.
-    for (const key of ['board']) {
+    for (const [key, tile] of [
+      ['board', 'xqboard'],
+      ['pieces', 'xqpiece'],
+    ]) {
       document.querySelector<HTMLButtonElement>(`[data-appearance-target="${key}"]`)?.click();
       const submenu = document.querySelector<HTMLElement>(`.appearance-submenu[data-key="${key}"]`);
-      const xiangqi = submenu?.querySelector<HTMLButtonElement>(
-        '[data-board-family-option="xiangqi"]',
-      );
-      const chess = submenu?.querySelector<HTMLButtonElement>('[data-board-family-option="chess"]');
 
-      expect(xiangqi?.classList.contains('selected')).toBe(true);
-      expect(xiangqi?.getAttribute('aria-checked')).toBe('true');
-      expect(chess?.classList.contains('selected')).toBe(false);
-      expect(chess?.getAttribute('aria-checked')).toBe('false');
+      expect(submenu?.querySelector('[data-board-family-select]')).toBeNull();
+      expect(submenu?.querySelector(`[data-theme-tile="${tile}"]`)).not.toBeNull();
+      // Nothing inside is family-gated, so no CSS rule can empty the panel.
+      expect(submenu?.querySelector('[data-appearance-family]')).toBeNull();
 
       submenu?.querySelector<HTMLButtonElement>('.appearance-submenu-back')?.click();
     }

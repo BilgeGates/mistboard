@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import {
   ARTICLE_OG_POSITIONS,
   type ArticleOgPosition,
+  BROWN_PALETTE,
   boardToPieces,
   CROSSROADS_CHESS_DESCRIPTOR,
   CROSSROADS_DISK_GLYPHS,
@@ -14,7 +15,6 @@ import {
   CROSSROADS_PIECE_RED,
   CROSSROADS_RED_STOPS,
   fogSquaresFromVisible,
-  GREEN_PALETTE,
   PIECE_SVGS,
   type PieceOnBoard,
   renderBoardComposition,
@@ -157,7 +157,7 @@ function renderGameOgSvg(game: persistence.GameRecord, position: OgPosition): st
       labelFill: '#e1e6da',
       labelFontSize: 24,
       labelLetterSpacing: 0,
-      palette: GREEN_PALETTE,
+      palette: BROWN_PALETTE,
       fogStyle: 'solid',
       boards: [
         {
@@ -541,7 +541,7 @@ function renderServerFogOgSvg(title: string): string {
       labelY: 72,
       labelFill: '#e1e6da',
       labelFontSize: 20,
-      palette: GREEN_PALETTE,
+      palette: BROWN_PALETTE,
       fogStyle: 'solid',
       boards: [
         {
@@ -583,7 +583,7 @@ function renderArticleOgSvg(title: string, position: ArticleOgPosition): string 
       canvasWidth: OG_WIDTH,
       boardY,
       boardSize,
-      palette: GREEN_PALETTE,
+      palette: BROWN_PALETTE,
       fogStyle: 'solid',
       boards: [
         {

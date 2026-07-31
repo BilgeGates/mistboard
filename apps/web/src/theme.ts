@@ -41,7 +41,13 @@ export {
 // and previews) lives in theme-settings-panel.ts and is dynamically imported on
 // first use, so it stays out of the entry chunk.
 
-export type BoardTheme = 'standard' | 'contrast' | 'colorblind' | 'blue' | 'green' | 'mono';
+// ONE chess board (2026-07-31). Every other id — Tournament green, High
+// contrast, Colorblind, Classic, Blue, Monochrome — is gone from the union, the
+// CSS and the picker; a stored preference for any of them normalizes to this.
+// The wood pair itself carries the accessibility floor now (it clears 3:1 on its
+// own, see the :root block in app-base.css), which is what made removing the
+// High contrast escape hatch defensible.
+export type BoardTheme = 'standard';
 export type FogTheme = 'veil' | 'solid' | 'drift' | 'mistveil' | 'void' | 'invisible';
 export type PieceSet = 'cburnett' | 'merida' | 'chessnut' | 'fantasy' | 'letter';
 export type SiteTheme = 'system' | 'light' | 'dark';
@@ -70,7 +76,7 @@ export const xiangqiAppearanceChangedEvent = 'mistboard:xiangqi-appearance-chang
 // up a new set rather than restyling through CSS.
 export const shogiAppearanceChangedEvent = 'mistboard:shogi-appearance-changed';
 const defaultSiteTheme: SiteTheme = 'system';
-const defaultTheme: BoardTheme = 'green';
+const defaultTheme: BoardTheme = 'standard';
 const defaultFogTheme: FogTheme = 'solid';
 const defaultPieceSet: PieceSet = 'cburnett';
 const defaultSoundVolume = 0.7;
@@ -81,18 +87,17 @@ export const siteThemeOptions: Array<{ id: SiteTheme; label: string }> = [
   { id: 'light', label: 'Light' },
   { id: 'dark', label: 'Dark' },
 ];
-// Trimmed 2026-07-26 to the ACCESSIBILITY floor. A board/piece option earns a
-// slot when it changes LEGIBILITY, not when it changes taste: the chess family is
-// one deranked fog variant now, and eleven taste tiles for it cost more (every
-// renderer, OG card, marker and static diagram has to stay honest across them)
-// than they return. Classic/Blue/Monochrome were taste; the retired ids still
-// render (the CSS and the union keep them) and alias to a survivor below, so a
-// stored preference degrades to its nearest neighbour instead of snapping to the
-// default.
+// The 2026-07-26 trim cut the chess board tiles to the accessibility floor (a
+// tile earns a slot by changing LEGIBILITY, not taste). 2026-07-31 finished the
+// job: ONE board, no picker at all, the same shape pieceSets already has below.
+// The wood pair was chosen to clear 3:1 by itself precisely so the High contrast
+// tile could go with the taste tiles instead of outliving them. What the tiles
+// cost was never the CSS: it was every renderer, OG card, marker and static
+// diagram having to stay honest across N palettes.
+// This list survives only so the stored-preference normalizer keeps a target;
+// the board tile field is gone from the settings panel (theme-settings-panel.ts).
 export const boardThemes: Array<{ id: BoardTheme; label: string }> = [
-  { id: 'green', label: 'Tournament' },
-  { id: 'contrast', label: 'High contrast' },
-  { id: 'colorblind', label: 'Colorblind' },
+  { id: 'standard', label: 'Wood' },
 ];
 // Fog shading affects readability, so it keeps a control — but six variations of
 // it is a bet-era leftover from when fog was the product.
@@ -745,18 +750,13 @@ function normalizeSiteTheme(value: string | null): SiteTheme {
     : defaultSiteTheme;
 }
 
-// Retired picker options -> their nearest surviving neighbour. A player who chose
-// Monochrome wanted low chroma, so High contrast serves them better than the
-// green default would. Same shape as the fog aliases below.
-const RETIRED_BOARD_THEMES: Record<string, BoardTheme> = {
-  standard: 'green',
-  blue: 'green',
-  mono: 'contrast',
-};
-
+// No alias table any more: with one board there is no "nearest survivor" to map
+// a retired id onto, so every stored value — 'green', 'contrast', 'colorblind',
+// 'blue', 'mono', or junk — lands on the single board. (The fog aliases below
+// still matter; that picker kept its options.)
 function normalizeTheme(value: string | null): BoardTheme {
   if (boardThemes.some((theme) => theme.id === value)) return value as BoardTheme;
-  return (value && RETIRED_BOARD_THEMES[value]) || defaultTheme;
+  return defaultTheme;
 }
 
 // 'mistveil'/'drift' were softer veils; 'void' was an opaque blackout, so it lands

@@ -26,20 +26,14 @@ import { readStoredSoundSet, SOUND_SETS, type SoundSetId } from './sound-sets.js
 import {
   type AppearanceMenuOptions,
   type BoardFamily,
-  boardThemes,
-  currentBoardFamily,
-  enabledAppearanceFamilies,
   fogThemes,
   formatVolume,
   readEffectiveSoundVolume,
   readStoredFogTheme,
   readStoredSiteTheme,
   readStoredSoundMuted,
-  readStoredTheme,
   readXiangqiBoardChoice,
   type SiteTheme,
-  setBoardFamily,
-  setBoardThemePreference,
   setFogThemePreference,
   setShogiBoardThemePreference,
   setShogiPieceSetPreference,
@@ -135,24 +129,13 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
   addCategory('sound', t('prefs.sound', {}, locale), [createSoundPanel()]);
   addCategory('theme', t('prefs.appearance', {}, locale), [createSiteThemeList()]);
 
-  // The Game selector only appears when a xiangqi variant is enabled; otherwise
-  // Board/Pieces drill straight into the chess tiles. It sits at the top of both
-  // the Board and Pieces sub-panels; all instances share one family via the
-  // documentElement dataset and syncBoardFamilyControls.
+  // Board carries XIANGQI ONLY (2026-07-31), for the same reason Pieces did in
+  // July: chess ships ONE board now, so there is no choice to offer — and with
+  // nothing left to scope, the Game selector goes with it. Keeping the selector
+  // would reproduce the empty-panel bug called out under Pieces below, since
+  // choosing 'chess' would gate away the only remaining field. That also means
+  // the xiangqi field must NOT be family-gated.
   const boardBody: HTMLElement[] = [];
-  if (xiangqiAppearanceEnabled()) boardBody.push(createBoardFamilyField('stacked'));
-  boardBody.push(
-    createTileField(
-      'board',
-      t('prefs.boardColors', {}, locale),
-      t('prefs.boardColorScheme', {}, locale),
-      boardThemes,
-      readStoredTheme(),
-      setBoardThemePreference,
-      'chess',
-      false,
-    ),
-  );
   if (xiangqiAppearanceEnabled()) {
     boardBody.push(
       createTileField(
@@ -162,7 +145,7 @@ export function buildAppearanceMenu(options: AppearanceMenuOptions = {}): HTMLEl
         xiangqiBoardChoices,
         readXiangqiBoardChoice(),
         setXiangqiBoardChoicePreference,
-        'xiangqi',
+        undefined,
         false,
       ),
     );
@@ -357,46 +340,6 @@ function createSiteThemeButton(theme: SiteTheme, label: string): HTMLButtonEleme
 function siteThemeMenuLabel(theme: SiteTheme): string {
   if (theme === 'system') return 'Device theme';
   return siteThemeOptions.find((option) => option.id === theme)?.label ?? theme;
-}
-
-// Picks which game family's board + piece pickers are shown. The options sit as
-// a segmented toggle (no nested dropdown to open). Defaults to the active page's
-// family (set by the route via setBoardFamily); switching it lets you configure
-// another family's appearance. The 'stacked' layout (label above a full-width
-// 3-up toggle) is used inside the Board/Pieces sub-panels; 'inline' keeps the
-// label and toggle on one row for a compact standalone field.
-function createBoardFamilyField(layout: 'inline' | 'stacked' = 'inline'): HTMLDivElement {
-  const field = document.createElement('div');
-  field.className =
-    layout === 'stacked' ? 'theme-control-field' : 'theme-control-field theme-control-field-inline';
-  field.classList.add('theme-control-family-field');
-  const text = document.createElement('span');
-  text.textContent = 'Game';
-
-  const group = document.createElement('div');
-  group.className =
-    layout === 'stacked'
-      ? 'theme-control-segmented theme-control-segmented-block'
-      : 'theme-control-segmented';
-  group.dataset.boardFamilySelect = '';
-  group.setAttribute('role', 'radiogroup');
-  group.setAttribute('aria-label', 'Board and piece game family');
-  const active = currentBoardFamily();
-  for (const family of enabledAppearanceFamilies()) {
-    const option = document.createElement('button');
-    option.type = 'button';
-    option.className = 'theme-mode-option';
-    option.dataset.boardFamilyOption = family.id;
-    option.setAttribute('role', 'radio');
-    option.setAttribute('aria-checked', String(family.id === active));
-    option.textContent = family.label;
-    if (family.id === active) option.classList.add('selected');
-    option.addEventListener('click', () => setBoardFamily(family.id));
-    group.append(option);
-  }
-
-  field.append(text, group);
-  return field;
 }
 
 function createTileField<T extends string>(

@@ -21,14 +21,14 @@ import { renderRevealChessBoardSvg } from '../reveal-chess-render.js';
 // under the column width.
 const DIAGRAM_WIDTH = 340;
 
-// Brown ("lichess") board palette, mirrored from the default theme in
+// Wood board palette, mirrored from the default theme in
 // app-base.css / theme.css, injected as inline custom properties on the root
 // <svg> so var(--…) lookups in the renderer resolve without page CSS. The width
 // cap rides in the same inline style (inline beats the .article-figure > svg
 // width:100% rule).
 const BAKED_BOARD_STYLE = [
-  '--board-light:#f0d9b5',
-  '--board-dark:#b58863',
+  '--board-light:#f5dca8',
+  '--board-dark:#bd9051',
   '--crossroads-coord:rgba(60,45,30,0.55)',
   '--board-last-move:rgba(255,205,80,0.45)',
   '--board-fog-light-fill:rgba(6,10,8,0.5)',
