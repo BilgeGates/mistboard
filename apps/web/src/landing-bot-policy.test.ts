@@ -4,6 +4,7 @@ import {
   landingBotLineup,
   landingBotOffer,
   landingBotRotationBucket,
+  landingXiangqiBotOffers,
 } from './landing-bot-policy.js';
 
 describe('landing bot policy', () => {
@@ -35,6 +36,30 @@ describe('landing bot policy', () => {
     expect(landingBotOffer('xiangqi', 8)?.botId).toBe('pikafish');
     expect(landingBotOffer('fortress-xiangqi', 7)?.botId).toBe('fairy-stockfish-level-8');
     expect(landingBotOffer('fortress-xiangqi', 8)?.botId).toBe('fairy-stockfish-level-1');
+  });
+
+  it('adds two distinct rotating FSF xiangqi offers beside the primary opponent', () => {
+    expect(landingXiangqiBotOffers(0).map((offer) => offer.botId)).toEqual([
+      'fairy-stockfish-level-1',
+      'fairy-stockfish-level-4',
+      'fairy-stockfish-level-7',
+    ]);
+    expect(landingXiangqiBotOffers(8).map((offer) => offer.botId)).toEqual([
+      'pikafish',
+      'fairy-stockfish-level-4',
+      'fairy-stockfish-level-7',
+    ]);
+
+    // Nine primary opponents and eight FSF levels repeat every 72 buckets.
+    for (let bucket = 0; bucket < 72; bucket++) {
+      const offers = landingXiangqiBotOffers(bucket);
+      expect(offers).toHaveLength(3);
+      expect(offers[0]).toEqual(landingBotOffer('xiangqi', bucket));
+      expect(new Set(offers.map((offer) => offer.botId)).size).toBe(3);
+      expect(
+        offers.slice(1).every((offer) => offer.botId.startsWith('fairy-stockfish-level-')),
+      ).toBe(true);
+    }
   });
 
   it('uses the established house bot for every other supported variant', () => {
