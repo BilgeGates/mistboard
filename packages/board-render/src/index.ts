@@ -46,7 +46,6 @@ export {
   DARK_SQUARE,
   FOG_FILL,
   FOG_OPACITY,
-  GREEN_PALETTE,
   LIGHT_SQUARE,
 } from './tokens.js';
 export type {

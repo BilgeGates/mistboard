@@ -82,9 +82,22 @@
   --site-warning-bg: #fff4d6;
   --site-warning-border: #e6c870;
   --site-warning-text: #5a3d05;
+  /* Wood board: the ONLY chess-family board (2026-07-31). The light square IS
+     the xiangqi board surface (--xq-board-bg below) and the dark square is that
+     same tan carried down the wood ramp, so a chess board reads as the same
+     material as the xiangqi boards it sits beside. It replaced the lichess brown
+     pair (#f0d9b5/#b58863), which was cooler and pinker than the xiangqi tan.
+
+     The dark square is pinned at #98794b because the square pair has to clear
+     3:1 on its own: with the board picker gone there is no High contrast tile to
+     escape to, so this pair IS the accessibility floor (WCAG non-text contrast
+     for a graphical object you must read to follow the game). It measures
+     3.03:1. Warmer/lighter woods that look better in isolation do not clear it
+     (the golden #bd9051 lands at 2.16:1, below even the green it replaced), so
+     do not lighten this value without re-checking the ratio. */
   --board-frame: #5f412c;
-  --board-light: #f0d9b5;
-  --board-dark: #b58863;
+  --board-light: #f5dca8;
+  --board-dark: #98794b;
   --board-fog-line: rgba(0, 0, 0, 0.36);
   --board-fog-line-soft: rgba(255, 255, 255, 0.06);
   --board-fog-shadow: rgba(255, 244, 224, 0.1);
@@ -109,7 +122,13 @@
       transparent 72%
     ),
     var(--board-fog-dark-fill);
-  --board-last-move: rgba(216, 174, 76, 0.4);
+  /* Last move is a wash laid over a square, so on a warm board it reads by HUE,
+     not by lightness: the old amber (rgba(216,174,76,0.4)) all but vanished on
+     tan once the board went wood. This is the brand green at low alpha, which
+     separates from both wood squares while staying quieter than an acid
+     highlight. --board-highlight keeps the amber; it draws rings, glows and
+     label text on dark surfaces rather than washing a square. */
+  --board-last-move: rgba(56, 160, 135, 0.38);
   --board-highlight: #d6af4e;
   --board-reveal: #d6af4e;
   --belief-opp-rgb: 194 73 67;
@@ -120,139 +139,6 @@
   background-repeat: no-repeat;
   font-family:
     "Noto Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-
-:root[data-board-theme="contrast"] {
-  --site-focus: rgba(10, 90, 155, 0.28);
-  --board-frame: #1c2530;
-  --board-light: #fdf2cc;
-  --board-dark: #5c6b7a;
-  --board-fog-line: rgba(0, 0, 0, 0.34);
-  --board-fog-line-soft: rgba(255, 255, 255, 0.16);
-  --board-fog-shadow: rgba(255, 244, 224, 0.22);
-  --board-fog-light-fill: rgba(18, 22, 28, 0.78);
-  --board-fog-dark-fill: rgba(10, 14, 20, 0.84);
-  --board-last-move: rgba(240, 184, 79, 0.55);
-  --board-highlight: #f0b84f;
-  --board-reveal: #f0b84f;
-  --belief-opp-rgb: 226 166 43;
-  --belief-own-rgb: 65 145 190;
-}
-
-:root[data-board-theme="colorblind"] {
-  --site-brand-accent: #245f94;
-  --site-brand-accent-strong: #1b496f;
-  --site-brand-accent-soft: #edf5fb;
-  --site-focus: rgba(36, 95, 148, 0.24);
-  --board-frame: #1d2630;
-  --board-light: #f4e6b1;
-  --board-dark: #5c7fa0;
-  --board-fog-line: rgba(19, 37, 55, 0.26);
-  --board-fog-line-soft: rgba(255, 255, 255, 0.14);
-  --board-fog-shadow: rgba(255, 252, 232, 0.18);
-  --board-fog-light-fill: rgba(15, 26, 38, 0.76);
-  --board-fog-dark-fill: rgba(8, 17, 26, 0.82);
-  --board-last-move: rgba(230, 166, 43, 0.48);
-  --board-highlight: #e6a62b;
-  --board-reveal: #66a6c9;
-  --belief-opp-rgb: 230 166 43;
-  --belief-own-rgb: 62 124 180;
-}
-
-:root[data-board-theme="blue"] {
-  --board-frame: #1f3a5f;
-  --board-light: #dee3e6;
-  --board-dark: #8ca2ad;
-  --board-fog-line: rgba(8, 18, 32, 0.34);
-  --board-fog-line-soft: rgba(255, 255, 255, 0.1);
-  --board-fog-shadow: rgba(220, 232, 244, 0.16);
-  --board-fog-light-fill: rgba(14, 24, 38, 0.74);
-  --board-fog-dark-fill: rgba(8, 16, 28, 0.8);
-  --board-fog-light-background:
-    linear-gradient(
-      135deg,
-      var(--board-fog-line) 0 22%,
-      transparent 22% 50%,
-      var(--board-fog-line-soft) 50% 72%,
-      transparent 72%
-    ),
-    var(--board-fog-light-fill);
-  --board-fog-dark-background:
-    linear-gradient(
-      135deg,
-      var(--board-fog-line-soft) 0 22%,
-      transparent 22% 50%,
-      var(--board-fog-line) 50% 72%,
-      transparent 72%
-    ),
-    var(--board-fog-dark-fill);
-  --board-last-move: rgba(255, 196, 86, 0.42);
-  --board-highlight: #f0b84f;
-  --board-reveal: #f0b84f;
-}
-
-:root[data-board-theme="green"] {
-  --board-frame: #2a3a2a;
-  --board-light: #eeeed2;
-  --board-dark: #769656;
-  --board-fog-line: rgba(8, 24, 12, 0.36);
-  --board-fog-line-soft: rgba(255, 255, 255, 0.08);
-  --board-fog-shadow: rgba(238, 238, 210, 0.14);
-  --board-fog-light-fill: rgba(14, 22, 14, 0.74);
-  --board-fog-dark-fill: rgba(8, 16, 10, 0.8);
-  --board-fog-light-background:
-    linear-gradient(
-      135deg,
-      var(--board-fog-line) 0 22%,
-      transparent 22% 50%,
-      var(--board-fog-line-soft) 50% 72%,
-      transparent 72%
-    ),
-    var(--board-fog-light-fill);
-  --board-fog-dark-background:
-    linear-gradient(
-      135deg,
-      var(--board-fog-line-soft) 0 22%,
-      transparent 22% 50%,
-      var(--board-fog-line) 50% 72%,
-      transparent 72%
-    ),
-    var(--board-fog-dark-fill);
-  --board-last-move: rgba(216, 174, 76, 0.4);
-  --board-highlight: #d6af4e;
-  --board-reveal: #d6af4e;
-}
-
-:root[data-board-theme="mono"] {
-  --board-frame: #2c2c2c;
-  --board-light: #e6e6e6;
-  --board-dark: #8a8a8a;
-  --board-fog-line: rgba(0, 0, 0, 0.34);
-  --board-fog-line-soft: rgba(255, 255, 255, 0.1);
-  --board-fog-shadow: rgba(230, 230, 230, 0.16);
-  --board-fog-light-fill: rgba(20, 20, 20, 0.74);
-  --board-fog-dark-fill: rgba(10, 10, 10, 0.8);
-  --board-fog-light-background:
-    linear-gradient(
-      135deg,
-      var(--board-fog-line) 0 22%,
-      transparent 22% 50%,
-      var(--board-fog-line-soft) 50% 72%,
-      transparent 72%
-    ),
-    var(--board-fog-light-fill);
-  --board-fog-dark-background:
-    linear-gradient(
-      135deg,
-      var(--board-fog-line-soft) 0 22%,
-      transparent 22% 50%,
-      var(--board-fog-line) 50% 72%,
-      transparent 72%
-    ),
-    var(--board-fog-dark-fill);
-  --board-last-move: rgba(200, 200, 200, 0.36);
-  --board-highlight: #d0d0d0;
-  --board-reveal: #d0d0d0;
 }
 
 :root[data-effective-theme="dark"] {

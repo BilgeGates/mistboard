@@ -21,8 +21,8 @@ export const CROSSROADS_CHESS_DESCRIPTOR: GridBoardDescriptor = {
   cell: 50,
   strips: [{ afterRow: 4, height: 11, fill: '#5aa0d6', highlightFill: 'rgba(255,255,255,0.4)' }],
   palette: {
-    lightCell: '#f0d9b5',
-    darkCell: '#b58863',
+    lightCell: '#f5dca8',
+    darkCell: '#bd9051',
     coord: 'rgba(60,45,30,0.55)',
     lastMove: 'rgba(255,205,80,0.45)',
     selected: GRID_INTERACTION_COLORS.selected,
