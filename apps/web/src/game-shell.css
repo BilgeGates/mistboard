@@ -327,6 +327,25 @@
   border-bottom-left-radius: 0;
 }
 
+/* col1 (phone): the partial-width tab is a RAIL idiom. Stacked full-bleed under
+   the board it reads as an unresolved 62% block left-aligned against a
+   full-width card, so the clock takes the full column and the pair squares the
+   whole joining edge instead of one corner: clock, table and clock read as one
+   stacked block. */
+@media (max-width: 799px) {
+  .clocks div {
+    width: 100%;
+  }
+
+  [data-clock-top]:not(:empty) + .round-table__box {
+    border-top-right-radius: 0;
+  }
+
+  .round-table__box:has(+ [data-clock-bottom]:not(:empty)) {
+    border-bottom-right-radius: 0;
+  }
+}
+
 .clocks div.pregame {
   opacity: 0.45;
 }

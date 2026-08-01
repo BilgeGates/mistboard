@@ -3,7 +3,14 @@
    fixed width while keeping their natural height. */
 
 .review-shell.watch-review-shell {
-  --watch-board-max: 560px;
+  /* The cap keys off HEIGHT, not width, because /watch stacks ~500px of chrome
+     under the board (player rows, the previously-on rail). It used to be a flat
+     560px, so the featured game rendered the same size on a 4K monitor as on a
+     laptop; a width-gated bump to 760px fit a 1440px-tall screen but overflowed
+     1080p by 291px and pushed that rail below the fold. The clamp floors at the
+     old 560px so nothing shrinks on a laptop, and spends only the height the
+     page actually has. */
+  --watch-board-max: clamp(560px, calc(100svh - 520px), 760px);
   --uni-board-max: var(--watch-board-max);
   --uni-side-min: 250px;
   --uni-side-max: 300px;
