@@ -39,18 +39,41 @@ const ONLY = (() => {
 // Each scene = a route + an optional setup interaction. Keep this list close
 // to the golden path. Click-driven scenes (open setup dialog, open settings
 // panel) can be added once the route sweep is solid.
+//
+// Route names are checked against isClientRoute / isReviewShellRoute in
+// apps/server/src/server-policy.ts. A path in neither list serves the branded
+// 404 in prod, so a stale scene screenshots a 404 and still reads as "passing" —
+// which is what the /articles scenes did after the 2026-07-10 rename to /blog.
+// Re-check this list against server-policy.ts whenever routes move.
+//
+// MISTBOARD_MOBILE_GAME_ID points the review scene at a finished game; without
+// it that scene is skipped rather than shooting an error state. Grab an id from
+// `curl -s localhost:3001/api/games/recent`.
+const reviewGameId = process.env.MISTBOARD_MOBILE_GAME_ID ?? null;
+
 const scenes = [
   { name: 'landing', path: '/' },
   { name: 'landing-fullpage', path: '/', fullPage: true },
-  { name: 'about', path: '/about', fullPage: true },
-  { name: 'faq', path: '/faq', fullPage: true },
-  { name: 'articles-index', path: '/articles', fullPage: true },
-  { name: 'article-fog-rules', path: '/articles/fog-of-war-rules', fullPage: true },
-  { name: 'article-draft960', path: '/articles/draft960', fullPage: true },
-  { name: 'player', path: '/player', fullPage: true },
+  // Board surfaces first: these are the ones whose phone stack can go wrong,
+  // with board, rails and move table competing for a single column.
+  { name: 'play', path: '/play' },
+  { name: 'puzzles', path: '/puzzles' },
+  { name: 'analysis-xiangqi', path: '/analysis/xiangqi' },
+  ...(reviewGameId ? [{ name: 'game-review', path: `/game/${reviewGameId}`, fullPage: true }] : []),
+  { name: 'watch', path: '/watch', fullPage: true },
+  { name: 'broadcast-xiangqi', path: '/broadcast/xiangqi', fullPage: true },
+  // Learn / read. The legacy /learn hub is deliberately absent: it is gated off
+  // in the web build, so /learn/xiangqi is the only real course route.
+  { name: 'learn-xiangqi', path: '/learn/xiangqi' },
+  { name: 'rules-xiangqi', path: '/rules/xiangqi', fullPage: true },
+  { name: 'blog-index', path: '/blog', fullPage: true },
+  { name: 'blog-fog-rules', path: '/blog/fog-of-war-rules', fullPage: true },
+  // Account + static.
+  { name: 'leaderboard', path: '/leaderboard', fullPage: true },
   { name: 'account', path: '/account' },
   { name: 'contact', path: '/contact' },
-  { name: 'learn', path: '/learn' },
+  { name: 'about', path: '/about', fullPage: true },
+  { name: 'faq', path: '/faq', fullPage: true },
   { name: 'terms', path: '/terms', fullPage: true },
 ];
 
@@ -88,9 +111,18 @@ async function main() {
     const t0 = Date.now();
     let _status = 'ok';
     try {
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 15000 });
+      const response = await page.goto(url, { waitUntil: 'networkidle', timeout: 15000 });
       // small settle for late layout shifts (board sizing, font swap)
       await page.waitForTimeout(400);
+      // A dead route serves the branded 404 SHELL with a 200, so an HTTP check
+      // alone will not catch it — a stale scene otherwise screenshots a 404 and
+      // reports ✓. Flag both, loudly, and let the run continue.
+      const notFound = await page.evaluate(() => {
+        const text = document.body?.innerText ?? '';
+        return /page not found|404/i.test(text.slice(0, 400));
+      });
+      const httpStatus = response?.status() ?? 0;
+      const dead = notFound || httpStatus >= 400;
       const out = join(SHOTS_DIR, `${scene.name}.png`);
       await page.screenshot({ path: out, fullPage: scene.fullPage ?? false });
       results.push({
@@ -98,9 +130,12 @@ async function main() {
         path: scene.path,
         file: out,
         ms: Date.now() - t0,
+        httpStatus,
+        notFound: dead,
         errors: sceneErrors.slice(),
       });
-      console.log(`✓ ${scene.name.padEnd(28)} ${scene.path.padEnd(36)} ${Date.now() - t0}ms`);
+      const mark = dead ? '⚠ 404?' : '✓';
+      console.log(`${mark} ${scene.name.padEnd(28)} ${scene.path.padEnd(36)} ${Date.now() - t0}ms`);
     } catch (err) {
       _status = 'fail';
       results.push({
@@ -135,7 +170,15 @@ async function main() {
   }
 
   const totalErrors = results.reduce((n, r) => n + (r.errors?.length ?? 0), 0);
+  const dead = results.filter((r) => r.notFound);
   console.log(`\n${results.length} scenes, ${totalErrors} console errors`);
+  if (dead.length > 0) {
+    console.log(`\n${dead.length} scene(s) landed on a 404. The route moved; fix the scene list:`);
+    for (const r of dead) console.log(`  ${r.scene} → ${r.path}`);
+  }
+  if (!reviewGameId) {
+    console.log('\ngame-review scene skipped (set MISTBOARD_MOBILE_GAME_ID to include it)');
+  }
   console.log(`shots → ${SHOTS_DIR}`);
 }
 

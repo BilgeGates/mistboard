@@ -49,6 +49,19 @@
   font-weight: 400;
 }
 
+/* Large screens: the 704px surface and 1580px shell are flat constants, so the
+   puzzle board stopped growing well before the viewport did (635px board on a
+   4K monitor, same as on a laptop). Above 1500px both scale, matching the
+   review shell's --uni-main-max so a puzzle board and an analysis board of the
+   same variant come out the same size. The page is height-locked and
+   non-scrolling, so --puzzle-page-height still bounds everything. */
+@media (min-width: 1500px) {
+  .puzzles-shell {
+    max-width: min(94vw, 2100px);
+    --puzzle-surface-size: min(1000px, calc(var(--puzzle-page-height) - 10px));
+  }
+}
+
 .puzzles-header {
   position: absolute;
   width: 1px;
