@@ -14,8 +14,12 @@
   gap: clamp(18px, 2.2vw, 26px);
   min-height: 60px;
   /* Wider gutters than the content below, like lichess: the bar breathes at the
-     edges (~4vw) instead of hugging them. */
-  padding: 0 clamp(20px, 4vw, 72px);
+     edges (~4vw) instead of hugging them. The safe-area terms only resolve to
+     anything on a notched device held in landscape (viewport-fit=cover in
+     index.html); everywhere else env() falls back to 0 and this is the old rule. */
+  padding-block: 0;
+  padding-left: max(clamp(20px, 4vw, 72px), env(safe-area-inset-left));
+  padding-right: max(clamp(20px, 4vw, 72px), env(safe-area-inset-right));
   /* Fade down from the same warm top stop as the page, with the SAME 220px
      endpoint as the body gradient (app-base.css :root) so the two are one
      continuous gradient and there is no seam under the bar. Per-page overrides
@@ -548,9 +552,11 @@ a.site-nav-link[hidden],
     justify-content: center;
     gap: 4px;
     margin-left: auto;
-    width: 40px;
-    height: 40px;
-    padding: 9px;
+    /* 44px is the touch-target floor; the 11px padding keeps the drawn glyph at
+       the same 22px it had inside the old 40px box. */
+    width: 44px;
+    height: 44px;
+    padding: 11px;
     border: 0;
     background: none;
     cursor: pointer;

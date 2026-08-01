@@ -42,11 +42,31 @@
   }
 }
 
+/* Large screens: let the WIDTH budget stop being the binding constraint so the
+   board grows with the window until it fills the height, the way a board game
+   should. At a flat 1440px cap the board saturated at 658px by ~1680px of
+   viewport and never grew again: a 4K monitor rendered exactly the same board as
+   a 1440px laptop with 2,400px of empty gutter around it.
+
+   The rails are capped independently (side 350, table 420), so the extra width
+   lands on the board and nothing else. 2100px is a deliberate ceiling rather than
+   pure vw: past it the rails start reading as marooned, and --uni-board-h-budget
+   caps the board anyway on any normal aspect ratio. */
+@media (min-width: 1500px) {
+  :root {
+    --uni-main-max: min(94vw, 2100px);
+  }
+}
+
 .review-shell {
   width: 100%;
   max-width: var(--uni-main-max);
   margin-inline: auto;
-  padding: clamp(10px, 1.4vw, 18px) clamp(10px, 2vw, 24px) 24px;
+  padding-top: clamp(10px, 1.4vw, 18px);
+  padding-left: max(clamp(10px, 2vw, 24px), env(safe-area-inset-left));
+  padding-right: max(clamp(10px, 2vw, 24px), env(safe-area-inset-right));
+  /* Clear the home indicator so the last rail card is not sitting under it. */
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
   box-sizing: border-box;
   /* Review pages (NOT the live room, which shares the cluster classes but sits
      outside .review-shell): flexible rails, lichess analyse style (lila: side
@@ -92,7 +112,12 @@
   rx: 0;
 }
 
-/* col1: one stacked column, board first. */
+/* col1: one stacked column, board first, then the game-meta rail, then the move
+   table, then whatever the rail deferred (spectator chat).
+
+   Meta sits ABOVE the table because the move list runs ~1,000px on a phone:
+   with the whole side rail last, "who played and who won" landed below the fold
+   twice over, so you scrolled past every move to learn the result. */
 .review-shell__cluster {
   --uni-board-h-budget: calc(
     100svh -
@@ -104,8 +129,9 @@
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
     "board"
+    "side"
     "table"
-    "side";
+    "aside";
   gap: var(--uni-gap);
   justify-content: center;
   justify-items: center;
@@ -604,8 +630,15 @@
 }
 
 .review-shell__left > .review-rail-group {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
+}
+
+/* The bottom group absorbs the rail's spare height (the spectator chat scrolls
+   its feed inside it); groups above keep their natural height. With a single
+   group this is the same rule it has always been. */
+.review-shell__left > .review-rail-group:last-child {
+  flex: 1 1 auto;
 }
 
 /* Controls pinned to the bottom of the right rail (e.g. a Reveal toggle). Kept
@@ -710,17 +743,33 @@
   display: none;
 }
 
-/* col3: the left rail's group also ends at the board bottom, so its last panel
-   (spectator room / details) fills down to exactly the board line. */
+/* col3: the left RAIL ends at the board bottom, and its last group fills
+   whatever the groups above leave, so the spectator room bottoms out exactly on
+   the board line. The board-height lock lives on the rail, not on each group:
+   as a per-group height it double-counted the moment the rail carried more than
+   one group (meta + chat), stacking two full board heights and making the page
+   scroll on desktop. */
 @media (min-width: 1260px) {
+  .review-shell .review-shell__left {
+    height: calc(var(--uni-board-width) / var(--uni-board-aspect, 1));
+  }
+
   .review-shell .review-shell__left > .review-rail-group {
     flex: 0 0 auto;
-    height: calc(var(--uni-board-width) / var(--uni-board-aspect, 1));
+    min-height: 0;
+  }
+
+  .review-shell .review-shell__left > .review-rail-group:last-child {
+    flex: 1 1 auto;
   }
 
   /* Banqi's 8×4 board is intentionally short. Let its info/chat rail use
      the viewport-height grid row instead of inheriting the normal board-bottom
      lock, which otherwise leaves only ~130px for chat on a 1440×900 display. */
+  .banqi-review .review-shell__left {
+    height: auto;
+  }
+
   .banqi-review .review-shell__left > .review-rail-group {
     flex: 1 1 auto;
     height: auto;
@@ -870,6 +919,27 @@
   .review-shell__rail {
     width: min(100%, 560px);
   }
+  /* Dissolve the left rail so its groups place themselves in the stack: the
+     primary (game meta) group takes the "side" row under the board, and any
+     deferred group takes "aside" below the move table. Above col1 the rail is a
+     plain flex column again and the groups just stack inside it.
+
+     Scoped to .review-shell deliberately. The LIVE ROOM reuses these cluster
+     classes but fills its left rail with bare <section>s instead of rail groups,
+     so dissolving it there would drop children with no grid-area into
+     auto-placement and scramble the stack. The room gets the ordering win from
+     the template alone: its rail still occupies "side", now above "table". */
+  .review-shell .review-shell__left {
+    display: contents;
+  }
+  .review-shell .review-shell__left > .review-rail-group {
+    grid-area: side;
+    width: min(100%, 560px);
+    min-width: 0;
+  }
+  .review-shell .review-shell__left > .review-rail-group--deferred {
+    grid-area: aside;
+  }
 }
 
 /* Board resize grip (lichess-style corner handle): drag to scale the board via
@@ -887,6 +957,15 @@
   cursor: nwse-resize;
   opacity: 0.55;
   touch-action: none;
+}
+
+/* Touch: no drag handle. It is a pointer affordance with no touch equivalent,
+   and at 15px it sits over the board's corner square, competing with the tap
+   that should reach the piece there. */
+@media (pointer: coarse) {
+  .board-resize-grip {
+    display: none;
+  }
 }
 /* Two short diagonal lines in the board's bottom-right corner (lichess handle),
    drawn as `/` stripes clipped by the square box so the outer one reads shorter. */

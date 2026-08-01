@@ -8,7 +8,10 @@
 import './review-shell.css';
 
 export type ReviewShellPanels = {
-  left: HTMLElement;
+  /** One or more rail groups. Passing several lets col1 (phone) split them
+   *  across the stack: the game-meta group rides directly under the board while
+   *  a deferred group (spectator chat) drops below the move list. */
+  left: HTMLElement | HTMLElement[];
   center: HTMLElement;
   right: HTMLElement;
   ariaLabel?: string;
@@ -26,7 +29,7 @@ export function createReviewShell(panels: ReviewShellPanels): HTMLElement {
 
   const left = document.createElement('aside');
   left.className = 'review-shell__rail review-shell__left';
-  left.append(panels.left);
+  left.append(...(Array.isArray(panels.left) ? panels.left : [panels.left]));
 
   const center = document.createElement('div');
   center.className = 'review-shell__center';
