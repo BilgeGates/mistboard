@@ -93,7 +93,7 @@ export const EN_CONTENT = {
   'patron.manage': 'Manage your support',
   'patron.alreadyPatron': 'You are a Patron. Thank you for keeping Mistboard running.',
   'patron.signInFirst': 'Sign in to support Mistboard',
-  'patron.unavailable': 'Patron support is not set up yet. Check back soon.',
+  'patron.unavailable': 'Checkout is not open yet, so nothing is charged. Check back soon.',
   'patron.checkoutError': 'Something went wrong starting checkout. Please try again.',
   'patron.transparencyTitle': 'Where the money goes',
   'patron.transparency':

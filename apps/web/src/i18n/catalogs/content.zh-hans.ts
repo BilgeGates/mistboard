@@ -251,7 +251,7 @@ export const ZH_HANS_CONTENT = {
   'patron.manage': '管理你的赞助',
   'patron.alreadyPatron': '你已经是赞助者。感谢你让 Mistboard 运转下去。',
   'patron.signInFirst': '登录后即可支持 Mistboard',
-  'patron.unavailable': '赞助功能还没开放。请稍后再来。',
+  'patron.unavailable': '结账还没开放，不会产生任何扣款。请稍后再来。',
   'patron.checkoutError': '发起结账时出了问题，请重试。',
   'patron.transparencyTitle': '这些钱用在哪里',
   'patron.transparency':
