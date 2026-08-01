@@ -55,6 +55,24 @@ export type MoveListOptions = {
   firstMover?: 'a' | 'b';
 };
 
+/** Bring `cell` into view inside its own scroll container, never by scrolling the
+ *  page. `scrollIntoView` walks EVERY scrollable ancestor up to the document, so
+ *  on col1 — where the move list has no scroller of its own and the page is the
+ *  only thing that scrolls — highlighting the current ply dragged the whole page
+ *  down and cropped the top of the board on load. If no inner scroller exists,
+ *  do nothing: on a phone the move list is read by scrolling the page anyway. */
+export function revealInScroller(cell: HTMLElement): void {
+  for (let node = cell.parentElement; node && node !== document.body; node = node.parentElement) {
+    if (!/(auto|scroll|overlay)/.test(getComputedStyle(node).overflowY)) continue;
+    if (node.scrollHeight <= node.clientHeight + 1) continue;
+    const box = node.getBoundingClientRect();
+    const target = cell.getBoundingClientRect();
+    if (target.top < box.top) node.scrollTop -= box.top - target.top;
+    else if (target.bottom > box.bottom) node.scrollTop += target.bottom - box.bottom;
+    return;
+  }
+}
+
 export function createMoveList(entries: MoveListEntry[], opts: MoveListOptions = {}): MoveList {
   const panel = document.createElement('section');
   panel.className = 'review-move-list';
@@ -130,7 +148,7 @@ export function createMoveList(entries: MoveListEntry[], opts: MoveListOptions =
       cell.classList.toggle('review-move-list__move--current', isCurrent);
       if (isCurrent) current = cell;
     }
-    current?.scrollIntoView({ block: 'nearest' });
+    if (current) revealInScroller(current);
   }
 
   function annotate(byPly: Map<number, MoveAnnotation>): void {

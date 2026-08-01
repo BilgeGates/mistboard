@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lets the page paint under a notch / home indicator and
+         is what makes env(safe-area-inset-*) resolve to anything but 0. The site
+         nav and page gutters spend those insets back as padding. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Free Online Xiangqi (Chinese Chess) | Mistboard</title>
     <meta
       name="description"

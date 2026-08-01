@@ -433,6 +433,15 @@
   transition: background 0.12s ease;
 }
 
+/* Touch: these rows are the primary "join a game" target on the homepage, so
+   they clear the 44px floor. Pointer devices keep the dense 38px row. */
+@media (pointer: coarse) {
+  .landing-lobby-seed,
+  .landing-lobby-trow {
+    min-height: 44px;
+  }
+}
+
 .landing-lobby-seed:hover,
 .landing-lobby-seed:focus-visible,
 .landing-lobby-trow:hover,

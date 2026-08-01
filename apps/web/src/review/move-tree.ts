@@ -11,6 +11,7 @@
 // board uses this. Both share the review-move-list CSS vocabulary.
 
 import type { GameTree, GameTreeNode, TreePath } from './game-tree.js';
+import { revealInScroller } from './move-list.js';
 import './move-list.css';
 import './move-tree.css';
 
@@ -355,7 +356,7 @@ export function createMoveTree<M, T, V>(tree: GameTree<M, T, V>, opts: MoveTreeO
       cell.classList.toggle('review-move-list__move--current', isCurrent);
       if (isCurrent) current = cell;
     }
-    current?.scrollIntoView({ block: 'nearest' });
+    if (current) revealInScroller(current);
   }
 
   function annotate(byPathKey: Map<string, MoveTreeAnnotation>): void {

@@ -622,6 +622,11 @@ function applyBoardSizing(
 // Rail composition.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/* Returns the left rail's groups in order. `details` (the spectator chat) comes
+   back as its OWN group rather than a third card in the primary one: on col1 the
+   shell splits the two, so "who played, who won" lands under the board while the
+   chat drops past the move list. Same visual stack on desktop (the rail is a
+   12px-gap flex column either way). */
 function infoRail(config: {
   metaCard?: HTMLElement;
   eyebrow?: string;
@@ -629,7 +634,8 @@ function infoRail(config: {
   summary: string;
   actions?: HTMLElement;
   details?: HTMLElement;
-}): HTMLElement {
+}): HTMLElement[] {
+  const deferred = config.details ? [deferredRailGroup([config.details])] : [];
   if (config.metaCard) {
     const actions = config.actions;
     const actionsCard = actions ? document.createElement('div') : null;
@@ -637,11 +643,7 @@ function infoRail(config: {
       actionsCard.className = 'review-actions review-actions--rail';
       actionsCard.append(actions);
     }
-    return railGroup(
-      config.details
-        ? [config.metaCard, ...(actionsCard ? [actionsCard] : []), config.details]
-        : [config.metaCard, ...(actionsCard ? [actionsCard] : [])],
-    );
+    return [railGroup([config.metaCard, ...(actionsCard ? [actionsCard] : [])]), ...deferred];
   }
   const card = document.createElement('section');
   card.className = 'review-info-card';
@@ -661,13 +663,20 @@ function infoRail(config: {
   summary.textContent = config.summary;
   card.append(title, summary);
   if (config.actions) card.append(config.actions);
-  return railGroup(config.details ? [card, config.details] : [card]);
+  return [railGroup([card]), ...deferred];
 }
 
 function railGroup(children: HTMLElement[]): HTMLElement {
   const group = document.createElement('div');
   group.className = 'review-rail-group';
   group.append(...children);
+  return group;
+}
+
+/** A rail group the phone stack pushes below the move list. */
+function deferredRailGroup(children: HTMLElement[]): HTMLElement {
+  const group = railGroup(children);
+  group.classList.add('review-rail-group--deferred');
   return group;
 }
 
