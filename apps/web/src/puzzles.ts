@@ -13,6 +13,7 @@
 
 import { resolvePuzzleShortCode, XIANGQI_SPEC_ID } from '@mistboard/game';
 import './puzzles.css';
+import { attachBoardResizeGrip, restoreBoardScale } from './board-resize.js';
 import { t } from './i18n/catalog.js';
 import { initLiveSound, playSound } from './live-sound.js';
 import {
@@ -88,6 +89,11 @@ export async function mountPuzzles(
   initLiveSound();
   setBoardFamily('xiangqi');
   root.classList.add('puzzles-page');
+  // Before the first board paints: the scale is shared across every board
+  // surface, so a size chosen on the analysis board is already the size this
+  // page should open at.
+  restoreBoardScale();
+  installPuzzleGripFit();
 
   const shell = document.createElement('main');
   shell.className = 'site-section puzzles-shell';
@@ -408,6 +414,14 @@ function renderPuzzleDetail(
     submitMove: (move) => submitMove(session, move, renderSession, onSolved),
   });
 
+  // Board zoom, same grip and same persisted --uni-board-scale as the room,
+  // review and analysis boards. Attached per render because renderSession
+  // repaints this whole panel; the grip's own drag teardown already covers being
+  // replaced mid-drag. The grip measures the painted board rather than the
+  // column, which is wider than the board on a large screen.
+  attachBoardResizeGrip(board, () => paintedPuzzleBoard(board));
+  fitPuzzleGrip(board);
+
   const trainer = document.createElement('div');
   trainer.className = 'puzzle-trainer-panel';
   trainer.append(
@@ -716,6 +730,41 @@ function playbackSolution(session: PuzzleSession, renderSession: () => void): vo
     window.setTimeout(step, REVEAL_STEP_MS);
   };
   window.setTimeout(step, REVEAL_STEP_MS);
+}
+
+// The painted board inside a .puzzle-board column, across every variant adapter:
+// the drop/fortress shells wrap board plus reserves, the rest paint a board
+// element straight in. Falls back to the column so the grip still has something
+// to measure if an adapter paints something new.
+function paintedPuzzleBoard(column: HTMLElement): HTMLElement {
+  return (
+    column.querySelector<HTMLElement>(
+      '.puzzle-board-shell, .puzzle-xiangqi-board, .mini-xq-board, .jungle-live-svg',
+    ) ?? column
+  );
+}
+
+// Park the resize grip on the painted board's corner rather than the column's.
+// The column track carries the height budget, so on a wide screen it is wider
+// than the board and the grip would otherwise float in the gutter beside it.
+function fitPuzzleGrip(column: HTMLElement): void {
+  requestAnimationFrame(() => {
+    if (!column.isConnected) return;
+    const painted = paintedPuzzleBoard(column);
+    const gutter = column.getBoundingClientRect().width - painted.getBoundingClientRect().width;
+    column.style.setProperty('--puzzle-board-inset', `${Math.max(0, Math.round(gutter / 2))}px`);
+  });
+}
+
+// Both widths move with the viewport AND with the zoom scale (applyBoardScale
+// dispatches a resize), so the inset is re-measured on resize. One listener for
+// the page, not one per render: renderSession repaints the board on every move,
+// and a per-render listener would pile up over a session.
+function installPuzzleGripFit(): void {
+  window.addEventListener('resize', () => {
+    const column = document.querySelector<HTMLElement>('.puzzle-board');
+    if (column) fitPuzzleGrip(column);
+  });
 }
 
 // Glide a board move on the mounted puzzle board. One puzzle page mounts at a
