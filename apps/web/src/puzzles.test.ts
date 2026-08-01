@@ -95,6 +95,30 @@ describe('puzzles route', () => {
     expect(root.textContent).not.toContain('d4');
   });
 
+  it('mounts the shared board resize grip on the board column', async () => {
+    const mini = MINI_XIANGQI_PUZZLES[0]!;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url === '/api/puzzles') return json({ puzzles: [publicSummary(mini)] });
+        if (url === `/api/puzzles/${mini.id}`) return json({ puzzle: publicDetail(mini) });
+        return json({ error: 'not_found' }, 404);
+      }),
+    );
+    const root = document.createElement('div');
+
+    await mountPuzzles(root, mini.id);
+
+    // The grip is the whole adjustability affordance, and it belongs to the
+    // board COLUMN so it can be parked on the board's own corner. It is the same
+    // element, and the same persisted --uni-board-scale, that the room, review
+    // and analysis boards use.
+    const grip = root.querySelector('.puzzle-board > .board-resize-grip');
+    expect(grip).not.toBeNull();
+    expect(grip?.getAttribute('aria-label')).toBe('Resize board');
+  });
+
   it('merges the practice note into the puzzle rating card', async () => {
     stubWindowLocalStorage(memoryStorage({ 'mistboard:puzzles:rated': 'false' }));
     const mini = MINI_XIANGQI_PUZZLES[0]!;

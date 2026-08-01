@@ -5,6 +5,8 @@
 // room and review sizing formulas alike, and persisted per browser so every
 // board surface opens at the user's chosen size. Double-click resets to max.
 
+import './board-resize.css';
+
 const STORAGE_KEY = 'mistboard-board-scale';
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 1;

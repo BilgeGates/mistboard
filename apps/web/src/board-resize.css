@@ -1,0 +1,60 @@
+/* Board resize grip (lichess-style corner handle): drag to scale the board via
+   --uni-board-scale.
+
+   These live beside board-resize.ts and are imported BY it, so every surface that
+   mounts a grip gets the styling. They used to sit in review/review-shell.css,
+   which meant a page that mounted a grip without importing that sheet (the
+   puzzles page) rendered an unstyled 16px button that also missed the
+   coarse-pointer hide below. A component's styles belong with the component. */
+
+.board-resize-grip {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  z-index: 3;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: nwse-resize;
+  opacity: 0.55;
+  touch-action: none;
+}
+
+/* Touch: no drag handle. It is a pointer affordance with no touch equivalent,
+   and at 15px it sits over the board's corner square, competing with the tap
+   that should reach the piece there. */
+@media (pointer: coarse) {
+  .board-resize-grip {
+    display: none;
+  }
+}
+
+/* Two short diagonal lines in the board's bottom-right corner (lichess handle),
+   drawn as `/` stripes clipped by the square box so the outer one reads shorter. */
+.board-resize-grip::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    transparent 0 54%,
+    var(--board-resize-ink, #3a322a) 54% 63%,
+    transparent 63% 74%,
+    var(--board-resize-ink, #3a322a) 74% 83%,
+    transparent 83%
+  );
+}
+
+.board-resize-grip:hover {
+  opacity: 0.9;
+}
+
+.board-resizing,
+.board-resizing * {
+  /* biome-ignore lint/complexity/noImportantStyles: mid-drag the resize cursor
+     must beat every element's own cursor (board cells, buttons, chessground). */
+  cursor: nwse-resize !important;
+  user-select: none;
+}

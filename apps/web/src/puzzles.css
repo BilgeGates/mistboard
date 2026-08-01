@@ -24,7 +24,12 @@
 .puzzles-shell {
   --puzzle-nav-height: 53px;
   --puzzle-page-height: calc(100dvh - var(--puzzle-nav-height));
-  --puzzle-surface-size: min(704px, calc(var(--puzzle-page-height) - 10px));
+  /* The board's max fit, before the user's zoom. Every puzzle board derives from
+     this one token (including the drop/fortress variants below), so multiplying
+     it by --uni-board-scale makes the whole family adjustable by the same grip
+     and the same persisted setting as the room, review and analysis boards. */
+  --puzzle-surface-fit: min(704px, calc(var(--puzzle-page-height) - 10px));
+  --puzzle-surface-size: calc(var(--puzzle-surface-fit) * var(--uni-board-scale, 1));
   --puzzle-drop-surface-size: min(
     var(--puzzle-surface-size),
     calc((var(--puzzle-page-height) - 58px) * 82 / 100)
@@ -51,14 +56,19 @@
 
 /* Large screens: the 704px surface and 1580px shell are flat constants, so the
    puzzle board stopped growing well before the viewport did (635px board on a
-   4K monitor, same as on a laptop). Above 1500px both scale, matching the
-   review shell's --uni-main-max so a puzzle board and an analysis board of the
-   same variant come out the same size. The page is height-locked and
-   non-scrolling, so --puzzle-page-height still bounds everything. */
+   4K monitor, same as on a laptop). Above 1500px both scale.
+
+   860px, not the 1000px first shipped: at 1000 the board ran 902x1000 on a
+   1080p screen, filling essentially the whole viewport height and reading as too
+   big. The puzzle page carries less vertical chrome than the review shell, so
+   left to the height budget alone it lands BIGGER than an analysis board of the
+   same variant (902 vs 843 at 1920) rather than matching it, which is what the
+   comment here used to claim. 860 keeps it just under the analysis board, and
+   the resize grip covers the rest of the range. */
 @media (min-width: 1500px) {
   .puzzles-shell {
     max-width: min(94vw, 2100px);
-    --puzzle-surface-size: min(1000px, calc(var(--puzzle-page-height) - 10px));
+    --puzzle-surface-fit: min(860px, calc(var(--puzzle-page-height) - 10px));
   }
 }
 
@@ -93,11 +103,30 @@
 }
 
 .puzzle-board {
+  position: relative;
   display: grid;
+  /* One named cell so the resize grip overlays the board instead of being laid
+     out as a second grid row under it. */
+  grid-template-areas: "board";
   order: 2;
   justify-items: center;
   min-width: 0;
   line-height: 0;
+}
+
+.puzzle-board > * {
+  grid-area: board;
+}
+
+/* The grip rides the board's own bottom-right corner. The column can be wider
+   than the board (the grid track carries the height budget while the board
+   derives its width from its aspect), so anchoring to the column edge would
+   leave the grip floating beside the board. --puzzle-board-inset is half that
+   difference, measured after paint by fitPuzzleGrip(). */
+.puzzle-board > .board-resize-grip {
+  position: absolute;
+  right: calc(var(--puzzle-board-inset, 0px) + 3px);
+  bottom: 3px;
 }
 
 .puzzle-board .mini-xq-board {
