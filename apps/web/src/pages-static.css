@@ -294,6 +294,21 @@
   color: var(--site-on-accent);
 }
 
+/* Display-only amounts shown before checkout opens: same pill row, but inert. */
+.patron-segment-btn.is-preview {
+  cursor: default;
+  opacity: 0.75;
+  text-align: center;
+}
+
+.patron-preview-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--site-text-soft, #888);
+  text-align: center;
+}
+
 /* Prominent donate CTA: gold, to pop against the green hero (as lichess's CTA
    contrasts its hero). Gold is the reserved "patron" accent. */
 .patron-donate-btn {

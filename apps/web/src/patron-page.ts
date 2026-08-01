@@ -25,6 +25,10 @@ const TIER_AMOUNT: Record<string, string> = {
 
 const DEFAULT_MONTHLY = 'monthly_10';
 
+// The monthly tiers shown when the live config is unavailable. These mirror the
+// Stripe prices; they are display-only and never sent to the checkout endpoint.
+const PREVIEW_MONTHLY_TIERS = ['monthly_5', 'monthly_10', 'monthly_20', 'monthly_50'];
+
 // The hero mascot: a Jungle (Dou Shou Qi) animal, reusing the shipped
 // dobutsu-minimal piece art (apps/web/public/piece-sets/jungle/dobutsu). The
 // elephant is the game's apex piece; framed as a token disc on each side of the
@@ -105,11 +109,37 @@ async function hydrateCard(card: HTMLElement, locale: Locale): Promise<void> {
   }
 
   if (!config?.configured || config.tiers.length === 0) {
-    card.replaceChildren(note(t('patron.unavailable', {}, locale)));
+    card.replaceChildren(buildTierPreview(locale));
     return;
   }
 
   card.replaceChildren(buildDonateForm(config.tiers, user, locale));
+}
+
+// Before checkout is switched on, the card still shows what Patron support will
+// cost. Anyone reading the page (a prospective patron, or a payment processor
+// reviewing what this site sells) can see the four monthly tiers instead of a
+// bare "not set up yet". The amounts are display-only: no tier is selectable and
+// there is no button, so nothing here can start a charge.
+function buildTierPreview(locale: Locale): HTMLElement {
+  const preview = document.createElement('div');
+  preview.className = 'patron-form patron-form-preview';
+
+  const label = document.createElement('p');
+  label.className = 'patron-preview-label';
+  label.textContent = t('patron.frequencyMonthly', {}, locale);
+
+  const amounts = document.createElement('div');
+  amounts.className = 'patron-segment patron-amounts';
+  for (const key of PREVIEW_MONTHLY_TIERS) {
+    const amount = document.createElement('span');
+    amount.className = 'patron-segment-btn patron-amount-btn is-preview';
+    amount.textContent = TIER_AMOUNT[key] ?? key;
+    amounts.append(amount);
+  }
+
+  preview.append(label, amounts, note(t('patron.unavailable', {}, locale)));
+  return preview;
 }
 
 // The donation form mirrors lichess: a frequency segment (Monthly / Lifetime),

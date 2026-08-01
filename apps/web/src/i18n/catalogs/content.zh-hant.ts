@@ -251,7 +251,7 @@ export const ZH_HANT_CONTENT = {
   'patron.manage': '管理你的贊助',
   'patron.alreadyPatron': '你已經是贊助者。感謝你讓 Mistboard 運轉下去。',
   'patron.signInFirst': '登入後即可支持 Mistboard',
-  'patron.unavailable': '贊助功能還沒開放。請稍後再來。',
+  'patron.unavailable': '結帳還沒開放，不會產生任何扣款。請稍後再來。',
   'patron.checkoutError': '發起結帳時出了問題，請重試。',
   'patron.transparencyTitle': '這些錢用在哪裡',
   'patron.transparency':
