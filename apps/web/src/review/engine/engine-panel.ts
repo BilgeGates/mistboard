@@ -332,7 +332,14 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
 
   if (!supported) {
     toggle.disabled = true;
-    sub.textContent = 'Local engine needs a cross-origin-isolated reload.';
+    // Do NOT promise a reload. The threaded engine needs cross-origin isolation,
+    // which these routes request with COEP: credentialless; Safari/WebKit does
+    // not implement credentialless, so it never isolates and no number of
+    // reloads changes that. Measured 2026-08-01, along with why switching to
+    // require-corp is not the fix (memory: engine_safari_coep_wall). Cases where
+    // a reload genuinely helps (a stale header-less cached document) are rare
+    // next to the browsers that simply cannot, so name the limitation.
+    sub.textContent = 'Local engine is unavailable in this browser. Safari cannot run it yet.';
   } else {
     toggle.addEventListener('click', () => (on ? turnOff() : turnOn()));
   }
