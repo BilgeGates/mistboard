@@ -16,6 +16,18 @@ describe('createEnginePanel onLines', () => {
     panel.dispose();
   });
 
+  it('does not tell an unsupported browser to reload', () => {
+    // happy-dom is not cross-origin isolated, so this exercises the unsupported
+    // branch. The old copy ("needs a cross-origin-isolated reload") was a dead
+    // end on Safari, which does not implement COEP: credentialless and so never
+    // isolates on these routes however many times you reload.
+    const panel = createEnginePanel({ variant: 'xiangqi' });
+    const text = panel.el.textContent ?? '';
+    expect(text).toContain('unavailable in this browser');
+    expect(text.toLowerCase()).not.toContain('reload');
+    panel.dispose();
+  });
+
   it('does not feed arrows from setPosition while the engine is unsupported/off', () => {
     const onLines = vi.fn();
     const panel = createEnginePanel({ variant: 'xiangqi', onLines });

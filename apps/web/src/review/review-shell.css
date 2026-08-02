@@ -924,12 +924,15 @@
      deferred group takes "aside" below the move table. Above col1 the rail is a
      plain flex column again and the groups just stack inside it.
 
-     Scoped to .review-shell deliberately. The LIVE ROOM reuses these cluster
-     classes but fills its left rail with bare <section>s instead of rail groups,
-     so dissolving it there would drop children with no grid-area into
-     auto-placement and scramble the stack. The room gets the ordering win from
-     the template alone: its rail still occupies "side", now above "table". */
-  .review-shell .review-shell__left {
+     Gated on :has(> .review-rail-group) rather than on the shell class. A left
+     rail that holds something else (the live room's bare <section>s, /watch's
+     .watch-left channel list) has no grid-area to land in, so dissolving it
+     drops its children into auto-placement and scrambles the stack. Scoping by
+     .review-shell alone was not enough and shipped exactly that bug on /watch:
+     the games rail auto-placed straight under the board and pushed the console
+     (clocks, players, move nav) from y=772 to y=1422 on a phone. Rails that do
+     not carry rail groups keep their normal flex column and their "side" area. */
+  .review-shell .review-shell__left:has(> .review-rail-group) {
     display: contents;
   }
   .review-shell .review-shell__left > .review-rail-group {

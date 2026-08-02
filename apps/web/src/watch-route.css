@@ -22,6 +22,42 @@
   }
 }
 
+/* col1 (phone): who is playing and on what clock belongs directly under the
+   board. The shared stack puts the "side" rail there because on a review page it
+   carries the game's identity; on /watch it carries a BROWSE list (the channel
+   rail), and the previously-on strip is browse too, so both drop below the
+   console. Dissolving .watch-center is what lets the previously-on strip leave
+   the board's own area; each child gets its own row, so nothing overlaps. */
+@media (max-width: 799px) {
+  .watch-review-shell .review-shell__cluster {
+    grid-template-areas:
+      "board"
+      "pov"
+      "table"
+      "previously"
+      "side";
+  }
+
+  /* Both wrappers dissolve: the shell's center slot AND .watch-center inside it,
+     or the board/pov/previously trio stays nested and never reaches the grid. */
+  .watch-review-shell .review-shell__center,
+  .watch-review-shell .watch-center {
+    display: contents;
+  }
+
+  .watch-review-shell .watch-board-box {
+    grid-area: board;
+  }
+
+  .watch-review-shell .watch-pov-slot {
+    grid-area: pov;
+  }
+
+  .watch-review-shell .watch-previously {
+    grid-area: previously;
+  }
+}
+
 .watch-left,
 .watch-center,
 .watch-right {
