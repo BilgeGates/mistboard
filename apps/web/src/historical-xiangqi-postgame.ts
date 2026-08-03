@@ -7,6 +7,7 @@ import {
   type HistoricalXiangqiResult,
   historicalXiangqiOutcomeLabel,
 } from './historical-xiangqi-search.js';
+import { t } from './i18n/catalog.js';
 import { createGameMetaCard } from './review/game-meta-card.js';
 import { reviewOutcomeLine } from './review/game-review-meta.js';
 import { buildSpectatorChat } from './review/spectator-chat.js';
@@ -210,7 +211,7 @@ function loadingView(): HTMLElement {
   const shell = document.createElement('main');
   shell.className = 'dxq-postgame__notice';
   const heading = document.createElement('h1');
-  heading.textContent = 'Loading game';
+  heading.textContent = t('replay.loadingGame');
   shell.append(heading);
   return shell;
 }
@@ -227,14 +228,13 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
 }
 
 function errorTitle(status: number): string {
-  if (status === 404) return 'Game not found';
-  if (status === 503) return 'Archive unavailable';
-  return 'Archive unavailable';
+  if (status === 404) return t('replay.gameNotFound');
+  return t('historical.archiveUnavailable');
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return 'This historical Xiangqi game is not available.';
-  if (result.status === 503) return 'The historical game archive is not available.';
+  if (result.status === 404) return t('historical.gameUnavailable');
+  if (result.status === 503) return t('historical.archiveServiceUnavailable');
   return result.error;
 }
 
@@ -252,7 +252,7 @@ function resultStatus(game: HistoricalXiangqiGameDetail): string {
 }
 
 function formatDate(value: string | null): string {
-  if (!value) return 'Unknown date';
+  if (!value) return t('historical.unknownDate');
   const date = new Date(`${value}T00:00:00.000Z`);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });

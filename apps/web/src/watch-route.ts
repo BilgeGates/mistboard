@@ -1,6 +1,7 @@
 import { type GameEvent, maybeGameSpecForId } from '@mistboard/game';
 import { banqiResultLabel } from './banqi-result-label.js';
 import { createGameTable } from './game-table.js';
+import { t } from './i18n/catalog.js';
 import { renderVariantMarker } from './variant-markers.js';
 import type { VariantMiniId } from './variant-mini-boards.js';
 import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
@@ -128,7 +129,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   initLiveSound();
   root.replaceChildren();
   root.classList.add('landing-page', 'watch-route');
-  root.append(buildNav(), buildLoadingState('Loading replays'));
+  root.append(buildNav(), buildLoadingState(t('watch.loadingReplays')));
 
   // Start downloading the replay/chessground chunk now, in parallel with the
   // feed fetch below, rather than serializing it behind /api/watch.
@@ -140,7 +141,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   });
   const watch = buildWatchSection(currentFeed);
   root.replaceChildren(buildNav(), watch.el);
-  document.title = 'Mistboard TV · Mistboard';
+  document.title = t('watch.pageTitle');
 
   const syncBoardHeight = (): void => {
     const height = watch.boardBox.getBoundingClientRect().height;
@@ -654,8 +655,8 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     const first = players.find((p) => p.color === 'red' || p.color === 'white') ?? players[0]!;
     const second = players.find((p) => p !== first) ?? players[1]!;
     namesByRoomId[featured.roomId] = {
-      first: first.name ?? 'Anonymous',
-      second: second.name ?? 'Anonymous',
+      first: first.name ?? t('watch.anonymous'),
+      second: second.name ?? t('watch.anonymous'),
     };
   };
 
@@ -668,7 +669,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     const ordered = first ? [first, ...players.filter((p) => p !== first)] : players;
     return ordered.map((p) => ({
       color: p.color,
-      name: p.name ?? 'Anonymous',
+      name: p.name ?? t('watch.anonymous'),
       rating: null,
       isEngine: p.isEngine,
     }));
@@ -682,10 +683,10 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     watch.metaRoot.replaceChildren();
     const badge = document.createElement('div');
     badge.className = 'watch-live-badge';
-    badge.textContent = 'LIVE';
+    badge.textContent = t('watch.liveBadge');
     const card = createGameMetaCard({
       markerId: variantMiniIdForRawVariant(featured.gameSpecId) ?? undefined,
-      headline: ['In progress'],
+      headline: [t('watch.inProgress')],
       variantName,
       players,
       status: null,
@@ -834,7 +835,7 @@ function renderWatchQueuePreviewError(root: HTMLElement): void {
   root.replaceChildren();
   const message = document.createElement('span');
   message.className = 'watch-queue-preview-error';
-  message.textContent = 'Final position unavailable';
+  message.textContent = t('watch.finalPositionUnavailable');
   root.append(message);
 }
 
@@ -1029,10 +1030,10 @@ export function buildWatchScrubber(
     status = document.createElement('span');
     status.className = 'review-scrubber__status';
     status.setAttribute('aria-live', 'polite');
-    first = watchScrubButton('|<', 'First move');
-    prev = watchScrubButton('<', 'Previous move');
-    next = watchScrubButton('>', 'Next move');
-    last = watchScrubButton('>|', 'Last move');
+    first = watchScrubButton('|<', t('watch.firstMove'));
+    prev = watchScrubButton('<', t('watch.previousMove'));
+    next = watchScrubButton('>', t('watch.nextMove'));
+    last = watchScrubButton('>|', t('watch.lastMove'));
     el.append(status, first, prev, next, last);
   }
   first.addEventListener('click', () => jump(0));
@@ -1082,8 +1083,8 @@ export function watchPovToggleApplies(variant: string): boolean {
 function watchPovSideLabels(variant: string): { first: string; second: string } {
   const family = maybeGameSpecForId(variant)?.family;
   return family === 'chess'
-    ? { first: 'White', second: 'Black' }
-    : { first: 'Red', second: seatColorWord(variant, 'black') };
+    ? { first: t('setup.white'), second: t('setup.black') }
+    : { first: t('setup.red'), second: seatColorWord(variant, 'black') };
 }
 
 // Render the fog-perspective segmented control under the board for a dark game,
@@ -1108,14 +1109,14 @@ function renderWatchPovToggle(
   // the height-capped board width into an ellipsis.
   const options: Array<{ kind: 'white' | 'truth' | 'black'; label: string }> = [
     { kind: 'white', label: labels.first },
-    { kind: 'truth', label: 'Truth' },
+    { kind: 'truth', label: t('watch.truth') },
     { kind: 'black', label: labels.second },
   ];
 
   const group = document.createElement('div');
   group.className = 'watch-pov';
   group.setAttribute('role', 'group');
-  group.setAttribute('aria-label', 'Board perspective');
+  group.setAttribute('aria-label', t('watch.boardPerspective'));
 
   const buttons: HTMLButtonElement[] = [];
   const select = (kind: 'white' | 'truth' | 'black'): void => {
@@ -1182,7 +1183,7 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
   channelRail.className = 'watch-channel-rail';
   const channelRoot = document.createElement('nav');
   channelRoot.className = 'watch-channel-list';
-  channelRoot.setAttribute('aria-label', 'Watch channels');
+  channelRoot.setAttribute('aria-label', t('watch.channels'));
   channelRail.append(channelRoot);
 
   left.append(metaRoot, channelRail);
@@ -1208,7 +1209,7 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
   // "Review X vs Y" label, and a chip reading "Review" would only shadow it.
   const reviewChip = document.createElement('span');
   reviewChip.className = 'watch-main-review-link__chip';
-  reviewChip.textContent = 'Review';
+  reviewChip.textContent = t('watch.review');
   reviewChip.setAttribute('aria-hidden', 'true');
   reviewLink.append(reviewChip);
   boardBox.append(replayRoot, reviewLink);
@@ -1221,7 +1222,7 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
 
   const queueRoot = document.createElement('section');
   queueRoot.className = 'watch-previously';
-  queueRoot.setAttribute('aria-label', 'Previously on Mistboard TV');
+  queueRoot.setAttribute('aria-label', t('watch.previouslyOn'));
 
   center.append(boardBox, povRoot, queueRoot);
 
@@ -1237,7 +1238,7 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
     center,
     right,
     pageClassName: 'watch-review-shell',
-    ariaLabel: 'Mistboard TV',
+    ariaLabel: t('watch.mistboardTv'),
   });
 
   renderWatchChannelList(channelRoot, feed);
@@ -1332,7 +1333,8 @@ function renderWatchMetaCard(root: HTMLElement, game: FeaturedGame | null): void
   root.replaceChildren();
   if (!game) return;
   const players = watchGamePlayers(game);
-  const ratedSegment = game.rated === true ? 'Rated' : game.rated === false ? 'Casual' : null;
+  const ratedSegment =
+    game.rated === true ? t('watch.rated') : game.rated === false ? t('watch.casual') : null;
   const card = createGameMetaCard({
     markerId: variantMiniIdForRawVariant(game.variant) ?? undefined,
     headline: [timeControlLabelForGame(game), ratedSegment, sourceLabel(game.mode)],
@@ -1391,7 +1393,7 @@ function watchGameTablePlayer(player: GameMetaPlayer): HTMLElement {
   if (player.isEngine) {
     const bot = document.createElement('span');
     bot.className = 'watch-player-bot';
-    bot.textContent = 'BOT';
+    bot.textContent = t('watch.botBadge');
     row.append(bot);
   }
   if (player.rating != null) {
@@ -1511,28 +1513,28 @@ function renderWatchEmptyState(root: HTMLElement, feed: WatchFeed | null): void 
   const title = document.createElement('h2');
   title.textContent = feed
     ? watchFeedIsDark(feed)
-      ? 'No unlocked dark replays yet'
-      : 'No replays yet'
-    : 'Replay feed unavailable';
+      ? t('watch.noUnlockedDarkReplays')
+      : t('watch.noReplaysYet')
+    : t('watch.replayFeedUnavailable');
   const body = document.createElement('p');
   body.textContent = feed
     ? feed.sealedCount > 0
       ? watchFeedIsDark(feed)
         ? 'Dark games are being played, but they stay hidden until completion.'
-        : 'Games are being played now, but they stay hidden until completion.'
+        : t('watch.gamesHiddenUntilComplete')
       : watchFeedIsDark(feed)
         ? 'Start a dark game and it can become the next replay after it finishes.'
-        : 'Start a game and it can become the next replay after it finishes.'
+        : t('watch.startGameBecomeReplay')
     : 'The watch feed needs persistence, so it is not available in this runtime.';
 
   const actions = document.createElement('div');
   actions.className = 'watch-empty-actions';
   const engine = document.createElement('a');
   engine.href = '/?play=computer';
-  engine.textContent = 'Play engine';
+  engine.textContent = t('watch.playEngine');
   const friend = document.createElement('a');
   friend.href = '/?play=friend';
-  friend.textContent = 'Start friend game';
+  friend.textContent = t('watch.startFriendGame');
   actions.append(engine, friend);
 
   empty.append(title, body, actions);
@@ -1568,14 +1570,14 @@ export function renderWatchQueue(
   const heading = document.createElement('div');
   heading.className = 'watch-previously-heading';
   const title = document.createElement('h2');
-  title.textContent = 'Previously on Mistboard TV';
+  title.textContent = t('watch.previouslyOn');
   heading.append(title);
   root.append(heading);
 
   if (!feed) {
     const empty = document.createElement('p');
     empty.className = 'watch-previously-empty';
-    empty.textContent = 'Feed unavailable.';
+    empty.textContent = t('watch.feedUnavailable');
     root.append(empty);
     return previews;
   }
@@ -1585,7 +1587,7 @@ export function renderWatchQueue(
   if (watchQueueGames(feed, activeRoomId).length === 0) {
     const empty = document.createElement('p');
     empty.className = 'watch-previously-empty';
-    empty.textContent = 'No other completed games in the current replay window.';
+    empty.textContent = t('watch.noOtherCompleted');
     root.append(empty);
     return previews;
   }
@@ -1648,10 +1650,10 @@ export function formatWatchScope(
 }
 
 export function resultLabel(result: string): string {
-  if (result === 'white-wins') return 'White wins';
-  if (result === 'black-wins') return 'Black wins';
-  if (result === 'red-wins') return 'Red wins';
-  return 'Draw';
+  if (result === 'white-wins') return t('watch.whiteWins');
+  if (result === 'black-wins') return t('watch.blackWins');
+  if (result === 'red-wins') return t('watch.redWins');
+  return t('watch.draw');
 }
 
 // Banqi seats are decoupled from ink, so its seat-keyed result needs the game's

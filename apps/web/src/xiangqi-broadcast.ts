@@ -12,6 +12,7 @@ import type {
 import { xiangqiMoveToFsfUci } from '@mistboard/game';
 import './live-xiangqi.css';
 import './xiangqi-broadcast.css';
+import { t } from './i18n/catalog.js';
 import { renderXiangqiBoardSvg } from './live-xiangqi.js';
 import { buildXiangqiReplayFromMoves } from './review/xiangqi-review-model.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
@@ -129,7 +130,7 @@ type BroadcastStreamEnvelope<T> = {
 };
 
 export async function mountXiangqiBroadcastIndex(root: HTMLElement): Promise<void> {
-  setBroadcastRoot(root, 'Loading broadcasts');
+  setBroadcastRoot(root, t('broadcast.loadingBroadcasts'));
   try {
     const data = await fetchJson<BroadcastIndexResponse>('/api/xiangqi/broadcasts');
     const paint = (): void => root.replaceChildren(buildNav(), renderIndex(data));
@@ -144,7 +145,7 @@ export async function mountXiangqiBroadcastTour(
   root: HTMLElement,
   tourSlug: string,
 ): Promise<void> {
-  setBroadcastRoot(root, 'Loading broadcast');
+  setBroadcastRoot(root, t('broadcast.loadingBroadcast'));
   try {
     const data = await fetchJson<BroadcastTourResponse>(
       `/api/xiangqi/broadcasts/${encodeURIComponent(tourSlug)}`,
@@ -162,7 +163,7 @@ export async function mountXiangqiBroadcastRound(
   tourSlug: string,
   roundId: string,
 ): Promise<void> {
-  setBroadcastRoot(root, 'Loading round');
+  setBroadcastRoot(root, t('broadcast.loadingRound'));
   try {
     let data = await fetchJson<BroadcastRoundResponse>(
       `/api/xiangqi/broadcasts/${encodeURIComponent(tourSlug)}/rounds/${encodeURIComponent(
@@ -185,7 +186,7 @@ export async function mountXiangqiBroadcastBoard(
   root: HTMLElement,
   boardId: string,
 ): Promise<void> {
-  setBroadcastRoot(root, 'Loading board');
+  setBroadcastRoot(root, t('broadcast.loadingBoard'));
   try {
     let data = await fetchJson<BroadcastBoardResponse>(
       `/api/xiangqi/broadcasts/boards/${encodeURIComponent(boardId)}`,
@@ -230,7 +231,7 @@ function setBroadcastRoot(root: HTMLElement, loadingLabel: string): void {
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
-    if (response.status === 404) throw new Error('Broadcast not found');
+    if (response.status === 404) throw new Error(t('broadcast.notFound'));
     throw new Error(`Broadcast API failed: ${response.status}`);
   }
   return (await response.json()) as T;
@@ -238,7 +239,7 @@ async function fetchJson<T>(url: string): Promise<T> {
 
 function renderError(root: HTMLElement, err: unknown): void {
   const message = err instanceof Error ? err.message : String(err);
-  root.replaceChildren(buildNav(), buildNotice('Broadcast unavailable', message));
+  root.replaceChildren(buildNav(), buildNotice(t('broadcast.unavailable'), message));
 }
 
 function connectRoundStream(
@@ -321,18 +322,24 @@ function renderIndex(data: BroadcastIndexResponse): HTMLElement {
   const past = data.tours.filter((entry) => entry.liveBoardCount === 0);
   main.append(
     heroSection({
-      eyebrow: 'Xiangqi broadcast',
-      title: 'Tournament broadcasts',
+      eyebrow: t('broadcast.eyebrow'),
+      title: t('broadcast.tournamentBroadcasts'),
       meta: [
-        `${data.tours.length} tournaments`,
-        live.length > 0 ? `${live.length} live now` : null,
+        t('broadcast.tournamentCount', { count: data.tours.length }),
+        live.length > 0 ? t('broadcast.liveNowCount', { count: live.length }) : null,
       ].filter(Boolean) as string[],
     }),
   );
 
-  if (live.length > 0) main.append(tourZone('Live now', sortByFreshness(live), true));
+  if (live.length > 0) main.append(tourZone(t('broadcast.liveNow'), sortByFreshness(live), true));
   if (past.length > 0 || live.length === 0) {
-    main.append(tourZone(live.length > 0 ? 'Past' : 'Broadcasts', sortByFreshness(past), false));
+    main.append(
+      tourZone(
+        live.length > 0 ? t('broadcast.past') : t('broadcast.broadcasts'),
+        sortByFreshness(past),
+        false,
+      ),
+    );
   }
   return main;
 }
@@ -354,7 +361,7 @@ function tourZone(title: string, entries: BroadcastIndexEntry[], liveZone: boole
   if (entries.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'xqb-empty';
-    empty.textContent = 'No broadcasts are available yet.';
+    empty.textContent = t('broadcast.noneAvailable');
     grid.append(empty);
   }
   section.append(heading, grid);
@@ -366,7 +373,7 @@ function renderTour(data: BroadcastTourResponse): HTMLElement {
   const main = broadcastShell();
   main.append(
     heroSection({
-      eyebrow: 'Xiangqi broadcast',
+      eyebrow: t('broadcast.eyebrow'),
       title: primaryName(data.tour),
       subtitle: secondaryName(data.tour),
       href: data.tour.sourceUrl,
@@ -381,7 +388,7 @@ function renderTour(data: BroadcastTourResponse): HTMLElement {
   const section = document.createElement('section');
   section.className = 'xqb-section';
   const heading = document.createElement('h2');
-  heading.textContent = 'Rounds';
+  heading.textContent = t('broadcast.rounds');
   const list = document.createElement('div');
   list.className = 'xqb-list';
   for (const round of data.rounds) {
@@ -428,9 +435,9 @@ function roundPhase(stats: Partial<BroadcastRoundStats>): RoundPhase {
 }
 
 function roundPhaseLabel(phase: RoundPhase): string {
-  if (phase === 'live') return 'Live';
-  if (phase === 'finished') return 'Finished';
-  return 'Upcoming';
+  if (phase === 'live') return t('broadcast.live');
+  if (phase === 'finished') return t('broadcast.finished');
+  return t('broadcast.upcoming');
 }
 
 // Text markers stand in for lila's icon font: live disc, finished check,
@@ -461,7 +468,7 @@ function roundSwitcher(
   if (rounds.length === 0) return null;
   const select = document.createElement('select');
   select.className = 'xqb-round-select';
-  select.setAttribute('aria-label', 'Switch round');
+  select.setAttribute('aria-label', t('broadcast.switchRound'));
   for (const round of rounds) {
     const option = document.createElement('option');
     option.value = round.id;
@@ -494,7 +501,7 @@ function renderRound(data: BroadcastRoundResponse): HTMLElement {
         liveCount > 0 ? `${liveCount} live` : null,
       ].filter(Boolean) as string[],
       backHref: `/broadcast/xiangqi/${encodeURIComponent(data.tour.slug)}`,
-      backLabel: 'Tournament',
+      backLabel: t('broadcast.backToTournament'),
       switcher: roundSwitcher(data.tour.slug, data.rounds ?? [], data.round.id),
     }),
   );
@@ -502,7 +509,7 @@ function renderRound(data: BroadcastRoundResponse): HTMLElement {
   const section = document.createElement('section');
   section.className = 'xqb-section';
   const heading = document.createElement('h2');
-  heading.textContent = 'Boards';
+  heading.textContent = t('broadcast.boards');
   const grid = document.createElement('div');
   grid.className = 'xqb-board-grid';
   // Live boards lead the grid; within a status band the pairing order holds.
@@ -548,7 +555,7 @@ function renderBoardReplay(
     backHref: `/broadcast/xiangqi/${encodeURIComponent(
       data.board.tourSlug,
     )}/round/${encodeURIComponent(data.board.roundId)}`,
-    backLabel: 'Round',
+    backLabel: t('broadcast.backToRound'),
     switcher: context
       ? roundSwitcher(data.board.tourSlug, context.rounds ?? [], data.board.roundId)
       : null,
@@ -561,28 +568,28 @@ function renderBoardReplay(
   boardPanel.className = 'xqb-board-panel';
   const boardFrame = document.createElement('div');
   boardFrame.className = 'xqb-board-frame xiangqi-live-board';
-  boardFrame.setAttribute('aria-label', 'Xiangqi board');
+  boardFrame.setAttribute('aria-label', t('broadcast.boardAriaLabel'));
 
   const controls = document.createElement('div');
   controls.className = 'xqb-controls';
-  const first = controlButton('First', () => setCursor(0));
-  const prev = controlButton('Prev', () => setCursor(cursor - 1));
-  const next = controlButton('Next', () => setCursor(cursor + 1));
-  const last = controlButton('Live', () => setCursor(maxPly));
+  const first = controlButton(t('broadcast.first'), () => setCursor(0));
+  const prev = controlButton(t('broadcast.prev'), () => setCursor(cursor - 1));
+  const next = controlButton(t('broadcast.next'), () => setCursor(cursor + 1));
+  const last = controlButton(t('broadcast.live'), () => setCursor(maxPly));
   const plyLabel = document.createElement('span');
   plyLabel.className = 'xqb-ply-label';
   controls.append(first, prev, plyLabel, next, last);
 
   const boardMeta = document.createElement('div');
   boardMeta.className = 'xqb-board-meta';
-  boardMeta.append(playerPanel('Red', data.board.red, data.board.result === '1-0'));
-  boardMeta.append(playerPanel('Black', data.board.black, data.board.result === '0-1'));
+  boardMeta.append(playerPanel(t('setup.red'), data.board.red, data.board.result === '1-0'));
+  boardMeta.append(playerPanel(t('setup.black'), data.board.black, data.board.result === '0-1'));
   boardPanel.append(boardFrame, controls, boardMeta);
 
   const movesPanel = document.createElement('aside');
   movesPanel.className = 'xqb-moves-panel';
   const moveHeading = document.createElement('h2');
-  moveHeading.textContent = 'Moves';
+  moveHeading.textContent = t('broadcast.moves');
   const moveList = document.createElement('div');
   moveList.className = 'xqb-move-grid';
   const actions = document.createElement('div');
@@ -716,7 +723,7 @@ function heroSection(input: {
     source.className = 'xqb-link xqb-link-primary';
     source.href = input.href;
     source.rel = 'noreferrer';
-    source.textContent = 'Source';
+    source.textContent = t('broadcast.source');
     actions.append(source);
   }
   section.append(copy, actions);
@@ -781,7 +788,7 @@ function tourCard(entry: BroadcastIndexEntry): HTMLElement {
 function liveBadge(): HTMLElement {
   const badge = document.createElement('span');
   badge.className = 'xqb-badge-live';
-  badge.textContent = 'Live';
+  badge.textContent = t('broadcast.live');
   return badge;
 }
 
@@ -888,7 +895,7 @@ function sideRail(context: BroadcastRoundResponse, currentBoardId: string): HTML
 }
 
 function railMarker(board: Pick<BroadcastBoardSummary, 'status' | 'result'>): string {
-  if (board.status === 'live') return 'Live';
+  if (board.status === 'live') return t('broadcast.live');
   if (board.result === '1/2-1/2') return '½-½';
   if (board.result !== '*') return board.result;
   return '';
@@ -990,7 +997,7 @@ function analyseLink(href: string): HTMLElement {
   link.href = href;
   link.target = '_blank';
   link.rel = 'noopener';
-  link.textContent = 'Analyse with engine';
+  link.textContent = t('broadcast.analyseWithEngine');
   return link;
 }
 
@@ -998,7 +1005,7 @@ function exportLink(boardId: string): HTMLElement {
   const link = document.createElement('a');
   link.className = 'xqb-export-link';
   link.href = `/api/xiangqi/broadcasts/boards/${encodeURIComponent(boardId)}/export`;
-  link.textContent = 'Export JSON';
+  link.textContent = t('broadcast.exportJson');
   return link;
 }
 
@@ -1042,18 +1049,22 @@ function playerNameZh(player: XiangqiBroadcastPlayerTag): string | null {
 }
 
 function resultLabel(board: Pick<BroadcastBoardSummary, 'result' | 'status'>): string {
-  if (board.result === '1-0') return 'Red wins';
-  if (board.result === '0-1') return 'Black wins';
-  if (board.result === '1/2-1/2') return 'Draw';
-  if (board.status === 'live') return 'Live';
-  if (board.status === 'scheduled') return 'Scheduled';
-  return 'In progress';
+  if (board.result === '1-0') return t('broadcast.redWins');
+  if (board.result === '0-1') return t('broadcast.blackWins');
+  if (board.result === '1/2-1/2') return t('broadcast.draw');
+  if (board.status === 'live') return t('broadcast.live');
+  if (board.status === 'scheduled') return t('broadcast.scheduled');
+  return t('broadcast.inProgress');
 }
 
 function statusLabel(status: XiangqiGameStatus): string {
   if (status.type === 'playing') return `${capitalize(status.turn)} to move`;
   if (status.type === 'finished') {
-    const result = status.winner ? `${capitalize(status.winner)} wins` : 'Draw';
+    const result = status.winner
+      ? t('broadcast.colorWins', {
+          color: status.winner === 'red' ? t('setup.red') : t('setup.black'),
+        })
+      : t('broadcast.draw');
     return `${result} by ${status.reason}`;
   }
   return `Aborted: ${status.reason}`;

@@ -19,6 +19,7 @@ import {
   gameSpecAnalyticsProps,
 } from './analytics.js';
 import { chessgroundAnimation } from './board-anim.js';
+import { type I18nKey, t } from './i18n/catalog.js';
 import {
   boardHighlightClasses,
   boardResultClass,
@@ -62,6 +63,7 @@ import {
   boardStatusTone,
   connectionNoticeMode,
   modeLabel,
+  reasonPhraseLabel,
   rejectedSignInHref,
   seatLabel,
 } from './live-status.js';
@@ -342,21 +344,31 @@ function renderOffer(projection: GameProjection | null): void {
 
   if (liveState.solo) {
     refs.starts.append(
-      draftOfferGroup('White offer', 'white', draftOfferForColor('white', projection), projection),
-      draftOfferGroup('Black offer', 'black', draftOfferForColor('black', projection), projection),
+      draftOfferGroup(
+        t('live.draftWhiteOffer'),
+        'white',
+        draftOfferForColor('white', projection),
+        projection,
+      ),
+      draftOfferGroup(
+        t('live.draftBlackOffer'),
+        'black',
+        draftOfferForColor('black', projection),
+        projection,
+      ),
     );
     return;
   }
 
   if (liveState.seat === 'spectator') {
-    refs.starts.append(infoNotice('pending', 'Draft choices are private while the game is live.'));
+    refs.starts.append(infoNotice('pending', t('live.draftPrivate')));
     return;
   }
 
   const color = pickColorForSeat();
   const visibleOffer = draftOfferForColor(color, projection);
   if (visibleOffer.length === 0) {
-    refs.starts.append(infoNotice('pending', 'Waiting for the draft offer.'));
+    refs.starts.append(infoNotice('pending', t('live.draftWaitingOffer')));
     return;
   }
 
@@ -404,7 +416,7 @@ function draftOfferGroup(
   group.append(heading);
 
   if (starts.length === 0) {
-    group.append(infoNotice('pending', 'No offer visible.'));
+    group.append(infoNotice('pending', t('live.draftNoOffer')));
     return group;
   }
 
@@ -455,8 +467,8 @@ function renderSelections(projection: GameProjection | null): void {
   ) {
     const color = pickColorForSeat();
     refs.selectionList.replaceChildren(
-      selectionItem('Your pick', selectedStartId(color, projection)),
-      selectionItem('Your start', resolvedStartIdForColor(color, projection)),
+      selectionItem(t('live.draftYourPick'), selectedStartId(color, projection)),
+      selectionItem(t('live.draftYourStart'), resolvedStartIdForColor(color, projection)),
     );
     return;
   }
@@ -464,13 +476,13 @@ function renderSelections(projection: GameProjection | null): void {
   const resolvedWhite = resolvedStartIdForColor('white', projection);
   const resolvedBlack = resolvedStartIdForColor('black', projection);
   refs.selectionList.replaceChildren(
-    selectionItem('White', selectedStartId('white', projection)),
-    selectionItem('Black', selectedStartId('black', projection)),
+    selectionItem(t('setup.white'), selectedStartId('white', projection)),
+    selectionItem(t('setup.black'), selectedStartId('black', projection)),
     resolvedWhite !== undefined || resolvedBlack !== undefined
-      ? selectionItem('Resolved White', resolvedWhite)
-      : selectionItem('Resolved', sharedResolvedStartId(projection)),
+      ? selectionItem(t('live.draftResolvedWhite'), resolvedWhite)
+      : selectionItem(t('live.draftResolved'), sharedResolvedStartId(projection)),
     resolvedWhite !== undefined || resolvedBlack !== undefined
-      ? selectionItem('Resolved Black', resolvedBlack)
+      ? selectionItem(t('live.draftResolvedBlack'), resolvedBlack)
       : document.createDocumentFragment(),
   );
 }
@@ -510,7 +522,7 @@ function renderDraftPicker(): void {
     waiting.innerHTML = `<div class="draft-picker-waiting-board">${svgHtml}</div>`;
     const label = document.createElement('p');
     label.className = 'draft-picker-waiting-label';
-    label.textContent = 'Waiting for opponent…';
+    label.textContent = t('live.draftWaitingOpponent');
     waiting.append(label);
     refs.draftPicker.append(waiting);
     return;
@@ -521,7 +533,7 @@ function renderDraftPicker(): void {
   inner.className = 'draft-picker-inner';
   const heading = document.createElement('p');
   heading.className = 'draft-picker-heading';
-  heading.textContent = 'Choose your starting position';
+  heading.textContent = t('live.draftChoosePosition');
   const boardsEl = document.createElement('div');
   boardsEl.className = 'draft-picker-boards';
   const size = 160;
@@ -579,7 +591,7 @@ function renderActionStatus(view: PlayerView | null): void {
   ) {
     const reconnect = document.createElement('button');
     reconnect.type = 'button';
-    reconnect.textContent = 'Reconnect now';
+    reconnect.textContent = t('live.reconnectNow');
     reconnect.addEventListener('click', reconnectNow);
     notice.append(reconnect);
   }
@@ -589,7 +601,7 @@ function renderActionStatus(view: PlayerView | null): void {
     if (signInHref) {
       const signIn = document.createElement('a');
       signIn.href = signInHref;
-      signIn.textContent = 'Sign in to take your seat';
+      signIn.textContent = t('live.signInTakeSeat');
       notice.append(signIn);
     }
   }
@@ -609,14 +621,19 @@ function renderGameInfo(view: PlayerView | null): void {
   let subline: string | null = null;
   let statusLine: string | null = null;
   if (status?.type === 'finished') {
-    const reason = status.reason.replace(/-/g, ' ');
+    // The reason used to render its own wire value here ('king captured' via a
+    // dash strip); it now goes through the same keyed phrases as live-status.
+    const reason = reasonPhraseLabel(status.reason);
     statusLine = status.winner
-      ? `${reason.charAt(0).toUpperCase()}${reason.slice(1)} • ${status.winner === 'white' ? 'White' : 'Black'} is victorious`
-      : `Draw • ${reason}`;
+      ? t('result.colorVictorious', {
+          color: status.winner === 'white' ? t('setup.white') : t('setup.black'),
+          reason: `${reason.charAt(0).toUpperCase()}${reason.slice(1)}`,
+        })
+      : t('result.drawByReason', { reason });
   } else if (status?.type === 'aborted') {
-    statusLine = 'Game aborted';
+    statusLine = t('live.statusGameAborted');
   } else if (status?.type === 'playing') {
-    subline = 'Playing right now';
+    subline = t('live.playingRightNow');
   }
 
   const card = createGameMetaCard({
@@ -624,18 +641,16 @@ function renderGameInfo(view: PlayerView | null): void {
     // stays only as the fallback for a variant string we can't map.
     markerId: metaMarkerId(view) ?? undefined,
     glyph: '♔',
-    headline: [timeLabel, modeEntry ? modeEntry[1] : 'Casual'],
+    headline: [timeLabel, modeEntry ? modeEntry[1] : t('live.modeCasual')],
     variantName: fmt,
     subline,
-    players: (['white', 'black'] as const).map((color) => ({
-      color,
-      name:
-        liveState.seat === color
-          ? `You (${color === 'white' ? 'White' : 'Black'})`
-          : color === 'white'
-            ? 'White'
-            : 'Black',
-    })),
+    players: (['white', 'black'] as const).map((color) => {
+      const colorName = color === 'white' ? t('setup.white') : t('setup.black');
+      return {
+        color,
+        name: liveState.seat === color ? t('live.youAre', { color: colorName }) : colorName,
+      };
+    }),
     status: statusLine,
   });
   refs.gameInfo.replaceChildren(card.el);
@@ -647,7 +662,7 @@ function renderGameInfo(view: PlayerView | null): void {
     if (connLabel) {
       const wrap = document.createElement('div');
       wrap.className = 'game-info';
-      wrap.append(infoItem('Connection', connLabel));
+      wrap.append(infoItem(t('live.connectionLabel'), connLabel));
       refs.gameInfo.append(wrap);
     }
   }
@@ -666,15 +681,16 @@ function metaMarkerId(view: PlayerView | null): VariantMiniId | null {
 function formatLabel(view: PlayerView | null): string {
   const variant = view?.variant ?? liveState.state?.variant ?? liveState.variantRequested;
   if (variant === 'draft960' || variant === 'fog-draft960' || variant === 'dark-draft960') {
-    return 'Dark Draft960';
+    return t('live.variantDarkDraft960');
   }
-  const base = variant === 'dark-chess' ? 'Fog Chess' : capitalize(variant ?? 'dark chess');
+  const base =
+    variant === 'dark-chess' ? t('live.variantFogChess') : capitalize(variant ?? 'dark chess');
   const isDraft960 =
     liveState.variantRequested === 'fog-draft960' ||
     liveState.variantRequested === 'dark-draft960' ||
     Object.values(liveState.offers).some((arr) => arr && arr.length > 0) ||
     Object.keys(liveState.resolvedStartIds).length > 0;
-  return isDraft960 ? `${base} · Dark Draft960` : base;
+  return isDraft960 ? t('live.variantWithDraft960', { variant: base }) : base;
 }
 
 function timeControlLabel(view: PlayerView | null): string | null {
@@ -682,8 +698,11 @@ function timeControlLabel(view: PlayerView | null): string | null {
   // the live time classes are meaningless at days cadence.
   const daysPerMove = liveState.timeControl?.daysPerMove;
   if (typeof daysPerMove === 'number' && daysPerMove > 0) {
-    const days = daysPerMove === 1 ? '1 day' : `${daysPerMove} days`;
-    return `${days} per move · Correspondence`;
+    const days =
+      daysPerMove === 1
+        ? t('live.oneDayPerMove')
+        : t('live.daysPerMoveCount', { count: daysPerMove });
+    return t('live.perMoveCorrespondence', { days });
   }
   let initialMs: number | null = null;
   let incrementMs: number | null = null;
@@ -704,40 +723,51 @@ function timeControlLabel(view: PlayerView | null): string | null {
   const incSec = Math.round(incrementMs / 1000);
   const compact = incSec > 0 ? `${minutes}+${incSec}` : `${minutes}+0`;
   const klass = classifyTimeControl(initialMs, incrementMs);
-  return klass ? `${compact} · ${capitalize(klass)}` : compact;
+  return klass
+    ? t('live.timeControlWithClass', { control: compact, timeClass: t(TIME_CLASS_KEYS[klass]) })
+    : compact;
 }
 
+const TIME_CLASS_KEYS: Record<ReturnType<typeof classifyTimeControl>, I18nKey> = {
+  blitz: 'live.timeClassBlitz',
+  bullet: 'live.timeClassBullet',
+  classical: 'live.timeClassClassical',
+  rapid: 'live.timeClassRapid',
+};
+
 function modeDetailLabel(): string {
-  if (liveState.solo) return 'Solo dev';
+  if (liveState.solo) return t('live.modeSoloDev');
   if (liveState.roomMode === 'pve') {
-    const engine = liveState.pveEngineName ?? 'Engine';
-    return `vs ${engine}`;
+    const engine = liveState.pveEngineName ?? t('live.engineFallbackName');
+    return t('live.modeVsEngine', { engine });
   }
-  if (liveState.roomMode === 'eve') return 'Engine vs engine';
-  if (liveState.roomMode === 'imported') return 'Imported game';
-  if (liveState.roomMode === 'manual') return 'Manual setup';
-  return liveState.rated ? 'Rated' : 'Casual';
+  if (liveState.roomMode === 'eve') return t('live.modeEngineVsEngine');
+  if (liveState.roomMode === 'imported') return t('live.modeImportedGame');
+  if (liveState.roomMode === 'manual') return t('live.modeManualSetup');
+  return liveState.rated ? t('live.modeRated') : t('live.modeCasual');
 }
 
 function modeDetailEntry(): [string, string] | null {
   if (liveState.roomMode === 'pve') return null;
-  return ['Mode', modeDetailLabel()];
+  return [t('live.modeLabel'), modeDetailLabel()];
 }
 
 function connectionDetailLabel(): string | null {
   switch (liveState.connectionState) {
     case 'connected':
-      return liveState.latencyMs !== null ? `Connected · ${liveState.latencyMs}ms` : 'Connected';
+      return liveState.latencyMs !== null
+        ? t('live.connConnectedWithLatency', { latency: liveState.latencyMs })
+        : t('live.connConnected');
     case 'connecting':
-      return 'Connecting';
+      return t('live.statusConnecting');
     case 'reconnecting':
-      return `Reconnecting · attempt ${liveState.reconnectAttempt}`;
+      return t('live.connReconnectingAttempt', { attempt: liveState.reconnectAttempt });
     case 'disconnected':
-      return 'Disconnected';
+      return t('live.connDisconnected');
     case 'displaced':
-      return 'Session moved';
+      return t('live.statusSessionMoved');
     case 'rejected':
-      return 'Rejected';
+      return t('live.connRejected');
     default:
       return null;
   }
@@ -872,12 +902,12 @@ function renderPausedOverlay(paused: boolean): void {
   const title = refs.boardPaused.querySelector<HTMLElement>('[data-board-paused-title]');
   const body = refs.boardPaused.querySelector<HTMLElement>('[data-board-paused-body]');
   if (liveState.pauseReason === 'engine-error') {
-    if (title) title.textContent = 'Engine stopped';
-    if (body) body.textContent = 'The engine failed before this room could be completed.';
+    if (title) title.textContent = t('live.pausedEngineStopped');
+    if (body) body.textContent = t('live.pausedEngineStoppedBody');
     return;
   }
-  if (title) title.textContent = 'Game paused';
-  if (body) body.textContent = 'Server is restarting - your game will resume shortly';
+  if (title) title.textContent = t('live.pausedTitle');
+  if (body) body.textContent = t('live.pausedBody');
 }
 
 function renderBoardResult(view: PlayerView | null): void {
@@ -981,7 +1011,7 @@ function renderPromotion(): void {
   if (!pendingPromotion) return;
 
   refs.promotion.className = `promotion-picker cg-wrap ${pendingPromotion.color}`;
-  refs.promotion.setAttribute('aria-label', 'Choose promotion piece');
+  refs.promotion.setAttribute('aria-label', t('live.choosePromotionPiece'));
   refs.promotion.onclick = (event) => {
     if (event.target !== refs.promotion) return;
     pendingPromotion = null;

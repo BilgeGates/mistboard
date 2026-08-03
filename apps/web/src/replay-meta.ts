@@ -1,5 +1,6 @@
 import type { GameEvent } from '@mistboard/game';
-import { formatClock } from './web-utils.js';
+import { t } from './i18n/catalog.js';
+import { escapeHtml, formatClock } from './web-utils.js';
 
 export type GameMeta = {
   whiteName: string | null;
@@ -58,40 +59,41 @@ export function createGameHeaderStrip(): GameHeaderHandle {
 }
 
 export function playerViewLabel(name: string | null | undefined, side: 'white' | 'black'): string {
-  const fallback = side === 'white' ? "White's view" : "Black's view";
   const trimmed = name?.trim();
-  if (!trimmed) return fallback;
-  // Use the name verbatim so casing the user chose is preserved. Possessive
-  // form is acceptable for plain names and engine version strings.
-  const apostrophe = trimmed.endsWith('s') || trimmed.endsWith('S') ? "'" : "'s";
-  return `${trimmed}${apostrophe} view`;
+  if (!trimmed) return side === 'white' ? t('replay.whitesView') : t('replay.blacksView');
+  // Name kept verbatim so the casing the user chose is preserved. The
+  // possessive lives inside the key, not in code: English glues an apostrophe
+  // on the end, and no other locale forms it that way.
+  return t('replay.playersView', { name: trimmed });
 }
 
 export function createShareButton(): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'replay-game-header-action replay-game-header-share';
-  btn.innerHTML = `${ICON_SHARE}<span class="replay-game-header-action-label">Share</span>`;
-  btn.title = 'Copy link to this position';
+  btn.innerHTML = `${ICON_SHARE}<span class="replay-game-header-action-label">${escapeHtml(
+    t('replay.share'),
+  )}</span>`;
+  btn.title = t('replay.copyLinkToPosition');
   const labelEl = btn.querySelector<HTMLSpanElement>('.replay-game-header-action-label')!;
   let resetTimer: number | null = null;
   btn.addEventListener('click', async () => {
     const url = window.location.href;
     try {
       await navigator.clipboard.writeText(url);
-      labelEl.textContent = 'Copied';
+      labelEl.textContent = t('replay.copied');
       btn.classList.add('replay-game-header-share-copied');
     } catch {
       // Older browsers / clipboard-blocked contexts: fall back to a transient prompt.
       try {
-        window.prompt('Copy this link:', url);
+        window.prompt(t('replay.copyThisLink'), url);
       } catch {
         return;
       }
     }
     if (resetTimer !== null) window.clearTimeout(resetTimer);
     resetTimer = window.setTimeout(() => {
-      labelEl.textContent = 'Share';
+      labelEl.textContent = t('replay.share');
       btn.classList.remove('replay-game-header-share-copied');
       resetTimer = null;
     }, 1600);
@@ -130,7 +132,7 @@ export function renderGameHeader(
   const timeControl = timeControlLabelFromMeta(meta.timeControl);
   const bits: string[] = [
     ...(timeControl ? [timeControl] : []),
-    `${meta.plyCount} ${meta.plyCount === 1 ? 'ply' : 'plies'}`,
+    meta.plyCount === 1 ? t('replay.onePly') : t('watch.plyCount', { count: meta.plyCount }),
   ];
   handle.meta.replaceChildren();
   bits.forEach((bit, i) => {
@@ -151,7 +153,7 @@ export function renderGameHeader(
     const link = document.createElement('a');
     link.className = 'replay-game-header-link';
     link.href = meta.gameUrl;
-    link.textContent = 'View game';
+    link.textContent = t('replay.viewGame');
     handle.meta.append(sep, link);
   }
 }
@@ -162,11 +164,11 @@ export function createGameMetaPanel(
 ): GameMetaPanelHandle {
   const el = document.createElement('aside');
   el.className = `replay-game-meta-card replay-game-meta-card-${mode} side-panel meta-panel`;
-  el.setAttribute('aria-label', 'Game metadata');
+  el.setAttribute('aria-label', t('replay.gameMetadata'));
   const section = document.createElement('section');
   section.className = 'panel-section';
   const title = document.createElement('h2');
-  title.textContent = mode === 'compact' ? 'Featured game' : 'Game';
+  title.textContent = mode === 'compact' ? t('replay.featuredGame') : t('replay.game');
   const details = document.createElement('div');
   details.className = 'game-info replay-game-meta-details';
   if (mode === 'compact') {
@@ -196,12 +198,12 @@ export function renderGameMetaPanel(
     panel.mode === 'compact'
       ? []
       : [
-          { label: 'Mode', value: meta.modeLabel ?? 'Replay' },
-          { label: 'Result', value: resultLabel(meta.result) },
-          { label: 'End', value: terminationLabel(meta.termination) },
-          ...(timeControl ? [{ label: 'Time', value: timeControl }] : []),
-          { label: 'Plies', value: String(meta.plyCount) },
-          { label: 'Game', value: activeSample },
+          { label: t('replay.modeLabel'), value: meta.modeLabel ?? t('replay.replayMode') },
+          { label: t('replay.resultLabel'), value: resultLabel(meta.result) },
+          { label: t('replay.endLabel'), value: terminationLabel(meta.termination) },
+          ...(timeControl ? [{ label: t('replay.timeLabel'), value: timeControl }] : []),
+          { label: t('replay.pliesLabel'), value: String(meta.plyCount) },
+          { label: t('replay.game'), value: activeSample },
         ];
 
   panel.details.replaceChildren();
@@ -220,7 +222,7 @@ export function renderGameMetaPanel(
     const link = document.createElement('a');
     link.className = 'replay-game-link';
     link.href = meta.gameUrl;
-    link.textContent = 'View game';
+    link.textContent = t('replay.viewGame');
     panel.details.append(link);
   }
 }
@@ -230,7 +232,7 @@ export function timeControlLabelFromMeta(
 ): string | null {
   if (!raw) return null;
   if (typeof raw.label === 'string' && raw.label.trim()) return raw.label.trim();
-  if (raw.kind === 'none') return 'Untimed';
+  if (raw.kind === 'none') return t('watch.untimed');
 
   const initialSeconds = numericValue(raw.initial_seconds);
   const incrementSeconds = numericValue(raw.increment_seconds);
@@ -308,13 +310,13 @@ function winningSideFromResult(result: string): 'white' | 'black' | 'draw' {
 function terminationDetailLabel(termination: string): string | null {
   const label = terminationLabel(termination).toLowerCase();
   if (!label || label === 'unknown') return null;
-  return `by ${label}`;
+  return t('replay.byTermination', { termination: label });
 }
 
 function resultLabel(result: string): string {
-  if (result === 'white-wins') return 'White wins';
-  if (result === 'black-wins') return 'Black wins';
-  return 'Draw';
+  if (result === 'white-wins') return t('watch.whiteWins');
+  if (result === 'black-wins') return t('watch.blackWins');
+  return t('watch.draw');
 }
 
 function terminationLabel(termination: string): string {

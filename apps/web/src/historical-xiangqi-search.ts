@@ -1,4 +1,5 @@
 import './historical-xiangqi-search.css';
+import { t } from './i18n/catalog.js';
 import { buildNav } from './site-shell.js';
 
 export type HistoricalXiangqiResult = '1-0' | '0-1' | '1/2-1/2' | '*';
@@ -69,7 +70,7 @@ export async function mountHistoricalXiangqiSearch(root: HTMLElement): Promise<v
 
   const heading = document.createElement('h1');
   heading.className = 'site-section-heading';
-  heading.textContent = 'Xiangqi game search';
+  heading.textContent = t('historical.heading');
 
   const filtersHost = document.createElement('section');
   const summaryHost = document.createElement('section');
@@ -82,13 +83,13 @@ export async function mountHistoricalXiangqiSearch(root: HTMLElement): Promise<v
   const run = async (): Promise<void> => {
     writeFilters(filters);
     filtersHost.replaceChildren(buildFilterForm(filters, applyFilters));
-    summaryHost.replaceChildren(statusLine('Loading'));
+    summaryHost.replaceChildren(statusLine(t('historical.loading')));
     resultsHost.replaceChildren();
     let data: HistoricalXiangqiSearchResponse;
     try {
       data = await fetchHistoricalXiangqiGames(filters);
     } catch {
-      summaryHost.replaceChildren(statusLine('Search failed.'));
+      summaryHost.replaceChildren(statusLine(t('historical.searchFailed')));
       return;
     }
     summaryHost.replaceChildren(totalLine(data.total));
@@ -176,39 +177,39 @@ function buildFilterForm(filters: Filters, onApply: (next: Filters) => void): HT
     inputs.set(key, field.input);
     form.append(field.field);
   };
-  addText('player', 'Player', 'Name');
-  addText('event', 'Event', 'Tournament');
-  addText('source', 'Source', 'Archive slug, mistboard, broadcast');
+  addText('player', t('historical.playerLabel'), t('historical.playerPlaceholder'));
+  addText('event', t('historical.eventLabel'), t('historical.eventPlaceholder'));
+  addText('source', t('historical.sourceLabel'), t('historical.sourcePlaceholder'));
 
   const result = selectInput(
-    'Result',
+    t('historical.resultLabel'),
     [
-      { value: '', label: 'Any result' },
-      { value: '1-0', label: 'Red wins' },
-      { value: '0-1', label: 'Black wins' },
-      { value: '1/2-1/2', label: 'Draw' },
-      { value: '*', label: 'Unfinished' },
+      { value: '', label: t('historical.anyResult') },
+      { value: '1-0', label: t('historical.redWins') },
+      { value: '0-1', label: t('historical.blackWins') },
+      { value: '1/2-1/2', label: t('historical.draw') },
+      { value: '*', label: t('historical.unfinished') },
     ],
     filters.result,
   );
   selects.set('result', result.select);
   form.append(result.field);
 
-  const from = dateInput('From', filters.from);
+  const from = dateInput(t('historical.fromLabel'), filters.from);
   inputs.set('from', from.input);
   form.append(from.field);
-  const to = dateInput('To', filters.to);
+  const to = dateInput(t('historical.toLabel'), filters.to);
   inputs.set('to', to.input);
   form.append(to.field);
-  const plyMin = numberInput('Min plies', filters.plyMin);
+  const plyMin = numberInput(t('historical.minPlies'), filters.plyMin);
   inputs.set('plyMin', plyMin.input);
   form.append(plyMin.field);
-  const plyMax = numberInput('Max plies', filters.plyMax);
+  const plyMax = numberInput(t('historical.maxPlies'), filters.plyMax);
   inputs.set('plyMax', plyMax.input);
   form.append(plyMax.field);
 
   const limit = selectInput(
-    'Rows',
+    t('historical.rowsLabel'),
     [
       { value: '25', label: '25' },
       { value: '50', label: '50' },
@@ -225,11 +226,11 @@ function buildFilterForm(filters: Filters, onApply: (next: Filters) => void): HT
   const apply = document.createElement('button');
   apply.type = 'submit';
   apply.className = 'historical-xiangqi-btn historical-xiangqi-btn-primary';
-  apply.textContent = 'Search';
+  apply.textContent = t('historical.search');
   const reset = document.createElement('button');
   reset.type = 'button';
   reset.className = 'historical-xiangqi-btn';
-  reset.textContent = 'Reset';
+  reset.textContent = t('historical.reset');
   actions.append(apply, reset);
   form.append(actions);
 
@@ -270,7 +271,7 @@ function buildResults(
 ): HTMLElement {
   const wrap = document.createElement('div');
   if (data.games.length === 0) {
-    wrap.append(statusLine('No games match these filters.'));
+    wrap.append(statusLine(t('historical.noGamesMatch')));
     return wrap;
   }
   const list = document.createElement('div');
@@ -298,10 +299,14 @@ function gameRow(game: HistoricalXiangqiGameListItem): HTMLElement {
   matchup.className = 'historical-xiangqi-matchup';
   // English primary; the original Chinese follows as a muted inline secondary
   // when a cached translation exists.
-  const matchupEn = `${game.redNameEn ?? game.redNameRaw ?? 'Red'} vs ${
-    game.blackNameEn ?? game.blackNameRaw ?? 'Black'
-  }`;
-  const matchupRaw = `${game.redNameRaw ?? 'Red'} vs ${game.blackNameRaw ?? 'Black'}`;
+  const matchupEn = t('historical.matchup', {
+    red: game.redNameEn ?? game.redNameRaw ?? t('setup.red'),
+    black: game.blackNameEn ?? game.blackNameRaw ?? t('setup.black'),
+  });
+  const matchupRaw = t('historical.matchup', {
+    red: game.redNameRaw ?? t('setup.red'),
+    black: game.blackNameRaw ?? t('setup.black'),
+  });
   matchup.textContent = matchupEn;
   if ((game.redNameEn || game.blackNameEn) && matchupRaw !== matchupEn) {
     const zh = document.createElement('span');
@@ -336,7 +341,7 @@ function gameRow(game: HistoricalXiangqiGameListItem): HTMLElement {
 
   const review = document.createElement('span');
   review.className = 'historical-xiangqi-review-link';
-  review.textContent = 'Review';
+  review.textContent = t('historical.review');
   link.append(review);
   return link;
 }
@@ -353,7 +358,7 @@ function buildPager(
   const prev = document.createElement('button');
   prev.type = 'button';
   prev.className = 'historical-xiangqi-btn';
-  prev.textContent = 'Prev';
+  prev.textContent = t('historical.prev');
   prev.disabled = offset <= 0;
   prev.addEventListener('click', () => {
     onApply({ ...readFilters(), offset: Math.max(0, offset - limit), limit });
@@ -368,7 +373,7 @@ function buildPager(
   const next = document.createElement('button');
   next.type = 'button';
   next.className = 'historical-xiangqi-btn';
-  next.textContent = 'Next';
+  next.textContent = t('historical.next');
   next.disabled = offset + limit >= total;
   next.addEventListener('click', () => {
     onApply({ ...readFilters(), offset: offset + limit, limit });
@@ -459,22 +464,25 @@ function statusLine(text: string): HTMLElement {
 function totalLine(total: number): HTMLElement {
   const p = document.createElement('p');
   p.className = 'historical-xiangqi-total';
-  p.textContent = total === 1 ? '1 game found' : `${total.toLocaleString()} games found`;
+  p.textContent =
+    total === 1
+      ? t('historical.oneGameFound')
+      : t('historical.gamesFound', { count: total.toLocaleString() });
   return p;
 }
 
 export function historicalXiangqiResultLabel(result: HistoricalXiangqiResult): string {
-  if (result === '1-0') return 'Red';
-  if (result === '0-1') return 'Black';
-  if (result === '1/2-1/2') return 'Draw';
+  if (result === '1-0') return t('setup.red');
+  if (result === '0-1') return t('setup.black');
+  if (result === '1/2-1/2') return t('historical.draw');
   return '*';
 }
 
 export function historicalXiangqiOutcomeLabel(result: HistoricalXiangqiResult): string {
-  if (result === '1-0') return 'Red wins';
-  if (result === '0-1') return 'Black wins';
-  if (result === '1/2-1/2') return 'Draw';
-  return 'Unfinished';
+  if (result === '1-0') return t('historical.redWins');
+  if (result === '0-1') return t('historical.blackWins');
+  if (result === '1/2-1/2') return t('historical.draw');
+  return t('historical.unfinished');
 }
 
 function resultTone(result: HistoricalXiangqiResult): 'red' | 'black' | 'draw' {
@@ -484,9 +492,9 @@ function resultTone(result: HistoricalXiangqiResult): 'red' | 'black' | 'draw' {
 }
 
 function gameKindLabel(kind: HistoricalXiangqiGameListItem['kind']): string {
-  if (kind === 'mistboard') return 'Mistboard';
-  if (kind === 'broadcast') return 'Broadcast';
-  return 'Archive';
+  if (kind === 'mistboard') return t('historical.sourceMistboard');
+  if (kind === 'broadcast') return t('historical.sourceBroadcast');
+  return t('historical.sourceArchive');
 }
 
 function eventLine(game: HistoricalXiangqiGameListItem): string {

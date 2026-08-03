@@ -4,6 +4,7 @@ import {
   deleteAnnotation,
   formatAnnotationLine,
 } from './annotations.js';
+import { t } from './i18n/catalog.js';
 
 export type AnnotationConfig = {
   manifestUrl: string;
@@ -76,7 +77,7 @@ export function renderAnnotationPanel(
   if (opts.annotations.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'annot-panel-empty';
-    empty.textContent = 'No notes for this game yet.';
+    empty.textContent = t('replay.noNotesYet');
     panel.listEl.append(empty);
     return;
   }
@@ -92,7 +93,7 @@ export function renderAnnotationPanel(
     jumpBtn.type = 'button';
     jumpBtn.className = 'annot-panel-item-jump';
     jumpBtn.textContent = formatAnnotationLine(a);
-    jumpBtn.title = 'Jump to this ply';
+    jumpBtn.title = t('replay.jumpToPly');
     jumpBtn.addEventListener('click', () => {
       opts.onJump(a.ply);
     });
@@ -101,7 +102,7 @@ export function renderAnnotationPanel(
     editBtn.type = 'button';
     editBtn.className = 'annot-panel-item-edit';
     editBtn.textContent = '✎';
-    editBtn.title = 'Edit this note';
+    editBtn.title = t('replay.editNote');
     editBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       opts.onEdit(a, panel.form);
@@ -111,7 +112,7 @@ export function renderAnnotationPanel(
     delBtn.type = 'button';
     delBtn.className = 'annot-panel-item-del';
     delBtn.textContent = '🗑';
-    delBtn.title = 'Delete this note';
+    delBtn.title = t('replay.deleteNote');
     delBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const summary = `ply ${a.ply} ${a.move_played_uci}${a.note ? ` — ${a.note.slice(0, 60)}` : ''}`;
@@ -177,8 +178,8 @@ function createAnnotForm(opts: {
     editingAnnotation = null;
     cancelEditBtn.hidden = true;
     el.classList.remove('annot-form-editing');
-    titleEl.textContent = 'Annotate';
-    saveBtn.textContent = 'Save';
+    titleEl.textContent = t('replay.annotate');
+    saveBtn.textContent = t('replay.save');
     applyContextHeader(lastContext);
     noteEl.value = '';
     betterEl.value = '';
@@ -186,7 +187,7 @@ function createAnnotForm(opts: {
 
   function applyContextHeader(ctx: AnnotationContext | null): void {
     if (!ctx) {
-      contextEl.textContent = '— scrub to a ply to begin';
+      contextEl.textContent = t('replay.scrubToPly');
       return;
     }
     const tier1Marker = ctx.isTier1Move ? 'tier1' : 'random';
@@ -236,12 +237,12 @@ function createAnnotForm(opts: {
 
   async function tryToSave(): Promise<void> {
     if (!isReady()) {
-      statusEl.textContent = 'No move at current ply.';
+      statusEl.textContent = t('replay.noMoveAtPly');
       statusEl.className = 'annot-form-status annot-form-status-warn';
       return;
     }
     saveBtn.disabled = true;
-    statusEl.textContent = editingAnnotation ? 'Updating…' : 'Saving…';
+    statusEl.textContent = editingAnnotation ? t('replay.updating') : t('replay.saving');
     statusEl.className = 'annot-form-status';
     try {
       await opts.onSave(
@@ -252,10 +253,10 @@ function createAnnotForm(opts: {
         },
         editingAnnotation,
       );
-      statusEl.textContent = editingAnnotation ? 'Updated.' : 'Saved.';
+      statusEl.textContent = editingAnnotation ? t('replay.updated') : t('replay.saved');
       statusEl.className = 'annot-form-status annot-form-status-ok';
     } catch (err) {
-      statusEl.textContent = `Save failed: ${(err as Error).message}`;
+      statusEl.textContent = t('replay.saveFailed', { message: (err as Error).message });
       statusEl.className = 'annot-form-status annot-form-status-err';
     } finally {
       saveBtn.disabled = false;
@@ -296,8 +297,8 @@ function createAnnotForm(opts: {
       if (sevInput) sevInput.checked = true;
       betterEl.value = a.suggested_move_uci ?? '';
       noteEl.value = a.note;
-      titleEl.textContent = `Editing note (${a.severity})`;
-      saveBtn.textContent = 'Update';
+      titleEl.textContent = t('replay.editingNote', { severity: a.severity });
+      saveBtn.textContent = t('replay.update');
       cancelEditBtn.hidden = false;
       el.classList.add('annot-form-editing');
       contextEl.innerHTML = `— ply <strong>${a.ply}</strong> · played <span class="annot-form-move">${a.move_played_uci}</span> <span class="annot-form-meta">(${a.move_played_color}, editing)</span>`;

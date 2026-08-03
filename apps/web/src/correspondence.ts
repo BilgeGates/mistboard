@@ -1,6 +1,7 @@
 import './correspondence.css';
 import { CORRESPONDENCE_ELIGIBLE_SPEC_IDS, DAYS_PER_MOVE_OPTIONS } from '@mistboard/game';
 import { firstMoverColorName, secondMoverColorName, variantDisplayLabel } from './game-display.js';
+import { t } from './i18n/catalog.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 import { formatDayClock } from './web-utils.js';
 
@@ -39,7 +40,7 @@ type CorrespondenceSeeksResponse = { seeks: CorrespondenceSeek[] };
 export async function mountCorrespondence(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'correspondence-page');
-  root.append(buildNav(), buildLoadingState('Loading your games'));
+  root.append(buildNav(), buildLoadingState(t('correspondence.loadingGames')));
 
   const resp = await fetch('/api/correspondence/games').catch(() => null);
   if (resp?.status === 401) {
@@ -49,7 +50,7 @@ export async function mountCorrespondence(root: HTMLElement): Promise<void> {
   if (!resp?.ok) {
     root.replaceChildren(
       buildNav(),
-      buildNotice('Games unavailable', 'Your correspondence games could not be loaded right now.'),
+      buildNotice(t('correspondence.gamesUnavailable'), t('correspondence.gamesUnavailableBody')),
     );
     return;
   }
@@ -68,14 +69,11 @@ export async function mountCorrespondence(root: HTMLElement): Promise<void> {
 }
 
 function buildSignInPrompt(): HTMLElement {
-  const notice = buildNotice(
-    'Sign in to see your games',
-    'Correspondence games are tied to your account so you can pick them up from any device.',
-  );
+  const notice = buildNotice(t('correspondence.signInTitle'), t('correspondence.signInBody'));
   const link = document.createElement('a');
   link.className = 'correspondence-cta';
   link.href = '/account?tab=login';
-  link.textContent = 'Sign in';
+  link.textContent = t('correspondence.signIn');
   notice.append(link);
   return notice;
 }
@@ -87,7 +85,7 @@ function buildCorrespondenceSection(data: CorrespondenceGamesResponse): HTMLElem
   const header = document.createElement('header');
   header.className = 'correspondence-header';
   const title = document.createElement('h1');
-  title.textContent = 'Correspondence';
+  title.textContent = t('correspondence.heading');
   const sub = document.createElement('p');
   sub.className = 'correspondence-subtitle';
   sub.textContent = correspondenceStatus(data);
@@ -98,26 +96,29 @@ function buildCorrespondenceSection(data: CorrespondenceGamesResponse): HTMLElem
   // board below carries the page.
   const yourMove = data.games.filter((game) => game.isYourMove);
   const waiting = data.games.filter((game) => !game.isYourMove);
-  if (yourMove.length > 0) section.append(buildGameGroup('Your move', yourMove));
-  if (waiting.length > 0) section.append(buildGameGroup('Waiting on opponent', waiting));
+  if (yourMove.length > 0) section.append(buildGameGroup(t('correspondence.yourMove'), yourMove));
+  if (waiting.length > 0)
+    section.append(buildGameGroup(t('correspondence.waitingOnOpponent'), waiting));
   return section;
 }
 
 function correspondenceStatus(data: CorrespondenceGamesResponse): string {
-  if (data.games.length === 0) return 'No games in progress';
+  if (data.games.length === 0) return t('correspondence.noGamesInProgress');
   if (data.yourMoveCount > 0) {
-    return `${data.yourMoveCount} ${data.yourMoveCount === 1 ? 'game needs' : 'games need'} your move`;
+    return data.yourMoveCount === 1
+      ? t('correspondence.oneGameNeedsYourMove', { count: data.yourMoveCount })
+      : t('correspondence.gamesNeedYourMove', { count: data.yourMoveCount });
   }
-  return 'No games waiting on you';
+  return t('correspondence.noGamesWaiting');
 }
 
 function buildFriendLink(): HTMLElement {
   const note = document.createElement('p');
   note.className = 'correspondence-friend-link';
-  note.append(document.createTextNode('Want a specific opponent? '));
+  note.append(document.createTextNode(t('correspondence.wantSpecificOpponent')));
   const link = document.createElement('a');
   link.href = '/';
-  link.textContent = 'Challenge a friend →';
+  link.textContent = t('correspondence.challengeFriend');
   note.append(link);
   return note;
 }
@@ -127,7 +128,7 @@ function buildGameGroup(label: string, games: CorrespondenceGame[]): HTMLElement
   group.className = 'correspondence-group';
   const heading = document.createElement('h2');
   heading.className = 'correspondence-group-heading';
-  heading.textContent = `${label} (${games.length})`;
+  heading.textContent = t('correspondence.groupHeading', { label, count: games.length });
   const list = document.createElement('ol');
   list.className = 'correspondence-list';
   for (const game of games) list.append(buildGameRow(game));
@@ -146,11 +147,13 @@ function buildGameRow(game: CorrespondenceGame): HTMLLIElement {
 
   const opponent = document.createElement('span');
   opponent.className = 'correspondence-opponent';
-  opponent.textContent = `vs ${game.opponentName ?? 'Opponent'}`;
+  opponent.textContent = t('correspondence.vsOpponent', {
+    name: game.opponentName ?? t('correspondence.opponentFallback'),
+  });
 
   const turn = document.createElement('span');
   turn.className = 'correspondence-turn';
-  turn.textContent = game.isYourMove ? 'Your move' : 'Their move';
+  turn.textContent = game.isYourMove ? t('correspondence.yourMove') : t('correspondence.theirMove');
 
   const deadline = document.createElement('span');
   deadline.className = 'correspondence-deadline';
@@ -166,8 +169,8 @@ function buildGameRow(game: CorrespondenceGame): HTMLLIElement {
 // transient state — the sweeper flags them within its interval — so clamp to 0.
 function deadlineLabel(dueAt: string): string {
   const remainingMs = Date.parse(dueAt) - Date.now();
-  if (!Number.isFinite(remainingMs) || remainingMs <= 0) return 'due now';
-  return `${formatDayClock(remainingMs)} left`;
+  if (!Number.isFinite(remainingMs) || remainingMs <= 0) return t('correspondence.dueNow');
+  return t('correspondence.timeLeft', { time: formatDayClock(remainingMs) });
 }
 
 // The open-seek board: fetch + render in place. Re-invoked (not a full reload)
@@ -177,14 +180,17 @@ async function renderSeekBoard(container: HTMLElement): Promise<void> {
   headerRow.className = 'correspondence-seek-header';
   const heading = document.createElement('h2');
   heading.className = 'correspondence-group-heading';
-  heading.textContent = 'Open games · anyone can join';
+  heading.textContent = t('correspondence.openGamesHeading');
   headerRow.append(heading);
 
   const resp = await fetch('/api/correspondence/seeks').catch(() => null);
   if (!resp?.ok) {
     container.replaceChildren(
       headerRow,
-      buildNotice('Open games unavailable', 'The seek board could not be loaded right now.'),
+      buildNotice(
+        t('correspondence.openGamesUnavailable'),
+        t('correspondence.openGamesUnavailableBody'),
+      ),
     );
     return;
   }
@@ -199,7 +205,7 @@ async function renderSeekBoard(container: HTMLElement): Promise<void> {
   const toggle = document.createElement('button');
   toggle.type = 'button';
   toggle.className = 'correspondence-seek-toggle';
-  toggle.textContent = 'Post a game';
+  toggle.textContent = t('correspondence.postAGame');
   toggle.addEventListener('click', () => {
     form.hidden = !form.hidden;
     toggle.classList.toggle('is-open', !form.hidden);
@@ -211,7 +217,7 @@ async function renderSeekBoard(container: HTMLElement): Promise<void> {
   if (seeks.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'correspondence-seek-empty';
-    empty.textContent = 'No open games yet. Post one and someone can join whenever they like.';
+    empty.textContent = t('correspondence.noOpenGames');
     children.push(empty);
   } else {
     const list = document.createElement('ol');
@@ -232,7 +238,7 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
   // Variant picker over the correspondence-eligible specs; hidden when only one qualifies.
   const variant = document.createElement('select');
   variant.className = 'correspondence-post-field';
-  variant.setAttribute('aria-label', 'Variant');
+  variant.setAttribute('aria-label', t('correspondence.variantLabel'));
   for (const specId of CORRESPONDENCE_ELIGIBLE_SPEC_IDS) {
     const opt = document.createElement('option');
     opt.value = specId;
@@ -244,11 +250,14 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
 
   const days = document.createElement('select');
   days.className = 'correspondence-post-field';
-  days.setAttribute('aria-label', 'Days per move');
+  days.setAttribute('aria-label', t('correspondence.daysPerMoveLabel'));
   for (const option of DAYS_PER_MOVE_OPTIONS) {
     const opt = document.createElement('option');
     opt.value = String(option);
-    opt.textContent = `${option} day${option === 1 ? '' : 's'}/move`;
+    opt.textContent =
+      option === 1
+        ? t('correspondence.oneDayPerMoveOption')
+        : t('correspondence.daysPerMoveOption', { count: option });
     days.append(opt);
   }
   days.value = String(DAYS_PER_MOVE_OPTIONS[1] ?? DAYS_PER_MOVE_OPTIONS[0]);
@@ -256,7 +265,7 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
   // Side stored as move order; labels reflect the picked variant's colors.
   const color = document.createElement('select');
   color.className = 'correspondence-post-field';
-  color.setAttribute('aria-label', 'Your color');
+  color.setAttribute('aria-label', t('correspondence.yourColorLabel'));
   for (const value of ['random', 'first', 'second'] as const) {
     const opt = document.createElement('option');
     opt.value = value;
@@ -264,9 +273,13 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
   }
   const relabelColors = (): void => {
     const specId = variant.value;
-    color.options[0]!.textContent = 'Random color';
-    color.options[1]!.textContent = `Play ${firstMoverColorName(specId)}`;
-    color.options[2]!.textContent = `Play ${secondMoverColorName(specId)}`;
+    color.options[0]!.textContent = t('correspondence.randomColor');
+    color.options[1]!.textContent = t('correspondence.playColor', {
+      color: firstMoverColorName(specId),
+    });
+    color.options[2]!.textContent = t('correspondence.playColor', {
+      color: secondMoverColorName(specId),
+    });
   };
   relabelColors();
   variant.addEventListener('change', relabelColors);
@@ -274,7 +287,7 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
   const submit = document.createElement('button');
   submit.type = 'submit';
   submit.className = 'correspondence-cta';
-  submit.textContent = 'Create';
+  submit.textContent = t('correspondence.create');
 
   const error = document.createElement('p');
   error.className = 'correspondence-post-error';
@@ -285,7 +298,7 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
   const linkBtn = document.createElement('button');
   linkBtn.type = 'button';
   linkBtn.className = 'correspondence-cta';
-  linkBtn.textContent = 'Create a link to share';
+  linkBtn.textContent = t('correspondence.createLinkToShare');
   linkBtn.addEventListener('click', () => {
     linkBtn.disabled = true;
     error.hidden = true;
@@ -311,13 +324,13 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
         }
         error.textContent =
           body?.error === 'seek_limit_reached'
-            ? `You can have up to ${body.limit ?? 6} open games at once.`
-            : 'Could not create a link. Try again.';
+            ? t('correspondence.seekLimitReached', { limit: body.limit ?? 6 })
+            : t('correspondence.couldNotCreateLink');
         error.hidden = false;
         linkBtn.disabled = false;
       })
       .catch(() => {
-        error.textContent = 'Could not create a link. Try again.';
+        error.textContent = t('correspondence.couldNotCreateLink');
         error.hidden = false;
         linkBtn.disabled = false;
       });
@@ -347,13 +360,13 @@ function buildPostSeekForm(onPosted: () => void): HTMLFormElement {
         } | null;
         error.textContent =
           body?.error === 'seek_limit_reached'
-            ? `You can have up to ${body.limit ?? 6} open games at once.`
-            : 'Could not post that game. Try again.';
+            ? t('correspondence.seekLimitReached', { limit: body.limit ?? 6 })
+            : t('correspondence.couldNotPostGame');
         error.hidden = false;
         submit.disabled = false;
       })
       .catch(() => {
-        error.textContent = 'Could not post that game. Try again.';
+        error.textContent = t('correspondence.couldNotPostGame');
         error.hidden = false;
         submit.disabled = false;
       });
@@ -372,21 +385,27 @@ function buildSeekRow(seek: CorrespondenceSeek, onChange: () => void): HTMLLIEle
 
   const who = document.createElement('span');
   who.className = 'correspondence-opponent';
-  who.textContent = seek.isMine ? 'You' : (seek.creatorName ?? 'Player');
+  who.textContent = seek.isMine
+    ? t('correspondence.you')
+    : (seek.creatorName ?? t('correspondence.playerFallback'));
 
   const detail = document.createElement('span');
   detail.className = 'correspondence-turn';
   // Lead with the variant now that the board is cross-variant, then side + cadence.
-  detail.textContent = `${variantDisplayLabel(seek.gameSpecId)} · ${seekColorLabel(
-    seek.gameSpecId,
-    seek.preferredColor,
-  )} · ${seek.daysPerMove} day${seek.daysPerMove === 1 ? '' : 's'}/move`;
+  detail.textContent = t('correspondence.seekDetail', {
+    variant: variantDisplayLabel(seek.gameSpecId),
+    color: seekColorLabel(seek.gameSpecId, seek.preferredColor),
+    cadence:
+      seek.daysPerMove === 1
+        ? t('correspondence.oneDayPerMove')
+        : t('correspondence.daysPerMove', { count: seek.daysPerMove }),
+  });
 
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'correspondence-cta correspondence-seek-action';
   if (seek.isMine) {
-    button.textContent = 'Cancel';
+    button.textContent = t('correspondence.cancel');
     button.classList.add('is-cancel');
     button.addEventListener('click', () => {
       button.disabled = true;
@@ -397,7 +416,7 @@ function buildSeekRow(seek: CorrespondenceSeek, onChange: () => void): HTMLLIEle
         });
     });
   } else {
-    button.textContent = 'Join';
+    button.textContent = t('correspondence.join');
     button.addEventListener('click', () => {
       button.disabled = true;
       void fetch(`/api/correspondence/seeks/${encodeURIComponent(seek.id)}/accept`, {

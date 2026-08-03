@@ -1,4 +1,5 @@
 import { maybeGameSpecForId } from '@mistboard/game';
+import { t } from './i18n/catalog.js';
 import { seatColorWord } from './variant-seat-label.js';
 
 export const MISTBOARD_ENGINE_SNAPSHOT_ID = 'engine-v2-2026-05-24';
@@ -164,11 +165,11 @@ function displayParticipant(
 // spec falls back to White/Black rather than throwing (worst case a wrong color WORD on the
 // label; the seat itself is always assigned by the tenant's own colors).
 export function firstMoverColorName(gameSpecId: string): string {
-  return gameSpecId === 'xiangqi' ? 'Red' : 'White';
+  return gameSpecId === 'xiangqi' ? t('setup.red') : t('setup.white');
 }
 
 export function secondMoverColorName(_gameSpecId: string): string {
-  return 'Black';
+  return t('setup.black');
 }
 
 // the lowercase 'Fog Chess'); everything else derives from the canonical spec
@@ -182,12 +183,12 @@ export function variantDisplayLabel(variant: string): string {
 }
 
 export function sourceLabel(mode: FeaturedGame['mode']): string {
-  if (mode === 'eve') return 'Engine vs engine';
-  if (mode === 'pve') return 'Human vs engine';
-  if (mode === 'pvp') return 'Human vs human';
-  if (mode === 'imported') return 'Imported game';
-  if (mode === 'manual') return 'Manual game';
-  return 'Fog Chess game';
+  if (mode === 'eve') return t('watch.engineVsEngine');
+  if (mode === 'pve') return t('watch.humanVsEngine');
+  if (mode === 'pvp') return t('watch.humanVsHuman');
+  if (mode === 'imported') return t('watch.importedGame');
+  if (mode === 'manual') return t('watch.manualGame');
+  return t('watch.fogChessGame');
 }
 
 function engineDisplayName(name: string | null | undefined): string | null {

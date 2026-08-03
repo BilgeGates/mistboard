@@ -1,4 +1,5 @@
 import './forum.css';
+import { t } from './i18n/catalog.js';
 import { type AuthUser, buildNav, buildNotice, fetchCurrentUser } from './site-shell.js';
 import { buildUiIcon } from './ui-icon.js';
 
@@ -152,7 +153,7 @@ export async function mountForum(root: HTMLElement): Promise<void> {
 
   const body = document.createElement('div');
   body.className = 'forum-layout';
-  body.append(statusPanel('Loading forum...'));
+  body.append(statusPanel(t('forum.loading')));
   shell.append(body);
 
   const query = new URLSearchParams(window.location.search);
@@ -182,7 +183,7 @@ export async function mountForum(root: HTMLElement): Promise<void> {
       fetchCurrentUser().catch(() => null),
     ]);
   } catch {
-    body.replaceChildren(buildNotice('Forum unavailable', 'The forum could not load.'));
+    body.replaceChildren(buildNotice(t('forum.unavailable'), t('forum.couldNotLoad')));
     return;
   }
   const searchPage = searchQuery ? (forumRows as ForumPostSearchPage) : null;
@@ -230,7 +231,7 @@ export async function mountForum(root: HTMLElement): Promise<void> {
       postSearchResults(
         visibleSearchPosts,
         searchPage?.total ?? 0,
-        topicPage > 1 ? 'No forum posts on this page.' : 'No forum posts matched.',
+        topicPage > 1 ? t('forum.noPostsOnPage') : t('forum.noPostsMatched'),
       ),
     );
     if (needsPager) panel.append(topicPager(topicPageOptions));
@@ -286,11 +287,11 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
     ]);
   } catch (err) {
     if (err instanceof ForumNotFound) {
-      document.title = 'Topic not found · Mistboard';
-      shell.append(buildNotice('Topic not found', 'This forum topic is not available.'));
+      document.title = t('forum.topicNotFoundTitle');
+      shell.append(buildNotice(t('forum.topicNotFound'), t('forum.topicNotAvailable')));
       return;
     }
-    shell.append(buildNotice('Forum unavailable', 'This topic could not load.'));
+    shell.append(buildNotice(t('forum.unavailable'), t('forum.topicCouldNotLoad')));
     return;
   }
 
@@ -319,8 +320,8 @@ export async function mountForumTopic(root: HTMLElement, topicId: string): Promi
     ),
   );
   if (needsPostPager) panel.append(postPager(postPageOptions));
-  if (topic.locked) panel.append(statusPanel('This topic is locked.'));
-  else panel.append(user ? replyForm(topic, user) : signInBox('Sign in to reply.'));
+  if (topic.locked) panel.append(statusPanel(t('forum.topicLocked')));
+  else panel.append(user ? replyForm(topic, user) : signInBox(t('forum.signInToReply')));
 
   shell.append(panel);
 }
@@ -332,21 +333,21 @@ export async function mountForumPostRedirect(root: HTMLElement, postId: string):
   const shell = document.createElement('main');
   shell.className = 'site-section forum-shell';
   root.append(buildNav(), shell);
-  shell.append(statusPanel('Opening forum post...'));
+  shell.append(statusPanel(t('forum.openingPost')));
 
   try {
     const resp = await fetch(`/api/forum/posts/${encodeURIComponent(postId)}/redirect`, {
       headers: { accept: 'application/json' },
     });
     if (resp.status === 404) {
-      shell.replaceChildren(buildNotice('Post not found', 'This forum post is not available.'));
+      shell.replaceChildren(buildNotice(t('forum.postNotFound'), t('forum.postNotAvailable')));
       return;
     }
     if (!resp.ok) throw new Error(`forum_post_redirect_failed_${resp.status}`);
     const data = (await resp.json()) as { href: string };
     window.location.replace(data.href);
   } catch {
-    shell.replaceChildren(buildNotice('Forum unavailable', 'This forum post could not load.'));
+    shell.replaceChildren(buildNotice(t('forum.unavailable'), t('forum.postCouldNotLoad')));
   }
 }
 
@@ -360,7 +361,7 @@ export async function mountForumReports(root: HTMLElement): Promise<void> {
 
   const body = document.createElement('div');
   body.className = 'forum-layout';
-  body.append(statusPanel('Loading forum reports...'));
+  body.append(statusPanel(t('forum.loadingReports')));
   shell.append(body);
 
   const query = new URLSearchParams(window.location.search);
@@ -377,8 +378,8 @@ export async function mountForumReports(root: HTMLElement): Promise<void> {
   } catch (err) {
     body.replaceChildren(
       err instanceof ForumForbidden
-        ? buildNotice('Admin access required', 'Forum reports are available to moderators.')
-        : buildNotice('Forum unavailable', 'The report queue could not load.'),
+        ? buildNotice(t('forum.adminAccessRequired'), t('forum.reportsAreModerators'))
+        : buildNotice(t('forum.unavailable'), t('forum.reportQueueCouldNotLoad')),
     );
     return;
   }
@@ -407,7 +408,7 @@ export async function mountForumReports(root: HTMLElement): Promise<void> {
 export async function mountForumEtiquette(root: HTMLElement): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page', 'forum-route');
-  document.title = 'Forum etiquette · Mistboard';
+  document.title = t('forum.etiquettePageTitle');
 
   const shell = document.createElement('main');
   shell.className = 'site-section forum-shell';
@@ -418,62 +419,47 @@ export async function mountForumEtiquette(root: HTMLElement): Promise<void> {
   header.className = 'forum-etiquette-header';
   const heading = document.createElement('h1');
   heading.className = 'forum-etiquette-title';
-  heading.textContent = 'Forum etiquette';
+  heading.textContent = t('forum.etiquette');
   header.append(forumBackLink('/forum', 'Back to forum'), heading);
 
   const body = document.createElement('div');
   body.className = 'forum-etiquette-body';
   const intro = document.createElement('p');
   intro.className = 'forum-etiquette-lede';
-  intro.textContent =
-    'The forum is a good place to talk dark chess with other players. Sometimes moderators have to step in and close or hide a thread. To keep your posts up, follow these guidelines.';
+  intro.textContent = t('forum.etiquetteLede');
   body.append(
     intro,
-    etiquetteSection('A descriptive title', [
-      etiquettePara(
-        'A clear title says what the thread is about, so people can find and answer it.',
-      ),
-      etiquetteExample('do', '"Scouting lines in Fog Xiangqi: how deep to commit?"'),
-      etiquetteExample('dont', '"Help", "Bug", "play", or a single word'),
+    etiquetteSection(t('forum.etiquetteTitleHeading'), [
+      etiquettePara(t('forum.etiquetteTitleBody')),
+      etiquetteExample('do', t('forum.etiquetteTitleDo')),
+      etiquetteExample('dont', t('forum.etiquetteTitleDont')),
     ]),
-    etiquetteSection('Post in the right category', [
-      etiquettePara(
-        'Put each topic in the category that fits it. Rules questions, strategy, and general discussion each have a home. Misplaced threads may be moved or closed by moderators.',
-      ),
+    etiquetteSection(t('forum.etiquetteCategoryHeading'), [
+      etiquettePara(t('forum.etiquetteCategoryBody')),
     ]),
-    etiquetteSection('Advertising and spam', [
-      etiquettePara(
-        'Purely promotional posts are not welcome. Keep advertising off Mistboard, including recruiting for a team or event and plugging your channel.',
-      ),
-      etiquetteExample(
-        'do',
-        'Report promotional posts with the Report button instead of replying.',
-      ),
-      etiquetteExample(
-        'dont',
-        'Threads like "join my team", "subscribe plz", or "how many likes can this get?"',
-      ),
-      etiquetteExample('dont', 'Replying to spam, which only pushes it higher.'),
+    etiquetteSection(t('forum.etiquetteSpamHeading'), [
+      etiquettePara(t('forum.etiquetteSpamBody')),
+      etiquetteExample('do', t('forum.etiquetteSpamDo')),
+      etiquetteExample('dont', t('forum.etiquetteSpamDont')),
+      etiquetteExample('dont', t('forum.etiquetteSpamDont2')),
     ]),
-    etiquetteSection('Respect other players', [
-      etiquettePara(
-        'Disagree with the argument, not the person. No insults, slurs, or personal attacks, and do not pile on.',
-      ),
-      etiquetteExample('do', 'Explain your point calmly, and report a post that crosses the line.'),
-      etiquetteExample('dont', 'Swearing at players or turning a thread into an insult contest.'),
+    etiquetteSection(t('forum.etiquetteRespectHeading'), [
+      etiquettePara(t('forum.etiquetteRespectBody')),
+      etiquetteExample('do', t('forum.etiquetteRespectDo')),
+      etiquetteExample('dont', t('forum.etiquetteRespectDont')),
     ]),
-    etiquetteSection('Keep cheating reports private', [
+    etiquetteSection(t('forum.etiquetteCheatingHeading'), [
       etiquettePara([
-        'Do not accuse other players of cheating in public. Naming and shaming helps no one and is often wrong. Use the ',
-        etiquetteLink('contact page', '/contact'),
-        ' so it can be looked into properly.',
+        t('forum.etiquetteCheatingBefore'),
+        etiquetteLink(t('forum.etiquetteContactLink'), '/contact'),
+        t('forum.etiquetteCheatingAfter'),
       ]),
     ]),
-    etiquetteSection('Moderation', [
+    etiquetteSection(t('forum.etiquetteModerationHeading'), [
       etiquettePara([
-        'Posts that break these guidelines may be hidden, and repeat offenders may lose forum access. When in doubt, be kind. See the ',
-        etiquetteLink('FAQ', '/faq'),
-        ' if you are unsure how something on Mistboard works.',
+        t('forum.etiquetteModerationBefore'),
+        etiquetteLink(t('forum.etiquetteFaqLink'), '/faq'),
+        t('forum.etiquetteModerationAfter'),
       ]),
     ]),
   );
@@ -531,7 +517,7 @@ function forumHomeHeader(searchQuery: string | null, user: AuthUser | null): HTM
   const header = document.createElement('header');
   header.className = 'forum-panel-header forum-panel-header-home';
   header.append(
-    forumPanelTitle('Mistboard Forum', { icon: true }),
+    forumPanelTitle(t('forum.mistboardForum'), { icon: true }),
     forumHomeActions(searchQuery, user),
   );
   return header;
@@ -545,7 +531,7 @@ function forumHomeActions(searchQuery: string | null, user: AuthUser | null): HT
     const reports = document.createElement('a');
     reports.className = 'forum-panel-action forum-report-admin-link';
     reports.href = '/forum/reports';
-    reports.textContent = 'Reports';
+    reports.textContent = t('forum.reports');
     actions.append(reports);
   }
   return actions;
@@ -568,7 +554,7 @@ function categoryPanelHeader(
 function searchPanelHeader(query: string): HTMLElement {
   const header = document.createElement('header');
   header.className = 'forum-panel-header forum-panel-header-search';
-  const title = forumPanelTitle('Search results');
+  const title = forumPanelTitle(t('forum.searchResults'));
   const copy = document.createElement('p');
   copy.className = 'forum-panel-subtitle';
   copy.textContent = `"${query}"`;
@@ -588,7 +574,10 @@ function forumReportsHeader(): HTMLElement {
   header.className = 'forum-panel-header forum-panel-header-reports';
   const titleRow = document.createElement('div');
   titleRow.className = 'forum-panel-title-row';
-  titleRow.append(forumBackLink('/forum', 'Back to forum'), forumPanelTitle('Forum reports'));
+  titleRow.append(
+    forumBackLink('/forum', t('forum.backToForum')),
+    forumPanelTitle(t('forum.reportsTitle')),
+  );
   header.append(titleRow);
   return header;
 }
@@ -641,7 +630,7 @@ function newTopicPanelAction(
     const link = document.createElement('a');
     link.className = 'forum-panel-action';
     link.href = '/account?tab=login';
-    link.textContent = 'Sign in to post';
+    link.textContent = t('forum.signInToPostLink');
     return link;
   }
   if (!composer) {
@@ -654,7 +643,7 @@ function newTopicPanelAction(
   button.type = 'button';
   button.className = 'forum-panel-action forum-panel-action-create';
   const label = document.createElement('span');
-  label.textContent = 'Create a new topic';
+  label.textContent = t('forum.createNewTopic');
   button.append(buildUiIcon('create-topic', 'forum-create-topic-icon'), label);
   button.addEventListener('click', () => {
     composer.hidden = !composer.hidden;
@@ -699,9 +688,9 @@ function categoryIndex(categories: ForumCategory[]): HTMLElement {
   header.className = 'forum-category-index-row forum-category-index-header';
   header.append(
     indexCell('', 'forum-category-index-main'),
-    indexCell('Topics', 'forum-category-index-stat'),
-    indexCell('Posts', 'forum-category-index-stat'),
-    indexCell('Last post', 'forum-category-index-last'),
+    indexCell(t('forum.topicsColumn'), 'forum-category-index-stat'),
+    indexCell(t('forum.postsColumn'), 'forum-category-index-stat'),
+    indexCell(t('forum.lastPostColumn'), 'forum-category-index-last'),
   );
   wrap.append(header);
   for (const category of categories) wrap.append(categoryIndexRow(category));
@@ -734,7 +723,7 @@ function latestPostCell(category: ForumCategory): HTMLElement {
   if (!category.latestPost) {
     const cell = document.createElement('span');
     cell.className = 'forum-category-index-last';
-    cell.textContent = 'No posts yet';
+    cell.textContent = t('forum.noPostsYet');
     return cell;
   }
   const cell = document.createElement('span');
@@ -765,7 +754,7 @@ function indexCell(text: string, className: string): HTMLElement {
 
 function topicList(
   topics: ForumTopicSummary[],
-  emptyText = 'No forum topics yet.',
+  emptyText = t('forum.noTopicsYet'),
   options: { showCategory?: boolean } = {},
 ): HTMLElement {
   const wrap = document.createElement('section');
@@ -785,8 +774,8 @@ function topicListHeader(): HTMLElement {
   row.className = 'forum-topic-row forum-topic-list-header';
   row.append(
     indexCell('', 'forum-topic-row-main'),
-    indexCell('Replies', 'forum-topic-row-replies'),
-    indexCell('Last post', 'forum-topic-row-latest'),
+    indexCell(t('forum.repliesColumn'), 'forum-topic-row-replies'),
+    indexCell(t('forum.lastPostColumn'), 'forum-topic-row-latest'),
   );
   return row;
 }
@@ -849,7 +838,7 @@ function topicPager(options: {
   hasNext: boolean;
 }): HTMLElement {
   return forumPager({
-    ariaLabel: 'Forum topic pages',
+    ariaLabel: t('forum.topicPages'),
     page: options.page,
     hasPrevious: options.hasPrevious,
     hasNext: options.hasNext,
@@ -871,7 +860,7 @@ function topicAutoPager(options: {
   const spinner = document.createElement('span');
   spinner.className = 'site-loading-mark forum-autopager-spinner';
   spinner.setAttribute('role', 'status');
-  spinner.setAttribute('aria-label', 'Loading more topics');
+  spinner.setAttribute('aria-label', t('forum.loadingMoreTopics'));
   status.append(spinner);
   status.hidden = true;
   wrap.append(status);
@@ -950,7 +939,7 @@ function postPager(options: {
   hasNext: boolean;
 }): HTMLElement {
   return forumPager({
-    ariaLabel: 'Forum post pages',
+    ariaLabel: t('forum.postPages'),
     page: options.page,
     hasPrevious: options.hasPrevious,
     hasNext: options.hasNext,
@@ -1008,8 +997,8 @@ function topicRow(topic: ForumTopicSummary, options: { showCategory?: boolean } 
   const flags = document.createElement('div');
   flags.className = 'forum-topic-flags';
   if (options.showCategory) flags.append(pill(topic.category.name));
-  if (topic.pinned) flags.append(pill('Pinned'));
-  if (topic.locked) flags.append(pill('Locked'));
+  if (topic.pinned) flags.append(pill(t('forum.pinned')));
+  if (topic.locked) flags.append(pill(t('forum.locked')));
 
   const title = document.createElement('a');
   title.className = 'forum-topic-title';
@@ -1087,8 +1076,8 @@ function replyCount(topic: ForumTopicSummary): number {
 function topicReportButton(topic: ForumTopicDetail): HTMLButtonElement {
   return forumReportButton({
     className: 'forum-topic-report',
-    label: 'Report',
-    promptText: 'Reason for reporting this topic',
+    label: t('forum.report'),
+    promptText: t('forum.reportTopicReason'),
     submit: (reason) => submitTopicReport(topic.id, reason),
   });
 }
@@ -1097,7 +1086,7 @@ function postList(
   topic: ForumTopicDetail,
   posts: ForumPost[],
   user: AuthUser | null,
-  emptyText = 'No forum posts yet.',
+  emptyText = t('forum.noForumPostsYet'),
   page = 1,
 ): HTMLElement {
   const wrap = document.createElement('section');
@@ -1166,7 +1155,7 @@ function hiddenPostTombstone(
   }
   const body = document.createElement('div');
   body.className = 'forum-post-body forum-post-tombstone';
-  body.textContent = 'Comment deleted by moderator.';
+  body.textContent = t('forum.commentDeleted');
   content.append(meta, body);
   article.append(content);
   return article;
@@ -1184,8 +1173,8 @@ function postAuthorRail(author: ForumAuthor): HTMLElement {
 function onlineDot(): HTMLElement {
   const dot = document.createElement('span');
   dot.className = 'forum-online-dot';
-  dot.title = 'Online now';
-  dot.setAttribute('aria-label', 'Online now');
+  dot.title = t('forum.onlineNow');
+  dot.setAttribute('aria-label', t('forum.onlineNow'));
   dot.setAttribute('role', 'img');
   return dot;
 }
@@ -1194,7 +1183,7 @@ function postPermalink(
   topic: { id: string; slug: string },
   post: ForumPost,
   page = 1,
-  text = 'Link',
+  text = t('forum.link'),
 ): HTMLAnchorElement {
   const link = document.createElement('a');
   link.className = 'forum-post-permalink';
@@ -1207,7 +1196,7 @@ function postQuoteButton(post: ForumPost): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'forum-post-quote';
-  button.textContent = 'Quote';
+  button.textContent = t('forum.quote');
   button.setAttribute('aria-label', `Quote ${authorLabel(post.author)}`);
   button.addEventListener('click', () => {
     insertPostQuote(post);
@@ -1218,8 +1207,8 @@ function postQuoteButton(post: ForumPost): HTMLButtonElement {
 function postReportButton(post: ForumPost): HTMLButtonElement {
   return forumReportButton({
     className: 'forum-post-report',
-    label: 'Report',
-    promptText: 'Reason for reporting this post',
+    label: t('forum.report'),
+    promptText: t('forum.reportPostReason'),
     submit: (reason) => submitPostReport(post.id, reason),
   });
 }
@@ -1352,7 +1341,7 @@ function newTopicForm(
   const form = document.createElement('form');
   form.className = 'forum-form';
   const heading = document.createElement('h2');
-  heading.textContent = 'Start a topic';
+  heading.textContent = t('forum.startATopic');
   const category = document.createElement('select');
   category.name = 'categorySlug';
   const availableCategories = categories.filter(
@@ -1381,11 +1370,11 @@ function newTopicForm(
   title.maxLength = forumTopicTitleMaxLength;
   title.required = true;
   const bodyComposer = forumBodyComposer({
-    ariaLabel: 'Post',
-    placeholder: 'Please be nice in the forum.',
+    ariaLabel: t('forum.postAriaLabel'),
+    placeholder: t('forum.beNicePlaceholder'),
   });
   const error = errorLine();
-  const submit = submitButton('Post topic', { check: true });
+  const submit = submitButton(t('forum.postTopic'), { check: true });
   const cancel = forumCancelLink(() => collapseTopicComposer(form));
   const footer = document.createElement('div');
   footer.className = 'forum-form-footer';
@@ -1393,9 +1382,9 @@ function newTopicForm(
   form.append(
     forumImportantNotice(),
     heading,
-    labeled('Category', category),
-    labeled('Title', title),
-    fieldGroup('Post', bodyComposer.root),
+    labeled(t('forum.categoryLabel'), category),
+    labeled(t('forum.titleLabel'), title),
+    fieldGroup(t('forum.postLabel'), bodyComposer.root),
     forumMarkdownNote(),
     error,
     footer,
@@ -1429,7 +1418,7 @@ function forumImportantNotice(): HTMLElement {
   box.className = 'forum-important-notice';
   const heading = document.createElement('strong');
   heading.className = 'forum-important-heading';
-  heading.textContent = 'Important';
+  heading.textContent = t('forum.important');
   const list = document.createElement('ul');
   list.className = 'forum-important-list';
   const items: Array<[string, string, string]> = [
@@ -1459,18 +1448,18 @@ function forumSearchForm(query: string | null, options: { compact?: boolean } = 
   input.type = 'search';
   input.name = 'q';
   input.maxLength = 120;
-  input.placeholder = 'Search';
+  input.placeholder = t('forum.searchPlaceholder');
   input.autocomplete = 'off';
   input.value = query ?? '';
   const submit = document.createElement('button');
   submit.type = 'submit';
-  submit.textContent = 'Search';
+  submit.textContent = t('forum.search');
   form.append(input, submit);
   if (query) {
     const clear = document.createElement('a');
     clear.className = 'forum-search-clear';
     clear.href = '/forum';
-    clear.textContent = 'Clear';
+    clear.textContent = t('forum.clear');
     form.append(clear);
   }
   return form;
@@ -1480,13 +1469,13 @@ function replyForm(topic: ForumTopicDetail, _user: AuthUser): HTMLElement {
   const form = document.createElement('form');
   form.className = 'forum-form forum-reply-form';
   const heading = document.createElement('h2');
-  heading.textContent = 'Reply to this topic';
+  heading.textContent = t('forum.replyToTopic');
   const bodyComposer = forumBodyComposer({
-    ariaLabel: 'Reply',
-    placeholder: 'Please be nice in the forum.',
+    ariaLabel: t('forum.replyAriaLabel'),
+    placeholder: t('forum.beNicePlaceholder'),
   });
   const error = errorLine();
-  const submit = submitButton('Reply', { check: true });
+  const submit = submitButton(t('forum.reply'), { check: true });
   // Cancel clears the draft and returns to the Write tab (the reply box is
   // always shown, so there is nothing to collapse — lichess clears the same way).
   const cancel = forumCancelLink(() => resetBodyComposer(bodyComposer));
@@ -1505,7 +1494,7 @@ function forumCancelLink(onCancel: () => void): HTMLButtonElement {
   const cancel = document.createElement('button');
   cancel.type = 'button';
   cancel.className = 'forum-cancel-link';
-  cancel.textContent = 'Cancel';
+  cancel.textContent = t('forum.cancel');
   cancel.addEventListener('click', onCancel);
   return cancel;
 }
@@ -1529,11 +1518,11 @@ function forumBodyComposer(options: {
   writeTab.type = 'button';
   writeTab.className =
     'forum-composer-tab forum-reply-tab forum-composer-tab-active forum-reply-tab-active';
-  writeTab.textContent = 'Write';
+  writeTab.textContent = t('forum.write');
   const previewTab = document.createElement('button');
   previewTab.type = 'button';
   previewTab.className = 'forum-composer-tab forum-reply-tab';
-  previewTab.textContent = 'Preview';
+  previewTab.textContent = t('forum.preview');
   tabs.append(writeTab, previewTab);
   const body = document.createElement('textarea');
   body.name = 'body';
@@ -1558,7 +1547,7 @@ function forumBodyComposer(options: {
     if (body.value.trim().length > 0) {
       renderPostBodyInto(preview, body.value);
     } else {
-      preview.replaceChildren(statusPanel('Nothing to preview.'));
+      preview.replaceChildren(statusPanel(t('forum.nothingToPreview')));
     }
   };
   writeTab.addEventListener('click', () => {
@@ -1580,7 +1569,7 @@ function forumMarkdownNote(): HTMLElement {
   markdown.href = 'https://www.markdownguide.org/basic-syntax/';
   markdown.target = '_blank';
   markdown.rel = 'nofollow noopener noreferrer';
-  markdown.textContent = 'Markdown';
+  markdown.textContent = t('forum.markdown');
   const formatting = document.createElement('span');
   formatting.append(markdown, document.createTextNode(' is available for formatting.'));
   const etiquette = document.createElement('a');
@@ -1629,7 +1618,7 @@ async function submitTopic(
     const payload = (await resp.json()) as { topic: ForumTopicDetail };
     window.location.href = topicHref(payload.topic);
   } catch (err) {
-    error.textContent = err instanceof Error ? err.message : 'Topic could not be posted.';
+    error.textContent = err instanceof Error ? err.message : t('forum.topicCouldNotBePosted');
   } finally {
     submit.disabled = false;
   }
@@ -1655,7 +1644,7 @@ async function submitReply(
     window.location.href = postHref(topic, payload.post.id, pageForPostCount(topic.postCount + 1));
     window.location.reload();
   } catch (err) {
-    error.textContent = err instanceof Error ? err.message : 'Reply could not be posted.';
+    error.textContent = err instanceof Error ? err.message : t('forum.replyCouldNotBePosted');
   } finally {
     submit.disabled = false;
   }
@@ -1719,23 +1708,27 @@ function topicModerationBox(topic: ForumTopicDetail, categories: ForumCategory[]
   const head = document.createElement('div');
   head.className = 'forum-moderation-head';
   const heading = document.createElement('strong');
-  heading.textContent = 'Moderation';
+  heading.textContent = t('forum.moderation');
   const badge = document.createElement('span');
   badge.className = 'forum-moderation-badge';
-  badge.textContent = 'Admin only';
+  badge.textContent = t('forum.adminOnly');
   head.append(heading, badge);
   const actions = document.createElement('div');
   actions.className = 'forum-moderation-actions';
   actions.append(
-    moderationButton(topic.pinned ? 'Unpin' : 'Pin', () =>
+    moderationButton(topic.pinned ? t('forum.unpin') : t('forum.pin'), () =>
       submitTopicModeration(topic.id, topic.pinned ? 'unpin' : 'pin'),
     ),
-    moderationButton(topic.locked ? 'Unlock' : 'Lock', () =>
+    moderationButton(topic.locked ? t('forum.unlock') : t('forum.lock'), () =>
       submitTopicModeration(topic.id, topic.locked ? 'unlock' : 'lock'),
     ),
-    moderationButton('Hide topic', (reason) => submitTopicModeration(topic.id, 'hide', reason), {
-      reasonPrompt: 'Reason for hiding this topic (optional)',
-    }),
+    moderationButton(
+      t('forum.hideTopic'),
+      (reason) => submitTopicModeration(topic.id, 'hide', reason),
+      {
+        reasonPrompt: t('forum.hideTopicReason'),
+      },
+    ),
   );
   box.append(head, actions);
   const move = topicMoveForm(topic, categories);
@@ -1758,8 +1751,8 @@ function topicMoveForm(topic: ForumTopicDetail, categories: ForumCategory[]): HT
   }
   const submit = document.createElement('button');
   submit.type = 'submit';
-  submit.textContent = 'Move';
-  form.append(labeled('Move to', select), submit);
+  submit.textContent = t('forum.move');
+  form.append(labeled(t('forum.moveTo'), select), submit);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     submit.disabled = true;
@@ -1774,8 +1767,8 @@ function postModerationBox(post: ForumPost): HTMLElement {
   const actions = document.createElement('div');
   actions.className = 'forum-moderation-actions forum-post-actions';
   actions.append(
-    moderationButton('Hide post', (reason) => submitPostModeration(post.id, reason), {
-      reasonPrompt: 'Reason for hiding this post (optional)',
+    moderationButton(t('forum.hidePost'), (reason) => submitPostModeration(post.id, reason), {
+      reasonPrompt: t('forum.hidePostReason'),
     }),
   );
   return actions;
@@ -1819,11 +1812,11 @@ function forumReportButton(options: {
     void options
       .submit(reason)
       .then(() => {
-        button.textContent = 'Reported';
+        button.textContent = t('forum.reported');
       })
       .catch((err) => {
         button.disabled = false;
-        window.alert(err instanceof Error ? err.message : 'Report could not be sent.');
+        window.alert(err instanceof Error ? err.message : t('forum.reportCouldNotBeSent'));
       });
   });
   return button;
@@ -1834,7 +1827,7 @@ function promptReportReason(promptText: string): string | false {
   if (value === null) return false;
   const reason = value.trim().replace(/\s+/g, ' ');
   if (reason.length === 0) {
-    window.alert('A reason is required.');
+    window.alert(t('forum.reasonRequired'));
     return false;
   }
   if (reason.length > forumModerationReasonMaxLength) {
@@ -1862,7 +1855,7 @@ function normalizePromptReason(value: string): string | null | false {
 function forumReportFilters(activeStatus: ForumReportStatusFilter): HTMLElement {
   const nav = document.createElement('nav');
   nav.className = 'forum-report-filters';
-  nav.setAttribute('aria-label', 'Forum report filters');
+  nav.setAttribute('aria-label', t('forum.reportFilters'));
   for (const [status, label] of [
     ['open', 'Open'],
     ['resolved', 'Resolved'],
@@ -1906,7 +1899,9 @@ function reportRow(report: ForumReport): HTMLElement {
   const meta = document.createElement('p');
   meta.className = 'forum-report-meta';
   meta.append(
-    document.createTextNode(`${report.targetType === 'post' ? 'Post' : 'Topic'} report in `),
+    document.createTextNode(
+      report.targetType === 'post' ? t('forum.postReportIn') : t('forum.topicReportIn'),
+    ),
     categoryLink(report.topic.category),
     document.createTextNode(` · ${report.status}`),
   );
@@ -1934,7 +1929,7 @@ function reportRow(report: ForumReport): HTMLElement {
   side.className = 'forum-report-side';
   const reportedBy = document.createElement('p');
   reportedBy.append(
-    document.createTextNode('Reported by '),
+    document.createTextNode(t('forum.reportedBy')),
     authorProfileLink(report.reporter, 'forum-report-author'),
     document.createTextNode(` · ${formatDate(report.createdAt)}`),
   );
@@ -1942,7 +1937,7 @@ function reportRow(report: ForumReport): HTMLElement {
   if (report.post) {
     const postBy = document.createElement('p');
     postBy.append(
-      document.createTextNode('Post by '),
+      document.createTextNode(t('forum.postBy')),
       authorProfileLink(report.post.author, 'forum-report-author'),
       document.createTextNode(` · ${formatDate(report.post.createdAt)}`),
     );
@@ -1963,7 +1958,7 @@ function reportRow(report: ForumReport): HTMLElement {
   const view = document.createElement('a');
   view.className = 'forum-moderation-button forum-report-view';
   view.href = reportTargetHref(report);
-  view.textContent = 'View';
+  view.textContent = t('forum.view');
   actions.append(view);
   if (report.status === 'open') {
     if (!targetHidden) actions.append(reportTargetHideButton(report));
@@ -1993,22 +1988,22 @@ function reportTargetHideButton(report: ForumReport): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'forum-moderation-button';
-  button.textContent = report.post ? 'Hide post' : 'Hide topic';
+  button.textContent = report.post ? t('forum.hidePost') : t('forum.hideTopic');
   button.addEventListener('click', () => {
     const reason = window.prompt(
-      report.post
-        ? 'Reason for hiding this post (optional)'
-        : 'Reason for hiding this topic (optional)',
+      report.post ? t('forum.hidePostReason') : t('forum.hideTopicReason'),
       report.reason,
     );
     if (reason === null) return;
     const normalizedReason = normalizePromptReason(reason);
     if (normalizedReason === false) return;
-    const resolutionNote = report.post ? 'Hidden reported post.' : 'Hidden reported topic.';
+    const resolutionNote = report.post
+      ? t('forum.hiddenReportedPost')
+      : t('forum.hiddenReportedTopic');
     button.disabled = true;
     void submitReportTargetHide(report, normalizedReason, resolutionNote).catch(() => {
       button.disabled = false;
-      window.alert('Reported content could not be hidden.');
+      window.alert(t('forum.contentCouldNotBeHidden'));
     });
   });
   return button;
@@ -2018,14 +2013,14 @@ function reportResolutionButton(report: ForumReport, status: ForumReportStatus):
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'forum-moderation-button';
-  button.textContent = status === 'resolved' ? 'Resolve' : 'Dismiss';
+  button.textContent = status === 'resolved' ? t('forum.resolve') : t('forum.dismiss');
   button.addEventListener('click', () => {
-    const note = promptModerationReason('Resolution note (optional)');
+    const note = promptModerationReason(t('forum.resolutionNote'));
     if (note === false) return;
     button.disabled = true;
     void submitReportResolution(report.id, status, note).catch(() => {
       button.disabled = false;
-      window.alert('Report could not be updated.');
+      window.alert(t('forum.reportCouldNotBeUpdated'));
     });
   });
   return button;
@@ -2037,7 +2032,7 @@ function signInBox(text: string): HTMLElement {
   box.append(document.createTextNode(`${text} `));
   const link = document.createElement('a');
   link.href = '/account?tab=login';
-  link.textContent = 'Sign in';
+  link.textContent = t('forum.signIn');
   box.append(link);
   return box;
 }
@@ -2201,20 +2196,20 @@ function categorySlugFromPath(pathname: string): string | null {
 }
 
 function errorMessageForStatus(status: number): string {
-  if (status === 401) return 'Sign in to post.';
-  if (status === 403) return 'This category is restricted.';
-  if (status === 423) return 'This topic is locked.';
-  if (status === 429) return 'You are posting too quickly.';
-  if (status >= 500) return 'Forum is unavailable.';
-  return 'Check the fields and try again.';
+  if (status === 401) return t('forum.errSignInToPost');
+  if (status === 403) return t('forum.errCategoryRestricted');
+  if (status === 423) return t('forum.errTopicLocked');
+  if (status === 429) return t('forum.errTooQuick');
+  if (status >= 500) return t('forum.errUnavailable');
+  return t('forum.errCheckFields');
 }
 
 function errorMessageForReportStatus(status: number): string {
-  if (status === 401) return 'Sign in to report.';
-  if (status === 404) return 'This forum content is not available.';
-  if (status === 409) return 'You already reported this.';
-  if (status >= 500) return 'Forum is unavailable.';
-  return 'Report could not be sent.';
+  if (status === 401) return t('forum.errSignInToReport');
+  if (status === 404) return t('forum.errContentNotAvailable');
+  if (status === 409) return t('forum.errAlreadyReported');
+  if (status >= 500) return t('forum.errUnavailable');
+  return t('forum.reportCouldNotBeSent');
 }
 
 async function submitTopicReport(topicId: string, reason: string): Promise<void> {
@@ -2382,7 +2377,7 @@ function reportPager(options: {
   hasNext: boolean;
 }): HTMLElement {
   return forumPager({
-    ariaLabel: 'Forum report pages',
+    ariaLabel: t('forum.reportPages'),
     page: options.page,
     hasPrevious: options.hasPrevious,
     hasNext: options.hasNext,

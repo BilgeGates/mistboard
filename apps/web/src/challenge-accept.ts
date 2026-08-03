@@ -1,5 +1,6 @@
 import './challenge.css';
 import { firstMoverColorName, secondMoverColorName, variantDisplayLabel } from './game-display.js';
+import { t } from './i18n/catalog.js';
 import { buildLoadingState, buildNav, buildNotice } from './site-shell.js';
 
 // The challenge landing page (/challenge/:id): where a shared "play me" link or
@@ -26,18 +27,18 @@ function specLabel(gameSpecId: string): string {
 }
 
 function colorLabel(gameSpecId: string, color: ChallengeView['preferredColor']): string {
-  if (color === 'random') return 'random colors';
+  if (color === 'random') return t('challenge.randomColors');
   // The challenger picked their side; the accepter takes the OTHER, so the label names the
   // opposite of what the challenger chose.
   return color === 'first'
-    ? `you play ${secondMoverColorName(gameSpecId)}`
-    : `you play ${firstMoverColorName(gameSpecId)}`;
+    ? t('challenge.youPlayColor', { color: secondMoverColorName(gameSpecId) })
+    : t('challenge.youPlayColor', { color: firstMoverColorName(gameSpecId) });
 }
 
 export async function mountChallengeAccept(root: HTMLElement, challengeId: string): Promise<void> {
   root.replaceChildren();
   root.classList.add('landing-page');
-  root.append(buildNav(), buildLoadingState('Loading challenge'));
+  root.append(buildNav(), buildLoadingState(t('challenge.loading')));
 
   const res = await fetch(`/api/correspondence/seeks/${encodeURIComponent(challengeId)}`).catch(
     () => null,
@@ -48,31 +49,27 @@ export async function mountChallengeAccept(root: HTMLElement, challengeId: strin
   };
 
   if (!res) {
-    shell(
-      buildNotice('Challenge unavailable', 'Could not load this challenge. Check your connection.'),
-    );
+    shell(buildNotice(t('challenge.unavailable'), t('challenge.unavailableBody')));
     return;
   }
   if (res.status === 401) {
-    const notice = buildNotice('Sign in to play', 'Sign in to see and accept this challenge.');
+    const notice = buildNotice(t('challenge.signInToPlay'), t('challenge.signInToPlayBody'));
     const signIn = document.createElement('a');
     signIn.className = 'challenge-btn';
     // Return here after signing in so the link converts a click into a game.
     signIn.href = `/account?return=${encodeURIComponent(`/challenge/${challengeId}`)}`;
-    signIn.textContent = 'Sign in';
+    signIn.textContent = t('challenge.signIn');
     notice.append(signIn);
     shell(notice);
     return;
   }
   if (res.status === 404) {
-    shell(
-      buildNotice('Challenge not found', 'This challenge does not exist or has been withdrawn.'),
-    );
+    shell(buildNotice(t('challenge.notFound'), t('challenge.notFoundBody')));
     return;
   }
   const view = (await res.json().catch(() => null)) as ChallengeView | null;
   if (!view) {
-    shell(buildNotice('Challenge unavailable', 'Could not load this challenge.'));
+    shell(buildNotice(t('challenge.unavailable'), t('challenge.unavailableShortBody')));
     return;
   }
 
@@ -85,22 +82,28 @@ function buildChallengeCard(view: ChallengeView): HTMLElement {
 
   const heading = document.createElement('h1');
   heading.className = 'challenge-heading';
-  if (view.isMine) heading.textContent = 'Your challenge';
-  else if (view.challengerName) heading.textContent = `${view.challengerName} challenged you`;
-  else heading.textContent = 'You have been challenged';
+  if (view.isMine) heading.textContent = t('challenge.yourChallenge');
+  else if (view.challengerName)
+    heading.textContent = t('challenge.nameChallengedYou', { name: view.challengerName });
+  else heading.textContent = t('challenge.youHaveBeenChallenged');
   card.append(heading);
 
   const detail = document.createElement('p');
   detail.className = 'challenge-subhead';
-  detail.textContent = `${specLabel(view.gameSpecId)} · ${view.daysPerMove} day${
-    view.daysPerMove === 1 ? '' : 's'
-  }/move · ${colorLabel(view.gameSpecId, view.preferredColor)}`;
+  detail.textContent = t('challenge.detail', {
+    variant: specLabel(view.gameSpecId),
+    cadence:
+      view.daysPerMove === 1
+        ? t('challenge.dayOption', { days: view.daysPerMove })
+        : t('challenge.daysOption', { days: view.daysPerMove }),
+    color: colorLabel(view.gameSpecId, view.preferredColor),
+  });
   card.append(detail);
 
   if (view.expired) {
     const note = document.createElement('p');
     note.className = 'challenge-status';
-    note.textContent = 'This challenge has expired.';
+    note.textContent = t('challenge.expired');
     card.append(note);
     return card;
   }
@@ -123,10 +126,10 @@ function buildChallengeCard(view: ChallengeView): HTMLElement {
 
     const copy = document.createElement('button');
     copy.className = 'challenge-btn';
-    copy.textContent = 'Copy link';
+    copy.textContent = t('challenge.copyLink');
     copy.addEventListener('click', () => {
       void navigator.clipboard?.writeText(share.value);
-      copy.textContent = 'Copied';
+      copy.textContent = t('challenge.copied');
     });
     actions.append(copy);
   }
@@ -134,7 +137,7 @@ function buildChallengeCard(view: ChallengeView): HTMLElement {
   if (view.canAccept) {
     const accept = document.createElement('button');
     accept.className = 'challenge-btn';
-    accept.textContent = 'Accept';
+    accept.textContent = t('challenge.accept');
     accept.addEventListener('click', () => {
       accept.disabled = true;
       status.hidden = true;
@@ -152,15 +155,15 @@ function buildChallengeCard(view: ChallengeView): HTMLElement {
           }
           status.textContent =
             body?.error === 'challenge_expired'
-              ? 'This challenge has expired.'
+              ? t('challenge.expired')
               : body?.error === 'seek_taken'
-                ? 'This challenge was already accepted.'
-                : 'Could not accept. Try again.';
+                ? t('challenge.alreadyAccepted')
+                : t('challenge.couldNotAccept');
           status.hidden = false;
           accept.disabled = false;
         })
         .catch(() => {
-          status.textContent = 'Could not accept. Try again.';
+          status.textContent = t('challenge.couldNotAccept');
           status.hidden = false;
           accept.disabled = false;
         });
@@ -171,14 +174,14 @@ function buildChallengeCard(view: ChallengeView): HTMLElement {
   if (view.canDecline) {
     const decline = document.createElement('button');
     decline.className = 'challenge-btn-secondary';
-    decline.textContent = 'Decline';
+    decline.textContent = t('challenge.decline');
     decline.addEventListener('click', () => {
       decline.disabled = true;
       void fetch(`/api/correspondence/seeks/${encodeURIComponent(view.id)}/decline`, {
         method: 'POST',
       })
         .then(() => {
-          card.replaceChildren(buildNotice('Declined', 'You declined this challenge.'));
+          card.replaceChildren(buildNotice(t('challenge.declined'), t('challenge.declinedBody')));
         })
         .catch(() => {
           decline.disabled = false;

@@ -85,13 +85,24 @@ const APP_I18N_DOMAIN_DEFS: readonly AppI18nDomainDef[] = [
       'coach',
       'streamer',
       'challenge',
+      'forum',
     ],
     english: EN_COMMUNITY,
     critical: CRITICAL_COMMUNITY_I18N_KEYS,
   },
   {
     name: 'play',
-    prefixes: ['game', 'play', 'lobby', 'setup', 'variant', 'live', 'result', 'puzzle'],
+    prefixes: [
+      'game',
+      'play',
+      'lobby',
+      'setup',
+      'variant',
+      'live',
+      'result',
+      'puzzle',
+      'correspondence',
+    ],
     english: EN_PLAY,
     critical: CRITICAL_PLAY_I18N_KEYS,
   },
@@ -100,7 +111,7 @@ const APP_I18N_DOMAIN_DEFS: readonly AppI18nDomainDef[] = [
     // 'study' and 'analysis' ride the review domain: both surfaces ARE the
     // review shell, so their chrome loads with the same lazy chunk rather than
     // a chunk apiece.
-    prefixes: ['replay', 'watch', 'study', 'analysis'],
+    prefixes: ['replay', 'watch', 'study', 'analysis', 'historical', 'broadcast'],
     english: EN_REVIEW,
     critical: CRITICAL_REVIEW_I18N_KEYS,
   },

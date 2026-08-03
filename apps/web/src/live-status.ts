@@ -1,6 +1,7 @@
 import type { Color, GameEndReason, PlayerView } from '@mistboard/game';
 import { loginHrefForCurrentPage } from './auth-redirect.js';
-import type { ConnectionNoticeTier, InfoTone, Seat } from './live-state.js';
+import { type I18nKey, t } from './i18n/catalog.js';
+import type { ConnectionNoticeTier, InfoTone, PlayableSeat, Seat } from './live-state.js';
 import { liveState } from './live-state.js';
 import { isColor } from './web-utils.js';
 
@@ -52,28 +53,31 @@ export function actionTone(view: PlayerView | null): InfoTone {
 
 export function actionTitle(view: PlayerView | null): string {
   if (connectionNoticeMode() === 'banner') {
-    if (liveState.connectionState === 'rejected') return 'Access rejected';
-    if (liveState.connectionState === 'displaced') return 'Session moved';
-    if (liveState.connectionState === 'connecting') return 'Connecting';
-    return 'Reconnecting';
+    if (liveState.connectionState === 'rejected') return t('live.statusAccessRejected');
+    if (liveState.connectionState === 'displaced') return t('live.statusSessionMoved');
+    if (liveState.connectionState === 'connecting') return t('live.statusConnecting');
+    return t('live.statusReconnecting');
   }
-  if (!view) return 'Connecting';
+  if (!view) return t('live.statusConnecting');
   if (view.status.type === 'finished') return finishedTitle(view.status.winner);
-  if (view.status.type === 'aborted') return 'Game aborted';
-  if (liveState.seat === 'spectator') return 'Watching';
+  if (view.status.type === 'aborted') return t('live.statusGameAborted');
+  if (liveState.seat === 'spectator') return t('live.statusWatching');
   if (view.status.type === 'pregame') {
     if (liveState.roomMode === 'pvp' && isColor(liveState.seat)) {
       const theirSeat: Color = liveState.seat === 'white' ? 'black' : 'white';
-      if (liveState.connectedSeats[theirSeat]) return 'Opponent connected';
+      if (liveState.connectedSeats[theirSeat]) return t('live.statusOpponentConnected');
     }
-    return liveState.roomMode === 'pvp' ? 'Waiting for opponent' : 'Preparing game';
+    return liveState.roomMode === 'pvp'
+      ? t('live.statusWaitingForOpponent')
+      : t('live.statusPreparingGame');
   }
   if (view.status.type === 'playing' && view.status.turn === pveEngineSeat())
-    return 'Engine thinking';
-  if (view.status.type === 'playing' && view.status.turn === liveState.seat) return 'Your move';
+    return t('live.statusEngineThinking');
+  if (view.status.type === 'playing' && view.status.turn === liveState.seat)
+    return t('live.statusYourMove');
   if (view.status.type === 'playing' && correspondenceAwaitingOpponent())
-    return 'Waiting for opponent';
-  return 'Opponent move';
+    return t('live.statusWaitingForOpponent');
+  return t('live.statusOpponentMove');
 }
 
 export function actionBody(
@@ -82,20 +86,17 @@ export function actionBody(
 ): string {
   if (connectionNoticeMode() === 'banner') {
     if (liveState.connectionState === 'rejected') return rejectedBody();
-    if (liveState.connectionState === 'displaced')
-      return 'A newer tab is now controlling this seat.';
-    if (liveState.connectionState === 'disconnected')
-      return 'The socket closed. Mistboard will retry automatically.';
-    if (liveState.connectionState === 'reconnecting')
-      return 'Trying to restore your room state and seat.';
-    return 'Opening the room and loading the current server state.';
+    if (liveState.connectionState === 'displaced') return t('live.bodyDisplaced');
+    if (liveState.connectionState === 'disconnected') return t('live.bodyDisconnected');
+    if (liveState.connectionState === 'reconnecting') return t('live.bodyReconnecting');
+    return t('live.bodyOpeningRoom');
   }
-  if (!view) return 'Opening the room and loading the current server state.';
+  if (!view) return t('live.bodyOpeningRoom');
   if (view.status.type === 'finished') {
     return finishedBody(view.status.winner, view.status.reason);
   }
   if (view.status.type === 'aborted') {
-    return 'This game was aborted before either side committed to it. No result was recorded.';
+    return t('live.bodyAborted');
   }
   if (liveState.seat === 'spectator') return spectatorBody(view);
   if (view.status.type === 'pregame') {
@@ -103,33 +104,33 @@ export function actionBody(
       const theirSeat: Color = liveState.seat === 'white' ? 'black' : 'white';
       if (liveState.connectedSeats[theirSeat]) {
         return options.hasVisibleDraftData
-          ? 'Choose your starting position from the options on the board.'
-          : 'Both players connected. Game starting.';
+          ? t('live.bodyChooseStartingPosition')
+          : t('live.bodyBothConnected');
       }
-      return 'Share the invite link below to invite your opponent.';
+      return t('live.bodyShareInvite');
     }
-    return 'Share the room link when you are ready.';
+    return t('live.bodyShareRoomLink');
   }
   if (view.status.type === 'playing' && view.status.turn === pveEngineSeat()) {
-    return 'The engine is on its own clock. Your clock resumes after its move.';
+    return t('live.bodyEngineClock');
   }
   if (view.status.type === 'playing' && correspondenceAwaitingOpponent()) {
     return view.status.turn === liveState.seat
-      ? 'Share the invite link below, then make your first move whenever you like.'
-      : 'Share the invite link below to invite your opponent.';
+      ? t('live.bodyShareInviteThenMove')
+      : t('live.bodyShareInvite');
   }
   if (view.status.type === 'playing' && view.status.turn === liveState.seat) {
-    return 'Move one of your visible pieces on the board.';
+    return t('live.bodyMoveVisiblePiece');
   }
-  return `${capitalize(view.status.turn)} is on move.`;
+  return t('live.bodyColorOnMove', { color: colorLabel(view.status.turn) });
 }
 
 export function boardStatusLabel(): string {
-  if (liveState.connectionState === 'rejected') return 'Access rejected';
-  if (liveState.connectionState === 'displaced') return 'Session moved';
+  if (liveState.connectionState === 'rejected') return t('live.statusAccessRejected');
+  if (liveState.connectionState === 'displaced') return t('live.statusSessionMoved');
   if (liveState.connectionState === 'disconnected' || liveState.connectionState === 'reconnecting')
-    return 'Reconnecting';
-  return liveState.clientId ? 'Waiting for board' : 'Connecting';
+    return t('live.statusReconnecting');
+  return liveState.clientId ? t('live.statusWaitingForBoard') : t('live.statusConnecting');
 }
 
 export function boardStatusTone(): 'pending' | 'danger' {
@@ -140,17 +141,31 @@ export function boardStatusTone(): 'pending' | 'danger' {
 }
 
 export function modeLabel(): string {
-  if (liveState.solo) return 'Solo dev';
-  if (liveState.roomMode === 'pve') return 'Play engine';
-  if (liveState.roomMode === 'pvp') return 'Friend challenge';
-  if (liveState.roomMode === 'eve') return 'Engine game';
+  if (liveState.solo) return t('live.modeSoloDev');
+  if (liveState.roomMode === 'pve') return t('live.modePlayEngine');
+  if (liveState.roomMode === 'pvp') return t('live.modeFriendChallenge');
+  if (liveState.roomMode === 'eve') return t('live.modeEngineGame');
   return capitalize(liveState.roomMode);
 }
 
 export function seatLabel(value: Seat): string {
-  if (liveState.solo) return 'Solo dev';
-  if (value === 'spectator') return 'Spectator';
-  return capitalize(value);
+  if (liveState.solo) return t('live.modeSoloDev');
+  if (value === 'spectator') return t('live.seatSpectator');
+  return colorLabel(value);
+}
+
+// Colour names come from the shared setup.* keys so the board, the pregame
+// picker, and the outcome sentences cannot drift apart per locale. Typed on
+// PlayableSeat, not Color: xiangqi seats are red/black, and a total map is what
+// keeps a raw seat from reaching a chess-only colour render.
+const SEAT_COLOR_KEYS: Record<PlayableSeat, I18nKey> = {
+  black: 'setup.black',
+  red: 'setup.red',
+  white: 'setup.white',
+};
+
+function colorLabel(value: PlayableSeat): string {
+  return t(SEAT_COLOR_KEYS[value]);
 }
 
 function pveEngineSeat(): Color | null {
@@ -160,23 +175,23 @@ function pveEngineSeat(): Color | null {
 }
 
 function spectatorBody(view: PlayerView): string {
-  if (view.status.type === 'finished') return 'Open Review game to see the full board.';
+  if (view.status.type === 'finished') return t('live.spectatorOpenReview');
   if (liveState.clientCount < 3 && liveState.roomMode === 'pvp')
-    return 'Waiting for both player seats to be filled.';
-  return 'Spectators receive a public Fog view while the game is live.';
+    return t('live.spectatorWaitingSeats');
+  return t('live.spectatorFogView');
 }
 
 function resultTitle(winner: Color | null): string {
-  if (winner === 'white') return 'White wins';
-  if (winner === 'black') return 'Black wins';
-  return 'Draw';
+  if (winner === 'white') return t('result.whiteWins');
+  if (winner === 'black') return t('result.blackWins');
+  return t('result.draw');
 }
 
 function finishedTitle(winner: Color | null): string {
   const seat = liveState.seat;
   if (seat === 'white' || seat === 'black') {
-    if (winner === null) return 'Draw';
-    return winner === seat ? 'You won' : 'You lost';
+    if (winner === null) return t('result.draw');
+    return winner === seat ? t('result.youWon') : t('result.youLost');
   }
   return resultTitle(winner);
 }
@@ -185,37 +200,46 @@ function finishedBody(winner: Color | null, reason: GameEndReason): string {
   const reasonPhrase = reasonPhraseLabel(reason);
   const seat = liveState.seat;
   if (seat === 'white' || seat === 'black') {
-    if (winner === null) return `${capitalize(reasonPhrase)}.`;
+    if (winner === null) return t('result.reasonOnly', { reason: capitalize(reasonPhrase) });
     const youWon = winner === seat;
-    if (reason === 'resignation') return youWon ? 'Opponent resigned.' : 'You resigned.';
-    if (reason === 'timeout') return youWon ? 'Opponent ran out of time.' : 'You ran out of time.';
+    if (reason === 'resignation')
+      return youWon ? t('result.opponentResigned') : t('result.youResigned');
+    if (reason === 'timeout') return youWon ? t('result.opponentTimeout') : t('result.youTimeout');
     if (reason === 'abandonment' && liveState.roomMode === 'pve') {
-      return youWon ? 'The engine forfeited.' : 'You forfeited.';
+      return youWon ? t('result.engineForfeited') : t('result.youForfeited');
     }
-    return `${youWon ? 'You won' : 'Opponent won'} by ${reasonPhrase}.`;
+    return youWon
+      ? t('result.youWonBy', { reason: reasonPhrase })
+      : t('result.opponentWonBy', { reason: reasonPhrase });
   }
-  if (winner === null) return `${capitalize(reasonPhrase)}.`;
-  return `${capitalize(winner)} wins by ${reasonPhrase}.`;
+  if (winner === null) return t('result.reasonOnly', { reason: capitalize(reasonPhrase) });
+  return t('result.colorWinsBy', { color: colorLabel(winner), reason: reasonPhrase });
 }
 
-function reasonPhraseLabel(reason: GameEndReason): string {
-  if (reason === 'king-captured') return 'king capture';
-  if (reason === 'draw') return 'draw';
-  return reason;
+const REASON_PHRASE_KEYS: Record<GameEndReason, I18nKey> = {
+  abandonment: 'result.abandonment',
+  checkmate: 'result.checkmate',
+  draw: 'result.drawPhrase',
+  'king-captured': 'result.kingCapture',
+  resignation: 'result.resignation',
+  timeout: 'result.timeout',
+};
+
+// Total map, not a fallthrough to the raw enum: an unmapped reason used to
+// render its own wire value ('king-captured') straight into the sentence.
+// Exported so the meta card in live-render renders the same phrase this does.
+export function reasonPhraseLabel(reason: GameEndReason): string {
+  return t(REASON_PHRASE_KEYS[reason]);
 }
 
 function rejectedBody(): string {
-  if (liveState.closeReason === 'private room')
-    return 'This game is in progress. Mistboard never shares live game state with anyone but the seated players. The full replay will be here once the game finishes.';
-  if (liveState.closeReason === 'rated requires account')
-    return 'This is a rated game. Rated games count toward the dark chess ladder, so both players need an account. Sign in and you will return here to take your seat.';
+  if (liveState.closeReason === 'private room') return t('live.rejectedPrivateRoom');
+  if (liveState.closeReason === 'rated requires account') return t('live.rejectedRatedAccount');
   if (liveState.closeReason === 'correspondence requires account')
-    return 'This is a correspondence game. Both players need an account so the game can find you across devices and remind you when it is your move. Sign in and you will return here to take your seat.';
-  if (liveState.closeReason === 'origin not allowed')
-    return 'This browser origin is not allowed to open the room.';
-  if (liveState.closeReason === 'rate limit')
-    return 'The room connection was closed after too many messages.';
-  return 'The server rejected this room connection.';
+    return t('live.rejectedCorrespondenceAccount');
+  if (liveState.closeReason === 'origin not allowed') return t('live.rejectedOrigin');
+  if (liveState.closeReason === 'rate limit') return t('live.rejectedRateLimit');
+  return t('live.rejectedDefault');
 }
 
 // The rejection banner's sign-in CTA. Only the account-gated rejections earn

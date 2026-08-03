@@ -6,6 +6,7 @@
 import type { StandardXiangqiPlayerView, XiangqiColor, XiangqiMove } from '@mistboard/game';
 import './game-shell.css';
 import './live-xiangqi.css';
+import { t } from './i18n/catalog.js';
 // Reuse the shared dxq-postgame scaffold (.dxq-postgame__*) the other variants ride.
 import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
@@ -214,7 +215,7 @@ function loadingView(): HTMLElement {
   const shell = document.createElement('main');
   shell.className = 'dxq-postgame__notice';
   const heading = document.createElement('h1');
-  heading.textContent = 'Loading game';
+  heading.textContent = t('replay.loadingGame');
   shell.append(heading);
   return shell;
 }
@@ -231,14 +232,13 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
 }
 
 function errorTitle(status: number): string {
-  if (status === 404) return 'Game not found';
-  if (status === 503) return 'Postgame unavailable';
-  return 'Postgame unavailable';
+  if (status === 404) return t('replay.gameNotFound');
+  return t('replay.postgameUnavailable');
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return 'This Xiangqi game is not available.';
-  if (result.status === 503) return 'The postgame service is not available.';
+  if (result.status === 404) return t('replay.xiangqiGameUnavailable');
+  if (result.status === 503) return t('replay.postgameServiceUnavailable');
   return result.error;
 }
 

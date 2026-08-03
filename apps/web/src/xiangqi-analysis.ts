@@ -19,6 +19,7 @@ import './game-shell.css';
 import './live-xiangqi.css';
 import './dark-xiangqi-postgame.css';
 import './xiangqi-postgame.css';
+import { t } from './i18n/catalog.js';
 import { createGameMetaCard } from './review/game-meta-card.js';
 import { buildXiangqiClientAnalysisSource } from './review/xiangqi-client-analysis.js';
 import { importXiangqiGame } from './review/xiangqi-import.js';
@@ -31,7 +32,7 @@ import { buildNav } from './site-shell.js';
 import { DEFAULT_STUDY_VARIANT } from './study-catalog.js';
 
 function statusSummary(status: XiangqiGameStatus, plyCount: number): string {
-  if (plyCount === 0) return 'Play a move';
+  if (plyCount === 0) return t('analysis.playAMove');
   const plies = `${plyCount} ${plyCount === 1 ? 'ply' : 'plies'}`;
   if (status.type === 'finished') {
     const outcome =
@@ -116,7 +117,7 @@ export function mountXiangqiAnalysis(
     importPanel: {
       onImport: (text) => {
         const trimmed = text.trim();
-        if (!trimmed) return 'Paste a game to import.';
+        if (!trimmed) return t('analysis.pasteGameToImport');
         const result = importXiangqiGame(trimmed);
         if (result.error || result.moves.length === 0) {
           return result.error ?? 'No moves recognized.';
@@ -134,7 +135,7 @@ export function mountXiangqiAnalysis(
       },
       onImportFen: (fen) => {
         const trimmed = fen.trim();
-        if (!trimmed) return 'Paste a FEN to set the position.';
+        if (!trimmed) return t('analysis.pasteFenToSet');
         const parsed = parseStandardXiangqiFen(trimmed);
         if (!parsed.ok) return parsed.error;
         const url = new URL(window.location.href);

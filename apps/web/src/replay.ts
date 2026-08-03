@@ -29,6 +29,7 @@ import {
 import type { BeliefConfig, BeliefPanelHandle } from './belief-panel.js';
 import { chessgroundAnimation } from './board-anim.js';
 import { computeCaptures } from './captures.js';
+import { t } from './i18n/catalog.js';
 import {
   type AnnotationConfig,
   type AnnotationPanelHandle,
@@ -85,6 +86,7 @@ import {
   type WallClockReplayPosition,
 } from './replay-wall-clock.js';
 import type { MoveListEntry } from './review/move-list.js';
+import { escapeHtml } from './web-utils.js';
 
 const replayAbortControllers = new WeakMap<HTMLElement, AbortController>();
 
@@ -342,7 +344,7 @@ export async function mountReplay(
   let blackBaseLabel = "Black's view";
 
   const whitePane = createPane(whiteBaseLabel, 'white', showCaptures, captureLayout);
-  const truthPane = createPane('Truth', 'truth', showCaptures, captureLayout);
+  const truthPane = createPane(t('watch.truth'), 'truth', showCaptures, captureLayout);
   const blackPane = createPane(blackBaseLabel, 'black', showCaptures, captureLayout);
   let layoutOrder: 'white-first' | 'black-first' = 'white-first';
   layout.append(whitePane.el, truthPane.el, blackPane.el);
@@ -361,12 +363,12 @@ export async function mountReplay(
   }
   root.append(layout);
 
-  const firstBtn = controlButton('|<', 'First position');
-  const prevBtn = controlButton('<', 'Previous move');
-  const playBtn = controlButton('▶ Play', 'Play');
-  const nextBtn = controlButton('>', 'Next move');
-  const lastBtn = controlButton('>|', 'Latest position');
-  const flipBtn = controlButton('Flip', 'Flip all boards');
+  const firstBtn = controlButton('|<', t('replay.firstPosition'));
+  const prevBtn = controlButton('<', t('watch.previousMove'));
+  const playBtn = controlButton(t('replay.playButton'), t('watch.play'));
+  const nextBtn = controlButton('>', t('watch.nextMove'));
+  const lastBtn = controlButton('>|', t('replay.latestPosition'));
+  const flipBtn = controlButton(t('replay.flip'), t('replay.flipAllBoards'));
   const plyLabel = document.createElement('span');
   plyLabel.className = 'replay-ply-label';
   const movesPanel = showControls && controlsMode === 'panel' ? createReplayMovesPanel() : null;
@@ -499,9 +501,11 @@ export async function mountReplay(
     if (showControls) {
       gameHeader.actions.append(createShareButton());
       flipBtn.classList.add('replay-game-header-action', 'replay-game-header-action-secondary');
-      flipBtn.innerHTML = `${ICON_FLIP}<span class="replay-game-header-action-label">Flip</span>`;
-      flipBtn.title = 'Flip all boards (f)';
-      flipBtn.setAttribute('aria-label', 'Flip all boards');
+      flipBtn.innerHTML = `${ICON_FLIP}<span class="replay-game-header-action-label">${escapeHtml(
+        t('replay.flip'),
+      )}</span>`;
+      flipBtn.title = t('replay.flipAllBoardsShortcut');
+      flipBtn.setAttribute('aria-label', t('replay.flipAllBoards'));
       gameHeader.actions.append(flipBtn);
     }
   } else {
@@ -559,13 +563,13 @@ export async function mountReplay(
 
   if (toolsToggleBar) {
     if (beliefPanel) {
-      toolsToggleBar.addToggle('belief', 'Belief', true, (visible) => {
+      toolsToggleBar.addToggle('belief', t('replay.beliefToggle'), true, (visible) => {
         beliefPanelVisible = visible;
         syncAnalysisToolVisibility();
       });
     }
     if (annotPanel) {
-      toolsToggleBar.addToggle('annotation', 'Annotate', true, (visible) => {
+      toolsToggleBar.addToggle('annotation', t('replay.annotateToggle'), true, (visible) => {
         annotationPanelVisible = visible;
         syncAnalysisToolVisibility();
       });
@@ -673,7 +677,10 @@ export async function mountReplay(
 
     if (showControls) {
       const annotMark = annotation && annotationsAtPly(currentPly).length > 0 ? ' ★' : '';
-      plyLabel.textContent = `Ply ${currentPly} / ${moveCount}${gameOverSuffix(state)}${annotMark}`;
+      plyLabel.textContent = `${t('replay.plyOfTotal', {
+        current: currentPly,
+        total: moveCount,
+      })}${gameOverSuffix(state)}${annotMark}`;
       firstBtn.disabled = currentPly === 0;
       prevBtn.disabled = currentPly === 0;
       nextBtn.disabled = currentPly >= moveCount;
@@ -978,12 +985,12 @@ export async function mountReplay(
       playTimer = null;
     }
     clearClockTickTimer();
-    playBtn.textContent = '▶ Play';
+    playBtn.textContent = t('replay.playButton');
   }
 
   function startPlay(): void {
     if (playTimer !== null) return;
-    playBtn.textContent = '⏸ Pause';
+    playBtn.textContent = t('replay.pauseButton');
     scheduleNextPly();
   }
 
@@ -1244,8 +1251,8 @@ export async function mountReplay(
       if (endStatusMode === 'clock') {
         applyClockEndGameState('white');
       } else {
-        whitePane.statusEl.textContent = 'WINNER';
-        blackPane.statusEl.textContent = 'LOST';
+        whitePane.statusEl.textContent = t('replay.winnerBadge');
+        blackPane.statusEl.textContent = t('replay.lostBadge');
       }
     } else if (winner === 'black') {
       blackPane.el.classList.add('winner');
@@ -1253,16 +1260,16 @@ export async function mountReplay(
       if (endStatusMode === 'clock') {
         applyClockEndGameState('black');
       } else {
-        blackPane.statusEl.textContent = 'WINNER';
-        whitePane.statusEl.textContent = 'LOST';
+        blackPane.statusEl.textContent = t('replay.winnerBadge');
+        whitePane.statusEl.textContent = t('replay.lostBadge');
       }
     } else {
       // Draw — neither side gets winner/loser visual state.
       if (endStatusMode === 'clock') {
         applyClockEndGameState(null);
       } else {
-        whitePane.statusEl.textContent = 'DRAW';
-        blackPane.statusEl.textContent = 'DRAW';
+        whitePane.statusEl.textContent = t('replay.drawBadge');
+        blackPane.statusEl.textContent = t('replay.drawBadge');
       }
     }
     truthPane.el.classList.add('finished');
@@ -1600,14 +1607,18 @@ async function loadEvents(
 function gameOverSuffix(state: GameState): string {
   if (state.status.type !== 'finished') return '';
   const winner = state.status.winner;
-  if (!winner) return ` — drawn (${state.status.reason})`;
-  return ` — ${winner} wins (${state.status.reason})`;
+  const reason = endGameReasonLabel(state.status.reason);
+  if (!winner) return t('replay.drawnBySuffix', { reason });
+  return t('replay.colorWinsSuffix', {
+    color: winner === 'white' ? t('setup.white') : t('setup.black'),
+    reason,
+  });
 }
 
 function endGameReasonLabel(reason: string): string {
-  if (reason === 'king-captured') return 'King captured';
-  if (reason === 'timeout') return 'Timeout';
-  if (reason === 'checkmate') return 'Checkmate';
-  if (reason === 'draw') return 'Draw';
+  if (reason === 'king-captured') return t('replay.endKingCaptured');
+  if (reason === 'timeout') return t('replay.endTimeout');
+  if (reason === 'checkmate') return t('replay.endCheckmate');
+  if (reason === 'draw') return t('replay.endDraw');
   return reason;
 }
