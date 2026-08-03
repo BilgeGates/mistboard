@@ -123,10 +123,10 @@
   },
   "overrides": {
     "shell-quote": "^1.9.0",
-    "brace-expansion": "^5.0.8",
+    "brace-expansion": "^5.0.9",
     "serve-handler": {
       "minimatch": {
-        "brace-expansion": "^5.0.8"
+        "brace-expansion": "^5.0.9"
       }
     }
   },
