@@ -650,6 +650,26 @@ describe('rules variant sidebar', () => {
     expect(sidebar?.querySelector('a[href="/rules/chess"]')).toBeNull();
   });
 
+  // Regression: page titles carry search terms the rail must not. When banqi
+  // became "Banqi Rules (Chinese Dark Chess)" and jungle gained its alias
+  // parenthetical, the rail rendered them whole, widened, and pushed the
+  // article column off centre on /rules. Titles may grow; rail labels may not.
+  it('keeps rail labels to the bare variant name however long the page title is', () => {
+    const sidebar = buildArticlePage('jungle').querySelector('.article-variant-sidebar');
+    const labels = [...(sidebar?.querySelectorAll('.article-variant-label') ?? [])].map(
+      (node) => node.textContent,
+    );
+    expect(labels).toContain('Banqi');
+    expect(labels).toContain('Jieqi');
+    expect(labels).toContain('Jungle Chess');
+    expect(labels).toContain('Flip Jungle');
+    for (const label of labels) {
+      expect(label, `rail label "${label}" leaks page-title freight`).not.toMatch(
+        /Rules|\(|：/,
+      );
+    }
+  });
+
   it('de-lists the mini xiangqi trio from the rules sidebar but keeps pages reachable', () => {
     // Xiangqi pivot: the mini xiangqi trio is de-listed from the rules rail; the
     // pages stay reachable by direct URL (their own sidebar no longer links them).

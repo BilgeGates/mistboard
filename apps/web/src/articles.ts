@@ -861,9 +861,18 @@ function buildVariantSidebar(currentSlug: string | null, lang?: ArticleLang): HT
   return aside;
 }
 
-// Sidebar labels are variant names, not page titles: drop the "Rules" suffix.
+// Sidebar labels are variant names, not page titles. Page titles carry search
+// terms that the rail must not: an alias parenthetical ("Banqi Rules (Chinese
+// Dark Chess)") or a zh subtitle after a fullwidth colon ("暗棋规则：玩法详解…")
+// would otherwise render in full and widen the rail enough to push the article
+// column off centre. Strip the search freight first, then the "Rules" suffix.
 function variantNavLabel(title: string): string {
-  return title.replace(/\s*Rules$/i, '').replace(/(规则|規則)$/u, '');
+  return title
+    .replace(/：.*$/u, '')
+    .replace(/\s*\([^)]*\)\s*$/u, '')
+    .replace(/\s*Rules$/i, '')
+    .replace(/(规则|規則)$/u, '')
+    .trim();
 }
 
 function buildRulesArticleGroups(entries: readonly Article[], locale: Locale): RulesArticleGroup[] {
