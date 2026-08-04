@@ -5,6 +5,7 @@ import {
   coordinateMoveLabel,
   type GameEvent,
 } from '@mistboard/game';
+import { t } from './i18n/catalog.js';
 
 type MovePlayedEvent = Extract<GameEvent, { type: 'move-played' }>;
 
@@ -30,12 +31,12 @@ type ReplayMoveEntry = {
 export function createReplayMovesPanel(): ReplayMovesPanelHandle {
   const el = document.createElement('aside');
   el.className = 'side-panel moves-panel replay-moves-panel';
-  el.setAttribute('aria-label', 'Replay and move list');
+  el.setAttribute('aria-label', t('replay.movesPanelAria'));
 
   const section = document.createElement('section');
   section.className = 'panel-section';
   const title = document.createElement('h2');
-  title.textContent = 'Moves';
+  title.textContent = t('replay.moves');
 
   const controls = document.createElement('div');
   controls.className = 'replay-controls';
@@ -47,7 +48,7 @@ export function createReplayMovesPanel(): ReplayMovesPanelHandle {
 
   const meta = document.createElement('p');
   meta.className = 'replay-meta';
-  meta.textContent = 'Replay';
+  meta.textContent = t('replay.replayMode');
 
   const moveList = document.createElement('ol');
   moveList.className = 'move-list';

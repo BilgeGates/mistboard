@@ -1,3 +1,4 @@
+import { t } from './i18n/catalog.js';
 import { liveState, noteRematchCancel, type PlayableSeat } from './live-state.js';
 
 type SendSocket = (payload: unknown) => boolean;
@@ -20,14 +21,14 @@ export function rematchControls(
   block.className = 'room-rematch';
 
   if (iOffered && theyOffered) {
-    block.append(buttonRow(disabledButton('Starting rematch…')));
+    block.append(buttonRow(disabledButton(t('live.rematchStarting'))));
     return block;
   }
   if (iOffered) {
     block.append(
-      note('Waiting for opponent…'),
+      note(t('live.rematchWaiting')),
       buttonRow(
-        actionButton('Cancel rematch', () => {
+        actionButton(t('live.rematchCancel'), () => {
           noteRematchCancel();
           sendSocket({ type: 'rematch:cancel' });
         }),
@@ -37,19 +38,25 @@ export function rematchControls(
   }
   if (theyOffered) {
     block.append(
-      note('Your opponent wants a rematch'),
+      note(t('live.rematchOffered')),
       buttonRow(
-        actionButton('Decline', () => sendSocket({ type: 'rematch:decline' })),
-        actionButton('Accept', () => sendSocket({ type: 'rematch:offer' }), 'primary'),
+        actionButton(t('live.rematchDecline'), () => sendSocket({ type: 'rematch:decline' })),
+        actionButton(
+          t('live.rematchAccept'),
+          () => sendSocket({ type: 'rematch:offer' }),
+          'primary',
+        ),
       ),
     );
     return block;
   }
   // Idle — possibly just after the opponent declined our offer.
   if (liveState.rematch.declined) {
-    block.append(note('Your opponent declined the rematch.'));
+    block.append(note(t('live.rematchDeclined')));
   }
-  block.append(buttonRow(actionButton('Rematch', () => sendSocket({ type: 'rematch:offer' }))));
+  block.append(
+    buttonRow(actionButton(t('live.rematch'), () => sendSocket({ type: 'rematch:offer' }))),
+  );
   return block;
 }
 

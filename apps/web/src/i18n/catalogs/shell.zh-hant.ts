@@ -124,4 +124,10 @@ export const ZH_HANT_SHELL = {
   'lag.unavailable': '目前無法測量。請檢查網路連線並重新載入頁面。',
   'prefs.boardLayout': '棋盤佈局',
   'prefs.xiangqiBoardLayout': '標準象棋棋盤佈局',
+  'home.loadingStudies': '正在載入研究。',
+  'home.noPublicStudies': '還沒有公開研究，來發布第一份吧。',
+  'home.studiesUnavailable': '無法取得研究。',
+  'home.loadingRankings': '正在載入排行榜。',
+  'home.noRatedPlayers': '還沒有計分棋手。',
+  'home.rankingsUnavailable': '無法取得排行榜。',
 } satisfies Partial<Record<ShellI18nKey, string>>;

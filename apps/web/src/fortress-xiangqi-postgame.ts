@@ -4,6 +4,8 @@ import type {
   FortressXiangqiPlayerView,
 } from '@mistboard/game';
 import './drop-mini-xiangqi.css';
+import { variantDisplayLabel } from './game-display.js';
+import { t } from './i18n/catalog.js';
 import './landing.css';
 import './game-route.css';
 import { loginHrefForCurrentPage } from './auth-redirect.js';
@@ -84,7 +86,11 @@ export function mountFortressXiangqiPostgame(root: HTMLElement, roomId: string):
   installFortressXiangqiBoardStyles();
   root.replaceChildren(buildNav(), loadingView());
   if (!fortressXiangqiEnabled()) {
-    renderError(root, 'Fortress unavailable', 'This route is not enabled in this build.');
+    renderError(
+      root,
+      t('replay.variantUnavailable', { variant: variantDisplayLabel('fortress-xiangqi') }),
+      t('replay.routeNotEnabled'),
+    );
     return;
   }
   void loadFortressXiangqiPostgame(roomId)
@@ -96,7 +102,7 @@ export function mountFortressXiangqiPostgame(root: HTMLElement, roomId: string):
       renderError(root, errorTitle(result.status), errorBody(result));
     })
     .catch(() => {
-      renderError(root, 'Postgame unavailable', 'The game could not be loaded.');
+      renderError(root, t('replay.postgameUnavailable'), t('replay.gameCouldNotBeLoaded'));
     });
 }
 
@@ -175,8 +181,8 @@ function renderPostgame(root: HTMLElement, postgame: FortressXiangqiPostgameResp
     // sign-in CTA instead of a request that would 401.
     analysis: {
       requestLabel: isLikelySignedIn()
-        ? 'Request computer analysis'
-        : 'Sign in to request analysis',
+        ? t('replay.requestComputerAnalysis')
+        : t('replay.signInToRequestAnalysis'),
       requestHref: isLikelySignedIn() ? undefined : loginHrefForCurrentPage(),
       fetchCached: () => fetchCachedGameAnalysis('fortress-xiangqi', postgame.game.roomId),
       run: () => requestGameAnalysis('fortress-xiangqi', postgame.game.roomId),
@@ -208,7 +214,7 @@ function loadingView(): HTMLElement {
   const shell = document.createElement('main');
   shell.className = 'game-shell';
   const heading = document.createElement('h1');
-  heading.textContent = 'Loading game';
+  heading.textContent = t('replay.loadingGame');
   shell.append(heading);
   return shell;
 }
@@ -225,13 +231,14 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
 }
 
 function errorTitle(status: number): string {
-  if (status === 404) return 'Game not found';
-  return 'Postgame unavailable';
+  if (status === 404) return t('replay.gameNotFound');
+  return t('replay.postgameUnavailable');
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return 'This Fortress game is not available.';
-  if (result.status === 503) return 'The postgame service is not available.';
+  if (result.status === 404)
+    return t('replay.variantGameUnavailable', { variant: variantDisplayLabel('fortress-xiangqi') });
+  if (result.status === 503) return t('replay.postgameServiceUnavailable');
   return result.error;
 }
 

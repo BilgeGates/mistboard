@@ -124,4 +124,10 @@ export const ZH_HANS_SHELL = {
   'lag.unavailable': '目前无法测量。请检查网络连接并重新加载页面。',
   'prefs.boardLayout': '棋盘布局',
   'prefs.xiangqiBoardLayout': '标准象棋棋盘布局',
+  'home.loadingStudies': '正在加载研究。',
+  'home.noPublicStudies': '还没有公开研究，来发布第一份吧。',
+  'home.studiesUnavailable': '无法获取研究。',
+  'home.loadingRankings': '正在加载排行榜。',
+  'home.noRatedPlayers': '还没有计分棋手。',
+  'home.rankingsUnavailable': '无法获取排行榜。',
 } satisfies Partial<Record<ShellI18nKey, string>>;

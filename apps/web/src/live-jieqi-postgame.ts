@@ -1,4 +1,6 @@
 import type { JieqiColor, JieqiGameStatus, JieqiMove, JieqiPlayerView } from '@mistboard/game';
+import { variantDisplayLabel } from './game-display.js';
+import { t } from './i18n/catalog.js';
 import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
@@ -83,7 +85,11 @@ export function mountJieqiPostgame(root: HTMLElement, roomId: string): void {
   installJieqiBoardStyles();
   root.replaceChildren(buildNav(), loadingView());
   if (!jieqiEnabled()) {
-    renderError(root, 'Jieqi unavailable', 'This route is not enabled in this build.');
+    renderError(
+      root,
+      t('replay.variantUnavailable', { variant: variantDisplayLabel('jieqi') }),
+      t('replay.routeNotEnabled'),
+    );
     return;
   }
   void loadJieqiPostgame(roomId)
@@ -95,7 +101,7 @@ export function mountJieqiPostgame(root: HTMLElement, roomId: string): void {
       renderError(root, errorTitle(result.status), errorBody(result));
     })
     .catch(() => {
-      renderError(root, 'Postgame unavailable', 'The game could not be loaded.');
+      renderError(root, t('replay.postgameUnavailable'), t('replay.gameCouldNotBeLoaded'));
     });
 }
 
@@ -188,8 +194,8 @@ function renderPostgame(root: HTMLElement, postgame: JieqiPostgameResponse): voi
     // decision with the random reveal) until the decision-vs-luck decomposition lands.
     analysis: {
       requestLabel: isLikelySignedIn()
-        ? 'Request computer analysis'
-        : 'Sign in to request analysis',
+        ? t('replay.requestComputerAnalysis')
+        : t('replay.signInToRequestAnalysis'),
       requestHref: isLikelySignedIn() ? undefined : loginHrefForCurrentPage(),
       fetchCached: () => fetchCachedGameAnalysis('jieqi', postgame.game.roomId),
       run: () => requestGameAnalysis('jieqi', postgame.game.roomId),
@@ -237,12 +243,12 @@ export function postgameViewEntries(
   const views = postgame.views;
   if (views?.red && views.truth && views.black) {
     return [
-      { key: 'red', label: 'Red view', view: views.red },
-      { key: 'truth', label: 'Server truth', view: views.truth },
-      { key: 'black', label: 'Black view', view: views.black },
+      { key: 'red', label: t('replay.redView'), view: views.red },
+      { key: 'truth', label: t('replay.serverTruth'), view: views.truth },
+      { key: 'black', label: t('replay.blackView'), view: views.black },
     ];
   }
-  return [{ key: 'truth', label: 'Server truth', view: postgame.view }];
+  return [{ key: 'truth', label: t('replay.serverTruth'), view: postgame.view }];
 }
 
 export function postgameReplayMaxPly(postgame: JieqiPostgameResponse): number {
@@ -275,7 +281,7 @@ function loadingView(): HTMLElement {
   const shell = document.createElement('main');
   shell.className = 'game-shell';
   const heading = document.createElement('h1');
-  heading.textContent = 'Loading game';
+  heading.textContent = t('replay.loadingGame');
   shell.append(heading);
   return shell;
 }
@@ -292,14 +298,14 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
 }
 
 function errorTitle(status: number): string {
-  if (status === 404) return 'Game not found';
-  if (status === 503) return 'Postgame unavailable';
-  return 'Postgame unavailable';
+  if (status === 404) return t('replay.gameNotFound');
+  return t('replay.postgameUnavailable');
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return 'This Jieqi game is not available.';
-  if (result.status === 503) return 'The postgame service is not available.';
+  if (result.status === 404)
+    return t('replay.variantGameUnavailable', { variant: variantDisplayLabel('jieqi') });
+  if (result.status === 503) return t('replay.postgameServiceUnavailable');
   return result.error;
 }
 
