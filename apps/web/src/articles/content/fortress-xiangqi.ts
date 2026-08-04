@@ -37,6 +37,10 @@ export const fortressXiangqiArticle: Article = {
       kind: 'paragraph',
       text: 'Captured material stays in the game, so every exchange changes both the board and the reserves. A defensive trade now may supply the attacker you need later.',
     },
+    {
+      kind: 'paragraph',
+      text: 'Shigenobu Kusumoto, working in Osaka, invented [Mini Xiangqi](/rules/mini-xiangqi) in 1973. A Japanese designer took a Chinese game and built it a smaller board, the same move he made for his own country’s game with minishogi. Fortress Xiangqi runs that trade in the other direction. Shogi has had drops for centuries and xiangqi never has, so this is what xiangqi looks like when it borrows them.',
+    },
   ],
   sections: [
     {

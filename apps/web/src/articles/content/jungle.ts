@@ -23,9 +23,9 @@ import type { Article } from '../types.js';
 export const jungleArticle: Article = {
   slug: 'jungle',
   kind: 'rules',
-  title: 'Jungle Chess Rules',
+  title: 'Jungle Chess Rules (Dou Shou Qi, Animal Chess)',
   summary:
-    "The classic animal-chess game on a 7 by 9 board. Eight ranked animals, rivers only the rat can cross, and a race to the opponent's den.",
+    "Jungle Chess, also called Dou Shou Qi or Animal Chess: eight ranked animals on a 7 by 9 board, rivers only the rat can cross, and a race to the opponent's den. Play rated games and analyse them free in your browser.",
   showSummaryOnPage: false,
   status: 'published',
   publishedAt: '2026-06-30',
@@ -37,6 +37,10 @@ export const jungleArticle: Article = {
     {
       kind: 'paragraph',
       text: 'Jungle Chess is a two-player strategy game about rank and terrain. Each side commands eight animals and tries to reach the enemy den or eliminate the enemy army.',
+    },
+    {
+      kind: 'paragraph',
+      text: 'Jungle has been played online for years, mostly in apps and on Chinese game portals. Rated games, a post-game review, and an engine that tells you where it went wrong have not come with it. The serious Jungle engine work sits in academic papers and endgame tablebases, nowhere you can actually play. Mistboard puts all three in one place.',
     },
     {
       kind: 'paragraph',

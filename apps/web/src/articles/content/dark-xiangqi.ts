@@ -37,6 +37,11 @@ export const darkXiangqiArticle: Article = {
       {
         kind: 'paragraph',
         text:
+          'Brian H. Liou designed Fog Xiangqi in 2026 as a Mistboard original. Fog of War has been played on the chess board since Jens Bæk Nielsen and Torben Osted invented dark chess in 1989, and chess.com runs it as a standard variant today. Nobody had carried it across to xiangqi. The cannon is the piece that makes it strange. It captures only by jumping over another piece, so under fog you are firing at something you cannot see, across a screen you are not certain is still there.',
+      },
+      {
+        kind: 'paragraph',
+        text:
           'If Xiangqi is new to you, start with [Xiangqi Rules](/rules/xiangqi). If you already play xiangqi, the sections below explain only what fog changes.',
       },
     ],

@@ -142,25 +142,25 @@ export const ARTICLE_META: Record<
     title: 'Jieqi Rules (Reveal Xiangqi)',
     kind: 'rules',
     description:
-      'The complete rules of Jieqi, also called Reveal Xiangqi: every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Checkmate the general to win.',
+      'The complete rules of Jieqi, the hidden-piece Chinese chess variant, in English: every piece except the generals starts face-down, makes its first move as the point it stands on, and reveals itself after moving. Play it free in your browser.',
   },
   banqi: {
-    title: 'Banqi Rules (Flip Xiangqi)',
+    title: 'Banqi Rules (Chinese Dark Chess)',
     kind: 'rules',
     description:
-      'The complete rules of Banqi, also called Flip Xiangqi or Half Chess: flip or move one square each turn, capture by rank, cannons jump, and win by wiping the enemy out.',
+      'The complete rules of Banqi, also called Chinese dark chess or blind chess: flip or move one square each turn, capture by rank, cannons jump. Play it free in your browser.',
   },
   jungle: {
-    title: 'Jungle Chess Rules',
+    title: 'Jungle Chess Rules (Dou Shou Qi, Animal Chess)',
     kind: 'rules',
     description:
-      'The complete rules of Jungle Chess: eight ranked animals on a 7×9 board, the rat beats the elephant, only the rat swims, the lion and tiger leap the rivers, and you win by reaching the enemy den or capturing every piece.',
+      'The complete rules of Jungle Chess, also called Dou Shou Qi or Animal Chess: eight ranked animals on a 7×9 board, the rat beats the elephant, only the rat swims, the lion and tiger leap the rivers. Play rated games and analyse them free in your browser.',
   },
   'jungle-flip': {
-    title: 'Flip Jungle Rules',
+    title: 'Flip Jungle Rules (Flip Dou Shou Qi)',
     kind: 'rules',
     description:
-      'The complete rules of Flip Jungle, the 4×4 flip version of Jungle Chess: animals start face-down, you flip or move each turn, capture by rank, equal ranks destroy each other, and you win by eliminating the opponent.',
+      'The complete rules of Flip Jungle, the 4×4 flip version of Jungle Chess: animals start face-down, you flip or move each turn, capture by rank, equal ranks destroy each other. Play it free in your browser.',
   },
   'reveal-chess': {
     title: 'Reveal Chess Rules',

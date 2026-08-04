@@ -375,6 +375,20 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
       return;
     }
 
+    // Default-locale learn page gets its prerendered stage map; localized
+    // paths stay on the client-rendered shell below.
+    if (pathname === '/learn/xiangqi') {
+      void servePrerenderedPage({
+        response,
+        staticDir: options.staticDir,
+        file: 'learn-xiangqi.html',
+      }).catch(() => {
+        request.url = '/';
+        void serveHandler(request, response, { public: options.staticDir });
+      });
+      return;
+    }
+
     if (pathname === '/leaderboard') {
       response.writeHead(308, { location: '/player' });
       response.end();

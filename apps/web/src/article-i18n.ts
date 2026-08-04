@@ -75,6 +75,8 @@ export function localizedArticleHref(article: Article, locale: Locale): string {
 const ZH_HANS: Record<string, string> = {
   // -- Fortress Xiangqi --
   'Fortress Xiangqi Rules': '堡垒象棋规则',
+  'Shigenobu Kusumoto, working in Osaka, invented [Mini Xiangqi](/rules/mini-xiangqi) in 1973. A Japanese designer took a Chinese game and built it a smaller board, the same move he made for his own country’s game with minishogi. Fortress Xiangqi runs that trade in the other direction. Shogi has had drops for centuries and xiangqi never has, so this is what xiangqi looks like when it borrows them.':
+    '楠本茂信在大阪发明了[小象棋](/rules/mini-xiangqi)，时间是 1973 年。一位日本设计者拿起一款中国棋，为它造了一张更小的棋盘，正如他为本国的将棋做过五五将棋。堡垒象棋把这趟交流反向跑了一遍。将棋有打入已有数百年，象棋从来没有，这就是象棋借来打入之后的样子。',
   'A compact Xiangqi variant with captured pieces in reserve, piece drops, and one new piece: the Treasure.':
     '一种紧凑的象棋变体，带有持子、打入，以及一个新棋子「宝」。',
   'Fortress Xiangqi is a compact [Xiangqi](/rules/xiangqi) variant designed by Brian H. Liou in 2026 as a Mistboard original. It keeps the familiar pieces, adds one new piece called the Treasure, and gives each player an open reserve. Capture an enemy piece and you can later drop it back as your own.':
@@ -755,9 +757,11 @@ const ZH_HANS: Record<string, string> = {
     '[迷雾国际象棋](https://en.wikipedia.org/wiki/Dark_chess)是 Mistboard 对 dark chess / Fog of War chess 的公开名称。Jens Bæk Nielsen 与 Torben Osted 于 1989 年发明了它。它属于隐式迷雾：没有裁判，也没有侦察动作。每一方的视野完全由己方棋子的合法走法范围推导而来。',
   'The rules of xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.':
     '象棋规则：九宫、楚河汉界、炮架、将帅照面，以及一盘可逐步回放的名局。现在可在 Mistboard 上与 Pikafish 引擎或好友对弈。',
-  'Xiangqi, also known as Chinese chess, is a two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).':
-    '象棋是一种源自中国、历史悠久的双人策略游戏。包括炮在内的现代形态，大致在宋代（960 至 1279 年）成型。',
+  'Xiangqi, also known as Chinese chess, took its modern form in China during the Song dynasty (960 to 1279), when the cannon joined the board. Its ancestors run back several centuries earlier, and it shares a common root with chess, shogi, and janggi in the older Indian game chaturanga. It is now among the most widely played board games in the world.':
+    '象棋的现代形态在宋代（960 至 1279 年）的中国成型，炮也在这一时期加入棋盘。它的前身可以追溯到更早几个世纪，并与国际象棋、将棋、朝鲜象棋同源于更古老的印度游戏恰图兰卡。今天它是世界上参与人数最多的棋类游戏之一。',
   'Fog Xiangqi Rules': '迷雾象棋规则',
+  'Brian H. Liou designed Fog Xiangqi in 2026 as a Mistboard original. Fog of War has been played on the chess board since Jens Bæk Nielsen and Torben Osted invented dark chess in 1989, and chess.com runs it as a standard variant today. Nobody had carried it across to xiangqi. The cannon is the piece that makes it strange. It captures only by jumping over another piece, so under fog you are firing at something you cannot see, across a screen you are not certain is still there.':
+    '迷雾象棋由 Brian H. Liou 于 2026 年设计，是 Mistboard 的原创变体。战争迷雾早在 1989 年就由 Jens Bæk Nielsen 和 Torben Osted 发明的「黑棋」引入国际象棋，如今也是 chess.com 的常规变体，却从未有人把它移植到象棋上。真正让它变得奇特的是炮。炮只能隔子吃子，所以在迷雾中，你既看不见目标，也无法确定炮架是否还在。',
   'Fog Xiangqi rules: xiangqi under Fog of War, where each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.':
     '战争迷雾下的象棋：每一方只能看到己方棋子可及的点位，隐藏阻挡会影响视野，擒获将帅即获胜。',
   'Fog Xiangqi is xiangqi under Fog of War. Pieces keep their normal movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
@@ -767,7 +771,7 @@ const ZH_HANS: Record<string, string> = {
   'Orthodox xiangqi forbids facing generals. Fog Xiangqi allows the position; if one general sees the other on a clear file, it can capture across that file.':
     '正统象棋禁止将帅照面。迷雾象棋允许这个局面；如果一方将帅在无阻挡的直线上看见对方，就可以沿这条线直接擒获。',
   'Banqi Rules': '暗棋规则',
-  'Banqi Rules (Flip Xiangqi)': '暗棋规则',
+  'Banqi Rules (Chinese Dark Chess)': '暗棋规则：玩法详解与免费在线对弈',
   'Use [Xiangqi Rules](/rules/xiangqi) for the base game. This page covers what changes.':
     '基础规则请参考[象棋规则](/rules/xiangqi)。本页只说明变化之处。',
   Jieqi: '揭棋',
@@ -785,22 +789,24 @@ const ZH_HANS: Record<string, string> = {
   'Play Misty in Fog Chess, or read the rules article for the player-facing version of the same visibility model.':
     '来玩 Misty 的迷雾国际象棋，或阅读面向玩家的规则文章，了解同一套视野模型。',
   'Read Fog Chess Rules': '阅读迷雾国际象棋规则',
-  'Jungle Chess Rules': '斗兽棋规则',
-  "The classic animal-chess game on a 7 by 9 board. Eight ranked animals, rivers only the rat can cross, and a race to the opponent's den.":
-    '经典中国动物棋斗兽棋，棋盘 7×9。八种按等级排列的动物，只有老鼠能过的河，以及冲入对方兽穴的竞赛。',
+  'Jungle Chess Rules (Dou Shou Qi, Animal Chess)': '斗兽棋规则：玩法详解与免费在线对弈',
+  "Jungle Chess, also called Dou Shou Qi or Animal Chess: eight ranked animals on a 7 by 9 board, rivers only the rat can cross, and a race to the opponent's den. Play rated games and analyse them free in your browser.":
+    '斗兽棋（又称动物棋）规则详解：棋盘 7×9，八种按等级排列的动物，只有老鼠能过的河，以及冲入对方兽穴的竞赛。免费在线对弈，支持等级分与复盘分析。',
+  'Jungle has been played online for years, mostly in apps and on Chinese game portals. Rated games, a post-game review, and an engine that tells you where it went wrong have not come with it. The serious Jungle engine work sits in academic papers and endgame tablebases, nowhere you can actually play. Mistboard puts all three in one place.':
+    '斗兽棋在网上已经玩了很多年，大多在手机应用和国内游戏平台上。但等级分对局、赛后复盘，以及一台能告诉你哪一步走错的引擎，一直没有跟上。真正认真的斗兽棋引擎研究留在学术论文和残局库里，没有落在任何能实际对弈的地方。Mistboard 把这三件事放在了一起。',
   'Jungle Chess is a two-player strategy game about rank and terrain. Each side commands eight animals and tries to reach the enemy den or eliminate the enemy army.':
     '斗兽棋是一种围绕等级与地形展开的双人策略游戏。双方各指挥八种动物，目标是进入敌方兽穴或消灭敌方全部棋子。',
-  'Flip Jungle Rules': '翻翻棋规则',
-  'The 4×4 flip version of Jungle Chess. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.':
-    '斗兽棋的 4×4 翻面版本。所有动物开局均背面朝上，翻开即亮明身份，等级相同的双方同归于尽、一起离场。',
-  'Jieqi Rules (Reveal Xiangqi)': '揭棋规则',
-  'Jieqi rules: hidden non-general pieces first move by starting point, then reveal and play by identity.':
-    '揭棋规则：除将帅外的棋子都隐藏身份，首次按所在起始位置的棋子走法行棋，然后翻开并按真实身份行棋。',
+  'Flip Jungle Rules (Flip Dou Shou Qi)': '翻翻棋规则：玩法详解与免费在线对弈',
+  'The 4×4 flip version of Jungle Chess, also called flip Dou Shou Qi or flip animal chess. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board. Play it free in your browser.':
+    '斗兽棋的 4×4 翻面版本，又称翻翻棋。所有动物开局均背面朝上，翻开即亮明身份，等级相同的双方同归于尽、一起离场。免费在线对弈，无需注册。',
+  'Jieqi Rules (Reveal Xiangqi)': '揭棋规则：玩法详解与免费在线对弈',
+  'Jieqi, the hidden-piece Chinese chess variant, explained in English. Every piece but the general starts face-down, moves first as the point it stands on, then reveals. Play it free in your browser.':
+    '揭棋规则详解：除将帅外的棋子都隐藏身份，首次按所在起始位置的棋子走法行棋，然后翻开并按真实身份行棋。免费在线对弈，无需注册。',
   "Jieqi, also called Reveal Xiangqi, keeps xiangqi's board and checkmate goal, but hides every non-general piece. A dark piece first moves, attacks, and captures by the starting point it occupies. After that move, it reveals and plays by identity.":
     '揭棋保留象棋的棋盘和将死目标，但隐藏所有非将帅棋子的身份。暗子首次按它所在起始位置的棋子走法移动、攻击和吃子，走完后翻开，之后按真实身份行棋。',
-  'Banqi rules: the 4 by 8 half-board game with face-down pieces, rank captures, screen-jumping cannons, and no royal general.':
-    '暗棋规则：在 4×8 半盘上进行，棋子背面朝上，按等级吃子，炮隔子跳吃，也没有王棋。',
-  'Banqi, also called Flip Xiangqi, is a fast hidden-piece game played on half a xiangqi board. All thirty-two pieces begin shuffled and face-down. The first flip assigns colors. After that, each turn is a choice: flip a tile or move a revealed piece. Captures follow rank, except for the cannon.':
+  'Banqi, also called Chinese dark chess or blind chess: the 4 by 8 half-board game with face-down pieces, rank captures, and screen-jumping cannons. Play it free in your browser.':
+    '暗棋规则详解：在 4×8 半盘上进行，棋子背面朝上，按等级吃子，炮隔子跳吃，也没有王棋。免费在线对弈，无需注册。',
+  'Banqi, also called Chinese dark chess or blind chess, is a fast hidden-piece game played on half a xiangqi board. All thirty-two pieces begin shuffled and face-down. The first flip assigns colors. After that, each turn is a choice: flip a tile or move a revealed piece. Captures follow rank, except for the cannon.':
     '暗棋是在半张象棋棋盘上进行的快节奏隐藏棋子游戏。三十二枚棋子全部洗匀并背面朝上。第一次翻子决定双方颜色。之后每回合都在两种行动中选择：翻开棋子，或移动一枚已翻开的棋子。除炮外，吃子按等级进行。',
   'Although it uses [Xiangqi](/rules/xiangqi) pieces, it is a separate game: pieces move one square, the general is not royal, and face-down tiles cannot be captured. This page describes the exact rules used on Mistboard.':
     '虽然它使用[象棋](/rules/xiangqi)棋子，但它是独立的游戏：棋子每次移动一格，将不是王棋，背面朝下的棋子不能被吃。本页说明 Mistboard 采用的确切规则。',
@@ -886,6 +892,8 @@ const ZH_HANT: Record<string, string> = {
   ...ZH_HANS,
   // -- Fortress Xiangqi --
   'Fortress Xiangqi Rules': '堡壘象棋規則',
+  'Shigenobu Kusumoto, working in Osaka, invented [Mini Xiangqi](/rules/mini-xiangqi) in 1973. A Japanese designer took a Chinese game and built it a smaller board, the same move he made for his own country’s game with minishogi. Fortress Xiangqi runs that trade in the other direction. Shogi has had drops for centuries and xiangqi never has, so this is what xiangqi looks like when it borrows them.':
+    '楠本茂信在大阪發明了[小象棋](/rules/mini-xiangqi)，時間是 1973 年。一位日本設計者拿起一款中國棋，為它造了一張更小的棋盤，正如他為本國的將棋做過五五將棋。堡壘象棋把這趟交流反向跑了一遍。將棋有打入已有數百年，象棋從來沒有，這就是象棋借來打入之後的樣子。',
   'A compact Xiangqi variant with captured pieces in reserve, piece drops, and one new piece: the Treasure.':
     '一種緊湊的象棋變體，帶有持子、打入，以及一個新棋子「寶」。',
   'Fortress Xiangqi is a compact [Xiangqi](/rules/xiangqi) variant designed by Brian H. Liou in 2026 as a Mistboard original. It keeps the familiar pieces, adds one new piece called the Treasure, and gives each player an open reserve. Capture an enemy piece and you can later drop it back as your own.':
@@ -1544,9 +1552,11 @@ const ZH_HANT: Record<string, string> = {
     '[迷霧國際象棋](https://en.wikipedia.org/wiki/Dark_chess)是 Mistboard 對 dark chess / Fog of War chess 的公開名稱。Jens Bæk Nielsen 與 Torben Osted 於 1989 年發明了它。它屬於隱式迷霧：沒有裁判，也沒有偵察動作。每一方的視野完全由己方棋子的合法走法範圍推導而來。',
   'The rules of xiangqi: palaces, the river, cannon screens, facing generals, and a famous game to play through. Now playable on Mistboard against the Pikafish engine or a friend.':
     '象棋規則：九宮、楚河漢界、砲架、將帥照面，以及一盤可逐步回放的名局。現在可在 Mistboard 上與 Pikafish 引擎或好友對弈。',
-  'Xiangqi, also known as Chinese chess, is a two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).':
-    '象棋是一種源自中國、歷史悠久的雙人策略遊戲。包括砲在內的現代形態，大致在宋代（960 至 1279 年）成型。',
+  'Xiangqi, also known as Chinese chess, took its modern form in China during the Song dynasty (960 to 1279), when the cannon joined the board. Its ancestors run back several centuries earlier, and it shares a common root with chess, shogi, and janggi in the older Indian game chaturanga. It is now among the most widely played board games in the world.':
+    '象棋的現代形態在宋代（960 至 1279 年）的中國成型，砲也在這一時期加入棋盤。它的前身可以追溯到更早幾個世紀，並與國際象棋、將棋、朝鮮象棋同源於更古老的印度遊戲恰圖蘭卡。今天它是世界上參與人數最多的棋類遊戲之一。',
   'Fog Xiangqi Rules': '迷霧象棋規則',
+  'Brian H. Liou designed Fog Xiangqi in 2026 as a Mistboard original. Fog of War has been played on the chess board since Jens Bæk Nielsen and Torben Osted invented dark chess in 1989, and chess.com runs it as a standard variant today. Nobody had carried it across to xiangqi. The cannon is the piece that makes it strange. It captures only by jumping over another piece, so under fog you are firing at something you cannot see, across a screen you are not certain is still there.':
+    '迷霧象棋由 Brian H. Liou 於 2026 年設計，是 Mistboard 的原創變體。戰爭迷霧早在 1989 年就由 Jens Bæk Nielsen 和 Torben Osted 發明的「黑棋」引入西洋棋，如今也是 chess.com 的常規變體，卻從未有人把它移植到象棋上。真正讓它變得奇特的是砲。砲只能隔子吃子，所以在迷霧中，你既看不見目標，也無法確定砲架是否還在。',
   'Fog Xiangqi rules: xiangqi under Fog of War, where each side sees only the points its pieces reach, hidden blockers matter, and the general falls by capture.':
     '戰爭迷霧下的象棋：每一方只能看到己方棋子可及的點位，隱藏阻擋會影響視野，擒獲將帥即獲勝。',
   'Fog Xiangqi is xiangqi under Fog of War. Pieces keep their normal movement, but unseen enemy pieces stay hidden and danger is not announced. Capture the general to win.':
@@ -1556,7 +1566,7 @@ const ZH_HANT: Record<string, string> = {
   'Orthodox xiangqi forbids facing generals. Fog Xiangqi allows the position; if one general sees the other on a clear file, it can capture across that file.':
     '正統象棋禁止將帥照面。迷霧象棋允許這個局面；如果一方將帥在無阻擋的直線上看見對方，就可以沿這條線直接擒獲。',
   'Banqi Rules': '暗棋規則',
-  'Banqi Rules (Flip Xiangqi)': '暗棋規則',
+  'Banqi Rules (Chinese Dark Chess)': '暗棋規則：玩法詳解與免費線上對弈',
   'Use [Xiangqi Rules](/rules/xiangqi) for the base game. This page covers what changes.':
     '基礎規則請參考[象棋規則](/rules/xiangqi)。本頁只說明變化之處。',
   Jieqi: '揭棋',
@@ -1574,15 +1584,17 @@ const ZH_HANT: Record<string, string> = {
   'Play Misty in Fog Chess, or read the rules article for the player-facing version of the same visibility model.':
     '來玩 Misty 的迷霧國際象棋，或閱讀面向玩家的規則文章，了解同一套視野模型。',
   'Read Fog Chess Rules': '閱讀迷霧國際象棋規則',
-  'Jungle Chess Rules': '鬥獸棋規則',
-  "The classic animal-chess game on a 7 by 9 board. Eight ranked animals, rivers only the rat can cross, and a race to the opponent's den.":
-    '經典中國動物棋鬥獸棋，棋盤 7×9。八種按等級排列的動物，只有老鼠能過的河，以及衝入對方獸穴的競賽。',
+  'Jungle Chess Rules (Dou Shou Qi, Animal Chess)': '鬥獸棋規則：玩法詳解與免費線上對弈',
+  "Jungle Chess, also called Dou Shou Qi or Animal Chess: eight ranked animals on a 7 by 9 board, rivers only the rat can cross, and a race to the opponent's den. Play rated games and analyse them free in your browser.":
+    '鬥獸棋（又稱動物棋）規則詳解：棋盤 7×9，八種按等級排列的動物，只有老鼠能過的河，以及衝入對方獸穴的競賽。免費線上對弈，支援等級分與覆盤分析。',
+  'Jungle has been played online for years, mostly in apps and on Chinese game portals. Rated games, a post-game review, and an engine that tells you where it went wrong have not come with it. The serious Jungle engine work sits in academic papers and endgame tablebases, nowhere you can actually play. Mistboard puts all three in one place.':
+    '鬥獸棋在網上已經玩了很多年，大多在手機應用和中文遊戲平台上。但等級分對局、賽後覆盤，以及一台能告訴你哪一步走錯的引擎，一直沒有跟上。真正認真的鬥獸棋引擎研究留在學術論文和殘局庫裡，沒有落在任何能實際對弈的地方。Mistboard 把這三件事放在了一起。',
   'Jungle Chess is a two-player strategy game about rank and terrain. Each side commands eight animals and tries to reach the enemy den or eliminate the enemy army.':
     '鬥獸棋是一種圍繞等級與地形展開的雙人策略遊戲。雙方各指揮八種動物，目標是進入敵方獸穴或消滅敵方全部棋子。',
-  'Flip Jungle Rules': '翻翻棋規則',
-  'The 4×4 flip version of Jungle Chess. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board.':
-    '鬥獸棋的 4×4 翻面版本。所有動物開局均背面朝上，翻開即亮明身分，等級相同的雙方同歸於盡、一起離場。',
-  'Jieqi Rules (Reveal Xiangqi)': '揭棋規則',
+  'Flip Jungle Rules (Flip Dou Shou Qi)': '翻翻棋規則：玩法詳解與免費線上對弈',
+  'The 4×4 flip version of Jungle Chess, also called flip Dou Shou Qi or flip animal chess. Every animal starts face-down, you flip to reveal, and equal ranks trade off the board. Play it free in your browser.':
+    '鬥獸棋的 4×4 翻面版本，又稱翻翻棋。所有動物開局均背面朝上，翻開即亮明身分，等級相同的雙方同歸於盡、一起離場。免費線上對弈，無需註冊。',
+  'Jieqi Rules (Reveal Xiangqi)': '揭棋規則：玩法詳解與免費線上對弈',
   'Ranks and captures': '等級與吃子',
   'Each side has the same eight animals. Strongest to weakest: elephant, lion, tiger, leopard, wolf, dog, cat, rat. A piece captures an adjacent enemy of equal or lower rank.':
     '雙方各有相同的八種動物。從強到弱是：象、獅、虎、豹、狼、狗、貓、鼠。棋子可吃相鄰的同級或低級敵子。',

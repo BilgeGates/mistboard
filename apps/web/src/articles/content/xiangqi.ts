@@ -32,7 +32,7 @@ export const xiangqiArticle: Article = {
       {
         kind: 'paragraph',
         text:
-          'Xiangqi, also known as Chinese chess, is a two-player strategy game with roots in China going back many centuries. Its modern form, including the cannon, took shape around the Song dynasty (960 to 1279).',
+          'Xiangqi, also known as Chinese chess, took its modern form in China during the Song dynasty (960 to 1279), when the cannon joined the board. Its ancestors run back several centuries earlier, and it shares a common root with chess, shogi, and janggi in the older Indian game chaturanga. It is now among the most widely played board games in the world.',
       },
       {
         kind: 'paragraph',

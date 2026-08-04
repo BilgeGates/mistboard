@@ -126,132 +126,22 @@ export function mountLearnXiangqi(root: HTMLElement): void {
   window.addEventListener(xiangqiAppearanceChangedEvent, render);
 
   // ── Map screen ─────────────────────────────────────────────────────────────
-
-  function stageState(stage: LearnStage): 'done' | 'ongoing' | 'future' {
-    if (isStageComplete(progress, stage)) return 'done';
-    const prev = learnXiangqiStages.find((candidate) => candidate.id === stage.id - 1);
-    if (!prev || isStageComplete(progress, prev) || stageHasProgress(progress, stage)) {
-      return 'ongoing';
-    }
-    return 'future';
-  }
+  // The map builders live at module scope (below) so the prerenderer can render
+  // the same stage list without a mounted page or localStorage. These wrappers
+  // just bind them to this mount's mutable progress + re-render callbacks.
 
   function renderMap(): void {
     page.className = 'learn-xq learn-xq--map';
-    page.replaceChildren(mapSidebar(), mapMain());
-  }
-
-  function mapSidebar(): HTMLElement {
-    const side = document.createElement('aside');
-    side.className = 'learn-xq-side-card';
-    const illus = document.createElement('div');
-    illus.className = 'learn-xq-mascot';
-    illus.innerHTML = pieceSvg('general', 96);
-    const title = document.createElement('h1');
-    title.textContent = learnCopy('learn.xiangqi.title');
-    const sub = document.createElement('p');
-    sub.textContent = learnCopy('learn.xiangqi.byPlaying');
-    const done = completedLevelCount(progress, learnXiangqiStages);
-    const total = totalLevelCount();
-    const pct = total === 0 ? 0 : Math.round((done / total) * 100);
-    const bar = document.createElement('div');
-    bar.className = 'learn-xq-progress-bar';
-    bar.innerHTML = `<div class="learn-xq-progress-fill" style="width:${pct}%"></div><span>${learnCopy('learn.xiangqi.progress')}: ${pct}%</span>`;
-    side.append(illus, title, sub, bar);
-    if (done > 0) {
-      const reset = document.createElement('button');
-      reset.type = 'button';
-      reset.className = 'learn-xq-reset';
-      reset.textContent = learnCopy('learn.xiangqi.resetProgress');
-      reset.addEventListener('click', () => {
+    page.replaceChildren(
+      buildLearnMapSidebar(progress, () => {
         if (window.confirm(learnCopy('learn.xiangqi.resetConfirm'))) {
           resetLearnProgress();
           progress = loadLearnProgress();
           render();
         }
-      });
-      side.append(reset);
-    }
-    return side;
-  }
-
-  function mapMain(): HTMLElement {
-    const main = document.createElement('main');
-    main.className = 'learn-xq-map-main';
-    for (const categ of learnXiangqiCategories) {
-      const section = document.createElement('section');
-      section.className = 'learn-xq-categ';
-      const heading = document.createElement('h2');
-      heading.textContent = learnCopy(categ.name);
-      const grid = document.createElement('div');
-      grid.className = 'learn-xq-tile-grid';
-      for (const stage of categ.stages) grid.append(stageTile(stage));
-      section.append(heading, grid);
-      main.append(section);
-    }
-    main.append(whatNextSection());
-    return main;
-  }
-
-  function stageTile(stage: LearnStage): HTMLElement {
-    const state = stageState(stage);
-    const tile = document.createElement('a');
-    tile.className = `learn-xq-tile learn-xq-tile--${state}`;
-    tile.href = `#/${stage.key}`;
-    const illus = document.createElement('div');
-    illus.className = 'learn-xq-tile-illus';
-    illus.innerHTML = stageIllustration(stage, 56);
-    const text = document.createElement('div');
-    text.className = 'learn-xq-tile-text';
-    const title = document.createElement('h3');
-    title.textContent = learnCopy(stage.title);
-    const subtitle = document.createElement('p');
-    subtitle.textContent = learnCopy(stage.subtitle);
-    text.append(title, subtitle);
-    tile.append(illus, text);
-    // Folded corner ribbon (lichess anatomy): stars once done, progress text
-    // while ongoing, nothing on locked (future) stages.
-    if (state !== 'future') {
-      const wrap = document.createElement('div');
-      wrap.className = 'learn-xq-ribbon-wrap';
-      const ribbon = document.createElement('div');
-      ribbon.className = `learn-xq-ribbon learn-xq-ribbon--${state}`;
-      if (state === 'done') {
-        ribbon.innerHTML = starIcons(
-          starsOfRank(stageRank(stage, stageScores(progress, stage.key))),
-        );
-      } else {
-        const done = stageScores(progress, stage.key).filter((score) => score > 0).length;
-        ribbon.textContent =
-          done > 0 ? `${done} / ${stage.levels.length}` : learnCopy('learn.xiangqi.play');
-      }
-      wrap.append(ribbon);
-      tile.append(wrap);
-    }
-    return tile;
-  }
-
-  function whatNextSection(): HTMLElement {
-    const section = document.createElement('section');
-    section.className = 'learn-xq-categ learn-xq-what-next';
-    const heading = document.createElement('h2');
-    heading.textContent = learnCopy('learn.xiangqi.whatNext');
-    const copy = document.createElement('p');
-    copy.className = 'learn-xq-what-next-copy';
-    copy.textContent = learnCopy('learn.xiangqi.whatNextCopy');
-    const grid = document.createElement('div');
-    grid.className = 'learn-xq-tile-grid';
-    for (const item of WHAT_NEXT_TILES) {
-      const tile = document.createElement('a');
-      tile.className = 'learn-xq-tile learn-xq-tile--link';
-      tile.href = item.href;
-      tile.innerHTML = `
-        <div class="learn-xq-tile-illus learn-xq-tile-glyph">${item.glyph}</div>
-        <div class="learn-xq-tile-text"><h3>${item.title}</h3><p>${item.subtitle}</p></div>`;
-      grid.append(tile);
-    }
-    section.append(heading, copy, grid);
-    return section;
+      }),
+      buildLearnMapMain(progress),
+    );
   }
 
   // ── Run screen ─────────────────────────────────────────────────────────────
@@ -585,23 +475,155 @@ export function mountLearnXiangqi(root: HTMLElement): void {
     playSound(mapping[sound]);
   }
 
-  function stageIllustration(stage: LearnStage, size: number): string {
-    if (stage.illustration.piece) {
-      return pieceSvg(stage.illustration.piece as XiangqiPieceRole, size);
-    }
-    return `<span class="learn-xq-glyph" style="font-size:${size * 0.8}px">${stage.illustration.glyph ?? '★'}</span>`;
-  }
-
-  function pieceSvg(role: XiangqiPieceRole, size: number): string {
-    return renderXiangqiPiece({ color: 'red', role }, { size });
-  }
-
-  function starIcons(count: number): string {
-    return Array.from(
-      { length: 3 },
-      (_, index) => `<span class="learn-xq-star${index < count ? ' filled' : ''}">★</span>`,
-    ).join('');
-  }
-
   render();
+}
+
+// Shared by the live mount and the prerenderer; no page or progress state.
+function pieceSvg(role: XiangqiPieceRole, size: number): string {
+  return renderXiangqiPiece({ color: 'red', role }, { size });
+}
+
+function stageIllustration(stage: LearnStage, size: number): string {
+  if (stage.illustration.piece) {
+    return pieceSvg(stage.illustration.piece as XiangqiPieceRole, size);
+  }
+  return `<span class="learn-xq-glyph" style="font-size:${size * 0.8}px">${stage.illustration.glyph ?? '★'}</span>`;
+}
+
+function starIcons(count: number): string {
+  return Array.from(
+    { length: 3 },
+    (_, index) => `<span class="learn-xq-star${index < count ? ' filled' : ''}">★</span>`,
+  ).join('');
+}
+
+// ── Map screen builders (module scope) ───────────────────────────────────────
+// Pure over `progress`, so both the live mount and the build-time prerenderer
+// use the same code path. `onReset` is omitted by the prerenderer: with empty
+// progress the reset button is not rendered anyway.
+
+function stageState(progress: LearnProgress, stage: LearnStage): 'done' | 'ongoing' | 'future' {
+  if (isStageComplete(progress, stage)) return 'done';
+  const prev = learnXiangqiStages.find((candidate) => candidate.id === stage.id - 1);
+  if (!prev || isStageComplete(progress, prev) || stageHasProgress(progress, stage)) {
+    return 'ongoing';
+  }
+  return 'future';
+}
+
+function buildLearnMapSidebar(progress: LearnProgress, onReset?: () => void): HTMLElement {
+  const side = document.createElement('aside');
+  side.className = 'learn-xq-side-card';
+  const illus = document.createElement('div');
+  illus.className = 'learn-xq-mascot';
+  illus.innerHTML = pieceSvg('general', 96);
+  const title = document.createElement('h1');
+  title.textContent = learnCopy('learn.xiangqi.title');
+  const sub = document.createElement('p');
+  sub.textContent = learnCopy('learn.xiangqi.byPlaying');
+  const done = completedLevelCount(progress, learnXiangqiStages);
+  const total = totalLevelCount();
+  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  const bar = document.createElement('div');
+  bar.className = 'learn-xq-progress-bar';
+  bar.innerHTML = `<div class="learn-xq-progress-fill" style="width:${pct}%"></div><span>${learnCopy('learn.xiangqi.progress')}: ${pct}%</span>`;
+  side.append(illus, title, sub, bar);
+  if (done > 0 && onReset) {
+    const reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'learn-xq-reset';
+    reset.textContent = learnCopy('learn.xiangqi.resetProgress');
+    reset.addEventListener('click', onReset);
+    side.append(reset);
+  }
+  return side;
+}
+
+function buildLearnMapMain(progress: LearnProgress): HTMLElement {
+  const main = document.createElement('main');
+  main.className = 'learn-xq-map-main';
+  for (const categ of learnXiangqiCategories) {
+    const section = document.createElement('section');
+    section.className = 'learn-xq-categ';
+    const heading = document.createElement('h2');
+    heading.textContent = learnCopy(categ.name);
+    const grid = document.createElement('div');
+    grid.className = 'learn-xq-tile-grid';
+    for (const stage of categ.stages) grid.append(buildLearnStageTile(progress, stage));
+    section.append(heading, grid);
+    main.append(section);
+  }
+  main.append(buildLearnWhatNextSection());
+  return main;
+}
+
+function buildLearnStageTile(progress: LearnProgress, stage: LearnStage): HTMLElement {
+  const state = stageState(progress, stage);
+  const tile = document.createElement('a');
+  tile.className = `learn-xq-tile learn-xq-tile--${state}`;
+  tile.href = `#/${stage.key}`;
+  const illus = document.createElement('div');
+  illus.className = 'learn-xq-tile-illus';
+  illus.innerHTML = stageIllustration(stage, 56);
+  const text = document.createElement('div');
+  text.className = 'learn-xq-tile-text';
+  const title = document.createElement('h3');
+  title.textContent = learnCopy(stage.title);
+  const subtitle = document.createElement('p');
+  subtitle.textContent = learnCopy(stage.subtitle);
+  text.append(title, subtitle);
+  tile.append(illus, text);
+  // Folded corner ribbon (lichess anatomy): stars once done, progress text
+  // while ongoing, nothing on locked (future) stages.
+  if (state !== 'future') {
+    const wrap = document.createElement('div');
+    wrap.className = 'learn-xq-ribbon-wrap';
+    const ribbon = document.createElement('div');
+    ribbon.className = `learn-xq-ribbon learn-xq-ribbon--${state}`;
+    if (state === 'done') {
+      ribbon.innerHTML = starIcons(starsOfRank(stageRank(stage, stageScores(progress, stage.key))));
+    } else {
+      const done = stageScores(progress, stage.key).filter((score) => score > 0).length;
+      ribbon.textContent =
+        done > 0 ? `${done} / ${stage.levels.length}` : learnCopy('learn.xiangqi.play');
+    }
+    wrap.append(ribbon);
+    tile.append(wrap);
+  }
+  return tile;
+}
+
+function buildLearnWhatNextSection(): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'learn-xq-categ learn-xq-what-next';
+  const heading = document.createElement('h2');
+  heading.textContent = learnCopy('learn.xiangqi.whatNext');
+  const copy = document.createElement('p');
+  copy.className = 'learn-xq-what-next-copy';
+  copy.textContent = learnCopy('learn.xiangqi.whatNextCopy');
+  const grid = document.createElement('div');
+  grid.className = 'learn-xq-tile-grid';
+  for (const item of WHAT_NEXT_TILES) {
+    const tile = document.createElement('a');
+    tile.className = 'learn-xq-tile learn-xq-tile--link';
+    tile.href = item.href;
+    tile.innerHTML = `
+        <div class="learn-xq-tile-illus learn-xq-tile-glyph">${item.glyph}</div>
+        <div class="learn-xq-tile-text"><h3>${item.title}</h3><p>${item.subtitle}</p></div>`;
+    grid.append(tile);
+  }
+  section.append(heading, copy, grid);
+  return section;
+}
+
+// Build-time prerender of the stage map: nav + sidebar + all 20 stage tiles.
+// Crawlers and no-JS clients get the real course outline instead of an empty
+// shell; the client mount replaces it on takeover. Progress is always empty
+// here (it lives in localStorage), which is also what a first-time visitor sees.
+export function renderLearnXiangqiShellForPrerender(): string {
+  const emptyProgress: LearnProgress = { stages: {} };
+  const page = document.createElement('div');
+  page.className = 'learn-xq learn-xq--map';
+  page.append(buildLearnMapSidebar(emptyProgress), buildLearnMapMain(emptyProgress));
+  return `${buildNav().outerHTML}${page.outerHTML}`;
 }

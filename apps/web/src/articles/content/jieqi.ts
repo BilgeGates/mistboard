@@ -17,7 +17,7 @@ export const jieqiArticle: Article = {
     playableOnMistboard: true,
     title: 'Jieqi Rules (Reveal Xiangqi)',
     summary:
-      'Jieqi rules: hidden non-general pieces first move by starting point, then reveal and play by identity.',
+      'Jieqi, the hidden-piece Chinese chess variant, explained in English. Every piece but the general starts face-down, moves first as the point it stands on, then reveals. Play it free in your browser.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-06-15',
