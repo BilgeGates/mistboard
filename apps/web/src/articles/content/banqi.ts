@@ -14,9 +14,9 @@ export const banqiArticle: Article = {
     boardFamily: 'xiangqi',
     kind: 'rules',
     playableOnMistboard: true,
-    title: 'Banqi Rules (Flip Xiangqi)',
+    title: 'Banqi Rules (Chinese Dark Chess)',
     summary:
-      'Banqi rules: the 4 by 8 half-board game with face-down pieces, rank captures, screen-jumping cannons, and no royal general.',
+      'Banqi, also called Chinese dark chess or blind chess: the 4 by 8 half-board game with face-down pieces, rank captures, and screen-jumping cannons. Play it free in your browser.',
     showSummaryOnPage: false,
     status: 'published',
     publishedAt: '2026-06-15',
@@ -28,7 +28,7 @@ export const banqiArticle: Article = {
       {
         kind: 'paragraph',
         text:
-          'Banqi, also called Flip Xiangqi, is a fast hidden-piece game played on half a xiangqi board. All thirty-two pieces begin shuffled and face-down. The first flip assigns colors. After that, each turn is a choice: flip a tile or move a revealed piece. Captures follow rank, except for the cannon.',
+          'Banqi, also called Chinese dark chess or blind chess, is a fast hidden-piece game played on half a xiangqi board. All thirty-two pieces begin shuffled and face-down. The first flip assigns colors. After that, each turn is a choice: flip a tile or move a revealed piece. Captures follow rank, except for the cannon.',
       },
       {
         kind: 'paragraph',

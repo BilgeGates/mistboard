@@ -383,6 +383,31 @@ try {
   await fs.writeFile(resolve(distDir, 'player.html'), leaderboardHtml, 'utf-8');
   await fs.writeFile(resolve(distDir, 'leaderboard.html'), leaderboardHtml, 'utf-8');
   console.log('prerendered /player (player.html)');
+
+  // Learn: bake the stage map (sidebar + all 20 stage tiles + "what next") with
+  // its route CSS. /learn/xiangqi previously served the bare shell, so a crawler
+  // saw a <title> and nothing else. Progress is localStorage-only, so the baked
+  // map is the empty-progress view, which is exactly what a first visit shows.
+  const { renderLearnXiangqiShellForPrerender } = await server.ssrLoadModule(
+    '/src/learn-xiangqi/learn-xiangqi-page.ts',
+  );
+  const learnAssetLinks = routeAssetLinks(
+    manifest,
+    'src/learn-xiangqi/learn-xiangqi-page.ts',
+    shell,
+  );
+  const learnInner = renderLearnXiangqiShellForPrerender();
+  let learnHtml = shell.replace('<div id="app"></div>', `<div id="app">${learnInner}</div>`);
+  learnHtml = learnHtml.replace(
+    /<title>[^<]*<\/title>/,
+    '<title>Learn Xiangqi (Chinese Chess) | Mistboard</title>',
+  );
+  learnHtml = learnHtml.replace(
+    '</head>',
+    `<link rel="canonical" href="${host}/learn/xiangqi" />${learnAssetLinks}</head>`,
+  );
+  await fs.writeFile(resolve(distDir, 'learn-xiangqi.html'), learnHtml, 'utf-8');
+  console.log('prerendered /learn/xiangqi (learn-xiangqi.html)');
 } catch (err) {
   console.error('prerender failed:', err);
   process.exitCode = 1;

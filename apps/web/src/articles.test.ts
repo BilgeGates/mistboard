@@ -933,9 +933,14 @@ describe('rules variant sidebar', () => {
     );
   });
 
-  it('keeps non-English aliases out of the eight English rules pages', () => {
-    const aliases =
-      /\b(?:banqi|jieqi|Dou Shou Qi)\b|cờ úp|象棋|揭棋|暗棋|斗兽棋|鬥獸棋|翻翻棋|同归于尽|同歸於盡/;
+  // Guards against translated prose bleeding into the English render: a zh
+  // catalog value returned for an English page shows up as one of these game
+  // names or phrases in the body text. Romanized alternate names (Dou Shou Qi,
+  // Animal Chess, banqi, jieqi, cờ úp) are deliberately NOT banned — they are
+  // what English speakers search for, and keeping them off the page cost real
+  // search traffic. Relaxed 2026-08-03; see docs-private/seo/backlog.md.
+  it('keeps translated Chinese game names out of the English rules pages', () => {
+    const translationBleed = /象棋|揭棋|暗棋|斗兽棋|鬥獸棋|翻翻棋|同归于尽|同歸於盡/;
     const slugs = [
       'xiangqi',
       'banqi',
@@ -951,7 +956,7 @@ describe('rules variant sidebar', () => {
       const page = buildArticlePage(slug);
       document.body.append(page);
       const controllers = mountPendingWidgets(page);
-      expect(page.textContent, slug).not.toMatch(aliases);
+      expect(page.textContent, slug).not.toMatch(translationBleed);
       for (const controller of controllers) controller.destroy();
       page.remove();
     }
