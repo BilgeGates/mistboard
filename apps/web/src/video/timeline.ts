@@ -47,6 +47,8 @@ export type Shot = {
   lastMove: XiangqiMove | null;
   overlays: OverlayState;
   moving: MovingPiece | null;
+  /** Section label for the stage gutter; null outside any labelled section. */
+  label: string | null;
   durationMs: number;
 };
 
@@ -97,12 +99,12 @@ export function expandTimeline(plan: ScenePlan): Timeline {
     // Sound boundaries: fire when the shot at this index starts.
     const pendingSounds: Array<{ beforeShotIndex: number; sound: 'move' | 'capture' }> = [];
     const push = (
-      shot: Omit<Shot, 'durationMs'>,
+      shot: Omit<Shot, 'durationMs' | 'label'>,
       durationMs: number,
       stretchable: boolean,
     ): void => {
       if (durationMs <= 0) return;
-      pending.push({ ...shot, durationMs, stretchable });
+      pending.push({ ...shot, label: segment.label ?? null, durationMs, stretchable });
     };
     const still = (durationMs: number): void =>
       push({ board, lastMove, overlays, moving: null }, durationMs, true);
@@ -229,6 +231,7 @@ export function expandTimeline(plan: ScenePlan): Timeline {
           lastMove,
           overlays,
           moving: null,
+          label: segment.label ?? null,
           durationMs: deficit,
           stretchable: true,
         });

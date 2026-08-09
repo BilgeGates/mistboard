@@ -14,6 +14,13 @@ export const VIDEO_BACKGROUND = '#12161c';
  *  international general is a cross-topped Western king. */
 export const VIDEO_PIECE_SET: XiangqiPieceSet = 'traditional';
 
+/** Board height as a fraction of the canvas. 1 = full bleed, the broadcast
+ *  convention (ChessNetwork et al): make the board as large as the frame
+ *  allows and let the gutters stay flat, rather than floating it in margin.
+ *  A xiangqi board is 0.9:1, so even at full bleed it only reaches ~51% of a
+ *  16:9 width — that gutter is geometry, not a layout mistake to fill. */
+export const BOARD_HEIGHT_FILL = 1;
+
 export const VIDEO_BOARD_STYLE = `
   .xq-live-bg { fill: #f5dca8; }
   .xq-live-line { stroke: #5a3a14; stroke-width: 1.2; }
@@ -49,4 +56,19 @@ export const VIDEO_BOARD_STYLE = `
   .xqv-region { fill: rgba(46, 134, 222, 0.22); stroke: rgba(46, 134, 222, 0.55); stroke-width: 2; }
   .xqv-flash-ring { fill: none; stroke: #d64545; stroke-width: 5; }
   .xqv-flash-arrow { stroke: #d64545; fill: #d64545; }
+  .xqv-coord {
+    fill: rgba(255, 255, 255, 0.34);
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    text-anchor: end;
+    dominant-baseline: central;
+  }
+  .xqv-label {
+    fill: rgba(255, 255, 255, 0.62);
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: 3px;
+  }
 `;

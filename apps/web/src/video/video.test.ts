@@ -182,6 +182,7 @@ describe('renderShotSvg', () => {
       flash: null,
     },
     moving: null,
+    label: null,
     durationMs: 100,
     ...over,
   });
@@ -232,6 +233,23 @@ describe('renderShotSvg', () => {
       expect(svg, `${name} layer fell back to the product piece set`).not.toContain('/piece-sets/');
     }
     expect(cases.board).toContain('aria-label="red chariot"');
+  });
+
+  it('draws the section label and rank gutter outside the board transform', () => {
+    // Coordinates must live in canvas space: the board's own margin is 36 units
+    // against a 27-unit piece radius, so anything drawn there sits under the
+    // edge pieces. Both belong after the board group, not inside it.
+    const svg = renderShotSvg(plan, { ...shot({}), label: 'The cannon' });
+    expect(svg).toContain('THE CANNON');
+    // The first </svg> closes the nested board; anything after it is canvas
+    // space, outside the scale() transform.
+    const boardEnd = svg.indexOf('</svg>');
+    expect(boardEnd).toBeGreaterThan(-1);
+    // Match the attribute, not the bare class name: the inlined <style> block
+    // mentions both selectors near the top of the document.
+    expect(svg.indexOf('class="xqv-coords"')).toBeGreaterThan(boardEnd);
+    expect(svg.indexOf('class="xqv-label"')).toBeGreaterThan(boardEnd);
+    for (const rank of [1, 5, 10]) expect(svg).toContain(`>${rank}</text>`);
   });
 
   it('places the piece where the geometry mirror says it is (drift guard)', () => {

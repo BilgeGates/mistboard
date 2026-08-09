@@ -20,12 +20,13 @@ import {
   lerpPoint,
   MARGIN,
   PIECE_SIZE,
+  RANK_COUNT,
   RIVER_BOTTOM,
   RIVER_TOP,
   squareCenter,
 } from './geometry.js';
 import type { ScenePlan, VideoRegion } from './manifest.js';
-import { VIDEO_BOARD_STYLE, VIDEO_PIECE_SET } from './theme.js';
+import { BOARD_HEIGHT_FILL, VIDEO_BOARD_STYLE, VIDEO_PIECE_SET } from './theme.js';
 import type { Shot } from './timeline.js';
 
 export function renderShotSvg(plan: ScenePlan, shot: Shot): string {
@@ -63,9 +64,14 @@ export function renderShotSvg(plan: ScenePlan, shot: Shot): string {
   boardSvg = withExplicitSize(boardSvg);
   boardSvg = injectBeforeClose(boardSvg, overlayMarkup(shot, perspective));
 
-  const scale = (plan.height * 0.92) / BOARD_HEIGHT;
+  const scale = (plan.height * BOARD_HEIGHT_FILL) / BOARD_HEIGHT;
   const tx = (plan.width - BOARD_WIDTH * scale) / 2;
   const ty = (plan.height - BOARD_HEIGHT * scale) / 2;
+
+  // The gutter is only as wide as the board's offset, and the rank column eats
+  // the right edge of it. Section titles are sentences, not surnames, so they
+  // wrap rather than run under the board.
+  const label = shot.label ? labelMarkup(shot.label, tx - LABEL_X - RANK_GUTTER_W) : '';
 
   const watermark = plan.watermark
     ? `<text x="${plan.width - 28}" y="${plan.height - 26}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="rgba(255,255,255,0.30)" letter-spacing="1">${escapeXml(plan.watermark)}</text>`
@@ -78,9 +84,68 @@ export function renderShotSvg(plan: ScenePlan, shot: Shot): string {
     `<g transform="translate(${round2(tx)} ${round2(ty)}) scale(${round2(scale)})">`,
     boardSvg,
     `</g>`,
+    coordinateMarkup(perspective, tx, ty, scale),
+    label,
     watermark,
     `</svg>`,
   ].join('');
+}
+
+const LABEL_X = 40;
+const LABEL_TOP = 56;
+const LABEL_FONT_SIZE = 26;
+const LABEL_LINE_HEIGHT = 34;
+/** Width the rank column claims at the right of the gutter. */
+const RANK_GUTTER_W = 60;
+
+/** Section title in the gutter, greedy-wrapped to the space actually available.
+ *  Width is estimated from the font size rather than measured — there is no text
+ *  metrics API here, so the advance is deliberately generous and the result errs
+ *  toward wrapping early instead of running under the board. */
+function labelMarkup(text: string, maxWidth: number): string {
+  const advance = LABEL_FONT_SIZE * 0.66 + 3;
+  const perLine = Math.max(1, Math.floor(maxWidth / advance));
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.toUpperCase().split(/\s+/).filter(Boolean)) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && candidate.length > perLine) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  }
+  if (line) lines.push(line);
+  return lines
+    .map(
+      (text2, index) =>
+        `<text class="xqv-label" x="${LABEL_X}" y="${LABEL_TOP + index * LABEL_LINE_HEIGHT}">${escapeXml(text2)}</text>`,
+    )
+    .join('');
+}
+
+/** Rank numbers down the stage gutter, the way a broadcast board carries them.
+ *  Canonical xiangqi coordinates per the notation decision: ranks 1-10 with
+ *  Red's back rank at 1. Video-only; the product board draws no coordinates.
+ *
+ *  These sit in canvas space rather than the board's own margin: that margin is
+ *  36 units and a piece radius is 27, so anything drawn there lands under the
+ *  edge pieces. File letters are omitted for the same reason — at full bleed
+ *  there is no gutter below the board to put them in. */
+function coordinateMarkup(
+  perspective: 'red' | 'black',
+  tx: number,
+  ty: number,
+  scale: number,
+): string {
+  const parts: string[] = [];
+  for (let rank = 1; rank <= RANK_COUNT; rank += 1) {
+    const { y } = squareCenter(`a${rank}` as XiangqiSquare, perspective);
+    const cy = ty + y * scale;
+    parts.push(`<text class="xqv-coord" x="${round2(tx - 26)}" y="${round2(cy)}">${rank}</text>`);
+  }
+  return `<g class="xqv-coords" aria-hidden="true">${parts.join('')}</g>`;
 }
 
 /** Give the product board's root <svg> explicit pixel dimensions. Without them a
