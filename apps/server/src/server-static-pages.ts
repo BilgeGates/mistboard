@@ -3,7 +3,7 @@ import type { ServerResponse } from 'node:http';
 import { resolve } from 'node:path';
 import type { Color } from '@mistboard/game';
 import { ARTICLE_META, articleIsIndexable, canonicalArticleBase } from './article-meta.js';
-import { GAME_OG_IMAGE_VERSION } from './og-image.js';
+import { GAME_OG_IMAGE_VERSION, STUDY_OG_IMAGE_VERSION } from './og-image.js';
 import * as persistence from './persistence.js';
 import { chapterIsSubstantial, chapterPageMeta, renderStudyBody } from './study-page-body.js';
 
@@ -324,6 +324,9 @@ export async function serveStudyPage(params: {
       title: meta.title,
       description: meta.description,
       url: `${params.publicHost}${localePath}/study/${encodeURIComponent(params.studyId)}${pathSuffix}`,
+      // The card is the chapter's own starting diagram, so a shared composition
+      // previews as that composition. Locale-independent: it is a board.
+      imageUrl: `${params.publicHost}/og/study/${encodeURIComponent(params.studyId)}${pathSuffix}.png?v=${STUDY_OG_IMAGE_VERSION}`,
     });
     // hreflang alternates so the locale variants read as one page in three
     // languages rather than three competing near-duplicates.

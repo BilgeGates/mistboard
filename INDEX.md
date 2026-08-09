@@ -249,7 +249,7 @@ Edit task → find file → open only that file.
 | `worker.ts` | Background worker entry point for async engine game execution |
 | `feedback-notify.ts` | Email notification on feedback submission |
 | `game-export.ts` | PGN/JSON export for `/api/games/:id/export.*` (Phase D, 2026-05-22) |
-| `og-image.ts` | OG image rendering (default + per-game + per-article) |
+| `og-image.ts` | OG image rendering (default + per-game + per-article + per-study/chapter). The study card draws the chapter's own hand-set `rootFen` (a composition IS its diagram), falls back to the standard start only when no rootFen is present, and refuses non-public studies so a card never publishes a private position. |
 | `obs.ts` | Structured-JSON logging helpers |
 | `room-lifecycle-audit.ts` | Lifecycle audit/event helpers |
 | `seat-auth.ts` | Seat-authority verification helpers shared by chess and non-chess room flows |

@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { RoomTimeControl, VariantId } from '@mistboard/game';
 import serveHandler from 'serve-handler';
 import { type HttpApiContext, handleApiRequest } from './http-api.js';
-import { serveArticleOgImage, serveGameOgImage } from './og-image.js';
+import { serveArticleOgImage, serveGameOgImage, serveStudyOgImage } from './og-image.js';
 import * as persistence from './persistence.js';
 import { RequestBodyTooLargeError } from './routes/lib.js';
 import type { DrainController } from './server-drain.js';
@@ -158,6 +158,25 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
       const roomId = decodeURIComponent(ogImageMatch[1]!);
       void serveGameOgImage(roomId, response).catch((err) => {
         console.warn('og image render failed', (err as Error).message);
+        if (!response.headersSent) {
+          response.writeHead(302, { location: '/og-image.png' });
+          response.end();
+        }
+      });
+      return;
+    }
+
+    // /og/study/:studyId.png and /og/study/:studyId/:chapterId.png. The chapter
+    // form is what makes a shared composition preview as its own diagram; the
+    // study form falls back to its first chapter.
+    const studyOgMatch = pathname.match(/^\/og\/study\/([^/]+?)(?:\/([^/]+?))?\.png$/);
+    if (studyOgMatch && persistence.isInitialized()) {
+      void serveStudyOgImage({
+        studyId: decodeURIComponent(studyOgMatch[1]!),
+        chapterId: studyOgMatch[2] ? decodeURIComponent(studyOgMatch[2]) : undefined,
+        response,
+      }).catch((err: Error) => {
+        console.warn('study og render failed', err.message);
         if (!response.headersSent) {
           response.writeHead(302, { location: '/og-image.png' });
           response.end();

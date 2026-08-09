@@ -33,6 +33,7 @@ import {
   getMiniXiangqiPlayerView,
   getPlayerView as getXiangqiPlayerView,
   initialGameProjection,
+  parseStandardXiangqiFen,
   type Square,
   variantForId,
 } from '@mistboard/game';
@@ -256,6 +257,114 @@ export async function serveArticleOgImage(params: {
   const png = svgToPng(svg);
   cacheSet(key, png);
   writePng(response, png, 'MISS');
+}
+
+/** Bumped when the study card's LOOK changes, so scrapers holding an old PNG
+ *  under the immutable Cache-Control re-fetch. Content changes need no bump: a
+ *  chapter's diagram is its start position, which does not move. */
+export const STUDY_OG_IMAGE_VERSION = 1;
+
+// Per-composition share card: the chapter's own starting diagram plus its name.
+// A 排局 IS its diagram, so a link to one composition should preview that
+// composition rather than the site's generic card. Chapters that begin from the
+// standard opening (the game volumes) render the standard start.
+//
+// Only xiangqi chapters render a board; other variants fall back to the default
+// card rather than guessing a renderer, per the fail-closed dispatch rule.
+export async function serveStudyOgImage(params: {
+  studyId: string;
+  chapterId?: string;
+  response: ServerResponse;
+}): Promise<void> {
+  const { chapterId, response, studyId } = params;
+  const key = `study:v${STUDY_OG_IMAGE_VERSION}:${studyId}:${chapterId ?? ''}`;
+  const cached = cacheGet(key);
+  if (cached) {
+    writePng(response, cached, 'HIT');
+    return;
+  }
+
+  const study = await persistence.getStudyById(studyId).catch(() => null);
+  // Unlisted and private studies get no generated card. An OG image is a public
+  // artifact served without auth, so rendering one would publish a non-public
+  // study's position to anyone who guessed the id.
+  if (study?.visibility !== 'public') {
+    redirectToDefault(response);
+    return;
+  }
+  const chapters = [...study.chapters].sort((a, b) => a.ordinal - b.ordinal);
+  const chapter = chapterId ? chapters.find((c) => c.id === chapterId) : chapters[0];
+  if (chapter?.variant !== 'xiangqi') {
+    redirectToDefault(response);
+    return;
+  }
+  const pieces = studyChapterOgPieces(chapter.root);
+  if (!pieces) {
+    redirectToDefault(response);
+    return;
+  }
+
+  const boardHeight = 486;
+  const boardY = 34;
+  const svg = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
+    `<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`,
+    xiangqiOgBoardFromPieces({ pieces, centerX: OG_WIDTH / 2, y: boardY, height: boardHeight }),
+    ogFooterLine(truncateName(chapter.name), boardY + boardHeight + 60),
+    `</svg>`,
+  ].join('');
+  const png = svgToPng(svg);
+  cacheSet(key, png);
+  writePng(response, png, 'MISS');
+}
+
+/** A chapter's start position as OG pieces: its hand-set `rootFen` when it has
+ *  one (every composition does), otherwise the standard xiangqi start (the game
+ *  volumes begin from the normal opening). Returns null on an unparseable FEN so
+ *  the caller falls back to the default card rather than rendering a wrong board. */
+export function studyChapterOgPieces(root: unknown): XiangqiOgPiece[] | null {
+  const rootFen =
+    root && typeof root === 'object' && typeof (root as { rootFen?: unknown }).rootFen === 'string'
+      ? (root as { rootFen: string }).rootFen
+      : undefined;
+  let board: Record<string, { color: 'red' | 'black'; role: XiangqiOgPiece['role'] } | undefined>;
+  // PRESENT-but-unparseable (including empty) is a failure, not an absence. A
+  // chapter that carries a rootFen is a composition, so falling through to the
+  // standard start would publish a board the study does not hold.
+  if (rootFen !== undefined) {
+    const parsed = parseStandardXiangqiFen(rootFen, 'og-card');
+    if (!parsed.ok) return null;
+    board = parsed.state.board as typeof board;
+  } else {
+    board = createInitialXiangqiState('og-card').board as typeof board;
+  }
+  return Object.entries(board).flatMap(([square, piece]) =>
+    piece ? [{ ...xqOgCoord(square), color: piece.color, role: piece.role }] : [],
+  );
+}
+
+/** The full 9x10 board over a caller-supplied piece set. `xiangqiOgBoard` builds
+ *  its own start position for the article cards; a study card needs the same
+ *  geometry over an arbitrary position. */
+function xiangqiOgBoardFromPieces(params: {
+  pieces: XiangqiOgPiece[];
+  centerX: number;
+  y: number;
+  height: number;
+}): string {
+  return renderXiangqiOgBoardSvg({
+    files: 9,
+    ranks: 10,
+    pieces: params.pieces,
+    riverBetweenRanks: [5, 6],
+    palaces: [
+      { fileLo: 3, fileHi: 5, rankLo: 1, rankHi: 3 },
+      { fileLo: 3, fileHi: 5, rankLo: 8, rankHi: 10 },
+    ],
+    centerX: params.centerX,
+    y: params.y,
+    height: params.height,
+  });
 }
 
 // One footer line carries both brand and title (muted brand, bright title),
