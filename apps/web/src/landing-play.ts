@@ -1402,6 +1402,23 @@ function landingVariantSupportsPve(gameSpecId: LandingGameSpecId): boolean {
   return Boolean(webVariantTenantForSpecId(gameSpecId)?.landing?.engineOptions);
 }
 
+/** Which variant a first-time player lands on. Xiangqi is the flagship (the
+ *  same one bare `/analysis` opens), so the dialog opens there rather than on
+ *  the fog variant it used to default to. Dark chess stays the last resort
+ *  because it is the one variant that is always offered. */
+function defaultLandingGameSpecId(
+  variantOptions: readonly { gameSpecId: LandingGameSpecId }[],
+  mode: LandingPlayMode,
+): LandingGameSpecId {
+  const offered = (id: LandingGameSpecId) =>
+    variantOptions.some((option) => option.gameSpecId === id) &&
+    (mode !== 'pve' || landingVariantSupportsPve(id));
+  if (offered(XIANGQI_SPEC_ID)) return XIANGQI_SPEC_ID;
+  if (offered(DARK_CHESS_SPEC_ID)) return DARK_CHESS_SPEC_ID;
+  const first = variantOptions.find((option) => offered(option.gameSpecId));
+  return first?.gameSpecId ?? DARK_CHESS_SPEC_ID;
+}
+
 function openLandingSetupDialog(choice: LandingPlayChoice): void {
   const locale = choice.locale ?? currentLocale();
   const existing = document.querySelector('.landing-setup-overlay');
@@ -1415,8 +1432,6 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
     choice.mode === 'pve' || choice.ratedDisabled || wantsCorrespondence
       ? false
       : (storedPreference.rated ?? true);
-  let selectedGameSpecId: LandingGameSpecId =
-    choice.initialGameSpecId ?? storedPreference.gameSpecId ?? DARK_CHESS_SPEC_ID;
   const publicVariantOptions = enabledLandingVariantGameSpecs(choice.mode, locale);
   const softLinkedHiddenVariant =
     choice.initialGameSpecId &&
@@ -1431,13 +1446,16 @@ function openLandingSetupDialog(choice: LandingPlayChoice): void {
         },
       ]
     : publicVariantOptions;
+  const fallbackGameSpecId = defaultLandingGameSpecId(variantOptions, choice.mode);
+  let selectedGameSpecId: LandingGameSpecId =
+    choice.initialGameSpecId ?? storedPreference.gameSpecId ?? fallbackGameSpecId;
   if (!variantOptions.some((option) => option.gameSpecId === selectedGameSpecId)) {
-    selectedGameSpecId = DARK_CHESS_SPEC_ID;
+    selectedGameSpecId = fallbackGameSpecId;
   }
   // In the engine flow, never default-select a variant with no bot (it shows
-  // greyed-out below); fall back to dark chess, which always has an engine.
+  // greyed-out below); fall back to one that has an engine.
   if (choice.mode === 'pve' && !landingVariantSupportsPve(selectedGameSpecId)) {
-    selectedGameSpecId = DARK_CHESS_SPEC_ID;
+    selectedGameSpecId = fallbackGameSpecId;
   }
   let selectedPreset: LandingTimePresetId = storedPreference.timePresetId ?? '3m2';
   // Non-null when a correspondence (days-per-move) option is chosen — it takes
