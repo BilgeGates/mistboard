@@ -502,17 +502,22 @@ function landingEngineSeeds(locale: Locale, rotationBucket: number): LandingEngi
       picked.push(gameSpecId);
     }
   }
-  return picked
-    .sort((a, b) => canonicalVariantOrderIndex(a) - canonicalVariantOrderIndex(b))
-    .map((gameSpecId) => landingBotOffer(gameSpecId, rotationBucket))
-    .filter((offer): offer is NonNullable<typeof offer> => offer !== null)
-    .flatMap((offer) =>
-      offer.gameSpecId === XIANGQI_SPEC_ID ? landingXiangqiBotOffers(rotationBucket) : [offer],
-    )
-    .map((offer) => ({
-      ...offer,
-      variantLabel: variantLabelForGameSpec(offer.gameSpecId, locale),
-    }));
+  return (
+    picked
+      .sort((a, b) => canonicalVariantOrderIndex(a) - canonicalVariantOrderIndex(b))
+      .map((gameSpecId) => landingBotOffer(gameSpecId))
+      .filter((offer): offer is NonNullable<typeof offer> => offer !== null)
+      // Xiangqi expands into its whole ladder. The expansion runs after the
+      // variant sort, so the ladder has to carry its own order (ascending by
+      // level) rather than inherit one.
+      .flatMap((offer) =>
+        offer.gameSpecId === XIANGQI_SPEC_ID ? landingXiangqiBotOffers() : [offer],
+      )
+      .map((offer) => ({
+        ...offer,
+        variantLabel: variantLabelForGameSpec(offer.gameSpecId, locale),
+      }))
+  );
 }
 
 /** Opponent cell shared by every hook row: kind glyph, name, variant, and an
@@ -677,7 +682,7 @@ const QUICK_PAIR_COLUMN_IDS: TimeControlId[] = ['1m1', '3m2', '5m5'];
 // catalog rather than a second hand-maintained ranking.
 const QUICK_PAIR_ROW_COUNT = 6;
 
-function buildQuickPairPools(locale: Locale, rotationBucket: number): HTMLElement {
+function buildQuickPairPools(locale: Locale): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'landing-quickpair-pools';
 
@@ -791,9 +796,7 @@ function buildQuickPairPools(locale: Locale, rotationBucket: number): HTMLElemen
       row.append(chip);
     }
 
-    const botOffer = landingVariantSupportsPve(gameSpecId)
-      ? landingBotOffer(gameSpecId, rotationBucket)
-      : null;
+    const botOffer = landingVariantSupportsPve(gameSpecId) ? landingBotOffer(gameSpecId) : null;
     if (botOffer) {
       // The shared bot policy selects 3+2; retain the first-offered fallback so
       // a future variant with narrower clocks cannot render a dead control.
@@ -957,7 +960,7 @@ export function buildLobbyPanel(
   quickPanelEl.setAttribute('role', 'tabpanel');
   quickPanelEl.hidden = true;
 
-  quickPanelEl.append(buildQuickPairPools(locale, rotationBucket));
+  quickPanelEl.append(buildQuickPairPools(locale));
 
   // Correspondence tab: open days-per-move seeks (they carry a creator name). A row
   // links to the challenge/accept page.

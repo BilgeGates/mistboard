@@ -27,49 +27,44 @@ describe('landing bot policy', () => {
     }
   });
 
-  it('rotates the xiangqi ladder and fortress levels while keeping 3+2', () => {
-    expect(landingBotOffer('xiangqi', 0)).toMatchObject({
-      botId: 'fairy-stockfish-level-1',
+  it('pins one stable FSF opponent per variant at 3+2', () => {
+    expect(landingBotOffer('xiangqi')).toMatchObject({
+      botId: 'fairy-stockfish-level-5',
+      botName: 'Fairy-Stockfish Level 5',
       timeControlId: '3m2',
     });
-    expect(landingBotOffer('xiangqi', 7)?.botId).toBe('fairy-stockfish-level-8');
-    expect(landingBotOffer('xiangqi', 8)?.botId).toBe('pikafish');
-    expect(landingBotOffer('fortress-xiangqi', 7)?.botId).toBe('fairy-stockfish-level-8');
-    expect(landingBotOffer('fortress-xiangqi', 8)?.botId).toBe('fairy-stockfish-level-1');
+    expect(landingBotOffer('fortress-xiangqi')?.botId).toBe('fairy-stockfish-level-4');
   });
 
-  it('adds two distinct rotating FSF xiangqi offers beside the primary opponent', () => {
-    expect(landingXiangqiBotOffers(0).map((offer) => offer.botId)).toEqual([
-      'fairy-stockfish-level-1',
-      'fairy-stockfish-level-4',
-      'fairy-stockfish-level-7',
-    ]);
-    expect(landingXiangqiBotOffers(8).map((offer) => offer.botId)).toEqual([
-      'pikafish',
-      'fairy-stockfish-level-4',
-      'fairy-stockfish-level-7',
+  it('offers the xiangqi ladder ascending, with the primary as one of its rungs', () => {
+    const offers = landingXiangqiBotOffers();
+    expect(offers.map((offer) => offer.botId)).toEqual([
+      'fairy-stockfish-level-2',
+      'fairy-stockfish-level-5',
+      'fairy-stockfish-level-8',
     ]);
 
-    // Nine primary opponents and eight FSF levels repeat every 72 buckets.
-    for (let bucket = 0; bucket < 72; bucket++) {
-      const offers = landingXiangqiBotOffers(bucket);
-      expect(offers).toHaveLength(3);
-      expect(offers[0]).toEqual(landingBotOffer('xiangqi', bucket));
-      expect(new Set(offers.map((offer) => offer.botId)).size).toBe(3);
-      expect(
-        offers.slice(1).every((offer) => offer.botId.startsWith('fairy-stockfish-level-')),
-      ).toBe(true);
-    }
+    // Ascending strength is the point of the block: the Rating column is read
+    // top-to-bottom as one gradient, so a rung out of order is the bug.
+    const levels = offers.map((offer) =>
+      Number(offer.botId.slice('fairy-stockfish-level-'.length)),
+    );
+    expect([...levels].sort((a, b) => a - b)).toEqual(levels);
+    // Quick Pairing starts the canonical offer, so it has to be a rung the
+    // Lobby shows or the two surfaces disagree about who "the computer" is.
+    expect(offers.map((offer) => offer.botId)).toContain(landingBotOffer('xiangqi')?.botId);
+    // Pikafish is the separate elite challenge, never a rung on this ladder.
+    expect(offers.every((offer) => offer.botId.startsWith('fairy-stockfish-level-'))).toBe(true);
   });
 
   it('uses the established house bot for every other supported variant', () => {
-    expect(landingBotOffer('jieqi', 0)?.botId).toBe('pikafish');
+    expect(landingBotOffer('jieqi')?.botId).toBe('pikafish');
     for (const gameSpecId of ['banqi', 'dark-xiangqi', 'dark-chess', 'jungle', 'jungle-flip']) {
-      expect(landingBotOffer(gameSpecId, 0)).toMatchObject({
+      expect(landingBotOffer(gameSpecId)).toMatchObject({
         botId: 'misty',
         timeControlId: '3m2',
       });
     }
-    expect(landingBotOffer('dark-shogi', 0)).toBeNull();
+    expect(landingBotOffer('dark-shogi')).toBeNull();
   });
 });

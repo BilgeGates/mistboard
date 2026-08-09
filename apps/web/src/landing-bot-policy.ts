@@ -49,24 +49,20 @@ const ROTATING_LINEUPS: readonly (readonly LandingBotGameSpecId[])[] = [
   [BANQI_SPEC_ID, JIEQI_SPEC_ID, JUNGLE_SPEC_ID, JUNGLE_FLIP_SPEC_ID],
 ];
 
-const XIANGQI_FSF_BOT_IDS = [
-  'fairy-stockfish-level-1',
-  'fairy-stockfish-level-2',
-  'fairy-stockfish-level-3',
-  'fairy-stockfish-level-4',
-  'fairy-stockfish-level-5',
-  'fairy-stockfish-level-6',
-  'fairy-stockfish-level-7',
-  'fairy-stockfish-level-8',
-] as const;
+// Xiangqi's Lobby block is a fixed difficulty ladder, not a rotation: the rungs
+// never change, so a returning player can climb them ("beat Level 5, try Level
+// 8") and the Rating column reads as one ascending gradient instead of three
+// unrelated numbers. Keep this ascending; the rows render in this order.
+// Pikafish is deliberately not a rung: it is the separate elite challenge in
+// the setup dialog's engine list, not a step on the human ladder.
+const XIANGQI_LADDER_LEVELS = [2, 5, 8] as const;
 
-const XIANGQI_BOT_IDS = [...XIANGQI_FSF_BOT_IDS, 'pikafish'] as const;
-
-// Spread the two extra Lobby opponents across the FSF ladder instead of showing
-// three neighboring difficulties. A third candidate handles the occasional
-// bucket where the primary rotating opponent already occupies one of the first
-// two slots.
-const XIANGQI_EXTRA_FSF_OFFSETS = [3, 6, 1] as const;
+// One stable primary per Fairy-Stockfish variant. The same control must never
+// silently hand out a different opponent strength, and Quick Pairing's Computer
+// chip shows no name at all, so a rotating identity there is invisible. Xiangqi
+// takes the ladder's middle rung; Fortress shows a single mid-ladder opponent.
+const XIANGQI_PRIMARY_LEVEL = 5;
+const FORTRESS_XIANGQI_LEVEL = 4;
 
 export function landingBotRotationBucket(now: Date = new Date()): number {
   return Math.floor(now.getTime() / ROTATION_BUCKET_MS);
@@ -79,60 +75,32 @@ export function landingBotLineup(bucket: number): readonly LandingBotGameSpecId[
   return [XIANGQI_SPEC_ID, DARK_CHESS_SPEC_ID, ...rotating];
 }
 
-export function landingBotOffer(gameSpecId: string, bucket: number): LandingBotOffer | null {
+// Which variants appear still rotates by bucket; WHICH OPPONENT a variant
+// offers does not.
+export function landingBotOffer(gameSpecId: string): LandingBotOffer | null {
   if (!isLandingBotGameSpecId(gameSpecId)) return null;
-
-  let botId = 'misty';
-  let botName = 'Misty';
-  if (gameSpecId === XIANGQI_SPEC_ID) {
-    const xiangqiBotId = XIANGQI_BOT_IDS[positiveModulo(bucket, XIANGQI_BOT_IDS.length)]!;
-    botId = xiangqiBotId;
-    botName = xiangqiBotName(xiangqiBotId);
-  } else if (gameSpecId === JIEQI_SPEC_ID) {
-    botId = 'pikafish';
-    botName = 'Pikafish';
-  } else if (gameSpecId === FORTRESS_XIANGQI_SPEC_ID) {
-    const level = positiveModulo(bucket, 8) + 1;
-    botId = `fairy-stockfish-level-${level}`;
-    botName = `Fairy-Stockfish Level ${level}`;
+  if (gameSpecId === XIANGQI_SPEC_ID) return fsfOffer(gameSpecId, XIANGQI_PRIMARY_LEVEL);
+  if (gameSpecId === FORTRESS_XIANGQI_SPEC_ID) return fsfOffer(gameSpecId, FORTRESS_XIANGQI_LEVEL);
+  if (gameSpecId === JIEQI_SPEC_ID) {
+    return { botId: 'pikafish', botName: 'Pikafish', gameSpecId, timeControlId: '3m2' };
   }
+  return { botId: 'misty', botName: 'Misty', gameSpecId, timeControlId: '3m2' };
+}
 
+// The Lobby carries the whole Xiangqi ladder at once, weakest rung first. The
+// middle rung is also the canonical offer Quick Pairing starts, so the two
+// surfaces never disagree about who "the computer" is.
+export function landingXiangqiBotOffers(): readonly LandingBotOffer[] {
+  return XIANGQI_LADDER_LEVELS.map((level) => fsfOffer(XIANGQI_SPEC_ID, level));
+}
+
+function fsfOffer(gameSpecId: LandingBotGameSpecId, level: number): LandingBotOffer {
   return {
-    botId,
-    botName,
+    botId: `fairy-stockfish-level-${level}`,
+    botName: `Fairy-Stockfish Level ${level}`,
     gameSpecId,
     timeControlId: '3m2',
   };
-}
-
-// The Lobby carries three Xiangqi requests at once: the canonical rotating
-// opponent used by Quick Pairing plus two additional, always-FSF difficulty
-// choices. The candidates are deterministic per bucket and filtered by bot id,
-// so Pikafish buckets still receive two FSF rows and FSF buckets never duplicate
-// their primary level.
-export function landingXiangqiBotOffers(bucket: number): readonly LandingBotOffer[] {
-  const primary = landingBotOffer(XIANGQI_SPEC_ID, bucket)!;
-  const offers = [primary];
-
-  for (const offset of XIANGQI_EXTRA_FSF_OFFSETS) {
-    const botId = XIANGQI_FSF_BOT_IDS[positiveModulo(bucket + offset, XIANGQI_FSF_BOT_IDS.length)]!;
-    if (offers.some((offer) => offer.botId === botId)) continue;
-    offers.push({
-      botId,
-      botName: xiangqiBotName(botId),
-      gameSpecId: XIANGQI_SPEC_ID,
-      timeControlId: '3m2',
-    });
-    if (offers.length === 3) break;
-  }
-
-  return offers;
-}
-
-function xiangqiBotName(botId: (typeof XIANGQI_BOT_IDS)[number]): string {
-  return botId === 'pikafish'
-    ? 'Pikafish'
-    : `Fairy-Stockfish Level ${botId.slice('fairy-stockfish-level-'.length)}`;
 }
 
 function isLandingBotGameSpecId(gameSpecId: string): gameSpecId is LandingBotGameSpecId {

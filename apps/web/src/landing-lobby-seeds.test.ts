@@ -8,7 +8,8 @@ import { buildLobbyPanel } from './landing-play.js';
 // invariants worth pinning are honesty (labeled engine), separation from the
 // human seek table, and the bucket-stable rotation.
 
-// Six-hour bucket 82622: lineup C, with Xiangqi levels 3, 2, and 5.
+// Six-hour bucket 82622: lineup C. The bucket still picks WHICH variants show;
+// the Xiangqi ladder itself is fixed (Levels 2/5/8) and no longer rotates.
 const FIXED_DATE = new Date('2026-07-21T12:00:00Z');
 
 describe('landing lobby bot seeks', () => {
@@ -27,16 +28,16 @@ describe('landing lobby bot seeks', () => {
     vi.unstubAllEnvs();
   });
 
-  it('renders six distinct variants plus two additional xiangqi levels', () => {
+  it('renders six distinct variants, opening with the ascending xiangqi ladder', () => {
     const panel = buildLobbyPanel('en', { hydrate: false });
     const seeds = [...panel.querySelectorAll<HTMLElement>('.landing-lobby-seed')];
     expect(seeds).toHaveLength(8);
 
     const signature = seeds.map((seed) => `${seed.dataset.botId}|${seed.dataset.gameSpec}`);
     expect(signature).toEqual([
-      'fairy-stockfish-level-3|xiangqi',
       'fairy-stockfish-level-2|xiangqi',
       'fairy-stockfish-level-5|xiangqi',
+      'fairy-stockfish-level-8|xiangqi',
       'misty|banqi',
       'pikafish|jieqi',
       'misty|dark-chess',
@@ -111,9 +112,9 @@ describe('landing lobby bot seeks', () => {
     expect(window.location.pathname).toBe('/room/bot_seek');
   });
 
-  it('starts the selected additional xiangqi level', async () => {
+  it('starts the picked ladder rung, not just the canonical one', async () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
-      if (String(input) === '/api/rooms') return jsonResponse({ url: '/xiangqi/room/fsf_5' });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/xiangqi/room/fsf_8' });
       return jsonResponse({}, { status: 404 });
     });
     vi.stubGlobal('fetch', fetchSpy);
@@ -121,9 +122,9 @@ describe('landing lobby bot seeks', () => {
     document.body.append(panel);
 
     const row = panel.querySelector<HTMLButtonElement>(
-      '.landing-lobby-seed[data-bot-id="fairy-stockfish-level-5"][data-game-spec="xiangqi"]',
+      '.landing-lobby-seed[data-bot-id="fairy-stockfish-level-8"][data-game-spec="xiangqi"]',
     );
-    expect(row?.getAttribute('aria-label')).toContain('Fairy-Stockfish Level 5');
+    expect(row?.getAttribute('aria-label')).toContain('Fairy-Stockfish Level 8');
     row!.click();
     await flushPromises();
 
@@ -133,10 +134,10 @@ describe('landing lobby bot seeks', () => {
     );
     expect(JSON.parse(String((call![1] as RequestInit).body))).toMatchObject({
       mode: 'pve',
-      botId: 'fairy-stockfish-level-5',
+      botId: 'fairy-stockfish-level-8',
       gameSpecId: 'xiangqi',
     });
-    expect(window.location.pathname).toBe('/xiangqi/room/fsf_5');
+    expect(window.location.pathname).toBe('/xiangqi/room/fsf_8');
   });
 
   it('fills rating cells from the /api/bots roster', async () => {
@@ -157,8 +158,8 @@ describe('landing lobby bot seeks', () => {
               ],
             },
             {
-              id: 'fairy-stockfish-level-3',
-              displayName: 'Fairy-Stockfish Level 3',
+              id: 'fairy-stockfish-level-5',
+              displayName: 'Fairy-Stockfish Level 5',
               // No blitz entry for the 3+2 xiangqi seed: falls back to the
               // variant's only rating, keeping the provisional '?' suffix.
               ratings: [
@@ -180,7 +181,7 @@ describe('landing lobby bot seeks', () => {
     );
     expect(misty?.textContent).toBe('1874');
     const xiangqi = panel.querySelector(
-      '.landing-lobby-seed[data-bot-id="fairy-stockfish-level-3"][data-game-spec="xiangqi"] .landing-lobby-seed-rating',
+      '.landing-lobby-seed[data-bot-id="fairy-stockfish-level-5"][data-game-spec="xiangqi"] .landing-lobby-seed-rating',
     );
     expect(xiangqi?.textContent).toBe('2450?');
     // Unmatched bots keep the placeholder rather than guessing a number.
@@ -285,7 +286,7 @@ describe('landing lobby bot seeks', () => {
     ]);
   });
 
-  it('uses the same rotating bot and 3+2 pace in Quick Pairing', async () => {
+  it('uses the same pinned bot and 3+2 pace in Quick Pairing', async () => {
     const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/quick_bot' });
       return jsonResponse({}, { status: 404 });
@@ -297,7 +298,7 @@ describe('landing lobby bot seeks', () => {
     const chip = panel.querySelector<HTMLButtonElement>(
       '.landing-quickpair-row[data-game-spec="xiangqi"] .landing-quickpair-bot',
     );
-    expect(chip?.dataset.botId).toBe('fairy-stockfish-level-3');
+    expect(chip?.dataset.botId).toBe('fairy-stockfish-level-5');
     chip!.click();
     await flushPromises();
 
@@ -306,7 +307,7 @@ describe('landing lobby bot seeks', () => {
         String(input) === '/api/rooms' && (init as RequestInit | undefined)?.method === 'POST',
     );
     expect(JSON.parse(String((post![1] as RequestInit).body))).toMatchObject({
-      botId: 'fairy-stockfish-level-3',
+      botId: 'fairy-stockfish-level-5',
       gameSpecId: 'xiangqi',
       timeControl: { initialMs: 180_000, incrementMs: 2_000 },
     });
