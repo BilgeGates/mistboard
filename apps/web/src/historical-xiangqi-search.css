@@ -42,6 +42,19 @@
   font-size: 0.88rem;
 }
 
+/* Touch floor for the search form (22px selects, 32px input on a phone).
+   The select needs an explicit height: WebKit ignores min-height on a native
+   menulist control, so min-height alone leaves it at 22px on iOS. */
+@media (pointer: coarse) {
+  .historical-xiangqi-input {
+    min-height: 44px;
+  }
+
+  .historical-xiangqi-select {
+    height: 44px;
+  }
+}
+
 .historical-xiangqi-input:focus,
 .historical-xiangqi-select:focus {
   outline: 2px solid var(--site-focus);
@@ -63,6 +76,12 @@
   color: var(--site-text);
   font-size: 0.85rem;
   cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .historical-xiangqi-btn {
+    min-height: 44px;
+  }
 }
 
 .historical-xiangqi-btn:hover:not(:disabled) {

@@ -41,6 +41,18 @@
   color: var(--site-muted);
   cursor: pointer;
 }
+
+/* Touch: stepping through the moves is this page's primary interaction, so the
+   bar clears the 44px floor on a phone. Pointer devices keep the dense row. */
+@media (pointer: coarse) {
+  .review-controls__tool,
+  .review-controls__nav,
+  .review-controls__menu-button {
+    min-width: 44px;
+    height: 44px;
+  }
+}
+
 .review-controls__nav svg {
   width: 22px;
   height: 22px;

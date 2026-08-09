@@ -33,3 +33,11 @@
   background: transparent;
   cursor: pointer;
 }
+
+/* Touch floor: this select is how you switch variants on the analysis board.
+   Explicit height, not min-height: WebKit ignores min-height on a menulist. */
+@media (pointer: coarse) {
+  .analysis-variant-picker__select {
+    height: 44px;
+  }
+}

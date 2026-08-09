@@ -263,6 +263,14 @@
   text-decoration: none;
 }
 
+@media (pointer: coarse) {
+  .review-spectator-chat__signin {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 .review-spectator-chat__signin:hover,
 .review-spectator-chat__signin:focus-visible {
   color: var(--site-accent-strong, var(--review-chat-text));

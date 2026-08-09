@@ -106,6 +106,14 @@
     color 0.12s ease;
 }
 
+/* Touch floor: the chips are the only control on the stats charts. */
+@media (pointer: coarse) {
+  .stats-chart-chip {
+    min-height: 44px;
+    padding: 4px 14px;
+  }
+}
+
 .stats-chart-chip:hover {
   color: var(--site-text);
   border-color: var(--site-accent);

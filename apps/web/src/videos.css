@@ -106,6 +106,20 @@
   cursor: pointer;
 }
 
+/* Touch floor for the filter strip: search field, sort select, and the tag
+   chips a phone viewer taps to narrow the library. */
+@media (pointer: coarse) {
+  .videos-search,
+  .videos-tag-chip {
+    min-height: 44px;
+  }
+
+  /* WebKit ignores min-height on a native menulist control. */
+  .videos-sort-select {
+    height: 44px;
+  }
+}
+
 .videos-tag-chip:hover {
   background: var(--site-hover);
 }

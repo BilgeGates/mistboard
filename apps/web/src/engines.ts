@@ -114,7 +114,13 @@ function buildTable(engines: EngineRow[]): HTMLElement {
     tbody.append(tr);
   });
   table.append(tbody);
-  return table;
+  // Six columns do not fit a phone: unwrapped, this table pushed the whole page
+  // 54px wider than the viewport. Give it its own scroller so the page itself
+  // never scrolls sideways.
+  const scroller = document.createElement('div');
+  scroller.className = 'engines-table-scroll';
+  scroller.append(table);
+  return scroller;
 }
 
 function cell(text: string): HTMLTableCellElement {

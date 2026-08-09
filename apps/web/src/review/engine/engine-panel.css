@@ -139,6 +139,14 @@
   color: var(--site-muted);
   cursor: pointer;
 }
+/* Touch floor: the gear is the only way to reach the engine settings (arrow
+   toggle, lines), and 28px is well under a fingertip. The glyph stays 28px. */
+@media (pointer: coarse) {
+  .engine-panel__gear {
+    width: 44px;
+    height: 44px;
+  }
+}
 .engine-panel__gear:hover {
   color: var(--site-text);
   background: var(--site-surface);

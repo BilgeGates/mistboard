@@ -763,6 +763,15 @@
   line-height: 1.2;
 }
 
+/* Touch floor: hint / view-solution are the assists a stuck phone player
+   reaches for, so they are not allowed to stay 30px tall. */
+@media (pointer: coarse) {
+  .puzzle-feedback-skip {
+    min-height: 44px;
+    padding: 6px 16px;
+  }
+}
+
 .puzzle-feedback-skip:hover {
   border-color: var(--site-accent);
   color: var(--site-accent);

@@ -596,10 +596,12 @@ a.site-nav-link[hidden],
     gap: 2px;
     margin: 0;
     padding: 8px 16px 12px;
-    background: color-mix(in srgb, var(--site-panel) 98%, transparent);
+    /* Opaque, not 98%: the drawer overlays page content, and a 2% bleed of
+       48px hero type reads as ghost text behind the menu labels. A backdrop
+       filter buys nothing under an opaque panel. */
+    background: var(--site-panel);
     border-bottom: 1px solid var(--site-border);
     box-shadow: 0 10px 18px rgba(29, 37, 34, 0.1);
-    backdrop-filter: saturate(130%) blur(8px);
   }
 
   .site-nav.nav-open .site-nav-collapse {

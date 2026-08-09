@@ -530,9 +530,15 @@ function lobbyPlayerCell(opts: {
 
   const opponent = document.createElement('span');
   opponent.className = 'landing-lobby-seed-opponent';
+  // The name rides its own span so a phone-width row can ellipsize it: a bare
+  // text node inside this inline-flex box is an anonymous flex item, and
+  // text-overflow does not reach one.
+  const opponentName = document.createElement('span');
+  opponentName.className = 'landing-lobby-seed-opponent-name';
+  opponentName.textContent = opts.name;
   opponent.append(
     buildUiIcon(opts.kind === 'bot' ? 'play-engine' : 'player-human', 'landing-lobby-seed-boticon'),
-    document.createTextNode(opts.name),
+    opponentName,
   );
 
   const variant = document.createElement('span');
