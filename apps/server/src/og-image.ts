@@ -261,8 +261,13 @@ export async function serveArticleOgImage(params: {
 
 /** Bumped when the study card's LOOK changes, so scrapers holding an old PNG
  *  under the immutable Cache-Control re-fetch. Content changes need no bump: a
- *  chapter's diagram is its start position, which does not move. */
-export const STUDY_OG_IMAGE_VERSION = 1;
+ *  chapter's diagram is its start position, which does not move.
+ *
+ *  v2: titles wrap to two lines instead of truncating at 24 characters. v1 cards
+ *  are already at the CDN edge and in scraper caches under `?v=1` with a
+ *  one-year immutable max-age, so without this bump every card that was fetched
+ *  while v1 was live would keep showing the cut-off title indefinitely. */
+export const STUDY_OG_IMAGE_VERSION = 2;
 
 // Per-composition share card: the chapter's own starting diagram plus its name.
 // A 排局 IS its diagram, so a link to one composition should preview that
