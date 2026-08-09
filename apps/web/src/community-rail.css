@@ -45,6 +45,16 @@ html:has(.community-shell) {
   text-decoration: none;
 }
 
+/* Touch floor: on a phone the rail collapses to a row of tabs at the top of
+   the page, which is how you move between leaderboard / stats / bots. */
+@media (pointer: coarse) {
+  .community-rail a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 .community-rail a:hover,
 .community-rail a:focus-visible {
   background: var(--site-hover);

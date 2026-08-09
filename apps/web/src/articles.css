@@ -1675,6 +1675,19 @@
   border-radius: 4px;
 }
 
+/* Touch floor: the steppers (and the scrub slider above) are how a phone
+   reader walks the rules diagrams, which is the whole point of those widgets. */
+@media (pointer: coarse) {
+  .stepper-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .xq-replay-slider {
+    height: 44px;
+  }
+}
+
 .stepper-button:hover:not(:disabled) {
   background: var(--site-hover);
 }

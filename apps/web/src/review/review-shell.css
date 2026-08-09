@@ -136,6 +136,14 @@
   justify-content: center;
   justify-items: center;
   margin-inline: auto;
+  /* An auto inline margin opts a grid ITEM out of stretch, so without this the
+     cluster shrink-wraps to its max-content width and the board (width: min(100%,
+     …)) inherits that instead of the phone's width. The live room lost ~100px of
+     board that way (262px board inside a 362px column); the postgame page only
+     escaped it because its tab row happens to be wider than the viewport.
+     col2/col3 restore auto width — there the track template, not the content,
+     sizes the cluster, and justify-content keeps it centred either way. */
+  width: 100%;
 }
 
 /* col2: board + right table; side rail drops below, spanning both. */
@@ -168,6 +176,7 @@
     grid-template-areas:
       "board table"
       "side  side";
+    width: auto;
     justify-items: stretch;
     align-content: start;
     min-height: calc(100svh - var(--uni-nav-h) - var(--uni-page-chrome));
@@ -456,6 +465,14 @@
   font-weight: 700;
   cursor: pointer;
 }
+/* Touch floor for the share/export row (field + copy buttons, 31-33px). */
+@media (pointer: coarse) {
+  .review-share__field,
+  .review-share__copy {
+    min-height: 44px;
+  }
+}
+
 .review-share__copy:hover {
   background: var(--site-surface);
 }

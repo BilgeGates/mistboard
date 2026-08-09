@@ -623,6 +623,33 @@
   .landing-lobby-kind {
     display: none;
   }
+
+  /* …and since the variant is what they scan for, it must not be the part that
+     vanishes. The opponent cell is flex:none, so a long bot name ("Fairy-
+     Stockfish Level 5") ate the whole cell on a phone and the variant rendered
+     at zero width. Here the name ellipsizes and the variant holds its ground. */
+  .landing-lobby-seed-opponent {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .landing-lobby-seed-opponent-name {
+    /* A floor, so a long variant ("Fortress Xiangqi") cannot squeeze the name
+       down to a single letter the way the name used to squeeze the variant. */
+    min-width: 4.5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .landing-lobby-seed-variant {
+    /* Keeps its natural width (so "Xiangqi" never ellipsizes) but cannot take
+       more than half the cell, which is what a long variant name would do. */
+    flex: 0 0 auto;
+    max-width: 55%;
+    white-space: nowrap;
+  }
 }
 
 /* Correspondence seeks keep their own four-column shape (player / game / pace /

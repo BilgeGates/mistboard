@@ -13,8 +13,13 @@
   padding: 16px 0;
 }
 
+.engines-table-scroll {
+  overflow-x: auto;
+}
+
 .engines-table {
   width: 100%;
+  min-width: 460px;
   border-collapse: collapse;
   font-size: 0.92rem;
 }

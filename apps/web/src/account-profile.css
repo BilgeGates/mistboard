@@ -2262,6 +2262,15 @@
   padding: 4px 12px;
 }
 
+/* Touch floor: the pace chips switch which ladder you are reading, so they are
+   a real control on the phone leaderboard, not decoration. */
+@media (pointer: coarse) {
+  .leaderboard-pace {
+    min-height: 44px;
+    padding: 4px 16px;
+  }
+}
+
 .leaderboard-pace:hover {
   color: var(--site-heading);
 }

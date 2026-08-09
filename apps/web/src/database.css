@@ -48,6 +48,19 @@
   font-size: 0.88rem;
 }
 
+/* Touch floor: the filter row IS the database page on a phone, and a 22px
+   native select is a coin-flip tap. The select takes an explicit height because
+   WebKit ignores min-height on a native menulist control. */
+@media (pointer: coarse) {
+  .database-input {
+    min-height: 44px;
+  }
+
+  .database-select {
+    height: 44px;
+  }
+}
+
 .database-select:focus,
 .database-input:focus {
   outline: 2px solid var(--site-focus);
@@ -69,6 +82,12 @@
   color: var(--site-text);
   font-size: 0.85rem;
   cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .database-btn {
+    min-height: 44px;
+  }
 }
 
 .database-btn:hover:not(:disabled) {

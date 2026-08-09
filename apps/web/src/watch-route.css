@@ -326,6 +326,13 @@
   cursor: pointer;
 }
 
+/* Touch floor: the POV switch is the one control on the watch board. */
+@media (pointer: coarse) {
+  .watch-pov__button {
+    min-height: 44px;
+  }
+}
+
 .watch-pov__button:hover {
   background: var(--site-surface);
   color: var(--site-text);

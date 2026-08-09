@@ -103,6 +103,14 @@
   line-height: 1;
 }
 
+/* Touch floor: these arrows step through a live or watched game, so on a phone
+   they take a fingertip instead of the desktop console's dense 28px row. */
+@media (pointer: coarse) {
+  .round-table__box .replay-controls button {
+    height: 44px;
+  }
+}
+
 .round-table__box .replay-controls button:hover:not(:disabled),
 .round-table__box .replay-controls button:focus-visible {
   background: var(--site-panel, var(--site-surface));

@@ -112,6 +112,15 @@ a.study-index__rail-tab.is-active:hover {
   color: var(--site-on-accent);
   cursor: pointer;
 }
+/* Touch floor for the search bar and the create button beside it. */
+@media (pointer: coarse) {
+  .study-index__search-input,
+  .study-index__search-button,
+  .study-index__create {
+    min-height: 44px;
+  }
+}
+
 .study-index__search-button:hover {
   background: color-mix(in srgb, var(--site-link) 88%, black);
   border-color: color-mix(in srgb, var(--site-link) 88%, black);

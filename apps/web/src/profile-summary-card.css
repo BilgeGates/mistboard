@@ -165,6 +165,17 @@
   flex: 1 1 calc(50% - 0.4rem);
 }
 
+/* Touch floor: on /bots these are the "play this bot at this variant" entry
+   points, two per card, and they sat at 31px. */
+@media (pointer: coarse) {
+  .profile-summary-card-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+
 .profile-summary-card-action:hover {
   background: var(--site-hover, var(--site-accent-soft));
 }
