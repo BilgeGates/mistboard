@@ -13,6 +13,7 @@ import {
   formatWatchScope,
   loadWatchMainBeforePreviews,
   renderWatchChannelList,
+  renderWatchHeadline,
   renderWatchMainReviewLink,
   renderWatchQueue,
   renderWatchReplaySkeleton,
@@ -472,6 +473,24 @@ describe('renderWatchQueue', () => {
     expect(previews).toEqual([]);
     expect(root.querySelector('[data-room-id="only"]')).toBeNull();
     expect(root.querySelector('.watch-previously-empty')?.textContent).toContain('No other');
+  });
+});
+
+describe('renderWatchHeadline', () => {
+  it('names the players and what is being watched, and collapses with no game', () => {
+    const root = document.createElement('div');
+
+    renderWatchHeadline(root, { matchup: 'White vs Black', detail: 'Fog Chess · White wins' });
+
+    expect(root.hidden).toBe(false);
+    expect(root.querySelector('.watch-headline__matchup')?.textContent).toBe('White vs Black');
+    expect(root.querySelector('.watch-headline__detail')?.textContent).toBe(
+      'Fog Chess · White wins',
+    );
+
+    renderWatchHeadline(root, null);
+    expect(root.hidden).toBe(true);
+    expect(root.textContent).toBe('');
   });
 });
 

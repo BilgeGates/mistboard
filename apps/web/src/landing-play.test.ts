@@ -67,6 +67,9 @@ describe('landing play panel', () => {
     document.body.append(panel);
 
     openPlaySetup(panel, 'Play a bot');
+    // Dark chess is the variant whose bot roster comes from the passed-in list
+    // (empty here); the dialog opens on xiangqi, which has its own tenant bots.
+    selectModalVariant('dark-chess');
     const overlay = document.querySelector('.landing-setup-overlay');
 
     expect(document.querySelector<HTMLElement>('[data-setup-section="engine"]')?.hidden).toBe(true);
@@ -127,6 +130,7 @@ describe('landing play panel', () => {
 
     openPlaySetup(panel, 'Play a bot');
     expect(document.querySelector('.landing-setup-title')?.textContent).toBe('Play a game');
+    selectModalVariant('dark-chess');
     expect(setupSectionOrder()).toEqual(['variant', 'time', 'side', 'gameType', 'opponent']);
     selectModalVariant('dark-xiangqi');
     expect(document.querySelector<HTMLElement>('[data-setup-section="gameType"]')?.hidden).toBe(
@@ -163,6 +167,7 @@ describe('landing play panel', () => {
     document.body.append(panel);
 
     openPlaySetup(panel, 'Challenge a friend');
+    selectModalVariant('dark-chess');
     const kings = document.querySelectorAll('.landing-color-piece.chess svg');
     expect(kings).toHaveLength(4);
     expect([...kings].every((king) => king.getAttribute('viewBox') === '0 0 45 45')).toBe(true);
@@ -282,6 +287,21 @@ describe('landing play panel', () => {
     expect(selectedVariantSpec()).toBe('fortress-xiangqi');
   });
 
+  it('opens a first-time player on the flagship variant, not the fog one', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    for (const entry of ['Play a bot', 'Challenge a friend', 'Find opponent']) {
+      openPlaySetup(panel, entry);
+      expect(selectedVariantSpec()).toBe('xiangqi');
+      document.querySelector('.landing-setup-overlay')?.remove();
+    }
+  });
+
   it('does not render game groups in the engine flow', () => {
     vi.stubGlobal(
       'fetch',
@@ -312,6 +332,7 @@ describe('landing play panel', () => {
     document.body.append(panel);
 
     openPlaySetup(panel, 'Challenge a friend');
+    selectModalVariant('dark-chess');
     const createButton = [...document.querySelectorAll('button')].find(
       (candidate) => candidate.textContent === 'Create room',
     );
@@ -355,7 +376,8 @@ describe('landing play panel', () => {
     openPlaySetup(panel, 'Challenge a friend');
     expect(selectedModalTimeControl()).toBe('3 + 2');
     expect(selectedModalColor()).toBe('Random');
-    clickModalColor('White');
+    // Xiangqi is the default variant, so the colour row reads Red/Random/Black.
+    clickModalColor('Red');
     clickModalButton('Create room');
     await flushPromises();
     document.querySelector('.landing-setup-overlay')?.remove();
@@ -375,7 +397,7 @@ describe('landing play panel', () => {
 
     openPlaySetup(panel, 'Challenge a friend');
     expect(selectedModalTimeControl()).toBe('3 + 2');
-    expect(selectedModalColor()).toBe('White');
+    expect(selectedModalColor()).toBe('Red');
     document.querySelector('.landing-setup-overlay')?.remove();
 
     openPlaySetup(panel, 'Find opponent');
@@ -1257,6 +1279,7 @@ describe('landing play panel', () => {
     const panel = buildLandingPlayPanel([]);
     document.body.append(panel);
     openLobbySetup(panel);
+    selectModalVariant('dark-chess');
     document
       .querySelector<HTMLButtonElement>('.landing-setup-start')
       ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));

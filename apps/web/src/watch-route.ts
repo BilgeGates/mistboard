@@ -693,6 +693,10 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     });
     watch.metaRoot.append(badge, card.el);
     watch.gameTableRoot.hidden = false;
+    renderWatchHeadline(watch.headlineRoot, {
+      matchup: playersMatchupLabel(players),
+      detail: `${t('watch.liveBadge')} · ${variantName}`,
+    });
     renderWatchPlayerRows(watch.playerTop, watch.playerBottom, players);
   };
 
@@ -1149,6 +1153,7 @@ function renderWatchPovToggle(
 type WatchSection = {
   el: HTMLElement;
   metaRoot: HTMLElement;
+  headlineRoot: HTMLElement;
   channelRoot: HTMLElement;
   replayRoot: HTMLElement;
   reviewLink: HTMLAnchorElement;
@@ -1192,6 +1197,14 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
   const center = document.createElement('div');
   center.className = 'watch-center';
 
+  // Phone-only headline above the board. On col1 the left rail (which carries
+  // the meta card) drops to the bottom of the stack, so the page used to open
+  // on a board with nothing above it: no players, no variant, no indication of
+  // what you were looking at. Hidden from col2 up, where the console beside the
+  // board already names both players.
+  const headlineRoot = document.createElement('div');
+  headlineRoot.className = 'watch-headline';
+
   const boardBox = document.createElement('div');
   boardBox.className = 'watch-board-box';
   const replayRoot = document.createElement('div');
@@ -1224,7 +1237,7 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
   queueRoot.className = 'watch-previously';
   queueRoot.setAttribute('aria-label', t('watch.previouslyOn'));
 
-  center.append(boardBox, povRoot, queueRoot);
+  center.append(headlineRoot, boardBox, povRoot, queueRoot);
 
   // ── Right rail: the shared room game table, with watch-owned behavior ──
   const right = document.createElement('div');
@@ -1245,6 +1258,7 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
   return {
     el,
     metaRoot,
+    headlineRoot,
     channelRoot,
     replayRoot,
     reviewLink,
@@ -1304,6 +1318,15 @@ function renderWatchActiveGame(
 ): void {
   const game = activeWatchGame(feed, activeRoomId);
   renderWatchMetaCard(watch.metaRoot, game);
+  renderWatchHeadline(
+    watch.headlineRoot,
+    game
+      ? {
+          matchup: watchQueueMatchupLabel(game),
+          detail: `${variantDisplayLabel(game.variant)} · ${watchGameStatusLine(game)}`,
+        }
+      : null,
+  );
   renderWatchMainReviewLink(watch.reviewLink, game);
   watch.gameTableRoot.hidden = !game;
   renderWatchPlayers(watch.playerTop, watch.playerBottom, game);
@@ -1343,6 +1366,31 @@ function renderWatchMetaCard(root: HTMLElement, game: FeaturedGame | null): void
     status: watchGameStatusLine(game),
   });
   root.append(card.el);
+}
+
+// The phone headline: who is playing on the first line, what you are watching on
+// the second. Both watch paths (a finished FeaturedGame and the live featured
+// payload) funnel through here so the two never drift apart.
+export function renderWatchHeadline(
+  root: HTMLElement,
+  headline: { matchup: string; detail: string } | null,
+): void {
+  root.replaceChildren();
+  root.hidden = !headline;
+  if (!headline) return;
+  const matchup = document.createElement('p');
+  matchup.className = 'watch-headline__matchup';
+  matchup.textContent = headline.matchup;
+  const detail = document.createElement('p');
+  detail.className = 'watch-headline__detail';
+  detail.textContent = headline.detail;
+  root.append(matchup, detail);
+}
+
+// "Name vs Name" from an already-resolved seat list (the live path has no
+// FeaturedGame to hand to matchupLabel).
+function playersMatchupLabel(players: GameMetaPlayer[]): string {
+  return players.map((player) => player.name).join(' vs ');
 }
 
 function watchGameStatusLine(game: FeaturedGame): string {
