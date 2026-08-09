@@ -106,11 +106,11 @@ definePersistenceTests('showcase + browse queries', () => {
     ]);
 
     const ids = (await listShowcaseGames({ limit: 8 })).map((g) => g.roomId);
-    // Recency-lead: the single most-recent finished game leads regardless of tier
-    // (the EvE game at t20 here) so the showcase reflects the site's latest
-    // activity; the tiered interleave then fills, substantial PvP ahead of the rest.
-    assert.equal(ids[0], 'sc-eve-x');
-    assert.deepEqual(ids.slice(1, 3), ['sc-pvp-kc', 'sc-pvp-timeout']);
+    // Recency-lead: the most-recent finished HUMAN game leads, so the showcase
+    // reflects the site's latest real activity; the tiered interleave then fills.
+    // The EvE game at t20 is fresher than all of them and still never appears.
+    assert.deepEqual(ids.slice(0, 2), ['sc-pvp-kc', 'sc-pvp-timeout']);
+    assert.ok(!ids.includes('sc-eve-x'), 'engine-vs-engine never fronts the homepage');
     // Under the ply floor and abandonments are not demo-worthy.
     assert.ok(!ids.includes('sc-pvp-short'));
     assert.ok(!ids.includes('sc-pvp-abandon'));
@@ -118,8 +118,8 @@ definePersistenceTests('showcase + browse queries', () => {
 
   // Regression (2026-07-30): the recency lead is elected over the full tiered
   // input, not over the interleaved pool. Two variants against limit 2 saturates
-  // the breadth interleave, so the site's freshest game (an EvE game, which sorts
-  // last inside its variant) is truncated out — it must still lead, or the
+  // the breadth interleave, so the site's freshest game (a PvE game, which sorts
+  // after PvP inside its variant) is truncated out — it must still lead, or the
   // homepage viewer freezes on a game hours older than the latest activity.
   test('listShowcaseGames leads with the freshest game even when breadth truncates it', async () => {
     const t = (min: number) => new Date(Date.UTC(2026, 5, 1, 15, min, 0));
@@ -150,24 +150,23 @@ definePersistenceTests('showcase + browse queries', () => {
         endedAt: t(8),
       },
       {
-        roomId: 'sc-trunc-freshest-eve',
-        mode: 'eve',
+        roomId: 'sc-trunc-freshest-pve',
+        mode: 'pve',
         result: 'white-wins',
         termination: 'king-captured',
         plyCount: 60,
         endedAt: t(50),
-        corpusId: 'run-trunc',
       },
     ]);
 
     const games = await listShowcaseGames({ limit: 2, variants: ['dark-chess', 'xiangqi'] });
     const ids = games.map((g) => g.roomId);
-    assert.equal(ids[0], 'sc-trunc-freshest-eve');
+    assert.equal(ids[0], 'sc-trunc-freshest-pve');
     assert.equal(games.length, 2, 'the injected lead drops the tail, it does not grow the pool');
   });
 
-  // The human floor is 20 plies (EvE keeps 30): a decisive game someone actually
-  // sat through is real activity, and abandonment filtering already covers quits.
+  // The human floor is 20 plies: a decisive game someone actually sat through is
+  // real activity, and abandonment filtering already covers quits.
   test('listShowcaseGames admits 20+ ply human games and still rejects shorter ones', async () => {
     const t = (min: number) => new Date(Date.UTC(2026, 5, 1, 16, min, 0));
     await seed([
@@ -196,11 +195,11 @@ definePersistenceTests('showcase + browse queries', () => {
         endedAt: t(3),
       },
       {
-        roomId: 'sc-floor-eve-24',
+        roomId: 'sc-floor-eve-60',
         mode: 'eve',
         result: 'white-wins',
         termination: 'king-captured',
-        plyCount: 24,
+        plyCount: 60,
         endedAt: t(4),
         corpusId: 'run-floor',
       },
@@ -210,10 +209,13 @@ definePersistenceTests('showcase + browse queries', () => {
     assert.ok(ids.includes('sc-floor-pvp-24'), '24-ply PvP resignation is a real game');
     assert.ok(ids.includes('sc-floor-pve-20'), '20 plies is exactly the human floor');
     assert.ok(!ids.includes('sc-floor-pvp-19'), 'one ply under the human floor stays out');
-    assert.ok(!ids.includes('sc-floor-eve-24'), 'EvE is abundant and keeps the 30-ply floor');
+    assert.ok(!ids.includes('sc-floor-eve-60'), 'EvE is excluded on mode, not on ply count');
   });
 
-  test('listShowcaseGames falls back to EvE, one game per run, decisive only', async () => {
+  // 2026-08-08: EvE is no longer a filler tier. The homepage board is the site's
+  // "is anyone here" signal, so a bakeoff dump must never fill it — an empty pool
+  // (the board holds its last position) is the honest answer.
+  test('listShowcaseGames returns nothing when only EvE games exist', async () => {
     const t = (min: number) => new Date(Date.UTC(2026, 5, 1, 13, min, 0));
     await seed([
       {
@@ -243,34 +245,10 @@ definePersistenceTests('showcase + browse queries', () => {
         endedAt: t(3),
         corpusId: 'run-b',
       },
-      {
-        roomId: 'sc-draw',
-        mode: 'eve',
-        result: 'draw',
-        termination: 'draw',
-        plyCount: 60,
-        endedAt: t(4),
-        corpusId: 'run-c',
-      },
-      {
-        roomId: 'sc-eve-short',
-        mode: 'eve',
-        result: 'white-wins',
-        termination: 'king-captured',
-        plyCount: 20,
-        endedAt: t(6),
-        corpusId: 'run-d',
-      },
     ]);
 
     const games = await listShowcaseGames({ limit: 8 });
-    const ids = games.map((g) => g.roomId);
-    assert.equal(games.length, 2, 'one game per qualifying run');
-    assert.ok(ids.includes('sc-a-new'));
-    assert.ok(!ids.includes('sc-a-old'), 'deduped: only the newest of run-a');
-    assert.ok(ids.includes('sc-b'));
-    assert.ok(!ids.includes('sc-draw'), 'non-decisive excluded');
-    assert.ok(!ids.includes('sc-eve-short'), 'short excluded');
+    assert.equal(games.length, 0, 'no human game, no showcase pool');
   });
 
   test('queryGames filters + paginates; gameAggregates computes the win split', async () => {

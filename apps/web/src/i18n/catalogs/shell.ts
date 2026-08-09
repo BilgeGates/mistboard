@@ -119,6 +119,12 @@ export const EN_SHELL = {
   'homeForum.timeMinutes': '{count}m',
   'homeForum.timeHours': '{count}h',
   'homeForum.timeDays': '{count}d',
+  'home.loadingStudies': 'Loading studies.',
+  'home.noPublicStudies': 'No public studies yet. Make the first one.',
+  'home.studiesUnavailable': 'Studies unavailable.',
+  'home.loadingRankings': 'Loading rankings.',
+  'home.noRatedPlayers': 'No rated players yet.',
+  'home.rankingsUnavailable': 'Rankings unavailable.',
 } as const;
 
 export type ShellI18nKey = keyof typeof EN_SHELL;

@@ -534,20 +534,25 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
 
 // Homepage showcase pool. Within a variant, order by tier: PvP (two humans, the
 // strongest "alive" signal) → PvE (a real human vs the engine, the product's
-// differentiator) → EvE (synthetic, for volume). Then ROUND-ROBIN across variants
-// so the pool shows breadth ("not just dark chess") while volume sets the natural
-// weighting. The human tiers use a watch-style filter (any real finish except
-// abandon, since people resign/flag far more than king-capture); EvE is
-// decisive-only (result <> draw, variant-agnostic), one game per bakeoff run.
-// Every tier has a ply floor so a board never opens on a near-starting position.
+// differentiator). Then ROUND-ROBIN across variants so the pool shows breadth
+// ("not just dark chess") while volume sets the natural weighting. Both tiers use
+// a watch-style filter (any real finish except abandon, since people resign/flag
+// far more than king-capture) and a ply floor, so a board never opens on a
+// near-starting position.
+//
+// EvE (engine-vs-engine) was a third tier until 2026-08-08 and is now EXCLUDED:
+// the homepage board is the site's "is anyone here" signal, and bakeoff self-play
+// is synthetic volume that reads as activity without being any. A thin pool of
+// real games (or an empty one, which freezes/holds the skeleton) is the honest
+// state. EvE still reaches /watch and the game database; it just never fronts the
+// homepage. Do not re-add it as a low-liquidity filler tier without deciding that
+// tradeoff again.
 //
 // The human floor dropped 30 → 20 on 2026-07-30: at Mistboard's liquidity a
 // decisive 20-ply game someone actually played is real activity worth showing,
 // and the abandonment filter already drops the rage-quits the floor was standing
-// in for. EvE is abundant (a bakeoff produces hundreds), so it can afford to stay
-// picky and keeps the 30-ply floor.
+// in for.
 const SHOWCASE_MIN_PLY_HUMAN = 20;
-const SHOWCASE_MIN_PLY_ENGINE = 30;
 // Pool size. Anchored on "games take minutes to finish, low liquidity"; tune from
 // traffic (see also the client poller).
 const SHOWCASE_POOL_SIZE = 14;
@@ -570,12 +575,11 @@ export async function listShowcaseGames(
   // Over-fetch each tier so the cross-variant interleave has material from more
   // than just the highest-volume variant.
   const fetchLimit = bounded * 4;
-  const [pvp, pve, eve] = await Promise.all([
+  const [pvp, pve] = await Promise.all([
     queryShowcasePvp(fetchLimit, variants),
     queryShowcasePve(fetchLimit, variants),
-    queryShowcaseEngine(variants),
   ]);
-  const tiered = [...pvp, ...pve, ...eve];
+  const tiered = [...pvp, ...pve];
   return leadWithMostRecent(interleaveByVariant(tiered, bounded), tiered);
 }
 
@@ -587,8 +591,8 @@ export async function listShowcaseGames(
 // `candidates` is the FULL tiered input the pool was interleaved from, and the
 // lead is elected over it, not over the interleaved pool: the interleave
 // truncates to poolSize (at 7 watchable variants x 2 slots it is exactly
-// saturated) and EvE sorts last within a variant, so the freshest game on the
-// whole site routinely loses its variant's slot. Electing from survivors then led
+// saturated) and PvE sorts after PvP within a variant, so the freshest game on
+// the whole site can lose its variant's slot. Electing from survivors then led
 // the homepage with a game hours older than the site's latest activity, which is
 // the one thing this function exists to prevent. A lead injected this way can
 // share a variant with the pool's next entry — the recency override deliberately
@@ -693,35 +697,6 @@ async function queryShowcasePve(
     [SHOWCASE_MIN_PLY_HUMAN, limit, variants],
   );
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
-}
-
-// Decisive engine-vs-engine games, one per run (the most recent in each),
-// newest run first — so the pool shows varied matchups, not N games from one
-// bakeoff. EvE only (PvE human-vs-engine is excluded by design). COALESCE keeps
-// corpus-less games (e.g. live EvE) individually distinct. "Decisive" is
-// result-based (not a chess/xiangqi termination allowlist) so every variant's
-// decisive EvE games — jungle den-entry, banqi, etc. — qualify.
-async function queryShowcaseEngine(variants: readonly string[]): Promise<RecentEveGameRecord[]> {
-  const { rows } = await getPool().query<RecentEveGameRow>(
-    `SELECT DISTINCT ON (COALESCE(games.corpus_id, games.room_id)) ${RECENT_EVE_SELECT_COLUMNS}
-     FROM games
-     LEFT JOIN eve_games ON eve_games.game_id = games.room_id
-     WHERE games.status = 'completed'
-       AND games.visibility = 'public'
-       AND games.variant = ANY($2::text[])
-       AND games.mode = 'eve'
-       AND games.termination <> 'abandonment'
-       AND games.result <> 'draw'
-       AND games.ply_count >= $1
-       AND EXISTS (
-         SELECT 1 FROM events WHERE events.room_id = games.room_id LIMIT 1
-       )
-     ORDER BY COALESCE(games.corpus_id, games.room_id), games.ended_at DESC`,
-    [SHOWCASE_MIN_PLY_ENGINE, variants],
-  );
-  const records = await attachGameParticipants(rows.map(recentEveGameRecordFromRow));
-  records.sort((a, b) => b.endedAt.getTime() - a.endedAt.getTime());
-  return records;
 }
 
 export async function listWatchUnlockedGames(

@@ -4,13 +4,11 @@
 // (profile-shell, header shell, rating rail, game rows) so it renders as a
 // sibling of /@handle. Play affordances create the game directly via
 // bot-play.ts; there is no setup dialog.
-import { maybeGameSpecForId } from '@mistboard/game';
 import './account-profile.css';
 import './bots.css';
 import { bindBotPlayControl } from './bot-play.js';
 import { buildCommunityLayout } from './community-rail.js';
-import type { FeaturedGame } from './game-display.js';
-import { type I18nKey, t } from './i18n/catalog.js';
+import { type FeaturedGame, variantDisplayLabel } from './game-display.js';
 import { buildBotSummaryCard } from './profile-summary-card.js';
 import {
   buildProfileDashboard,
@@ -72,15 +70,6 @@ type BotProfile = {
 };
 
 class BotNotFound extends Error {}
-
-const GAME_SPEC_LABEL_KEYS: Record<string, I18nKey> = {
-  'dark-chess': 'variant.darkChess.name',
-  'dark-mini-xiangqi': 'variant.darkMiniXiangqi.name',
-  jieqi: 'variant.jieqi.name',
-  banqi: 'variant.banqi.name',
-  'crossroads-chess': 'variant.crossroadsChess.name',
-  'fortress-xiangqi': 'variant.fortressXiangqi.name',
-};
 
 const HIDDEN_BOT_GAME_SPEC_IDS = new Set(['dark-draft960']);
 
@@ -645,10 +634,11 @@ function primaryRating(bot: BotProfile): BotRatingSnapshot | null {
   );
 }
 
+// Delegates to the single catalog-name map in game-display. The local copy this
+// replaced was missing xiangqi, jungle, jungle-flip, and dark-xiangqi, so those
+// bot labels fell back to the English publicName in every locale.
 function gameSpecLabel(gameSpecId: string): string {
-  const key = GAME_SPEC_LABEL_KEYS[gameSpecId];
-  if (key) return t(key);
-  return maybeGameSpecForId(gameSpecId)?.publicName ?? gameSpecId;
+  return variantDisplayLabel(gameSpecId);
 }
 
 function timeControlLabel(timeControl: BotProfile['play']['timeControl']): string {

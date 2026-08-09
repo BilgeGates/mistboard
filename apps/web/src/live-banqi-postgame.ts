@@ -1,4 +1,6 @@
 import type { BanqiColor, BanqiGameStatus, BanqiMove, BanqiPlayerView } from '@mistboard/game';
+import { variantDisplayLabel } from './game-display.js';
+import { t } from './i18n/catalog.js';
 import './live-xiangqi.css';
 import './landing.css';
 import './game-route.css';
@@ -80,7 +82,11 @@ export function mountBanqiPostgame(root: HTMLElement, roomId: string): void {
   installBanqiBoardStyles();
   root.replaceChildren(buildNav(), loadingView());
   if (!banqiEnabled()) {
-    renderError(root, 'Banqi unavailable', 'This route is not enabled in this build.');
+    renderError(
+      root,
+      t('replay.variantUnavailable', { variant: variantDisplayLabel('banqi') }),
+      t('replay.routeNotEnabled'),
+    );
     return;
   }
   void loadBanqiPostgame(roomId)
@@ -92,7 +98,7 @@ export function mountBanqiPostgame(root: HTMLElement, roomId: string): void {
       renderError(root, errorTitle(result.status), errorBody(result));
     })
     .catch(() => {
-      renderError(root, 'Postgame unavailable', 'The game could not be loaded.');
+      renderError(root, t('replay.postgameUnavailable'), t('replay.gameCouldNotBeLoaded'));
     });
 }
 
@@ -192,8 +198,8 @@ function renderPostgame(root: HTMLElement, postgame: BanqiPostgameResponse): voi
     // gets a sign-in CTA instead of a request that would 401.
     analysis: {
       requestLabel: isLikelySignedIn()
-        ? 'Request computer analysis'
-        : 'Sign in to request analysis',
+        ? t('replay.requestComputerAnalysis')
+        : t('replay.signInToRequestAnalysis'),
       requestHref: isLikelySignedIn() ? undefined : loginHrefForCurrentPage(),
       fetchCached: () => fetchCachedGameAnalysis('banqi', postgame.game.roomId),
       run: () => requestGameAnalysis('banqi', postgame.game.roomId),
@@ -239,7 +245,7 @@ function toDecisionOverlay(summary: BanqiDecisionSummary): DecisionOverlay {
 export function postgameViewEntries(
   postgame: BanqiPostgameResponse,
 ): Array<{ key: BanqiPostgameViewKey; label: string; view: BanqiPlayerView }> {
-  return [{ key: 'truth', label: 'Server truth', view: postgame.view }];
+  return [{ key: 'truth', label: t('replay.serverTruth'), view: postgame.view }];
 }
 
 export function postgameReplayMaxPly(postgame: BanqiPostgameResponse): number {
@@ -272,7 +278,7 @@ function loadingView(): HTMLElement {
   const shell = document.createElement('main');
   shell.className = 'game-shell';
   const heading = document.createElement('h1');
-  heading.textContent = 'Loading game';
+  heading.textContent = t('replay.loadingGame');
   shell.append(heading);
   return shell;
 }
@@ -289,14 +295,14 @@ function renderError(root: HTMLElement, titleText: string, bodyText: string): vo
 }
 
 function errorTitle(status: number): string {
-  if (status === 404) return 'Game not found';
-  if (status === 503) return 'Postgame unavailable';
-  return 'Postgame unavailable';
+  if (status === 404) return t('replay.gameNotFound');
+  return t('replay.postgameUnavailable');
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return 'This Banqi game is not available.';
-  if (result.status === 503) return 'The postgame service is not available.';
+  if (result.status === 404)
+    return t('replay.variantGameUnavailable', { variant: variantDisplayLabel('banqi') });
+  if (result.status === 503) return t('replay.postgameServiceUnavailable');
   return result.error;
 }
 

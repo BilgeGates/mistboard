@@ -6,6 +6,7 @@
 import type { StandardXiangqiPlayerView, XiangqiColor, XiangqiMove } from '@mistboard/game';
 import './game-shell.css';
 import './live-xiangqi.css';
+import { variantDisplayLabel } from './game-display.js';
 import { t } from './i18n/catalog.js';
 // Reuse the shared dxq-postgame scaffold (.dxq-postgame__*) the other variants ride.
 import './dark-xiangqi-postgame.css';
@@ -237,7 +238,8 @@ function errorTitle(status: number): string {
 }
 
 function errorBody(result: Extract<LoadResult, { ok: false }>): string {
-  if (result.status === 404) return t('replay.xiangqiGameUnavailable');
+  if (result.status === 404)
+    return t('replay.variantGameUnavailable', { variant: variantDisplayLabel('xiangqi') });
   if (result.status === 503) return t('replay.postgameServiceUnavailable');
   return result.error;
 }

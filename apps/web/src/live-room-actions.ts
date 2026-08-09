@@ -1,4 +1,5 @@
 import type { Color, PlayerView } from '@mistboard/game';
+import { t } from './i18n/catalog.js';
 import type { LiveRefs } from './live-state.js';
 import { liveState } from './live-state.js';
 import { correspondenceAwaitingOpponent } from './live-status.js';
@@ -37,7 +38,7 @@ export function renderRoomActions(refs: RoomActionRefs, deps: RoomActionDeps): v
       actions.unshift(playAgainButton(refs, deps));
     }
     actions.unshift(
-      roomAction('Review game', `/game/${encodeURIComponent(liveState.room)}`, 'primary'),
+      roomAction(t('live.reviewGame'), `/game/${encodeURIComponent(liveState.room)}`, 'primary'),
     );
     refs.roomActions.replaceChildren(...actions);
     return;
@@ -50,7 +51,8 @@ export function renderRoomActions(refs: RoomActionRefs, deps: RoomActionDeps): v
   if (inviteOpen && isColor(liveState.seat)) {
     actions.unshift(copyLinkButton());
   }
-  if (liveState.engineRequested) actions.push(roomAction('New Debug Room', 'dark-chess', 'engine'));
+  if (liveState.engineRequested)
+    actions.push(roomAction(t('live.newDebugRoom'), 'dark-chess', 'engine'));
   refs.roomActions.replaceChildren(...actions);
 }
 
@@ -62,14 +64,14 @@ function copyLinkButton(): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'primary';
-  btn.textContent = 'Copy invite link';
+  btn.textContent = t('live.copyInviteLink');
   btn.addEventListener('click', () => {
     navigator.clipboard
       .writeText(window.location.href)
       .then(() => {
-        btn.textContent = 'Link copied!';
+        btn.textContent = t('live.linkCopied');
         setTimeout(() => {
-          btn.textContent = 'Copy invite link';
+          btn.textContent = t('live.copyInviteLink');
         }, 2000);
       })
       .catch(() => {});

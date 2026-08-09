@@ -1,3 +1,4 @@
+import { t } from './i18n/catalog.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { createPane, type ReplayPaneHandle } from './replay-board.js';
 import { createGameHeaderStrip } from './replay-meta.js';
@@ -93,14 +94,14 @@ function labelize(value: string): string {
 function timeControlLabel(postgame: FogTriptychPostgameMeta): string {
   const initialMs = postgame.game.initialMs ?? postgame.state.timeControl?.initialMs ?? null;
   const incrementMs = postgame.game.incrementMs ?? postgame.state.timeControl?.incrementMs ?? null;
-  if (initialMs === null && incrementMs === null) return 'Untimed';
+  if (initialMs === null && incrementMs === null) return t('watch.untimed');
   return `${Math.round((initialMs ?? 0) / 60000)}+${Math.round((incrementMs ?? 0) / 1000)}`;
 }
 
 function matchupLabel(mode: string): string {
-  if (mode === 'pve') return 'Human vs engine';
-  if (mode === 'eve') return 'Engine vs engine';
-  return 'Human vs human';
+  if (mode === 'pve') return t('watch.humanVsEngine');
+  if (mode === 'eve') return t('watch.engineVsEngine');
+  return t('watch.humanVsHuman');
 }
 
 function seatCell(name: string): SeatCell {
@@ -323,7 +324,7 @@ export async function mountFogTriptychWatchReplay<
     sepRated.className = 'replay-game-header-sep';
     sepRated.textContent = '·';
     const rated = document.createElement('span');
-    rated.textContent = postgame.game.rated ? 'Rated' : 'Casual';
+    rated.textContent = postgame.game.rated ? t('watch.rated') : t('watch.casual');
     header.meta.append(plies, sep, clock, sepRated, rated);
 
     const firstCell = seatCell(adapter.firstLabel);
@@ -336,7 +337,7 @@ export async function mountFogTriptychWatchReplay<
     layout.className = `replay-layout replay-layout-all${adapter.layoutClass ? ` ${adapter.layoutClass}` : ''}`;
     boardTargets = [];
     for (const entry of adapter.viewEntries(postgame)) {
-      const label = adapter.paneKind(entry.key) === 'truth' ? 'Truth' : entry.label;
+      const label = adapter.paneKind(entry.key) === 'truth' ? t('watch.truth') : entry.label;
       const pane = createPane(label, adapter.paneKind(entry.key), true, 'split');
       if (adapter.boardClass) pane.boardEl.classList.add(adapter.boardClass);
       boardTargets.push({ pane, key: entry.key, fallbackView: entry.view });
@@ -345,12 +346,15 @@ export async function mountFogTriptychWatchReplay<
 
     const bar = document.createElement('div');
     bar.className = 'replay-control-bar';
-    const first = controlButton('|<', 'First move');
-    const prev = controlButton('<', 'Previous move');
-    const play = controlButton(paused ? '▶ Play' : '⏸ Pause', 'Play / pause');
-    const next = controlButton('>', 'Next move');
-    const last = controlButton('>|', 'Last move');
-    const flip = controlButton('↕ Flip', 'Flip boards');
+    const first = controlButton('|<', t('watch.firstMove'));
+    const prev = controlButton('<', t('watch.previousMove'));
+    const play = controlButton(
+      paused ? t('replay.playButton') : t('replay.pauseButton'),
+      t('watch.playPause'),
+    );
+    const next = controlButton('>', t('watch.nextMove'));
+    const last = controlButton('>|', t('watch.lastMove'));
+    const flip = controlButton(`↕ ${t('replay.flip')}`, t('watch.flipBoards'));
     bar.append(first, prev, play, next, last, flip);
     const plyLine = document.createElement('div');
     plyLine.className = 'replay-ply-line';
@@ -382,7 +386,7 @@ export async function mountFogTriptychWatchReplay<
     if (!result.ok) {
       const notice = document.createElement('p');
       notice.className = 'watch-empty';
-      notice.textContent = 'This game could not be loaded.';
+      notice.textContent = t('watch.gameLoadFailed');
       root.replaceChildren(notice);
       return;
     }

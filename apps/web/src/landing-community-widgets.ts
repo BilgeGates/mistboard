@@ -1,3 +1,4 @@
+import { t } from './i18n/catalog.js';
 import { buildSiteBox } from './site-box.js';
 import { localizedStudyName } from './study-i18n.js';
 import { buildStudyThumbnail } from './study-thumbnails.js';
@@ -46,7 +47,7 @@ export function buildTopStudiesWidget(options: { hydrate?: boolean } = {}): HTML
 function buildStudyWidget(options: { hydrate?: boolean }): HTMLElement {
   const { box, body } = buildSiteBox({ title: 'Top studies', href: '/study' });
   box.classList.add('landing-study-widget', 'landing-community-widget');
-  body.append(statusRow('Loading studies.'));
+  body.append(statusRow(t('home.loadingStudies')));
   if (options.hydrate !== false) void hydrateStudies(body);
   return box;
 }
@@ -59,12 +60,10 @@ async function hydrateStudies(body: HTMLElement): Promise<void> {
     if (!response.ok) throw new Error(`public_studies_failed_${response.status}`);
     const { studies } = (await response.json()) as { studies: PublicStudy[] };
     body.replaceChildren(
-      ...(studies.length > 0
-        ? studies.map(studyRow)
-        : [statusRow('No public studies yet. Make the first one.')]),
+      ...(studies.length > 0 ? studies.map(studyRow) : [statusRow(t('home.noPublicStudies'))]),
     );
   } catch {
-    body.replaceChildren(statusRow('Studies unavailable.'));
+    body.replaceChildren(statusRow(t('home.studiesUnavailable')));
   }
 }
 
@@ -92,7 +91,7 @@ function studyRow(study: PublicStudy): HTMLElement {
 function buildLeaderboardWidget(options: { hydrate?: boolean }): HTMLElement {
   const { box, body } = buildSiteBox({ title: 'Top players', href: '/leaderboard' });
   box.classList.add('landing-leaderboard-widget', 'landing-community-widget');
-  body.append(statusRow('Loading rankings.'));
+  body.append(statusRow(t('home.loadingRankings')));
   if (options.hydrate !== false) void hydrateLeaderboard(body);
   return box;
 }
@@ -109,9 +108,9 @@ async function hydrateLeaderboard(body: HTMLElement): Promise<void> {
       const leader = byVariant.get(variant.id);
       return leader ? [leaderboardRow(variant.label, leader)] : [];
     });
-    body.replaceChildren(...(rows.length > 0 ? rows : [statusRow('No rated players yet.')]));
+    body.replaceChildren(...(rows.length > 0 ? rows : [statusRow(t('home.noRatedPlayers'))]));
   } catch {
-    body.replaceChildren(statusRow('Rankings unavailable.'));
+    body.replaceChildren(statusRow(t('home.rankingsUnavailable')));
   }
 }
 

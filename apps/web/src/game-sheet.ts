@@ -13,6 +13,7 @@
 
 import { canonicalVariantOrderIndex, type GameSpecId } from '@mistboard/game';
 import type { FeaturedGame } from './game-display.js';
+import { t } from './i18n/catalog.js';
 import { webVariantTenants } from './variant-tenant/registry.js';
 
 type GameSheetVariant = {
@@ -99,7 +100,7 @@ export async function mountGameSheet(root: HTMLElement): Promise<void> {
 
   const brand = document.createElement('span');
   brand.className = 'postgame-sheet-brand';
-  brand.textContent = 'Game sheet';
+  brand.textContent = t('replay.gameSheet');
 
   const tabs = document.createElement('div');
   tabs.className = 'postgame-sheet-tabs';
@@ -161,7 +162,7 @@ export async function mountGameSheet(root: HTMLElement): Promise<void> {
   openLink.className = 'postgame-sheet-open';
   openLink.target = '_blank';
   openLink.rel = 'noreferrer';
-  openLink.textContent = 'Open ↗';
+  openLink.textContent = t('replay.openExternal');
 
   bar.append(brand, tabs, spacer, modeGroup, widthGroup, openLink);
 
@@ -169,7 +170,7 @@ export async function mountGameSheet(root: HTMLElement): Promise<void> {
   stage.className = 'postgame-sheet-stage';
   const frame = document.createElement('iframe');
   frame.className = 'postgame-sheet-frame';
-  frame.title = 'Postgame review';
+  frame.title = t('replay.postgameReview');
   const empty = document.createElement('div');
   empty.className = 'postgame-sheet-empty';
   stage.append(frame, empty);

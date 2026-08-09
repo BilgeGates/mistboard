@@ -1,5 +1,5 @@
-import { maybeGameSpecForId } from '@mistboard/game';
-import { t } from './i18n/catalog.js';
+import { type GameSpecId, maybeGameSpecForId } from '@mistboard/game';
+import { type I18nKey, t } from './i18n/catalog.js';
 import { seatColorWord } from './variant-seat-label.js';
 
 export const MISTBOARD_ENGINE_SNAPSHOT_ID = 'engine-v2-2026-05-24';
@@ -156,8 +156,6 @@ function displayParticipant(
   return name;
 }
 
-// Human label for a persisted games.variant value. Legacy/alias strings + the
-// 'Dark Chess' casing are handled explicitly (the dark-chess spec publicName is
 // Correspondence seeks store a side as MOVE ORDER ('first'/'second'), variant-neutral, so
 // one seek board serves every eligible variant. These map that axis back to the colors a
 // player recognises: chess is White/Black, xiangqi Red/Black. Both eligible specs share
@@ -172,13 +170,54 @@ export function secondMoverColorName(_gameSpecId: string): string {
   return t('setup.black');
 }
 
-// the lowercase 'Fog Chess'); everything else derives from the canonical spec
-// so new variants are labelled without editing here.
+// Catalog name key per spec. Exhaustive over GameSpecId on purpose: a new
+// union member fails the build until it decides, matching the fail-closed
+// registry rule. `null` means "no catalog name yet" (the runtimeStatus
+// 'future' specs and parked luzhanqi), and the caller falls back to the
+// spec's English publicName rather than inventing a product name.
+export const VARIANT_NAME_KEYS: Record<GameSpecId, I18nKey | null> = {
+  banqi: 'variant.banqi.name',
+  'crossroads-chess': 'variant.crossroadsChess.name',
+  'dark-antichess': null,
+  'dark-chess': 'variant.darkChess.name',
+  'dark-crazyhouse': 'variant.darkCrazyhouse.name',
+  'dark-crossroads-chess': 'variant.darkCrossroadsChess.name',
+  'dark-draft960': 'variant.darkDraft960.name',
+  'dark-mini-xiangqi': 'variant.darkMiniXiangqi.name',
+  'dark-omega': null,
+  'dark-seirawan': null,
+  'dark-shogi': 'variant.darkShogi.name',
+  'dark-xiangqi': 'variant.darkXiangqi.name',
+  'drop-mini-xiangqi': 'variant.dropMiniXiangqi.name',
+  'fortress-xiangqi': 'variant.fortressXiangqi.name',
+  jieqi: 'variant.jieqi.name',
+  jungle: 'variant.jungle.name',
+  'jungle-flip': 'variant.jungleFlip.name',
+  kriegspiel: 'variant.kriegspiel.name',
+  'lao-tzu': null,
+  luzhanqi: null,
+  'mini-xiangqi': 'variant.miniXiangqi.name',
+  'reveal-chess': 'variant.revealChess.name',
+  'sun-tzu': null,
+  xiangqi: 'variant.xiangqi.name',
+};
+
+// Localized variant name for a spec id, or null when the catalog has no name
+// for it. The single home for this mapping: analysis-page and bots each kept
+// their own partial copy, and the bots one silently missed xiangqi, jungle,
+// jungle-flip, and dark-xiangqi.
+export function variantNameKeyForSpecId(gameSpecId: string): I18nKey | null {
+  const spec = maybeGameSpecForId(gameSpecId);
+  return spec ? (VARIANT_NAME_KEYS[spec.id] ?? null) : null;
+}
+
+// Human label for a persisted games.variant value. Legacy/alias strings resolve
+// through maybeGameSpecForId, so the catalog name covers them too; everything
+// else derives from the canonical spec so new variants are labelled without
+// editing here.
 export function variantDisplayLabel(variant: string): string {
-  if (variant === 'fog' || variant === 'dark-chess') return 'Dark Chess';
-  if (variant === 'draft960' || variant === 'fog-draft960' || variant === 'dark-draft960')
-    return 'Dark Draft960';
-  if (variant === 'crossroads-chess' || variant === 'dual-chess') return 'Crossroads Chess';
+  const key = variantNameKeyForSpecId(variant);
+  if (key) return t(key);
   return maybeGameSpecForId(variant)?.publicName ?? variant;
 }
 

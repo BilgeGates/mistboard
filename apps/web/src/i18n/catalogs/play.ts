@@ -346,6 +346,18 @@ export const EN_PLAY = {
   'puzzle.fromSet': 'From set {variant}',
   'puzzle.solvedOf': '{solved} solved of {total}',
   'puzzle.goalToMove': '{goal} | {color} to move',
+  'live.rematch': 'Rematch',
+  'live.rematchStarting': 'Starting rematch…',
+  'live.rematchWaiting': 'Waiting for opponent…',
+  'live.rematchCancel': 'Cancel rematch',
+  'live.rematchOffered': 'Your opponent wants a rematch',
+  'live.rematchDecline': 'Decline',
+  'live.rematchAccept': 'Accept',
+  'live.rematchDeclined': 'Your opponent declined the rematch.',
+  'live.reviewGame': 'Review game',
+  'live.newDebugRoom': 'New Debug Room',
+  'live.copyInviteLink': 'Copy invite link',
+  'live.linkCopied': 'Link copied!',
 } as const;
 
 export type PlayI18nKey = keyof typeof EN_PLAY;
