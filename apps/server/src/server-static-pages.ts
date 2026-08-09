@@ -5,6 +5,7 @@ import type { Color } from '@mistboard/game';
 import { ARTICLE_META, articleIsIndexable, canonicalArticleBase } from './article-meta.js';
 import { GAME_OG_IMAGE_VERSION } from './og-image.js';
 import * as persistence from './persistence.js';
+import { renderStudyBody } from './study-page-body.js';
 
 export { ARTICLE_META, canonicalArticleBase };
 
@@ -319,6 +320,13 @@ export async function serveStudyPage(params: {
       })
       .join('');
     html = html.replace('</head>', `${alternates}</head>`);
+    // Bake the study's text into the shell so a crawler (and first paint) gets
+    // real content instead of an empty #app. mountStudy() replaceChildren()s the
+    // root on boot, so this markup never coexists with the client render.
+    html = html.replace(
+      '<div id="app"></div>',
+      `<div id="app">${renderStudyBody({ study, locale, localePath })}</div>`,
+    );
   }
 
   const preloadLinks = await routePreloadLinksForPath({
