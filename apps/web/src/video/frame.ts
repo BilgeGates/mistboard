@@ -25,7 +25,7 @@ import {
   squareCenter,
 } from './geometry.js';
 import type { ScenePlan, VideoRegion } from './manifest.js';
-import { VIDEO_BOARD_STYLE } from './theme.js';
+import { VIDEO_BOARD_STYLE, VIDEO_PIECE_SET } from './theme.js';
 import type { Shot } from './timeline.js';
 
 export function renderShotSvg(plan: ScenePlan, shot: Shot): string {
@@ -46,6 +46,13 @@ export function renderShotSvg(plan: ScenePlan, shot: Shot): string {
     interactive: false,
     selectedSquare: shot.overlays.raysFrom,
     draggingFrom: null,
+    // Pin layout and piece set. Both product defaults come from localStorage,
+    // which does not exist in the render process, so leaving them unset means
+    // the channel look is whatever the app happens to default to that month.
+    // geometry.ts also mirrors the intersection coordinate system the overlay
+    // math depends on.
+    layout: 'intersection',
+    pieceSet: VIDEO_PIECE_SET,
     arrows: shot.overlays.arrows.map((arrow) => ({
       from: arrow.from,
       to: arrow.to,
@@ -53,11 +60,7 @@ export function renderShotSvg(plan: ScenePlan, shot: Shot): string {
     })),
   });
 
-  // Inner <svg> needs explicit dimensions so the outer transform scales it.
-  boardSvg = boardSvg.replace(
-    '<svg class="xq-live-svg"',
-    `<svg class="xq-live-svg" width="${BOARD_WIDTH}" height="${BOARD_HEIGHT}"`,
-  );
+  boardSvg = withExplicitSize(boardSvg);
   boardSvg = injectBeforeClose(boardSvg, overlayMarkup(shot, perspective));
 
   const scale = (plan.height * 0.92) / BOARD_HEIGHT;
@@ -78,6 +81,23 @@ export function renderShotSvg(plan: ScenePlan, shot: Shot): string {
     watermark,
     `</svg>`,
   ].join('');
+}
+
+/** Give the product board's root <svg> explicit pixel dimensions. Without them a
+ *  nested <svg> defaults to 100% of the viewport, and the outer scale() then
+ *  throws the board off-canvas. This is a string seam onto another module's
+ *  markup, so it matches the tag rather than an exact class string (the root
+ *  carries layout modifier classes) and throws instead of silently no-oping —
+ *  a missed patch here is invisible until someone watches the rendered video. */
+function withExplicitSize(boardSvg: string): string {
+  const rootTag = boardSvg.match(/<svg\b[^>]*>/)?.[0];
+  if (!rootTag) {
+    throw new Error('board SVG has no root <svg> tag; the frame composition seam moved');
+  }
+  const sized = rootTag
+    .replace(/\s(?:width|height)="[^"]*"/g, '')
+    .replace(/<svg\b/, `<svg width="${BOARD_WIDTH}" height="${BOARD_HEIGHT}"`);
+  return boardSvg.replace(rootTag, sized);
 }
 
 function escapeXml(value: string): string {
@@ -123,6 +143,7 @@ function overlayMarkup(shot: Shot, perspective: 'red' | 'black'): string {
             y: center.y - PIECE_SIZE / 2,
             size: PIECE_SIZE,
             className: 'xq-piece',
+            pieceSet: VIDEO_PIECE_SET,
           }),
         );
       }
@@ -151,6 +172,7 @@ function overlayMarkup(shot: Shot, perspective: 'red' | 'black'): string {
         y: at.y - PIECE_SIZE / 2,
         size: PIECE_SIZE,
         className: 'xq-piece',
+        pieceSet: VIDEO_PIECE_SET,
       }),
     );
   }

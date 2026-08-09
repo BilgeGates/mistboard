@@ -3,7 +3,16 @@
 // mirror live-xiangqi.css defaults; the channel look is locked here so a
 // product retheme never silently changes the back catalog.
 
+import type { XiangqiPieceSet } from '../xiangqi-piece-sets.js';
+
 export const VIDEO_BACKGROUND = '#12161c';
+
+/** The frozen channel piece set. Every episode renders with this, so changing it
+ *  re-skins the whole back catalog on the next recompile — a branding decision,
+ *  not a preference. Traditional characters over the product's `international`
+ *  default: the channel's premise is that this is Chinese chess, and the
+ *  international general is a cross-topped Western king. */
+export const VIDEO_PIECE_SET: XiangqiPieceSet = 'traditional';
 
 export const VIDEO_BOARD_STYLE = `
   .xq-live-bg { fill: #f5dca8; }
