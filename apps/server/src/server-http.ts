@@ -227,17 +227,21 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
     }
 
     // /study/:id and /study/:id/:chapterId mirror /game/:id: a public study
-    // bakes its own title/meta into the shell (crawlers + link previews);
-    // unlisted/private serve the plain shell. Locale-prefixed forms get the same
-    // treatment so a shared chapter keeps its translated study metadata.
+    // bakes its own title/meta AND a server-rendered body into the shell
+    // (crawlers + link previews); unlisted/private serve the plain shell.
+    // Locale-prefixed forms get the same treatment. A chapter permalink is
+    // resolved to that chapter so it carries its own title and prose rather
+    // than repeating the study's on every one of its chapters.
     const studyRouteMatch = pathname.match(
-      /^(?:\/(zh-hans|zh-hant))?\/study\/([^/]+)(?:\/[^/]+)?$/,
+      /^(?:\/(zh-hans|zh-hant))?\/study\/([^/]+)(?:\/([^/]+))?$/,
     );
     if (studyRouteMatch && persistence.isInitialized()) {
       const studyId = decodeURIComponent(studyRouteMatch[2]!);
       const localeSlug = studyRouteMatch[1] ?? 'en';
+      const chapterId = studyRouteMatch[3] ? decodeURIComponent(studyRouteMatch[3]) : undefined;
       void serveStudyPage({
         studyId,
+        chapterId,
         localeSlug: localeSlug as 'en' | 'zh-hans' | 'zh-hant',
         response,
         publicHost: options.publicHost,
