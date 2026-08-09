@@ -304,18 +304,105 @@ export async function serveStudyOgImage(params: {
     return;
   }
 
-  const boardHeight = 486;
-  const boardY = 34;
+  const lines = fitStudyTitleLines(chapter.name);
+  // A second title line needs room, so the board gives some back rather than the
+  // text running off the canvas.
+  const boardHeight = lines.length > 1 ? 452 : 486;
+  const boardY = 30;
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}">`,
     `<rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="#0f1115"/>`,
     xiangqiOgBoardFromPieces({ pieces, centerX: OG_WIDTH / 2, y: boardY, height: boardHeight }),
-    ogFooterLine(truncateName(chapter.name), boardY + boardHeight + 60),
+    studyFooter(lines, boardY + boardHeight + 52),
     `</svg>`,
   ].join('');
   const png = svgToPng(svg);
   cacheSet(key, png);
   writePng(response, png, 'MISS');
+}
+
+/** Footer for the study card: the brand sits with the first title line, and a
+ *  wrapped title continues underneath. Font drops a step on two lines so the
+ *  pair still reads as one block rather than crowding the board. */
+function studyFooter(lines: string[], firstBaseline: number): string {
+  const size = lines.length > 1 ? 30 : 34;
+  const parts = [
+    `<text x="${OG_WIDTH / 2}" y="${firstBaseline}" text-anchor="middle" font-family="${FONT}" font-size="${size}"><tspan fill="#9ca3af" font-weight="600" letter-spacing="1">MISTBOARD</tspan><tspan fill="#5b6470">  ·  </tspan><tspan fill="#f3f4f6" font-weight="700">${escapeXml(lines[0] ?? '')}</tspan></text>`,
+  ];
+  for (let i = 1; i < lines.length; i += 1) {
+    parts.push(
+      `<text x="${OG_WIDTH / 2}" y="${firstBaseline + i * (size + 8)}" text-anchor="middle" font-family="${FONT}" font-size="${size}" fill="#f3f4f6" font-weight="700">${escapeXml(lines[i]!)}</text>`,
+    );
+  }
+  return parts.join('');
+}
+
+// Composition titles are sentences, not names: "Small opposing cannons give up
+// the elephant to trap the chariot" is 63 characters, and 50 of the 52 published
+// chapter titles exceed the 24-char cap `truncateName` applies to player names on
+// the game card. That cap is right there (two names share the canvas) and wrong
+// here (one title owns it), so the study card wraps to two lines instead.
+//
+// Width is measured in half-widths because a CJK title occupies roughly twice
+// the advance per character, and these titles come in both scripts.
+const STUDY_TITLE_LINE_HALFWIDTHS = 46;
+const STUDY_TITLE_MAX_LINES = 2;
+
+function halfWidths(text: string): number {
+  let total = 0;
+  for (const ch of text) {
+    // Rough but sufficient: CJK ideographs, kana, and full-width forms are wide.
+    total += /[ᄀ-ᅟ⺀-꓏ꥠ-꥿가-힣豈-﫿︐-︙︰-﹯＀-｠￠-￦]/.test(ch) ? 2 : 1;
+  }
+  return total;
+}
+
+/** Wrap a title into at most two lines, breaking on spaces where the script has
+ *  them and on characters where it does not (CJK). Overflow past the last line is
+ *  ellipsized, so a pathological title degrades instead of overrunning the card. */
+export function fitStudyTitleLines(
+  title: string,
+  perLine = STUDY_TITLE_LINE_HALFWIDTHS,
+  maxLines = STUDY_TITLE_MAX_LINES,
+): string[] {
+  const trimmed = title.trim();
+  if (!trimmed) return [''];
+  if (halfWidths(trimmed) <= perLine) return [trimmed];
+
+  const tokens = trimmed.includes(' ') ? trimmed.split(/\s+/) : Array.from(trimmed);
+  const joiner = trimmed.includes(' ') ? ' ' : '';
+  const lines: string[] = [];
+  let current = '';
+  for (const token of tokens) {
+    const candidate = current ? `${current}${joiner}${token}` : token;
+    if (halfWidths(candidate) <= perLine) {
+      current = candidate;
+      continue;
+    }
+    if (current) lines.push(current);
+    current = token;
+    if (lines.length === maxLines) break;
+  }
+  if (lines.length < maxLines && current) lines.push(current);
+
+  if (lines.length === maxLines) {
+    // Anything that did not fit is dropped, so mark the truncation.
+    const consumed = lines.join(joiner);
+    if (consumed.length < trimmed.length) {
+      const last = lines[maxLines - 1]!;
+      lines[maxLines - 1] = `${trimTo(last, perLine - 1, joiner)}…`;
+    }
+  }
+  return lines;
+}
+
+function trimTo(line: string, perLine: number, joiner: string): string {
+  let out = line;
+  while (halfWidths(out) > perLine && out.length > 0) {
+    out =
+      joiner === ' ' ? out.slice(0, out.lastIndexOf(' ')) || out.slice(0, -1) : out.slice(0, -1);
+  }
+  return out;
 }
 
 /** A chapter's start position as OG pieces: its hand-set `rootFen` when it has
