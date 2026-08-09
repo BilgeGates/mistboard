@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { studyChapterOgPieces } from './og-image.js';
+import { fitStudyTitleLines, studyChapterOgPieces } from './og-image.js';
 
 // Golden Roc composition 1 ("The horse leaps Tan Creek"), taken from the live
 // study. A 排局 IS its diagram, so the card has to key off the chapter's own
@@ -60,4 +60,44 @@ test('the og route resolves study and chapter forms', () => {
   assert.equal(STUDY_OG_ROUTE.exec('/og/study/a/b/c.png'), null);
   assert.equal(STUDY_OG_ROUTE.exec('/og/study/.png'), null);
   assert.equal(STUDY_OG_ROUTE.exec('/og/study/Dfi3NpRE'), null);
+});
+
+// --- card titles ---------------------------------------------------------------
+
+// Composition titles are sentences. 50 of the 52 published chapter titles exceed
+// the 24-char cap the game card applies to player names, so the study card wrapped
+// instead of inheriting a limit tuned for a different layout.
+test('a short title stays on one line', () => {
+  assert.deepEqual(fitStudyTitleLines('1. The horse leaps Tan Creek'), [
+    '1. The horse leaps Tan Creek',
+  ]);
+});
+
+test('the longest published title wraps whole, at a word boundary', () => {
+  const lines = fitStudyTitleLines(
+    'Small opposing cannons give up the elephant to trap the chariot',
+  );
+  assert.equal(lines.length, 2);
+  assert.equal(lines.join(' '), 'Small opposing cannons give up the elephant to trap the chariot');
+  assert.ok(!lines[0]!.endsWith(' '));
+});
+
+// CJK has no spaces, so word-boundary wrapping would return one unbreakable
+// token and overflow the card.
+test('a CJK title wraps per character and counts double width', () => {
+  assert.deepEqual(fitStudyTitleLines('雙車難破馬砲士象全'), ['雙車難破馬砲士象全']);
+  const long = fitStudyTitleLines('橘中秘卷三車卒殘局第十七局又局兌車和單車肘心變着詳解補遺');
+  assert.equal(long.length, 2);
+  assert.ok(long[0]!.length <= 23, 'a wide-script line holds at most half the half-widths');
+});
+
+test('a title too long for both lines is ellipsized rather than overrunning', () => {
+  const lines = fitStudyTitleLines('x'.repeat(200));
+  assert.equal(lines.length, 2);
+  assert.ok(lines[1]!.endsWith('…'));
+});
+
+test('an empty or whitespace title degrades to one empty line', () => {
+  assert.deepEqual(fitStudyTitleLines(''), ['']);
+  assert.deepEqual(fitStudyTitleLines('   '), ['']);
 });
