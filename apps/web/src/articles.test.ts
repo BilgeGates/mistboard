@@ -664,9 +664,7 @@ describe('rules variant sidebar', () => {
     expect(labels).toContain('Jungle Chess');
     expect(labels).toContain('Flip Jungle');
     for (const label of labels) {
-      expect(label, `rail label "${label}" leaks page-title freight`).not.toMatch(
-        /Rules|\(|：/,
-      );
+      expect(label, `rail label "${label}" leaks page-title freight`).not.toMatch(/Rules|\(|：/);
     }
   });
 
