@@ -5,7 +5,7 @@ import type { Color } from '@mistboard/game';
 import { ARTICLE_META, articleIsIndexable, canonicalArticleBase } from './article-meta.js';
 import { GAME_OG_IMAGE_VERSION } from './og-image.js';
 import * as persistence from './persistence.js';
-import { renderStudyBody } from './study-page-body.js';
+import { chapterIsSubstantial, chapterPageMeta, renderStudyBody } from './study-page-body.js';
 
 export { ARTICLE_META, canonicalArticleBase };
 
@@ -286,6 +286,10 @@ function localizedStudyField(
 
 export async function serveStudyPage(params: {
   studyId: string;
+  /** Present on a chapter permalink (/study/:id/:chapterId). An unknown id falls
+   *  back to the study page rather than 404ing: the client resolves chapters too
+   *  and a stale link should still land somewhere useful. */
+  chapterId?: string;
   localeSlug?: 'en' | 'zh-hans' | 'zh-hant';
   response: ServerResponse;
   publicHost: string;
@@ -299,33 +303,44 @@ export async function serveStudyPage(params: {
   const locale = STUDY_LOCALE_BY_SLUG[slug];
   const study = await persistence.getStudyById(params.studyId).catch(() => null);
   if (study && study.visibility === 'public') {
+    const chapter = params.chapterId
+      ? study.chapters.find((c) => c.id === params.chapterId)
+      : undefined;
+    const pathSuffix = chapter ? `/${encodeURIComponent(chapter.id)}` : '';
     const chapterCount = study.chapters.length;
     const name = localizedStudyField(study.name, study.i18n, locale, 'name');
     const described = localizedStudyField(study.description, study.i18n, locale, 'description');
-    const description =
-      described ||
-      `A xiangqi study on Mistboard with ${chapterCount} ${chapterCount === 1 ? 'chapter' : 'chapters'}: annotated moves on an interactive board.`;
-    html = injectPageMeta(html, {
+    const studyMeta = {
       title: `${name} | Mistboard study`,
-      description,
-      url: `${params.publicHost}${localePath}/study/${encodeURIComponent(params.studyId)}`,
+      description:
+        described ||
+        `A xiangqi study on Mistboard with ${chapterCount} ${chapterCount === 1 ? 'chapter' : 'chapters'}: annotated moves on an interactive board.`,
+    };
+    // A chapter permalink carries the CHAPTER's title and prose. Without this,
+    // every chapter of a 66-composition study serves the study's own meta and
+    // the set reads as near-duplicates.
+    const meta = chapter ? chapterPageMeta({ study, chapter, locale }) : studyMeta;
+    html = injectPageMeta(html, {
+      title: meta.title,
+      description: meta.description,
+      url: `${params.publicHost}${localePath}/study/${encodeURIComponent(params.studyId)}${pathSuffix}`,
     });
     // hreflang alternates so the locale variants read as one page in three
     // languages rather than three competing near-duplicates.
     const alternates = (['en', 'zh-hans', 'zh-hant'] as const)
       .map((other) => {
-        const href = `${params.publicHost}${other === 'en' ? '' : `/${other}`}/study/${encodeURIComponent(params.studyId)}`;
+        const href = `${params.publicHost}${other === 'en' ? '' : `/${other}`}/study/${encodeURIComponent(params.studyId)}${pathSuffix}`;
         const hreflang = other === 'en' ? 'en' : other === 'zh-hans' ? 'zh-Hans' : 'zh-Hant';
         return `<link rel="alternate" hreflang="${hreflang}" href="${href}">`;
       })
       .join('');
     html = html.replace('</head>', `${alternates}</head>`);
-    // Bake the study's text into the shell so a crawler (and first paint) gets
-    // real content instead of an empty #app. mountStudy() replaceChildren()s the
-    // root on boot, so this markup never coexists with the client render.
+    // Bake the text into the shell so a crawler (and first paint) gets real
+    // content instead of an empty #app. mountStudy() replaceChildren()s the root
+    // on boot, so this markup never coexists with the client render.
     html = html.replace(
       '<div id="app"></div>',
-      `<div id="app">${renderStudyBody({ study, locale, localePath })}</div>`,
+      `<div id="app">${renderStudyBody({ study, chapter, locale, localePath })}</div>`,
     );
   }
 
@@ -449,10 +464,31 @@ export async function serveSitemap(params: {
     }
   }
   // Public studies are indexable dynamic content (each serves real per-study
-  // meta via serveStudyPage). Absent persistence (in-memory dev) lists none.
+  // meta AND a server-rendered body via serveStudyPage). Absent persistence
+  // (in-memory dev) lists none.
+  //
+  // Chapter permalinks are listed too, but only when the chapter carries enough
+  // of its own text to be worth a URL (chapterIsSubstantial). A classical manual
+  // is a set of individually named, individually searched compositions, so its
+  // chapters are article-shaped rather than puzzle-shaped; a one-ply chapter
+  // with no commentary is not, and a sitemap full of those reads as thin. The
+  // gate is deliberately content-driven, so the indexable set grows as the
+  // library's verification work lands instead of advertising it early.
   const studyUrls = await persistence
     .listTopPublicStudies(100)
-    .then((studies) => studies.map((s) => `/study/${encodeURIComponent(s.id)}`))
+    .then(async (studies) => {
+      const urls: string[] = [];
+      for (const summary of studies) {
+        const base = `/study/${encodeURIComponent(summary.id)}`;
+        urls.push(base);
+        const full = await persistence.getStudyById(summary.id).catch(() => null);
+        if (!full) continue;
+        for (const chapter of [...full.chapters].sort((a, b) => a.ordinal - b.ordinal)) {
+          if (chapterIsSubstantial(chapter)) urls.push(`${base}/${encodeURIComponent(chapter.id)}`);
+        }
+      }
+      return urls;
+    })
     .catch(() => [] as string[]);
   const urls = [...SITEMAP_STATIC_ROUTES, ...articleUrls, ...studyUrls];
   const body = urls.map((path) => `  <url><loc>${params.publicHost}${path}</loc></url>`).join('\n');

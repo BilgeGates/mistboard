@@ -160,14 +160,57 @@ function chapterListItem(
   return `<li>${parts.join('')}</li>`;
 }
 
-/** Render the crawlable body for a public study. Returns markup destined for
- *  `<div id="app">`; the client replaces it wholesale on boot. */
+/** How much prose a chapter must carry before its permalink is worth advertising
+ *  in the sitemap. A one-ply chapter with no comment is a thin near-duplicate of
+ *  its siblings, and a sitemap full of those reads as low quality. This is also
+ *  the honest gate: the defective endgame volumes are exactly the chapters that
+ *  fail it, so the indexable set grows as the restoration lands rather than
+ *  advertising work that is not done. */
+export function chapterIsSubstantial(chapter: StudyChapterRecord): boolean {
+  if (mainlinePlies(chapter.root) >= MIN_INDEXABLE_PLIES) return true;
+  return mainlineComments(chapter.root, 'en', 1).length > 0;
+}
+
+const MIN_INDEXABLE_PLIES = 4;
+
+/** Per-chapter page meta for a chapter permalink. Without this every chapter of
+ *  a 66-composition study serves the study's own title and description, which is
+ *  a set of near-identical pages. */
+export function chapterPageMeta(params: {
+  study: StudyWithChapters;
+  chapter: StudyChapterRecord;
+  locale: StudyPageLocale;
+}): { title: string; description: string } {
+  const { chapter, locale, study } = params;
+  const chapterName = localizedField(chapter.name, chapter.i18n, locale, 'name');
+  const studyName = localizedField(study.name, study.i18n, locale, 'name');
+  const comment = mainlineComments(chapter.root, locale, 1)[0];
+  const plies = mainlinePlies(chapter.root);
+  const fallback = plies > 0 ? `${studyName}. ${LABELS[locale].moves(plies)}.` : studyName;
+  return {
+    title: `${chapterName} | ${studyName}`,
+    description: comment ?? fallback,
+  };
+}
+
+/** Render the crawlable body for a public study, or for one chapter of it when
+ *  `chapter` is given. Returns markup destined for `<div id="app">`; the client
+ *  replaces it wholesale on boot. */
 export function renderStudyBody(params: {
   study: StudyWithChapters;
+  chapter?: StudyChapterRecord;
   locale: StudyPageLocale;
   /** '' for en, '/zh-hans' or '/zh-hant' otherwise. */
   localePath: string;
 }): string {
+  if (params.chapter) {
+    return renderChapterBody({
+      study: params.study,
+      chapter: params.chapter,
+      locale: params.locale,
+      localePath: params.localePath,
+    });
+  }
   const { locale, localePath, study } = params;
   const name = localizedField(study.name, study.i18n, locale, 'name');
   const description = localizedField(study.description, study.i18n, locale, 'description');
@@ -182,6 +225,35 @@ export function renderStudyBody(params: {
       chapterListItem(chapter, { studyId: study.id, localePath, locale }),
     );
     parts.push(`<ol>${items.join('')}</ol>`);
+  }
+  return `<main>${parts.join('')}</main>`;
+}
+
+// A chapter permalink gets the chapter's own heading and its own prose, plus a
+// link back to the study so the hub still collects the internal links. Comments
+// run deeper here than in the study listing: this page exists to carry ONE
+// composition's commentary, which is the only unique text it has.
+const MAX_CHAPTER_PAGE_COMMENTS = 12;
+
+function renderChapterBody(params: {
+  study: StudyWithChapters;
+  chapter: StudyChapterRecord;
+  locale: StudyPageLocale;
+  localePath: string;
+}): string {
+  const { chapter, locale, localePath, study } = params;
+  const chapterName = localizedField(chapter.name, chapter.i18n, locale, 'name');
+  const studyName = localizedField(study.name, study.i18n, locale, 'name');
+  const studyHref = `${localePath}/study/${encodeURIComponent(study.id)}`;
+  const plies = mainlinePlies(chapter.root);
+
+  const parts = [
+    `<h1>${escapeHtml(chapterName)}</h1>`,
+    `<p><a href="${escapeHtml(studyHref)}">${escapeHtml(studyName)}</a></p>`,
+  ];
+  if (plies > 0) parts.push(`<p>${escapeHtml(LABELS[locale].moves(plies))}</p>`);
+  for (const comment of mainlineComments(chapter.root, locale, MAX_CHAPTER_PAGE_COMMENTS)) {
+    parts.push(`<p>${escapeHtml(comment)}</p>`);
   }
   return `<main>${parts.join('')}</main>`;
 }

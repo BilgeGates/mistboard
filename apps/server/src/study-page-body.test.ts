@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import type { StudyChapterRecord, StudyWithChapters } from './persistence-studies.js';
-import { renderStudyBody } from './study-page-body.js';
+import { chapterIsSubstantial, chapterPageMeta, renderStudyBody } from './study-page-body.js';
 
 const NOW = new Date('2026-08-08T00:00:00Z');
 
@@ -162,6 +162,65 @@ test('a malformed or missing tree blob degrades instead of throwing', () => {
     const html = renderStudyBody({ study: s, locale: 'en', localePath: '' });
     assert.match(html, /Chapter one/);
   }
+});
+
+// --- chapter permalinks -------------------------------------------------------
+
+test('a chapter permalink renders the chapter, not the study listing', () => {
+  const ch = chapter({
+    id: 'cX',
+    name: 'Seven Stars',
+    root: mainline(61, [{ text: 'Red to play and draw.' }]),
+  });
+  const s = study({ name: 'Endgames', chapters: [ch, chapter({ id: 'cY', name: 'Other' })] });
+  const html = renderStudyBody({ study: s, chapter: ch, locale: 'en', localePath: '' });
+  assert.match(html, /<h1>Seven Stars<\/h1>/);
+  assert.match(html, /61 moves/);
+  assert.match(html, /Red to play and draw\./);
+  // Links back to the hub, and does not re-list its sibling chapters.
+  assert.match(html, /<a href="\/study\/S1">Endgames<\/a>/);
+  assert.doesNotMatch(html, /Other/);
+});
+
+test('chapter meta is the chapter title and its own prose', () => {
+  const ch = chapter({
+    name: '七星聚會',
+    i18n: { en: { name: 'Seven Stars' } },
+    root: mainline(61, [{ text: '紅先和', i18n: { en: 'Red moves first and draws.' } }]),
+  });
+  const s = study({
+    name: '排局',
+    i18n: { en: { name: 'Compositions' } },
+    chapters: [ch],
+  });
+  const en = chapterPageMeta({ study: s, chapter: ch, locale: 'en' });
+  assert.equal(en.title, 'Seven Stars | Compositions');
+  assert.equal(en.description, 'Red moves first and draws.');
+
+  const zh = chapterPageMeta({ study: s, chapter: ch, locale: 'zh-Hant' });
+  assert.equal(zh.title, '七星聚會 | 排局');
+  assert.equal(zh.description, '紅先和');
+});
+
+test('a chapter with no comment falls back to study name and length', () => {
+  const ch = chapter({ name: 'Untitled', root: mainline(9) });
+  const meta = chapterPageMeta({ study: study({ chapters: [ch] }), chapter: ch, locale: 'en' });
+  assert.equal(meta.description, 'A study. 9 moves.');
+});
+
+// The sitemap gate. A one-ply chapter with no commentary is the shape the
+// defective endgame volumes shipped in; advertising those as indexable pages
+// would be claiming work that has not been done.
+test('chapter substance gates on plies or commentary, not on existing', () => {
+  assert.equal(chapterIsSubstantial(chapter({ root: mainline(20) })), true);
+  assert.equal(chapterIsSubstantial(chapter({ root: mainline(4) })), true);
+  assert.equal(chapterIsSubstantial(chapter({ root: mainline(1) })), false);
+  assert.equal(chapterIsSubstantial(chapter({ root: mainline(0) })), false);
+  // A short entry that carries real commentary is still worth a URL.
+  assert.equal(
+    chapterIsSubstantial(chapter({ root: mainline(1, [{ text: 'A genuine one-move entry.' }]) })),
+    true,
+  );
 });
 
 // serveStudyPage injects the body by string-replacing this exact anchor in the
