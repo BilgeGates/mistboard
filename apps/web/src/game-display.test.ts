@@ -1,4 +1,10 @@
-import { CROSSROADS_CHESS_SPEC_ID, JUNGLE_SPEC_ID, XIANGQI_SPEC_ID } from '@mistboard/game';
+import {
+  BANQI_SPEC_ID,
+  CROSSROADS_CHESS_SPEC_ID,
+  JUNGLE_FLIP_SPEC_ID,
+  JUNGLE_SPEC_ID,
+  XIANGQI_SPEC_ID,
+} from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import {
   type FeaturedGame,
@@ -63,6 +69,27 @@ describe('matchupLabel', () => {
     expect(matchupLabel({ ...game('fog'), whiteName: 'alice', blackName: 'bob' })).toBe(
       'alice vs bob',
     );
+  });
+
+  // Flip variants seat by move order, so a seat word is not a colour claim: naming
+  // a nameless banqi seat "Red" is wrong for half of all games. The fallback names
+  // the bound ink when the row carries firstColor and the move order when it does
+  // not (profile / landing / database feeds never derive it).
+  it('names a nameless flip seat by move order when the ink is unknown', () => {
+    expect(matchupLabel(game(BANQI_SPEC_ID))).toBe('First vs Second');
+    expect(matchupLabel(game(JUNGLE_FLIP_SPEC_ID))).toBe('First vs Second');
+  });
+
+  it('names a nameless flip seat by the bound ink once firstColor is known', () => {
+    // First-mover seat flipped black, so it is the BLACK player, not "Red".
+    expect(matchupLabel({ ...game(BANQI_SPEC_ID), firstColor: 'black' })).toBe('Black vs Red');
+    expect(matchupLabel({ ...game(BANQI_SPEC_ID), firstColor: 'red' })).toBe('Red vs Black');
+    // The Jungle family brands its dark ink "Blue".
+    expect(matchupLabel({ ...game(JUNGLE_FLIP_SPEC_ID), firstColor: 'black' })).toBe('Blue vs Red');
+  });
+
+  it('leaves non-flip variants on the literal seat word regardless of firstColor', () => {
+    expect(matchupLabel({ ...game(XIANGQI_SPEC_ID), firstColor: 'black' })).toBe('Red vs Black');
   });
 });
 
