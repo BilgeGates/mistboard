@@ -3,7 +3,7 @@
 // public and only the deal is hidden, so the postgame ships a SINGLE truth
 // surface (no per-color triptych) and there is no fog to pass to the renderer.
 import type { BanqiPlayerView } from '@mistboard/game';
-import { banqiResultLabel } from './banqi-result-label.js';
+import { banqiResultLabel, seatInkLabel } from './banqi-result-label.js';
 import { fillCapturedPool } from './live-banqi.js';
 import {
   type BanqiPostgameResponse,
@@ -48,6 +48,7 @@ export function mountBanqiWatchReplay(
       // Banqi seats (first/second mover) are decoupled from ink; the recorded
       // result is seat-keyed, so translate it to the bound ink for display.
       resultLabel: (result, postgame) => banqiResultLabel(result, postgame.view.firstColor),
+      seatLabel: (seat, postgame) => seatInkLabel(seat, postgame.view.firstColor),
     },
   );
 }
