@@ -6,7 +6,7 @@
 import './live-xiangqi.css';
 import type { JungleFlipPlayerView } from '@mistboard/game';
 import { type JungleFlipRenderBoard, renderJungleFlipBoardSvg } from './jungle-flip-render.js';
-import { jungleFlipResultLabel } from './jungle-flip-result-label.js';
+import { jungleFlipResultLabel, jungleFlipSeatInkLabel } from './jungle-flip-result-label.js';
 import {
   type JungleFlipPostgameResponse,
   loadJungleFlipPostgame,
@@ -46,5 +46,6 @@ export function mountJungleFlipWatchReplay(
     fillCaptures: () => {},
     reveal: { hiddenKey: 'truth', truthKey: 'revealed' },
     resultLabel: (result, postgame) => jungleFlipResultLabel(result, postgame.view.firstColor),
+    seatLabel: (seat, postgame) => jungleFlipSeatInkLabel(seat, postgame.view.firstColor),
   });
 }

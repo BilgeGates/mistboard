@@ -20,6 +20,7 @@ import {
   resultLabel,
   shouldPlayWatchMoveSound,
   watchFeedIsDark,
+  watchGamePlayers,
   watchPovToggleApplies,
   watchQueueMatchupLabel,
   watchQueueResultLabel,
@@ -185,6 +186,77 @@ describe('watch route copy helpers', () => {
     expect(watchQueueResultLabel(base)).toBe('First wins');
     // Non-banqi variants are untouched by the ink translation.
     expect(watchQueueResultLabel({ ...base, variant: 'crossroads-chess' })).toBe('Red wins');
+  });
+
+  it('labels a Flip Jungle queue result by bound ink, in the family colour words', () => {
+    const base: FeaturedGame = {
+      blackName: null,
+      corpusId: null,
+      mode: 'pvp',
+      plyCount: 40,
+      result: 'red-wins',
+      roomId: 'jgf_watch',
+      termination: 'capture',
+      variant: 'jungle-flip',
+      whiteName: null,
+    };
+    // The Jungle family brands its navy ink "Blue"; the first-mover seat won here
+    // but flipped that ink, so the queue must not read "Red wins".
+    expect(watchQueueResultLabel({ ...base, firstColor: 'black' })).toBe('Blue wins');
+    expect(watchQueueResultLabel({ ...base, firstColor: 'red' })).toBe('Red wins');
+    expect(watchQueueResultLabel(base)).toBe('First wins');
+  });
+});
+
+describe('watchGamePlayers', () => {
+  // Regression: the /watch seat rows painted their disc from the raw SEAT, so a
+  // flip game whose first-mover seat bound black showed the winner on a RED disc
+  // directly under this page's own "Black wins" line (and contradicting the board).
+  const flipGame = (variant: string, firstColor: 'red' | 'black' | null): FeaturedGame => ({
+    blackName: null,
+    corpusId: null,
+    firstColor,
+    mode: 'pve',
+    participants: [
+      {
+        color: 'red',
+        displayName: 'Misty',
+        subjectType: 'bot',
+        subjectId: 'misty',
+        visibility: 'public',
+      },
+      {
+        color: 'black',
+        displayName: 'human',
+        subjectType: 'user',
+        subjectId: 'u1',
+        visibility: 'public',
+      },
+    ],
+    plyCount: 33,
+    result: 'red-wins',
+    roomId: 'bq_seat_rows',
+    termination: 'abandonment',
+    variant,
+    whiteName: null,
+  });
+
+  it('paints flip-variant seat rows with the bound ink, not the seat id', () => {
+    const rows = watchGamePlayers(flipGame('banqi', 'black'));
+    expect(rows.map((row) => [row.name, row.color])).toEqual([
+      ['Misty', 'black'],
+      ['human', 'red'],
+    ]);
+  });
+
+  it('leaves a flip game unbound rather than guessing when firstColor is missing', () => {
+    const rows = watchGamePlayers(flipGame('jungle-flip', null));
+    expect(rows.map((row) => row.color)).toEqual([null, null]);
+  });
+
+  it('passes the seat straight through for variants where seat == ink', () => {
+    const rows = watchGamePlayers(flipGame('xiangqi', null));
+    expect(rows.map((row) => row.color)).toEqual(['red', 'black']);
   });
 });
 

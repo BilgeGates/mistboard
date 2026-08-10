@@ -1,7 +1,9 @@
 import { type GameEvent, maybeGameSpecForId } from '@mistboard/game';
 import { banqiResultLabel } from './banqi-result-label.js';
+import { seatInkForVariant } from './flip-seat-ink.js';
 import { createGameTable } from './game-table.js';
 import { t } from './i18n/catalog.js';
+import { jungleFlipResultLabel } from './jungle-flip-result-label.js';
 import { renderVariantMarker } from './variant-markers.js';
 import type { VariantMiniId } from './variant-mini-boards.js';
 import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
@@ -109,6 +111,16 @@ type LiveFeatured = {
   players?: Array<{ color: string; name: string | null; isEngine: boolean }>;
   payload?: Record<string, unknown>;
 };
+
+// A live flip game's bound ink, read out of the postgame-shaped payload's view.
+// The payload is `Record<string, unknown>` by contract (the renderers own its
+// shape), so this narrows defensively: anything unexpected reads as unbound,
+// which renders a neutral disc rather than a wrong one.
+function liveFirstColor(featured: LiveFeatured): 'red' | 'black' | null {
+  const view = (featured.payload as { view?: { firstColor?: unknown } } | undefined)?.view;
+  const firstColor = view?.firstColor;
+  return firstColor === 'red' || firstColor === 'black' ? firstColor : null;
+}
 
 export function shouldPlayWatchMoveSound(previousPly: number | null, nextPly: number): boolean {
   return previousPly !== null && nextPly === previousPly + 1;
@@ -662,13 +674,17 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
 
   // The featured live game's seats as meta players, first mover (red/white) first
   // so the rows seat like every other watch board. Live payloads carry no
-  // ratings, so the rows are name + BOT only.
+  // ratings, so the rows are name + BOT only. A flip variant's ink is read off the
+  // live payload's view (the same `firstColor` the finished feed rows carry), and
+  // is legitimately null for the first ply or two — before the opening flip binds,
+  // nobody owns a color yet.
   const liveMetaPlayers = (featured: LiveFeatured): GameMetaPlayer[] => {
     const players = featured.players ?? [];
     const first = players.find((p) => p.color === 'red' || p.color === 'white') ?? players[0];
     const ordered = first ? [first, ...players.filter((p) => p !== first)] : players;
+    const firstColor = liveFirstColor(featured);
     return ordered.map((p) => ({
-      color: p.color,
+      color: seatInkForVariant(featured.gameSpecId, p.color, firstColor),
       name: p.name ?? t('watch.anonymous'),
       rating: null,
       isEngine: p.isEngine,
@@ -1291,13 +1307,16 @@ function activeWatchGame(feed: WatchFeed | null, activeRoomId: string | null): F
 
 // The seat rows for a game, in first-mover/second-mover order, resolved through
 // the shared seat model. Shared by the left meta card and the right-rail rows.
-function watchGamePlayers(game: FeaturedGame): GameMetaPlayer[] {
+// The row's `color` is the INK, not the seat: a flip variant's seats are move-order
+// slots, so painting the raw seat contradicts both the board and this page's own
+// "Black wins" line for half of all Banqi / Flip Jungle games.
+export function watchGamePlayers(game: FeaturedGame): GameMetaPlayer[] {
   const seats = matchupSeats(game);
-  return seats.map((color) => {
-    const participant = participantForColor(game, color);
+  return seats.map((seat) => {
+    const participant = participantForColor(game, seat);
     return {
-      color,
-      name: displayParticipantName(game, color),
+      color: seatInkForVariant(game.variant, seat, game.firstColor ?? null),
+      name: displayParticipantName(game, seat),
       rating: watchParticipantRating(participant),
       isEngine: participant?.subjectType === 'engine-version' || participant?.subjectType === 'bot',
     };
@@ -1431,7 +1450,9 @@ function watchGameTablePlayer(player: GameMetaPlayer): HTMLElement {
   const row = document.createElement('span');
   row.className = 'clock-player-line watch-game-table__player';
   const disc = document.createElement('span');
-  disc.className = `watch-player-disc watch-player-disc--${player.color}`;
+  // A null color is a flip variant whose opening flip has not bound an ink yet:
+  // render the neutral ring rather than guessing a side.
+  disc.className = `watch-player-disc watch-player-disc--${player.color ?? 'unbound'}`;
   disc.setAttribute('aria-hidden', 'true');
   const name = document.createElement('span');
   name.className = 'clock-name';
@@ -1704,12 +1725,15 @@ export function resultLabel(result: string): string {
   return t('watch.draw');
 }
 
-// Banqi seats are decoupled from ink, so its seat-keyed result needs the game's
-// firstColor to read by ink ("Black wins"). Every other variant has seat == ink;
-// route the winning-side word through seatColorWord so the Jungle family reads
-// "Blue wins" (its canonical second-seat color) instead of "Black wins".
+// Flip variants (Banqi, Flip Jungle) decouple seat from ink, so their seat-keyed
+// result needs the game's firstColor to read by ink ("Black wins" / "Blue wins").
+// Every other variant has seat == ink; route the winning-side word through
+// seatColorWord so the Jungle family reads "Blue wins" (its canonical second-seat
+// color) instead of "Black wins".
 export function watchQueueResultLabel(game: FeaturedGame): string {
   if (game.variant === 'banqi') return banqiResultLabel(game.result, game.firstColor ?? null);
+  if (game.variant === 'jungle-flip')
+    return jungleFlipResultLabel(game.result, game.firstColor ?? null);
   const result = game.result;
   if (result === 'red-wins') return `${seatColorWord(game.variant, 'red')} wins`;
   if (result === 'black-wins') return `${seatColorWord(game.variant, 'black')} wins`;

@@ -886,6 +886,15 @@
   background: #b23b3b;
 }
 
+/* Flip variants before the opening flip binds an ink: nobody owns a colour yet, so
+   the disc is a dashed muted ring rather than a guess. Mirrors the meta card's
+   --unbound disc. */
+.watch-player-disc--unbound {
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.55;
+}
+
 .watch-player-bot {
   flex: 0 0 auto;
   border: 1px solid var(--site-border);

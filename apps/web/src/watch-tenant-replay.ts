@@ -93,6 +93,10 @@ export type TenantWatchAdapter<Postgame extends WatchPostgameMeta, View, ViewKey
   // and the ink binds on the opening flip, so "red-wins" may be a Black-ink win.
   // Tenants where seat == ink (jieqi, mini-xiangqi) omit it and keep the default.
   resultLabel?(result: string, postgame: Postgame): string;
+  // Same problem one row down: the seat rail cells default to the literal color
+  // words for the two seats, which a flip tenant must override with the bound ink
+  // so the rail agrees with the board and the result chip above it.
+  seatLabel?(seat: 'red' | 'black', postgame: Postgame): string;
   // OPTIONAL piece-glide hook, called after each pane's innerHTML swap when the
   // ply moved by exactly ONE (autoplay tick or manual step). `view` is the pane's
   // freshly rendered view, `prevView` the same pane's view at the previous ply
@@ -794,9 +798,13 @@ export async function mountTenantWatchReplay<
       : t('play.casual', {}, locale);
     header.meta.append(plies, sep, clock, sepRated, rated);
     // The tenant postgame payloads carry no seat-name fields, so the cells fall
-    // back to the color labels (matchup name lives in the header title).
-    const redCell = seatCell(t('replay.red', {}, locale));
-    const blackCell = seatCell(t('replay.black', {}, locale));
+    // back to the color labels (matchup name lives in the header title). A flip
+    // tenant supplies seatLabel to name the BOUND ink instead of the seat.
+    const seatWord = (seat: 'red' | 'black'): string =>
+      adapter.seatLabel?.(seat, postgame) ??
+      t(seat === 'red' ? 'replay.red' : 'replay.black', {}, locale);
+    const redCell = seatCell(seatWord('red'));
+    const blackCell = seatCell(seatWord('black'));
     header.whiteCell.append(redCell.row);
     header.blackCell.append(blackCell.row);
     seatCells = { red: redCell, black: blackCell };
