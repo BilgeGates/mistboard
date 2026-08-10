@@ -1,4 +1,5 @@
 import { type GameSpecId, maybeGameSpecForId } from '@mistboard/game';
+import { isFlipSeatVariant, seatInkForVariant } from './flip-seat-ink.js';
 import { type I18nKey, t } from './i18n/catalog.js';
 import { seatColorWord } from './variant-seat-label.js';
 
@@ -79,10 +80,10 @@ export function displayParticipantName(
   if (participant)
     return displayParticipant(
       participant.displayName,
-      fallbackSeatName(game.variant, color),
+      fallbackSeatName(game.variant, color, game.firstColor),
       participant.subjectId,
     );
-  const fallback = fallbackSeatName(game.variant, color);
+  const fallback = fallbackSeatName(game.variant, color, game.firstColor);
   const legacyName =
     color === 'white'
       ? (game.whiteEngineId ?? game.whiteName)
@@ -139,7 +140,18 @@ export function isCrossroadsChessVariant(variant: string): boolean {
 function fallbackSeatName(
   variant: string | null | undefined,
   color: GameParticipant['color'],
+  firstColor?: 'red' | 'black' | null,
 ): string {
+  // Flip variants (banqi, jungle-flip) seat by MOVE ORDER, so the seat id is not a
+  // colour claim: naming a nameless seat "Red" is wrong for half of all games. Use
+  // the bound ink when the row carries firstColor, and the move-order word when it
+  // does not — which is every surface whose feed never derives it (profile, landing,
+  // /database), plus any game whose log will not replay.
+  if (isFlipSeatVariant(variant)) {
+    const ink = seatInkForVariant(variant, color, firstColor ?? null);
+    if (ink === null) return color === 'red' ? t('setup.first') : t('setup.second');
+    return seatColorWord(variant, ink);
+  }
   // Jungle's second seat reads "Blue" (see variant-seat-label.ts); every other
   // variant keeps the literal color word.
   return seatColorWord(variant, color);
