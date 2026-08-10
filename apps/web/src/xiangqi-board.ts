@@ -31,6 +31,7 @@ import {
   xiangqiBoardPoint,
   xiangqiBoardViewBox,
 } from './xiangqi-board-geometry.js';
+import type { XiangqiPieceSet } from './xiangqi-piece-sets.js';
 import { renderXiangqiPiece } from './xiangqi-pieces.js';
 
 const FILES = 'abcdefghi';
@@ -80,6 +81,10 @@ export interface XiangqiBoardSvgState {
   draggingFrom: XiangqiSquare | null;
   /** Explicit preview/layout override; normal interactive boards read the preference. */
   layout?: XiangqiBoardLayout;
+  /** Explicit piece-set override; normal interactive boards read the preference.
+   *  Renderers with no localStorage (video frames) must pass this or they
+   *  silently inherit whatever the product default happens to be. */
+  pieceSet?: XiangqiPieceSet;
   /** Engine/annotation arrows, drawn in array order (last = on top). */
   arrows?: readonly XiangqiBoardArrow[];
   /** Point markers (learn-mode collectible stars / annotation rings). */
@@ -128,7 +133,7 @@ export function xiangqiBoardSvg(
       <g class="xq-live-lastmove">${lastMoveLayer(view, perspective, layout)}</g>
       <g class="xq-live-selection">${selectionLayer(state.selectedSquare, perspective, layout)}</g>
       <g class="xq-live-hints">${state.interactive ? '' : hintLayer(view, perspective, state.selectedSquare, layout)}</g>
-      <g class="xq-live-pieces">${pieceLayer(view, perspective, state.draggingFrom, layout)}</g>
+      <g class="xq-live-pieces">${pieceLayer(view, perspective, state.draggingFrom, layout, state.pieceSet)}</g>
       <g class="xq-live-markers" aria-hidden="true" pointer-events="none">${markerLayer(state.markers ?? [], perspective, layout, 'point')}</g>
       <g class="xq-live-arrows" aria-hidden="true" pointer-events="none">${arrowLayer(state.arrows ?? [], perspective, layout)}</g>
       <g class="xq-live-glyphs" aria-hidden="true" pointer-events="none">${markerLayer(state.markers ?? [], perspective, layout, 'glyph')}</g>
@@ -415,6 +420,7 @@ function pieceLayer(
   perspective: XiangqiColor,
   draggingFromSquare: XiangqiSquare | null,
   layout: XiangqiBoardLayout,
+  pieceSet?: XiangqiPieceSet,
 ): string {
   const parts: string[] = [];
   for (const [square, piece] of Object.entries(view.board)) {
@@ -433,6 +439,7 @@ function pieceLayer(
       size: PIECE_SIZE,
       className: dragSource ? 'xq-piece xq-piece--drag-source' : 'xq-piece',
       crossed,
+      ...(pieceSet ? { pieceSet } : {}),
     });
     // Keyed slot: a <g> wrapper per occupied square so a post-render glide can
     // find and transform the piece (transforms on the inner <svg x= y=> element

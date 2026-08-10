@@ -54,6 +54,10 @@ export type SceneSegment = {
    *  narration audio, or estimates). Steps that run longer extend it: an
    *  animation is never cut mid-flight. */
   durationMs: number;
+  /** Persistent section label drawn in the stage gutter for this segment.
+   *  Studio carries a chapter title across every segment under it, the way a
+   *  broadcast board keeps the player's name up for the whole game. */
+  label?: string;
   steps: readonly VideoStep[];
 };
 

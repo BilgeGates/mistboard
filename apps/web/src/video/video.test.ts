@@ -1,9 +1,10 @@
 import type { XiangqiSquare } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import { renderShotSvg } from './frame.js';
-import { PIECE_SIZE, squareCenter } from './geometry.js';
+import { BOARD_HEIGHT, BOARD_WIDTH, PIECE_SIZE, squareCenter } from './geometry.js';
 import { type ScenePlan, validateScenePlan } from './manifest.js';
 import { inlinePieceImages } from './raster.js';
+import { VIDEO_PIECE_SET } from './theme.js';
 import { expandTimeline, type Shot } from './timeline.js';
 
 const basePlan = (segments: ScenePlan['segments']): ScenePlan => ({
@@ -181,10 +182,75 @@ describe('renderShotSvg', () => {
       flash: null,
     },
     moving: null,
+    label: null,
     durationMs: 100,
     ...over,
   });
   const plan = basePlan([{ id: 'a', durationMs: 100, steps: [] }]);
+
+  it('sizes the nested board svg so the stage transform can scale it', () => {
+    // Regression: the sizing patch matched an exact class string, so the board
+    // root gaining a layout modifier class silently no-oped it. An unsized
+    // nested <svg> fills the viewport and scale() throws the board off-canvas.
+    const svg = renderShotSvg(plan, shot({}));
+    const boardRoot = svg.match(/<svg\b[^>]*class="xq-live-svg[^>]*>/)?.[0];
+    expect(boardRoot).toBeDefined();
+    expect(boardRoot).toContain(`width="${BOARD_WIDTH}"`);
+    expect(boardRoot).toContain(`height="${BOARD_HEIGHT}"`);
+    // The injected size must match the board's own viewBox or centering drifts.
+    expect(boardRoot).toContain(`viewBox="0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}"`);
+  });
+
+  it('pins the channel piece set instead of inheriting the product default', () => {
+    // The product resolves the set from localStorage, which does not exist in
+    // the render process — unpinned, the whole back catalog silently re-skins
+    // whenever the app default changes. Pinning it is a branding decision, so
+    // changing this value should have to break a test.
+    expect(VIDEO_PIECE_SET).toBe('traditional');
+    // Traditional draws characters as vector outlines. The default we would
+    // otherwise inherit ('international') is an image set, so a stray
+    // /piece-sets/ href means the pin stopped reaching the renderer.
+    // Every path that draws a piece must carry the pin, not just the board
+    // layer: the overlay layer re-draws glowed pieces and the sliding piece
+    // itself, and those calls silently fell back to the product default.
+    const glow = { ...shot({}).overlays, glow: ['e5' as XiangqiSquare], dimOthers: true };
+    const cases = {
+      board: renderShotSvg(plan, shot({})),
+      glowed: renderShotSvg(plan, shot({ overlays: glow })),
+      moving: renderShotSvg(
+        plan,
+        shot({
+          moving: {
+            piece: { color: 'red', role: 'chariot' },
+            from: 'e5' as XiangqiSquare,
+            to: 'e9' as XiangqiSquare,
+            t: 0.5,
+          },
+        }),
+      ),
+    };
+    for (const [name, svg] of Object.entries(cases)) {
+      expect(svg, `${name} layer fell back to the product piece set`).not.toContain('/piece-sets/');
+    }
+    expect(cases.board).toContain('aria-label="red chariot"');
+  });
+
+  it('draws the section label and rank gutter outside the board transform', () => {
+    // Coordinates must live in canvas space: the board's own margin is 36 units
+    // against a 27-unit piece radius, so anything drawn there sits under the
+    // edge pieces. Both belong after the board group, not inside it.
+    const svg = renderShotSvg(plan, { ...shot({}), label: 'The cannon' });
+    expect(svg).toContain('THE CANNON');
+    // The first </svg> closes the nested board; anything after it is canvas
+    // space, outside the scale() transform.
+    const boardEnd = svg.indexOf('</svg>');
+    expect(boardEnd).toBeGreaterThan(-1);
+    // Match the attribute, not the bare class name: the inlined <style> block
+    // mentions both selectors near the top of the document.
+    expect(svg.indexOf('class="xqv-coords"')).toBeGreaterThan(boardEnd);
+    expect(svg.indexOf('class="xqv-label"')).toBeGreaterThan(boardEnd);
+    for (const rank of [1, 5, 10]) expect(svg).toContain(`>${rank}</text>`);
+  });
 
   it('places the piece where the geometry mirror says it is (drift guard)', () => {
     const svg = renderShotSvg(plan, shot({}));
