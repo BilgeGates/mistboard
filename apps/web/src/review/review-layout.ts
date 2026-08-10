@@ -247,10 +247,21 @@ export function createReviewScaffold(
   // advice + any study annotations). Playback controls live BELOW it (lichess
   // analyse), so the box bottom lines up with the board and the controls sit under
   // both — see config.navigation's position in the rail group below.
+  //
+  // A study is the exception: its rail carries no analysis summary, so the box IS
+  // the bottom of the column, and unfused controls left a dead gap between the box
+  // and the board line. There the controls become the box's last strip, and the box
+  // bottom lands on the board bottom. Fusing requires no rail panel: the opening
+  // explorer overlays railMain and would cover controls fused inside it.
+  const fuseNavigation = config.reviewSurface === 'study' && !config.railPanel;
   railMain.append(
-    ...[config.enginePanel, config.moves, config.moveComment, config.annotations].filter(
-      (el): el is HTMLElement => el != null,
-    ),
+    ...[
+      config.enginePanel,
+      config.moves,
+      config.moveComment,
+      config.annotations,
+      fuseNavigation ? config.navigation : null,
+    ].filter((el): el is HTMLElement => el != null),
   );
   // The rail panel (opening explorer) OVERLAYS the moves region rather than
   // pushing it: a positioned wrapper holds railMain, and the panel absolutely
@@ -267,7 +278,7 @@ export function createReviewScaffold(
     [
       materialTop,
       railMainWrap,
-      config.navigation,
+      fuseNavigation ? null : config.navigation,
       config.analysisSummary,
       materialBottom,
       config.railFooter,

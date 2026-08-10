@@ -715,6 +715,13 @@
 .review-rail-main > .review-scrubber {
   border-top: 1px solid var(--site-border);
 }
+/* Playback controls fused into the box as its last strip (study surface, see
+   review-layout.ts): a hairline divides them from the move list and they carry
+   the box's bottom inset instead of the page-background bar's. */
+.review-rail-main > .review-controls {
+  border-top: 1px solid var(--site-border);
+  padding: 4px 2px;
+}
 
 /* On board-beside-table layouts the analyse table's bottom tracks the board's
    bottom (lichess): fixed to the board height, the move list flex-fills and
