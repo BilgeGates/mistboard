@@ -13,6 +13,7 @@ import { isClientRoute } from '../../server/src/server-policy.js';
 // Side-effect import: populates the server tenant registry exactly like
 // apps/server/src/index.ts (and registry.test.ts) do.
 import '../../server/src/variant-tenant/register-tenants.js';
+import { ENGINE_PINNED_GAME_SPEC_IDS, engineTimeControlPin } from '@mistboard/game';
 import { registeredVariantTenants } from '../../server/src/variant-tenant/registry.js';
 import {
   XIANGQI_DEFAULT_ENGINE_ID,
@@ -109,6 +110,27 @@ describe('web tenant registry <-> server tenant registry parity', () => {
         `roomIdPrefix '${tenant.roomIdPrefix}' claimed by both '${existing}' and '${tenant.gameSpecId}'`,
       ).toBeUndefined();
       claimedBy.set(tenant.roomIdPrefix, tenant.gameSpecId);
+    }
+  });
+
+  it('every engine-pinned variant offers the pace it is pinned to', () => {
+    // A pin narrows the PvE picker to a single preset and the create route to a
+    // single pace (#283). If the variant's own allowlist does not contain that
+    // preset, the picker narrows to nothing while the route rejects everything,
+    // which strands bot play on that variant entirely.
+    for (const gameSpecId of ENGINE_PINNED_GAME_SPEC_IDS) {
+      const pin = engineTimeControlPin(gameSpecId);
+      expect(pin, `${gameSpecId} is listed as pinned but resolves to no time control`).toBeTruthy();
+      const tenantLanding = webVariantTenants().find(
+        (tenant) => tenant.gameSpecId === gameSpecId,
+      )?.landing;
+      // Variants with no tenant landing config (fog chess, draft960) fall back
+      // to all three official controls in the picker, so any pin is offered.
+      if (!tenantLanding) continue;
+      expect(
+        tenantLanding.timePresetIds,
+        `${gameSpecId} is pinned to ${pin?.id} but its landing config does not offer it`,
+      ).toContain(pin?.id);
     }
   });
 });

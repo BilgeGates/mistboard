@@ -264,8 +264,9 @@ export function isAllowedFullTimeControl(tc: RoomTimeControl): boolean {
 
 // Rated eligibility derives from the time-control spec's own `rated` flag
 // (@mistboard/game), the same source the web time picker reads. Still ANDed
-// with the variant's playable allowlist by every caller: dark chess offers no
-// 5+5 at all, so rated 5+5 dark chess is rejected there, not here.
+// with the variant's playable allowlist by every caller: a variant that does
+// not offer a pace casually has it rejected there, not here. (Dark chess does
+// offer all three; an older narrower allowlist is what this used to describe.)
 export function isAllowedRatedTimeControl(tc: RoomTimeControl): boolean {
   return isRatedTimeControl(tc);
 }

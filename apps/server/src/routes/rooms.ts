@@ -1,5 +1,11 @@
 import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import {
+  DARK_CHESS_SPEC_ID,
+  DARK_DRAFT960_SPEC_ID,
+  type GameSpecId,
+  isAllowedEngineTimeControl,
+} from '@mistboard/game';
 import { currentAccountUser } from './../account-session.js';
 import { isBotSpecPlayable, parsePublicBotId } from './../bot-profile-policy.js';
 import { playableLiveEngines } from './../engine-registry.js';
@@ -140,6 +146,23 @@ export async function tryHandle(
     if (rated && timeControl && !isAllowedRatedTimeControl(timeControl)) {
       response.writeHead(400, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'rated_time_control_unsupported' }));
+      return true;
+    }
+    // An engine that cannot honor a pace must not be handed one. Fog Chess Misty
+    // loses on time at 3+2 and worse at 1+1 (#283), so PvE there is pinned to
+    // 5+5 by the shared policy the picker narrows to. Same defense-in-depth as
+    // the off-menu check above: the UI mirrors this, it does not enforce it.
+    // (Tenant variants delegate before this point; none is pinned today, so
+    // their own create handlers do not need the check yet.)
+    const createdGameSpecId: GameSpecId =
+      variant === 'draft960' || hiddenDraft960 ? DARK_DRAFT960_SPEC_ID : DARK_CHESS_SPEC_ID;
+    if (
+      mode === 'pve' &&
+      timeControl &&
+      !isAllowedEngineTimeControl(createdGameSpecId, timeControl)
+    ) {
+      response.writeHead(400, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'engine_time_control_unsupported' }));
       return true;
     }
     if (ctx.databaseRequired && !persistence.isInitialized()) {

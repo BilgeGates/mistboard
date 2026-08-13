@@ -46,9 +46,12 @@ describe('landing lobby bot seeks', () => {
     ]);
     expect(new Set(signature).size).toBe(8);
     expect(new Set(seeds.map((seed) => seed.dataset.gameSpec)).size).toBe(6);
+    // 3+2 is the house pace; the Fog Chess row sits at 5+5 because Misty's
+    // per-move floor outruns a 2s increment and it loses on time in long games
+    // (#283). The row order above puts dark-chess sixth.
     expect(
       seeds.map((seed) => seed.querySelector('.landing-lobby-seed-time')?.textContent),
-    ).toEqual(['3+2', '3+2', '3+2', '3+2', '3+2', '3+2', '3+2', '3+2']);
+    ).toEqual(['3+2', '3+2', '3+2', '3+2', '3+2', '5+5', '3+2', '3+2']);
   });
 
   it('labels each seed as an engine game rather than a human seek', () => {
@@ -105,7 +108,9 @@ describe('landing lobby bot seeks', () => {
       mode: 'pve',
       botId: 'misty',
       gameSpecId: 'dark-chess',
-      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      // Pinned pace, not the house 3+2 (#283) — and the row's label matches, so
+      // the click starts the clock it advertised.
+      timeControl: { initialMs: 300_000, incrementMs: 5_000 },
       preferredColor: 'random',
       rated: false,
     });
