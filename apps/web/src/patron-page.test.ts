@@ -49,4 +49,28 @@ describe('patron card when checkout is not configured', () => {
     expect(page.querySelectorAll('.patron-preview-label')).toHaveLength(1);
     expect(page.querySelector('.patron-note')?.textContent).toContain('not open yet');
   });
+
+  // The billing rules live on /terms; the surface that takes the money has to
+  // point at them, in whatever locale the reader is on.
+  it('links out to the billing terms', async () => {
+    const page = buildPatronPage('en');
+    document.body.append(page);
+    await settle();
+
+    const link = page.querySelector<HTMLAnchorElement>('.patron-terms-line a');
+    expect(link?.getAttribute('href')).toBe('/terms');
+    expect(page.querySelector('.patron-terms-line')?.textContent).toContain('refunds');
+  });
+
+  // localizedHref only prefixes /rules and /blog, so the href stays bare; the
+  // label still has to be readable to a zh reader.
+  it('links out to the billing terms in the reader locale', async () => {
+    const page = buildPatronPage('zh-Hant');
+    document.body.append(page);
+    await settle();
+
+    const link = page.querySelector<HTMLAnchorElement>('.patron-terms-line a');
+    expect(link?.getAttribute('href')).toBe('/terms');
+    expect(link?.textContent).toBe('使用條款');
+  });
 });

@@ -108,6 +108,9 @@ export const EN_CONTENT = {
   'patron.faqCancelQuestion': 'How do I cancel or change my support?',
   'patron.faqCancelAnswer':
     'Open the billing portal from this page anytime to change the amount or cancel. Recurring support stops at the end of the current period.',
+  'patron.termsPrefix': 'Billing, cancellation, and refunds are covered in the ',
+  'patron.termsLink': 'Terms of Use',
+  'patron.termsSuffix': '.',
   'contact.heading': 'Contact',
   'contact.introAnon': 'Bug, idea, broken game, anything else. Add an email if you want a reply.',
   'contact.introUser': 'Bug, idea, broken game, anything else.',
@@ -280,6 +283,16 @@ export const EN_CONTENT = {
     '. Anyone can share or reuse the game record as long as they credit Mistboard. To take down a specific game, use ',
   'terms.contactLink': 'Contact',
   'terms.finishedGamesSuffix': '.',
+  'terms.patronHeading': 'Patron support and billing',
+  'terms.patronPrefix':
+    'Core play stays free. Patron support is optional: you pick a monthly amount in US dollars, and that amount is charged every month until you cancel. It buys a cosmetic badge, never a gameplay advantage. Mistboard is not a registered charity, so support is not tax-deductible. Current amounts are on ',
+  'terms.patronLink': 'Patron',
+  'terms.patronSuffix': '.',
+  'terms.refundHeading': 'Cancelling and refunds',
+  'terms.refundPrefix':
+    'Cancel anytime from the billing portal on the Patron page. Recurring support stops at the end of the period you already paid for, and the badge stays until then. Past periods are not refunded automatically. If you were charged by mistake, or you want a recent payment back, use ',
+  'terms.refundSuffix':
+    ' within 30 days of the charge and we will refund it. We may change the amounts offered or stop offering Patron support, but a change never applies to a period you already paid for.',
   'terms.openSourceHeading': 'Open source and brand',
   'terms.openSourcePrefix':
     'The source is AGPL-3.0-or-later. The Mistboard name, logo, domain, and hosted service identity are project assets. Forks are welcome but should pick their own name. See ',
@@ -449,6 +462,13 @@ export const CRITICAL_CONTENT_I18N_KEYS = [
   'terms.finishedGamesMiddle',
   'terms.contactLink',
   'terms.finishedGamesSuffix',
+  'terms.patronHeading',
+  'terms.patronPrefix',
+  'terms.patronLink',
+  'terms.patronSuffix',
+  'terms.refundHeading',
+  'terms.refundPrefix',
+  'terms.refundSuffix',
   'terms.openSourceHeading',
   'terms.openSourcePrefix',
   'terms.sourceLink',

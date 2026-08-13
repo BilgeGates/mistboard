@@ -226,6 +226,31 @@ describe('about page platform activity', () => {
     expect(root.textContent).toContain('計分對局如何運作？');
   });
 
+  // A payment processor and a prospective patron both need the recurring-charge,
+  // cancellation, and refund rules to exist on a durable page and to be reachable
+  // from /patron. Losing either half is a silent compliance regression, so both
+  // the section and the link out of it are asserted here.
+  it('states the billing and refund policy on the terms page', () => {
+    window.history.replaceState(null, '', '/terms');
+
+    const root = document.createElement('main');
+    document.body.append(root);
+    mountTerms(root);
+
+    const text = root.textContent ?? '';
+    expect(text).toContain('Patron support and billing');
+    expect(text).toContain('charged every month until you cancel');
+    expect(text).toContain('not tax-deductible');
+    expect(text).toContain('Cancelling and refunds');
+    expect(text).toContain('within 30 days of the charge and we will refund it');
+
+    const hrefs = [...root.querySelectorAll<HTMLAnchorElement>('a')].map((a) =>
+      a.getAttribute('href'),
+    );
+    expect(hrefs).toContain('/patron');
+    expect(hrefs).toContain('/contact');
+  });
+
   it('localizes Traditional Chinese terms page chrome', () => {
     window.history.replaceState(null, '', '/zh-hant/terms');
 

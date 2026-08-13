@@ -533,6 +533,20 @@ function buildTerms(locale: Locale = currentLocale()): HTMLElement {
     t('terms.finishedGamesSuffix', {}, locale),
   ]);
 
+  const hp1 = aboutSubheading(t('terms.patronHeading', {}, locale));
+  const pp1 = aboutParagraph([
+    t('terms.patronPrefix', {}, locale),
+    aboutLink(t('terms.patronLink', {}, locale), '/patron'),
+    t('terms.patronSuffix', {}, locale),
+  ]);
+
+  const hp2 = aboutSubheading(t('terms.refundHeading', {}, locale));
+  const pp2 = aboutParagraph([
+    t('terms.refundPrefix', {}, locale),
+    aboutLink(t('terms.contactLink', {}, locale), '/contact'),
+    t('terms.refundSuffix', {}, locale),
+  ]);
+
   const h5 = aboutSubheading(t('terms.openSourceHeading', {}, locale));
   const p5 = aboutParagraph([
     t('terms.openSourcePrefix', {}, locale),
@@ -559,6 +573,10 @@ function buildTerms(locale: Locale = currentLocale()): HTMLElement {
     pr4,
     h4,
     p4,
+    hp1,
+    pp1,
+    hp2,
+    pp2,
     h5,
     p5,
   );
