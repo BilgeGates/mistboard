@@ -50,9 +50,20 @@ export type StudyRecord = {
 
 export type StudyWithChapters = StudyRecord & { chapters: StudyChapterRecord[] };
 
-/** `chapterNames` is a preview slice (first few by ordinal), not the full set —
- *  enough to render lichess-style chapter previews on a study card. */
-export type StudySummary = StudyRecord & { chapterCount: number; chapterNames: string[] };
+/** One row of a study card's chapter preview. Carries the chapter's `i18n`
+ *  overlay alongside the base name: a card renders chapter names, so it needs the
+ *  same per-locale data the detail page already gets from `chapterView`. */
+export type StudyChapterPreview = { name: string; i18n: Record<string, unknown> };
+
+/** `chapterPreview` is a preview slice (first few by ordinal), not the full set —
+ *  enough to render lichess-style chapter previews on a study card. `chapterNames`
+ *  is the base-name projection of that same slice, kept for callers (and cached
+ *  clients) that predate the overlay. */
+export type StudySummary = StudyRecord & {
+  chapterCount: number;
+  chapterPreview: StudyChapterPreview[];
+  chapterNames: string[];
+};
 
 export type PublicStudySummary = StudySummary & {
   ownerHandle: string;
@@ -160,12 +171,39 @@ const STUDY_COLS =
 const CHAPTER_COLS =
   'id, study_id, ordinal, name, i18n, variant, orientation, root, denorm, version, gamebook, created_at, updated_at';
 
-/** Correlated scalar subquery yielding the first few chapter names (by ordinal) as
- *  a text[], for a study aliased `s`. This is the preview slice a study card shows,
- *  not the full chapter set. */
-const CHAPTER_NAMES_PREVIEW = `(SELECT array_agg(name ORDER BY ordinal, created_at)
-         FROM (SELECT name, ordinal, created_at FROM study_chapters
-                WHERE study_id = s.id ORDER BY ordinal, created_at LIMIT 4) preview) AS chapter_names`;
+/** Correlated scalar subquery yielding the first few chapters (by ordinal) as a
+ *  jsonb array of `{name, i18n}`, for a study aliased `s`. This is the preview
+ *  slice a study card shows, not the full chapter set. The `i18n` overlay rides
+ *  along because cards render chapter names and must localize them the same way
+ *  the detail page does. */
+const CHAPTER_PREVIEW = `(SELECT jsonb_agg(jsonb_build_object('name', name, 'i18n', i18n)
+                   ORDER BY ordinal, created_at)
+         FROM (SELECT name, i18n, ordinal, created_at FROM study_chapters
+                WHERE study_id = s.id ORDER BY ordinal, created_at LIMIT 4) preview) AS chapter_preview`;
+
+/** Normalize the `chapter_preview` jsonb into the summary's two projections.
+ *  Defensive about row shape: a malformed element degrades to "no preview row"
+ *  rather than putting `undefined` through a card renderer. */
+function mapChapterPreview(raw: unknown): {
+  chapterPreview: StudyChapterPreview[];
+  chapterNames: string[];
+} {
+  const rows = Array.isArray(raw) ? raw : [];
+  const chapterPreview: StudyChapterPreview[] = [];
+  for (const entry of rows) {
+    if (!entry || typeof entry !== 'object') continue;
+    const { name, i18n } = entry as { name?: unknown; i18n?: unknown };
+    if (typeof name !== 'string') continue;
+    chapterPreview.push({
+      name,
+      i18n:
+        i18n && typeof i18n === 'object' && !Array.isArray(i18n)
+          ? (i18n as Record<string, unknown>)
+          : {},
+    });
+  }
+  return { chapterPreview, chapterNames: chapterPreview.map((c) => c.name) };
+}
 
 /** Optional `AND s.name ILIKE $n` fragment for a search query, with `%`/`_`/`\`
  *  escaped so a literal search term can't act as a wildcard. Returns an empty
@@ -179,7 +217,7 @@ function nameFilter(q: string | undefined, paramIndex: number): { clause: string
 
 type PublicStudyRow = StudyRow & {
   chapter_count: string;
-  chapter_names: string[] | null;
+  chapter_preview: unknown;
   owner_handle: string;
   owner_display_name: string;
   like_count: string;
@@ -189,7 +227,7 @@ function mapPublicStudy(row: PublicStudyRow): PublicStudySummary {
   return {
     ...mapStudy(row),
     chapterCount: Number(row.chapter_count),
-    chapterNames: row.chapter_names ?? [],
+    ...mapChapterPreview(row.chapter_preview),
     ownerHandle: row.owner_handle,
     ownerDisplayName: row.owner_display_name,
     likeCount: Number(row.like_count),
@@ -260,20 +298,20 @@ export async function listStudiesForOwner(ownerId: string, q?: string): Promise<
   const params: unknown[] = [ownerId];
   if (filter.value !== undefined) params.push(filter.value);
   const { rows } = await getPool().query<
-    StudyRow & { chapter_count: string; chapter_names: string[] | null }
+    StudyRow & { chapter_count: string; chapter_preview: unknown }
   >(
     `SELECT ${STUDY_COLS.split(', ')
       .map((c) => `s.${c}`)
       .join(', ')},
        (SELECT count(*) FROM study_chapters c WHERE c.study_id = s.id) AS chapter_count,
-       ${CHAPTER_NAMES_PREVIEW}
+       ${CHAPTER_PREVIEW}
        FROM studies s WHERE s.owner_id = $1${filter.clause} ORDER BY s.updated_at DESC`,
     params,
   );
   return rows.map((row) => ({
     ...mapStudy(row),
     chapterCount: Number(row.chapter_count),
-    chapterNames: row.chapter_names ?? [],
+    ...mapChapterPreview(row.chapter_preview),
   }));
 }
 
@@ -293,7 +331,7 @@ export async function listTopPublicStudies(limit = 5, q?: string): Promise<Publi
             u.display_name AS owner_display_name,
             count(DISTINCT c.id) AS chapter_count,
             count(DISTINCT l.user_id) AS like_count,
-            ${CHAPTER_NAMES_PREVIEW}
+            ${CHAPTER_PREVIEW}
        FROM studies s
        JOIN users u ON u.id = s.owner_id
        LEFT JOIN study_chapters c ON c.study_id = s.id
@@ -324,7 +362,7 @@ export async function listFeaturedStudies(limit = 30, q?: string): Promise<Publi
             u.display_name AS owner_display_name,
             count(DISTINCT c.id) AS chapter_count,
             count(DISTINCT l.user_id) AS like_count,
-            ${CHAPTER_NAMES_PREVIEW}
+            ${CHAPTER_PREVIEW}
        FROM studies s
        JOIN users u ON u.id = s.owner_id
        LEFT JOIN study_chapters c ON c.study_id = s.id
@@ -392,7 +430,7 @@ export async function listFavoriteStudies(
             u.display_name AS owner_display_name,
             count(DISTINCT c.id) AS chapter_count,
             count(DISTINCT l.user_id) AS like_count,
-            ${CHAPTER_NAMES_PREVIEW}
+            ${CHAPTER_PREVIEW}
        FROM study_likes fav
        JOIN studies s ON s.id = fav.study_id
        JOIN users u ON u.id = s.owner_id

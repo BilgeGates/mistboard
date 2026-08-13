@@ -75,15 +75,19 @@ function studyRow(study: PublicStudy): HTMLElement {
 
   const main = document.createElement('span');
   main.className = 'landing-community-main';
+  const chapters =
+    study.chapterCount === 1
+      ? t('study.chapterCountOne')
+      : t('study.chapterCount', { count: study.chapterCount });
   main.append(
     text('landing-community-name', localizedStudyName(study.name, study.i18n)),
-    text(
-      'landing-community-meta',
-      `${study.owner.displayName} · ${study.chapterCount} ${study.chapterCount === 1 ? 'chapter' : 'chapters'}`,
-    ),
+    text('landing-community-meta', `${study.owner.displayName} · ${chapters}`),
   );
   const likes = text('landing-study-likes', `♥ ${study.likeCount}`);
-  likes.title = `${study.likeCount} ${study.likeCount === 1 ? 'like' : 'likes'}`;
+  likes.title =
+    study.likeCount === 1
+      ? t('study.likeCountOne')
+      : t('study.likeCount', { count: study.likeCount });
   row.append(...(thumbnail ? [thumbnail] : []), main, likes);
   return row;
 }
