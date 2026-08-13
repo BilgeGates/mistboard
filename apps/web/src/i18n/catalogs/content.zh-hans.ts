@@ -211,6 +211,16 @@ export const ZH_HANS_CONTENT = {
     ' 发布。任何人都可以分享或复用对局记录，只要注明 Mistboard。要移除某局具体对局，请使用',
   'terms.contactLink': '联系',
   'terms.finishedGamesSuffix': '。',
+  'terms.patronHeading': '赞助与扣款',
+  'terms.patronPrefix':
+    '核心对弈始终免费。赞助是可选的：你选择一个以美元计的每月金额，在你取消之前，每月按该金额扣款。它带来的只是一个装饰性徽章，绝不是对局优势。Mistboard 不是注册慈善机构，所以赞助不能抵税。当前金额见',
+  'terms.patronLink': '支持',
+  'terms.patronSuffix': '。',
+  'terms.refundHeading': '取消与退款',
+  'terms.refundPrefix':
+    '随时可以从支持页面的账单管理页面取消。周期性赞助会在你已付费的周期结束时停止，徽章保留到那时为止。已过去的周期不会自动退款。如果扣款有误，或者你想拿回最近一笔付款，请在扣款后 30 天内使用',
+  'terms.refundSuffix':
+    '联系我们，我们会退款。我们可能调整提供的金额或停止提供赞助，但任何变化都不会影响你已付费的周期。',
   'terms.openSourceHeading': '开源与品牌',
   'terms.openSourcePrefix':
     '源代码是 AGPL-3.0-or-later。Mistboard 名称、标志、域名和托管服务身份是项目资产。欢迎 fork，但应该选择自己的名称。许可和鸣谢见',
@@ -265,6 +275,9 @@ export const ZH_HANS_CONTENT = {
   'patron.faqCancelQuestion': '怎样取消或调整我的赞助？',
   'patron.faqCancelAnswer':
     '随时可以从本页打开账单管理页面来调整金额或取消。周期性赞助会在当前周期结束时停止。',
+  'patron.termsPrefix': '扣款、取消和退款的规定见',
+  'patron.termsLink': '使用条款',
+  'patron.termsSuffix': '。',
   'contribute.heading': '参与贡献',
   'contribute.intro':
     'Mistboard 是免费开源的，由一个小团队公开开发。要做的事还有很多，无论你写不写代码，都有很多种帮忙的方式。',

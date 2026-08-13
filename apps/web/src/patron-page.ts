@@ -9,7 +9,7 @@
 import type { AuthUser } from './account-nav.js';
 import { loadCachedCurrentUser } from './account-nav.js';
 import { type I18nKey, t } from './i18n/catalog.js';
-import { currentLocale, type Locale } from './i18n/locale.js';
+import { currentLocale, type Locale, localizedHref } from './i18n/locale.js';
 
 type PatronTierConfig = { key: string; mode: 'subscription' | 'payment'; isLifetime: boolean };
 type PatronConfigResponse = { configured: boolean; tiers: PatronTierConfig[] };
@@ -77,6 +77,7 @@ function buildBody(locale: Locale): HTMLElement {
     faqRow('patron.faqPerkQuestion', 'patron.faqPerkAnswer', locale),
     faqRow('patron.faqTaxQuestion', 'patron.faqTaxAnswer', locale),
     faqRow('patron.faqCancelQuestion', 'patron.faqCancelAnswer', locale),
+    termsLine(locale),
   );
 
   const donate = document.createElement('div');
@@ -320,6 +321,20 @@ function faqRow(questionKey: I18nKey, answerKey: I18nKey, locale: Locale): Docum
   const frag = document.createDocumentFragment();
   frag.append(subheading(t(questionKey, {}, locale)), para(t(answerKey, {}, locale)));
   return frag;
+}
+
+// Billing terms live on /terms, not here: a payment processor (and a patron
+// deciding whether to subscribe) expects the recurring-charge, cancellation, and
+// refund rules in one durable place. This line is the pointer to it.
+function termsLine(locale: Locale): HTMLElement {
+  const p = document.createElement('p');
+  p.className = 'patron-terms-line';
+  const link = document.createElement('a');
+  link.href = localizedHref('/terms', locale);
+  link.textContent = t('patron.termsLink', {}, locale);
+  p.append(document.createTextNode(t('patron.termsPrefix', {}, locale)), link);
+  p.append(document.createTextNode(t('patron.termsSuffix', {}, locale)));
+  return p;
 }
 
 function note(text: string): HTMLElement {

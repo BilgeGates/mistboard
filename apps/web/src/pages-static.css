@@ -227,6 +227,12 @@
   line-height: 1.6;
 }
 
+.patron-terms-line {
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--site-text-soft, #888);
+}
+
 .patron-donate-col {
   flex: 0 0 320px;
   max-width: 100%;

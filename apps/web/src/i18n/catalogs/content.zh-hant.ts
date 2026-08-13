@@ -211,6 +211,16 @@ export const ZH_HANT_CONTENT = {
     ' 發布。任何人都可以分享或複用對局紀錄，只要註明 Mistboard。要移除某局具體對局，請使用',
   'terms.contactLink': '聯絡',
   'terms.finishedGamesSuffix': '。',
+  'terms.patronHeading': '贊助與扣款',
+  'terms.patronPrefix':
+    '核心對局始終免費。贊助是可選的：你選擇一個以美元計的每月金額，在你取消之前，每月按該金額扣款。它帶來的只是一個裝飾性徽章，絕不是對局優勢。Mistboard 不是註冊慈善機構，所以贊助不能抵稅。目前金額見',
+  'terms.patronLink': '支持',
+  'terms.patronSuffix': '。',
+  'terms.refundHeading': '取消與退款',
+  'terms.refundPrefix':
+    '隨時可以從支持頁面的帳單管理頁面取消。週期性贊助會在你已付費的週期結束時停止，徽章保留到那時為止。已過去的週期不會自動退款。如果扣款有誤，或者你想拿回最近一筆付款，請在扣款後 30 天內使用',
+  'terms.refundSuffix':
+    '聯絡我們，我們會退款。我們可能調整提供的金額或停止提供贊助，但任何變化都不會影響你已付費的週期。',
   'terms.openSourceHeading': '開源與品牌',
   'terms.openSourcePrefix':
     '原始碼是 AGPL-3.0-or-later。Mistboard 名稱、標誌、網域和託管服務身分是專案資產。歡迎 fork，但應該選擇自己的名稱。授權與鳴謝見',
@@ -265,6 +275,9 @@ export const ZH_HANT_CONTENT = {
   'patron.faqCancelQuestion': '怎樣取消或調整我的贊助？',
   'patron.faqCancelAnswer':
     '隨時可以從本頁打開帳單管理頁面來調整金額或取消。週期性贊助會在當前週期結束時停止。',
+  'patron.termsPrefix': '扣款、取消和退款的規定見',
+  'patron.termsLink': '使用條款',
+  'patron.termsSuffix': '。',
   'contribute.heading': '參與貢獻',
   'contribute.intro':
     'Mistboard 是免費開源的，由一個小團隊公開開發。要做的事還有很多，無論你寫不寫程式，都有很多種幫忙的方式。',
