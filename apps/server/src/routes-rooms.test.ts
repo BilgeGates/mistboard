@@ -84,10 +84,41 @@ definePersistenceTests('room bot play requests', () => {
       mode: 'pve',
       options: { engineColor: 'black', engineReservationId: 'reservation-1', botId: 'play-bot' },
       rated: false,
-      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      // The fixture's stored standing clock is the house 3+2, which fog engines
+      // cannot honor (#283); the pin overrides it rather than 400-ing the create.
+      timeControl: { initialMs: 300_000, incrementMs: 5_000 },
       variant: 'dark-chess',
     });
     assert.equal((JSON.parse(response.body) as { url?: string }).url, '/room/bot-room');
+  });
+
+  test('a fog bot profile stored at an unplayable pace starts at the pin, not a 400', async () => {
+    // Bot profiles carry a standing clock in the DB. The fog rows predate the
+    // engine pin and sit at the house 3+2 (#283). A bot-id create that omits a
+    // time control must still start a game: the pin overrides the stored pace
+    // rather than rejecting it, so no profile migration is needed to keep bot
+    // play working. Caught by hosted CI, which runs the Postgres-gated tests
+    // this file's other cases live in.
+    await insertBotProfile('paced-bot', 'Paced Bot', 'public');
+    const startedPaces: (RoomTimeControl | undefined)[] = [];
+    const ctx = createContext({
+      createRoom: async (mode, _variant, _engineId, _hiddenDraft960, timeControl) => {
+        startedPaces.push(timeControl);
+        return roomFixture({ id: 'paced-bot-room', mode, timeControl });
+      },
+    });
+    const response = captureResponse();
+
+    const handled = await tryHandle(
+      ctx,
+      jsonPost({ botId: 'paced-bot', mode: 'pve' }),
+      response,
+      '/api/rooms',
+    );
+
+    assert.equal(handled, true);
+    assert.equal(response.status, 201);
+    assert.deepEqual(startedPaces, [{ initialMs: 300_000, incrementMs: 5_000 }]);
   });
 
   test('room creation rejects a bot id combined with a client-selected engine', async () => {
