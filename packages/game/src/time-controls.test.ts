@@ -5,7 +5,9 @@ import {
   correspondenceTimeControl,
   DAY_MS,
   DAYS_PER_MOVE_OPTIONS,
+  engineTimeControlPin,
   findTimeControl,
+  isAllowedEngineTimeControl,
   isOfficialCorrespondenceTimeControl,
   isOfficialTimeControl,
   isRatedTimeControl,
@@ -133,4 +135,51 @@ test('the live allowlist rejects correspondence time controls', () => {
     isOfficialTimeControl({ initialMs: 180_000, incrementMs: 2_000, daysPerMove: 1 }),
     false,
   );
+});
+
+// Fog Chess Misty cannot honor a 1s or 2s increment: its per-move cost has a
+// floor the increment does not cover, so it drains its bank and loses on time
+// in long games (#283). Both the picker and the create route derive from this.
+test('the engine pin scopes fog bot games to 5+5', () => {
+  const pin = engineTimeControlPin('dark-chess');
+  assert.equal(pin?.id, '5m5');
+  // Draft960 is the same engine on a shuffled back rank, so it shares the pin
+  // rather than becoming the way around it.
+  assert.equal(engineTimeControlPin('dark-draft960')?.id, '5m5');
+  // Fog xiangqi runs its own belief stack, pinned on the shared-mechanism
+  // argument rather than its own measured flag.
+  assert.equal(engineTimeControlPin('dark-xiangqi')?.id, '5m5');
+
+  assert.equal(
+    isAllowedEngineTimeControl('dark-chess', { initialMs: 300_000, incrementMs: 5_000 }),
+    true,
+  );
+  assert.equal(
+    isAllowedEngineTimeControl('dark-chess', { initialMs: 180_000, incrementMs: 2_000 }),
+    false,
+  );
+  assert.equal(
+    isAllowedEngineTimeControl('dark-draft960', { initialMs: 60_000, incrementMs: 1_000 }),
+    false,
+  );
+  assert.equal(
+    isAllowedEngineTimeControl('dark-xiangqi', { initialMs: 180_000, incrementMs: 2_000 }),
+    false,
+  );
+});
+
+test('unpinned specs accept every pace their own allowlist offers', () => {
+  // Engines with a bounded per-move cost are absent from the pin map; the
+  // variant's own time-control allowlist stays the only constraint on them.
+  assert.equal(engineTimeControlPin('xiangqi'), null);
+  assert.equal(engineTimeControlPin('banqi'), null);
+  for (const tc of TIME_CONTROLS) {
+    assert.equal(
+      isAllowedEngineTimeControl('xiangqi', {
+        initialMs: tc.initialMs,
+        incrementMs: tc.incrementMs,
+      }),
+      true,
+    );
+  }
 });

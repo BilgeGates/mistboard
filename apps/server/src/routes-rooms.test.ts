@@ -244,3 +244,92 @@ async function insertBotProfile(
     await client.end();
   }
 }
+
+// An engine that cannot honor a pace must not be handed one: Misty's per-move
+// cost in fog has a floor the 1s and 2s increments do not cover, so it loses on
+// time in long games (#283). The picker narrows to the pin; this is the
+// defense in depth that a hand-crafted POST hits.
+test('room creation rejects a fog chess bot game at a pace the engine cannot honor', async () => {
+  for (const timeControl of [
+    { initialMs: 180_000, incrementMs: 2_000 },
+    { initialMs: 60_000, incrementMs: 1_000 },
+  ]) {
+    const response = captureResponse();
+    const handled = await tryHandle(
+      createContext(),
+      jsonPost({ mode: 'pve', variant: 'dark-chess', timeControl }),
+      response,
+      '/api/rooms',
+    );
+
+    assert.equal(handled, true);
+    assert.equal(response.status, 400);
+    assert.deepEqual(JSON.parse(response.body), { error: 'engine_time_control_unsupported' });
+  }
+});
+
+test('the fog chess engine pin covers draft960, which is the same engine', async () => {
+  const response = captureResponse();
+  const handled = await tryHandle(
+    createContext(),
+    jsonPost({
+      mode: 'pve',
+      variant: 'dark-chess',
+      hiddenDraft960: true,
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    }),
+    response,
+    '/api/rooms',
+  );
+
+  assert.equal(handled, true);
+  assert.equal(response.status, 400);
+  assert.deepEqual(JSON.parse(response.body), { error: 'engine_time_control_unsupported' });
+});
+
+test('the engine pin admits its own pace and leaves human games alone', async () => {
+  // Collected rather than assigned to a `let`: a callback write does not narrow,
+  // so reading a property off the captured value would type as `never`.
+  const startedPaces: (RoomTimeControl | undefined)[] = [];
+  const base = createContext({
+    createRoom: async (mode, _variant, _engineId, _hiddenDraft960, timeControl) => {
+      startedPaces.push(timeControl);
+      return roomFixture({ id: 'paced-room', mode, timeControl });
+    },
+  });
+  // No Postgres in this unit path; the pin is checked before the persistence gate.
+  const ctx: HttpApiContext = { ...base, databaseRequired: false };
+
+  const pinned = captureResponse();
+  await tryHandle(
+    ctx,
+    jsonPost({
+      mode: 'pve',
+      variant: 'dark-chess',
+      timeControl: { initialMs: 300_000, incrementMs: 5_000 },
+    }),
+    pinned,
+    '/api/rooms',
+  );
+  assert.equal(pinned.status, 201);
+  assert.deepEqual(startedPaces, [{ initialMs: 300_000, incrementMs: 5_000 }]);
+
+  // PvP at the same pace the bot is refused: the floor belongs to the engine,
+  // not to Fog Chess, so humans keep every official control.
+  const human = captureResponse();
+  await tryHandle(
+    ctx,
+    jsonPost({
+      mode: 'pvp',
+      variant: 'dark-chess',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    }),
+    human,
+    '/api/rooms',
+  );
+  assert.equal(human.status, 201);
+  assert.deepEqual(startedPaces, [
+    { initialMs: 300_000, incrementMs: 5_000 },
+    { initialMs: 180_000, incrementMs: 2_000 },
+  ]);
+});

@@ -59,10 +59,20 @@ describe('landing bot policy', () => {
 
   it('uses the established house bot for every other supported variant', () => {
     expect(landingBotOffer('jieqi')?.botId).toBe('pikafish');
-    for (const gameSpecId of ['banqi', 'dark-xiangqi', 'dark-chess', 'jungle', 'jungle-flip']) {
+    for (const gameSpecId of ['banqi', 'jungle', 'jungle-flip']) {
       expect(landingBotOffer(gameSpecId)).toMatchObject({
         botId: 'misty',
         timeControlId: '3m2',
+      });
+    }
+    // The fog variants are the exception to the house pace: their engines have
+    // a per-move floor a 2s increment cannot cover, so they lose on time in
+    // long games (#283) and their offers take the 5+5 pin the picker and the
+    // create routes also enforce (engineTimeControlPin).
+    for (const gameSpecId of ['dark-chess', 'dark-xiangqi']) {
+      expect(landingBotOffer(gameSpecId)).toMatchObject({
+        botId: 'misty',
+        timeControlId: '5m5',
       });
     }
     expect(landingBotOffer('dark-shogi')).toBeNull();

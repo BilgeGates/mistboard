@@ -1,6 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
-import { DARK_XIANGQI_SPEC_ID, type RoomTimeControl } from '@mistboard/game';
+import {
+  DARK_XIANGQI_SPEC_ID,
+  isAllowedEngineTimeControl,
+  type RoomTimeControl,
+} from '@mistboard/game';
 import {
   DARK_XIANGQI_DEFAULT_ENGINE_ID,
   isDarkXiangqiEngineClientId,
@@ -61,6 +65,17 @@ export async function handleDarkXiangqiCreate(
   }
   if (mode === null || body.rated === true || (mode === 'pvp' && body.engineId !== undefined)) {
     writeJson(response, 501, { error: 'dark_xiangqi_unsupported_surface' });
+    return;
+  }
+  // An engine that cannot honor a pace must not be handed one (#283). Checked
+  // before the seat reservation below, so a rejected request never holds one.
+  // Human games are untouched: the floor belongs to the engine, not the variant.
+  if (
+    mode === 'pve' &&
+    timeControl &&
+    !isAllowedEngineTimeControl(DARK_XIANGQI_SPEC_ID, timeControl)
+  ) {
+    writeJson(response, 400, { error: 'engine_time_control_unsupported' });
     return;
   }
   const botId = typeof body.botId === 'string' ? body.botId : undefined;

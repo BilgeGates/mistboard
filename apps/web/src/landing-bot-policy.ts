@@ -2,6 +2,7 @@ import {
   BANQI_SPEC_ID,
   DARK_CHESS_SPEC_ID,
   DARK_XIANGQI_SPEC_ID,
+  engineTimeControlPin,
   FORTRESS_XIANGQI_SPEC_ID,
   JIEQI_SPEC_ID,
   JUNGLE_FLIP_SPEC_ID,
@@ -82,9 +83,23 @@ export function landingBotOffer(gameSpecId: string): LandingBotOffer | null {
   if (gameSpecId === XIANGQI_SPEC_ID) return fsfOffer(gameSpecId, XIANGQI_PRIMARY_LEVEL);
   if (gameSpecId === FORTRESS_XIANGQI_SPEC_ID) return fsfOffer(gameSpecId, FORTRESS_XIANGQI_LEVEL);
   if (gameSpecId === JIEQI_SPEC_ID) {
-    return { botId: 'pikafish', botName: 'Pikafish', gameSpecId, timeControlId: '3m2' };
+    return {
+      botId: 'pikafish',
+      botName: 'Pikafish',
+      gameSpecId,
+      timeControlId: offerPace(gameSpecId),
+    };
   }
-  return { botId: 'misty', botName: 'Misty', gameSpecId, timeControlId: '3m2' };
+  return { botId: 'misty', botName: 'Misty', gameSpecId, timeControlId: offerPace(gameSpecId) };
+}
+
+// 3+2 is the house pace for every bot offer. An engine that cannot honor it
+// takes its pin instead (@mistboard/game engineTimeControlPin) — the fog
+// engines lose on time at 3+2 (#283) — so the Lobby row and the Quick Pairing
+// chip advertise the clock the click will actually start, which is also the
+// only one the picker and the create route will accept.
+function offerPace(gameSpecId: LandingBotGameSpecId): TimeControlId {
+  return engineTimeControlPin(gameSpecId)?.id ?? '3m2';
 }
 
 // The Lobby carries the whole Xiangqi ladder at once, weakest rung first. The
@@ -99,7 +114,7 @@ function fsfOffer(gameSpecId: LandingBotGameSpecId, level: number): LandingBotOf
     botId: `fairy-stockfish-level-${level}`,
     botName: `Fairy-Stockfish Level ${level}`,
     gameSpecId,
-    timeControlId: '3m2',
+    timeControlId: offerPace(gameSpecId),
   };
 }
 

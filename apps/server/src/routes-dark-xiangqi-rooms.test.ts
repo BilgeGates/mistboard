@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { ServerResponse } from 'node:http';
 import test from 'node:test';
-import { DARK_XIANGQI_SPEC_ID } from '@mistboard/game';
+import { DARK_XIANGQI_SPEC_ID, type RoomTimeControl } from '@mistboard/game';
 import type { DarkXiangqiRuntimeRoom } from './dark-xiangqi-runtime.js';
 import {
   type DarkXiangqiCreateContext,
@@ -362,6 +362,81 @@ function captureResponse(): ServerResponse & ResponseCapture {
 function responseJson(response: ResponseCapture): Record<string, unknown> {
   return JSON.parse(response.body) as Record<string, unknown>;
 }
+
+test('Dark Xiangqi room route refuses a bot game at a pace the engine cannot honor', async () => {
+  const before = process.env[darkXiangqiFlag];
+  process.env[darkXiangqiFlag] = 'true';
+  try {
+    // Fog engines have a per-move floor a 1s or 2s increment cannot cover, so
+    // they lose on time in long games (#283); PvE is pinned to 5+5 until the
+    // floor is bounded. Rejected BEFORE the engine seat reservation, so a
+    // refused request never holds one.
+    let reservations = 0;
+    const ctx = testContext({
+      reserveLiveEngineSeat: async () => {
+        reservations += 1;
+        return 'reservation';
+      },
+    });
+    for (const timeControl of [
+      { initialMs: 180_000, incrementMs: 2_000 },
+      { initialMs: 60_000, incrementMs: 1_000 },
+    ]) {
+      const response = captureResponse();
+      await handleDarkXiangqiCreate(ctx, response, {
+        gameSpecId: DARK_XIANGQI_SPEC_ID,
+        mode: 'pve',
+        timeControl,
+      });
+
+      assert.equal(response.status, 400);
+      assert.deepEqual(responseJson(response), { error: 'engine_time_control_unsupported' });
+    }
+    assert.equal(reservations, 0);
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Xiangqi room route admits the pinned pace and leaves human games alone', async () => {
+  const before = process.env[darkXiangqiFlag];
+  process.env[darkXiangqiFlag] = 'true';
+  try {
+    const startedPaces: (RoomTimeControl | undefined)[] = [];
+    const ctx = testContext({
+      reserveLiveEngineSeat: async () => 'reservation',
+      createDarkXiangqiRoom: async (timeControl) => {
+        startedPaces.push(timeControl);
+        return { ok: true, room: darkXiangqiRoom('dxq_paced') };
+      },
+    });
+
+    const pinned = captureResponse();
+    await handleDarkXiangqiCreate(ctx, pinned, {
+      gameSpecId: DARK_XIANGQI_SPEC_ID,
+      mode: 'pve',
+      timeControl: { initialMs: 300_000, incrementMs: 5_000 },
+    });
+    assert.equal(pinned.status, 201);
+
+    // The same pace the bot is refused, between humans: the floor belongs to
+    // the engine, not to the variant.
+    const human = captureResponse();
+    await handleDarkXiangqiCreate(ctx, human, {
+      gameSpecId: DARK_XIANGQI_SPEC_ID,
+      mode: 'pvp',
+      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    });
+    assert.equal(human.status, 201);
+
+    assert.deepEqual(startedPaces, [
+      { initialMs: 300_000, incrementMs: 5_000 },
+      { initialMs: 180_000, incrementMs: 2_000 },
+    ]);
+  } finally {
+    restoreFlag(before);
+  }
+});
 
 function testContext(overrides: Partial<DarkXiangqiCreateContext> = {}): DarkXiangqiCreateContext {
   return {

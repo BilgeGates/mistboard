@@ -779,6 +779,66 @@ describe('landing play panel', () => {
     expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2']);
   });
 
+  // The fog engines' per-move floor outruns a 1s or 2s increment and they lose
+  // on time in long games (#283), so bot games there are pinned to the slowest
+  // pace. The pin is PvE-only: the same variant keeps all three paces against a
+  // human.
+  it('pins Fog Chess bot games to 5+5 and starts them there', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      if (String(input) === '/api/live-stats') return jsonResponse({ playing: 0, online: 0 });
+      if (String(input) === '/api/rooms') return jsonResponse({ url: '/room/pinned' });
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    setRoomNavigator(() => {});
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Play a bot');
+    selectModalVariant('dark-chess');
+    expect(visibleModalTimeControls()).toEqual(['5 + 5']);
+
+    // The stored/house default is 3+2, which the pin hides: starting without
+    // touching the picker must still send the pinned pace, not the hidden one.
+    clickModalButton('Start game');
+    await flushPromises();
+
+    expect(roomPostBody(fetchSpy)).toMatchObject({
+      mode: 'pve',
+      timeControl: { initialMs: 300_000, incrementMs: 5_000 },
+    });
+  });
+
+  it('pins Fog Xiangqi bot games to 5+5 as well', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Play a bot');
+    selectModalVariant('dark-xiangqi');
+
+    expect(visibleModalTimeControls()).toEqual(['5 + 5']);
+  });
+
+  it('leaves human fog games on every pace', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ playing: 0, online: 0 })),
+    );
+    const panel = buildLandingPlayPanel([]);
+    document.body.append(panel);
+
+    openPlaySetup(panel, 'Challenge a friend');
+    selectModalVariant('dark-chess');
+    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
+
+    selectModalVariant('dark-xiangqi');
+    expect(visibleModalTimeControls()).toEqual(['1 + 1', '3 + 2', '5 + 5']);
+  });
+
   it('offers 1+1 for Fortress Xiangqi', () => {
     vi.stubGlobal(
       'fetch',
