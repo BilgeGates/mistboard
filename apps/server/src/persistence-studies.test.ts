@@ -111,6 +111,7 @@ definePersistenceTests('studies', () => {
     assert.ok(multi);
     await addChapter(multi.id, owner.id, {
       name: 'Chapter 2',
+      i18n: { 'zh-Hant': { name: '第二章' } },
       variant: 'xiangqi',
       orientation: 'red',
       root: tree,
@@ -122,6 +123,12 @@ definePersistenceTests('studies', () => {
     assert.equal(first!.name, 'B');
     assert.equal(first!.chapterCount, 2);
     assert.deepEqual(first!.chapterNames, ['Chapter 1', 'Chapter 2']);
+    // The preview carries each chapter's translation overlay, so a card can
+    // localize its chapter names instead of showing the base text to everyone.
+    assert.deepEqual(first!.chapterPreview, [
+      { name: 'Chapter 1', i18n: {} },
+      { name: 'Chapter 2', i18n: { 'zh-Hant': { name: '第二章' } } },
+    ]);
     assert.equal(second!.chapterCount, 1);
     assert.deepEqual(second!.chapterNames, ['Chapter 1']);
   });

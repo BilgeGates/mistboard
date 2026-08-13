@@ -218,6 +218,9 @@ export const EN_REVIEW = {
   // per study (study-i18n.ts); these are the fixed labels around it.
   'study.chapterCount': '{count} Chapters',
   'study.chapterCountOne': '1 Chapter',
+  // Tail of a study card's chapter preview, when the study holds more chapters
+  // than the card lists.
+  'study.chapterPreviewMore': '+{count} more',
   'study.chatRoom': 'Chat room',
   'study.chatSignIn': 'Sign in to chat',
   'study.chatPlaceholder': 'Please be nice in the chat!',
@@ -282,6 +285,9 @@ export const EN_REVIEW = {
   'study.recoveredDraft': 'Recovered local draft',
   'study.addDescription': 'Add a description from Study settings.',
   'study.noDescription': 'No description yet.',
+  // Like-count readout on a study card (a tooltip, not the like button).
+  'study.likeCount': '{count} likes',
+  'study.likeCountOne': '1 like',
   'study.like': 'Like this study',
   'study.unlike': 'Unlike this study',
   'study.signInToLike': 'Sign in to like studies',

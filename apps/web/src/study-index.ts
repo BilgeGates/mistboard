@@ -12,6 +12,7 @@ import './study.css';
 import './study-index.css';
 import { normalizeStartFen } from '@mistboard/game';
 import { type I18nKey, t } from './i18n/catalog.js';
+import { currentLocale, LOCALE_META } from './i18n/locale.js';
 import { buildNav } from './site-shell.js';
 import {
   buildStudyVariantSelect,
@@ -37,6 +38,10 @@ type StudySummary = {
   i18n?: unknown;
   visibility: StudyVisibility;
   chapterCount: number;
+  // Preview slice of the first few chapters, each with its own per-locale name
+  // overrides. Older servers send only `chapterNames`, so both are optional and
+  // `chapterPreview` wins when present.
+  chapterPreview?: { name: string; i18n?: unknown }[];
   // Preview slice of the first few chapter names (older servers may omit it).
   chapterNames?: string[];
   updatedAt: string;
@@ -427,6 +432,12 @@ async function createStudy(
 // (derived glyphs read as noise); restore only as a user-picked field.
 const CHAPTER_PREVIEW_MAX = 4;
 
+const VISIBILITY_KEYS: Record<StudyVisibility, I18nKey> = {
+  private: 'study.visibilityPrivate',
+  unlisted: 'study.visibilityUnlisted',
+  public: 'study.visibilityPublic',
+};
+
 function studyCard(study: StudySummary): HTMLElement {
   const item = document.createElement('li');
   const link = document.createElement('a');
@@ -466,48 +477,61 @@ function metaLine(study: StudySummary): string {
   if (study.owner) {
     return `♥ ${study.likeCount ?? 0} · ${study.owner.displayName} · ${when}`;
   }
-  const chapters = `${study.chapterCount} ${study.chapterCount === 1 ? 'chapter' : 'chapters'}`;
-  const visibility = study.visibility[0]!.toUpperCase() + study.visibility.slice(1);
-  return `${chapters} · ${visibility} · ${when}`;
+  const chapters =
+    study.chapterCount === 1
+      ? t('study.chapterCountOne')
+      : t('study.chapterCount', { count: study.chapterCount });
+  return `${chapters} · ${t(VISIBILITY_KEYS[study.visibility])} · ${when}`;
 }
 
 function chapterPreview(study: StudySummary): HTMLElement {
   const list = document.createElement('ol');
   list.className = 'study-index__chapters';
 
-  const names = study.chapterNames ?? [];
-  for (const chapterName of names.slice(0, CHAPTER_PREVIEW_MAX)) {
+  // Prefer the overlay-carrying shape; an older server (or a cached response from
+  // before it shipped) still sends bare names, which localize to themselves.
+  const chapters =
+    study.chapterPreview ?? (study.chapterNames ?? []).map((name) => ({ name, i18n: undefined }));
+  for (const chapter of chapters.slice(0, CHAPTER_PREVIEW_MAX)) {
     const row = document.createElement('li');
     row.className = 'study-index__chapter';
-    row.textContent = chapterName;
+    row.textContent = localizedStudyName(chapter.name, chapter.i18n);
     list.append(row);
   }
 
   // "+N more" when the study has more chapters than we previewed. Fall back to the
   // count alone when an older server sent no names at all.
-  const shown = Math.min(names.length, CHAPTER_PREVIEW_MAX);
+  const shown = Math.min(chapters.length, CHAPTER_PREVIEW_MAX);
   const remaining = study.chapterCount - shown;
   if (remaining > 0) {
     const more = document.createElement('li');
     more.className = 'study-index__chapter study-index__chapter--more';
-    more.textContent = `+${remaining} more`;
+    more.textContent = t('study.chapterPreviewMore', { count: remaining });
     list.append(more);
   }
 
   return list;
 }
 
+// Card freshness, in the reader's locale. `style: 'narrow'` keeps the compact
+// look the cards were built around ("15d ago" / "15天前") instead of the long
+// form, and Intl covers all four locales without catalog plumbing (following.ts
+// does the same).
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '';
+  const locale = currentLocale();
+  const rtf = new Intl.RelativeTimeFormat(LOCALE_META[locale].dateLocale, {
+    numeric: 'auto',
+    style: 'narrow',
+  });
   const seconds = Math.max(0, Math.round((Date.now() - then) / 1000));
-  if (seconds < 60) return 'just now';
+  if (seconds < 60) return rtf.format(0, 'second');
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return rtf.format(-minutes, 'minute');
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  return `${days}d ago`;
+  if (hours < 24) return rtf.format(-hours, 'hour');
+  return rtf.format(-Math.round(hours / 24), 'day');
 }
 
 function notice(text: string): HTMLElement {

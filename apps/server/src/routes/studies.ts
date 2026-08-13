@@ -74,6 +74,10 @@ function publicStudyView(study: persistence.PublicStudySummary) {
   return {
     ...studyView(study, false),
     chapterCount: study.chapterCount,
+    // `chapterPreview` carries each chapter's i18n overlay so a card can localize
+    // its chapter names the way the detail page does; `chapterNames` is the same
+    // slice as bare strings, kept for clients cached before the overlay shipped.
+    chapterPreview: study.chapterPreview,
     chapterNames: study.chapterNames,
     owner: { handle: study.ownerHandle, displayName: study.ownerDisplayName },
     likeCount: study.likeCount,
@@ -194,6 +198,7 @@ export async function tryHandle(
         studies: studies.map((s) => ({
           ...studyView(s, true),
           chapterCount: s.chapterCount,
+          chapterPreview: s.chapterPreview,
           chapterNames: s.chapterNames,
         })),
       });
