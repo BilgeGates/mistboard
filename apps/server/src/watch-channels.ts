@@ -21,7 +21,7 @@ export type WatchChannelId = string;
 export type WatchChannel = {
   // Whether the channel's completed feed applies the flagship curation bar
   // (no abandonment, no near-opening stubs) shared with the homepage showcase
-  // pool. True for Top Rated ONLY: it is the one channel that must agree with
+  // pool. True for Featured ONLY: it is the one channel that must agree with
   // the homepage board, and the one whose cross-variant volume can absorb the
   // filter. A per-variant channel stays the full feed — at current liquidity the
   // bar would empty the thin ones (dark-xiangqi had 4 games, 0 above the bar on
@@ -53,7 +53,7 @@ const DARK_CHESS_CHANNEL: WatchChannel = {
   modes: VARIANT_CHANNEL_MODES,
 };
 
-// The Top Rated channel: the flagship, cross-variant channel that mirrors the
+// The Featured channel: the flagship, cross-variant channel that mirrors the
 // homepage viewer. It has no fixed variant — the client follows the top LIVE
 // game (the cross-channel election, PvP over PvE, served by
 // /api/watch/live?channel=top) when one exists, and otherwise browses the
@@ -76,7 +76,7 @@ const TOP_CHANNEL: WatchChannel = {
   family: 'chess',
   gameSpecIds: [],
   id: TOP_CHANNEL_ID,
-  label: 'Top Rated',
+  label: 'Featured',
   legacyVariants: [],
   modes: VARIANT_CHANNEL_MODES,
 };
@@ -153,16 +153,16 @@ function channelEnabled(channel: WatchChannel): boolean {
 export function listWatchChannels(): readonly WatchChannel[] {
   // Fog Chess sorts into its canonical rail position alongside the derived
   // channels rather than leading — the xiangqi pivot deranks chess, so the watch
-  // rail must match the play menu / rules rail order. Top Rated is the default
+  // rail must match the play menu / rules rail order. Featured is the default
   // landing channel and leads the rail (see defaultWatchChannel).
   const variantChannels = [DARK_CHESS_CHANNEL, ...channelsDerivedFromRegistry()].filter(
     channelEnabled,
   );
   variantChannels.sort((a, b) => channelOrderIndex(a.id) - channelOrderIndex(b.id));
-  // The Top Rated and Engines channels both span exactly the watchable variants
+  // The Featured and Engines channels both span exactly the watchable variants
   // — the union of the enabled variant channels' variant strings — so their
   // completed feeds never surface a game the client has no renderer for, and they
-  // grow automatically as variants launch. Top Rated leads the rail (the flagship
+  // grow automatically as variants launch. Featured leads the rail (the flagship
   // default), Engines closes it (appended after the ordered variant channels).
   const watchableVariants = [
     ...new Set(variantChannels.flatMap((channel) => [...channel.legacyVariants])),

@@ -17,7 +17,7 @@ import { defaultWatchChannel, listWatchChannels, watchChannelForId } from './wat
 // on 2026-07-05 (xiangqi pivot): their registrations carry `watch: null`, so no
 // channel derives for them and their `?channel=` ids resolve to null. Fog Chess
 // is the only baseline VARIANT channel in a launched-flags-off environment; the
-// cross-variant Top Rated channel leads the rail (the flagship default) and the
+// cross-variant Featured channel leads the rail (the flagship default) and the
 // composition-keyed Engines channel is always on and closes the rail.
 const BASELINE_WATCH_CHANNELS = ['top', 'dark-chess', 'engines'] as const;
 
@@ -28,10 +28,10 @@ const RETIRED_WATCH_CHANNEL_IDS = [
   'dark-mini-xiangqi',
 ] as const;
 
-test('watch channels expose Top Rated as the default channel', () => {
+test('watch channels expose Featured as the default channel', () => {
   const channel = defaultWatchChannel();
   assert.equal(channel.id, 'top');
-  assert.equal(channel.label, 'Top Rated');
+  assert.equal(channel.label, 'Featured');
   // Cross-variant flagship: no fixed spec, the client dispatches a renderer per
   // game (live-followed or completed).
   assert.deepEqual(channel.gameSpecIds, []);
@@ -68,12 +68,12 @@ test('watch channels expose every launched baseline variant in canonical order',
     channels.map((entry) => entry.id),
     BASELINE_WATCH_CHANNELS,
   );
-  // Top Rated leads the rail and is the default landing channel.
+  // Featured leads the rail and is the default landing channel.
   assert.equal(channels[0]?.id, 'top');
   assert.equal(defaultWatchChannel().id, 'top');
 });
 
-test('the Top Rated channel is cross-variant, human-only, deep-linkable, and leads', () => {
+test('the Featured channel is cross-variant, human-only, deep-linkable, and leads', () => {
   const top = watchChannelForId('top');
   assert.ok(top, 'top channel must be enabled + reachable by deep link');
   assert.equal(top.default, true);
@@ -91,7 +91,7 @@ test('the Top Rated channel is cross-variant, human-only, deep-linkable, and lea
   assert.ok(top.legacyVariants.includes('dark-chess'));
 });
 
-test('Top Rated is the ONLY curated channel', () => {
+test('Featured is the ONLY curated channel', () => {
   // The curation bar (no abandonment, no near-opening stubs) exists to keep the
   // flagship channel in agreement with the homepage board, which applies the same
   // filter. It must stay scoped to Top: at current liquidity it would empty the
@@ -100,7 +100,7 @@ test('Top Rated is the ONLY curated channel', () => {
     assert.equal(
       channel.curated,
       channel.id === 'top',
-      `${channel.id}: only the Top Rated channel may be curated`,
+      `${channel.id}: only the Featured channel may be curated`,
     );
   }
 });
