@@ -67,6 +67,11 @@ export type XiangqiBroadcastBoardSearchItem = {
   updatedAt: Date;
 };
 
+export type XiangqiBroadcastBoardSearchPage = {
+  boards: XiangqiBroadcastBoardSearchItem[];
+  total: number;
+};
+
 export type StoredXiangqiBroadcastRound = XiangqiBroadcastRound & {
   createdAt: Date;
   updatedAt: Date;
@@ -751,10 +756,13 @@ export async function listXiangqiBroadcastBoards(
   return rows.map(boardFromRow);
 }
 
-export async function queryCompletedXiangqiBroadcastBoards(
-  filters: XiangqiBroadcastBoardSearchFilters,
-): Promise<XiangqiBroadcastBoardSearchItem[]> {
-  const limit = Math.max(1, Math.min(filters.limit ?? 200, 200));
+// The WHERE half of the completed-board search, shared by the page query and its
+// count so a "showing 20 of N" readout can never describe a different slice than
+// the rows above it.
+function buildCompletedBoardSearchWhere(filters: XiangqiBroadcastBoardSearchFilters): {
+  clause: string;
+  values: unknown[];
+} {
   const conditions: string[] = [`boards.result <> '*'`];
   const values: unknown[] = [];
   const bind = (value: unknown): string => {
@@ -786,7 +794,27 @@ export async function queryCompletedXiangqiBroadcastBoards(
     conditions.push(`boards.ply_count <= ${bind(filters.plyMax)}`);
   }
 
-  values.push(limit);
+  return { clause: conditions.join('\n       AND '), values };
+}
+
+export async function queryCompletedXiangqiBroadcastBoards(
+  filters: XiangqiBroadcastBoardSearchFilters,
+): Promise<XiangqiBroadcastBoardSearchPage> {
+  const limit = Math.max(1, Math.min(filters.limit ?? 200, 200));
+  const { clause, values } = buildCompletedBoardSearchWhere(filters);
+
+  const countResult = await getPool().query<{ total: number }>(
+    `SELECT count(*)::int AS total
+     FROM xiangqi_broadcast_boards boards
+     JOIN xiangqi_broadcast_tours tours ON tours.slug = boards.tour_slug
+     JOIN xiangqi_broadcast_rounds rounds ON rounds.id = boards.round_id
+     WHERE ${clause}`,
+    values,
+  );
+  const total = countResult.rows[0]?.total ?? 0;
+  if (total === 0) return { boards: [], total: 0 };
+
+  const pageValues = [...values, limit];
   const { rows } = await getPool().query<BoardSearchRow>(
     `SELECT boards.id,
             boards.tour_slug,
@@ -809,12 +837,12 @@ export async function queryCompletedXiangqiBroadcastBoards(
      FROM xiangqi_broadcast_boards boards
      JOIN xiangqi_broadcast_tours tours ON tours.slug = boards.tour_slug
      JOIN xiangqi_broadcast_rounds rounds ON rounds.id = boards.round_id
-     WHERE ${conditions.join('\n       AND ')}
+     WHERE ${clause}
      ORDER BY rounds.starts_at DESC NULLS LAST, boards.updated_at DESC, boards.id DESC
-     LIMIT $${values.length}`,
-    values,
+     LIMIT $${pageValues.length}`,
+    pageValues,
   );
-  return rows.map((row) => ({
+  const boards = rows.map((row) => ({
     id: row.id,
     tourSlug: row.tour_slug,
     tourName: row.tour_name,
@@ -834,6 +862,7 @@ export async function queryCompletedXiangqiBroadcastBoards(
     sourceUrl: row.source_url,
     updatedAt: row.updated_at,
   }));
+  return { boards, total };
 }
 
 export async function getXiangqiBroadcastBoard(

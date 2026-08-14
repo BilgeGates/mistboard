@@ -147,15 +147,30 @@ async function queryHistoricalXiangqiGames(
   };
 }
 
+// Modes the public games database lists. Engine-vs-engine rows are lab output —
+// a calibration run between two of our own bots, not a game anyone played — and
+// they outnumber everything else, so leaving them in buries the real games under
+// Pikafish-vs-Fairy-Stockfish self-play. They stay reachable by id and in the
+// admin browser; they are just not what "browse xiangqi games" means.
+const PUBLIC_GAME_MODES: persistence.GameMode[] = ['pvp', 'pve'];
+
 async function queryMistboardXiangqiGames(
   filters: persistence.HistoricalXiangqiGameQueryFilters,
   limit: number,
 ): Promise<UnifiedXiangqiSearchChunk> {
   const result = mistboardResult(filters.result);
   if (filters.result && !result) return { games: [], total: 0 };
+  // Every filter goes to SQL. Post-filtering the fetched page (the old shape)
+  // both under-reports — rows matching the filter past the limit never load —
+  // and makes an honest total impossible, since the count would describe the
+  // unfiltered slice.
   const page = await persistence.queryGames({
     variant: 'xiangqi',
+    modes: PUBLIC_GAME_MODES,
+    visibility: 'public',
     ...(result ? { result } : {}),
+    ...(filters.player ? { player: filters.player } : {}),
+    ...(filters.event ? { event: filters.event } : {}),
     ...(typeof filters.plyMin === 'number' ? { plyMin: filters.plyMin } : {}),
     ...(typeof filters.plyMax === 'number' ? { plyMax: filters.plyMax } : {}),
     ...(filters.playedFrom ? { endedFrom: new Date(`${filters.playedFrom}T00:00:00.000Z`) } : {}),
@@ -163,43 +178,41 @@ async function queryMistboardXiangqiGames(
     offset: 0,
     limit,
   });
-  const player = filters.player ? filters.player.toLocaleLowerCase() : null;
-  const event = filters.event ? filters.event.toLocaleLowerCase() : null;
-  const games: UnifiedXiangqiSearchItem[] = page.games
-    .filter((game) => game.visibility === 'public')
-    .filter((game) =>
-      player
-        ? [game.whiteName, game.blackName].some((name) =>
-            name?.toLocaleLowerCase().includes(player),
-          )
-        : true,
-    )
-    .filter((game) => (event ? game.corpusId?.toLocaleLowerCase().includes(event) : true))
-    .map((game) => ({
-      id: game.roomId,
-      kind: 'mistboard',
-      reviewUrl: `/xiangqi/game/${encodeURIComponent(game.roomId)}`,
-      sourceSlug: 'mistboard',
-      sourceName: 'Mistboard',
-      sourceGameId: game.roomId,
-      sourceUrl: null,
-      eventName: game.corpusId,
-      eventNameEn: null,
-      site: null,
-      round: null,
-      roundNameEn: null,
-      board: null,
-      playedOn: game.endedAt.toISOString().slice(0, 10),
-      sortAt: game.endedAt.toISOString(),
-      redNameRaw: game.whiteName,
-      redNameEn: null,
-      blackNameRaw: game.blackName,
-      blackNameEn: null,
-      result: historicalResult(game.result),
-      plyCount: game.plyCount,
-      moveFormat: 'mistboard',
-    }));
-  return { games, total: games.length };
+  const games: UnifiedXiangqiSearchItem[] = page.games.map((game) => ({
+    id: game.roomId,
+    kind: 'mistboard',
+    reviewUrl: `/xiangqi/game/${encodeURIComponent(game.roomId)}`,
+    sourceSlug: 'mistboard',
+    sourceName: 'Mistboard',
+    sourceGameId: game.roomId,
+    sourceUrl: null,
+    eventName: game.corpusId,
+    eventNameEn: null,
+    site: null,
+    round: null,
+    roundNameEn: null,
+    board: null,
+    playedOn: game.endedAt.toISOString().slice(0, 10),
+    sortAt: game.endedAt.toISOString(),
+    redNameRaw: seatName(game, 'white'),
+    redNameEn: null,
+    blackNameRaw: seatName(game, 'black'),
+    blackNameEn: null,
+    result: historicalResult(game.result),
+    plyCount: game.plyCount,
+    moveFormat: 'mistboard',
+  }));
+  return { games, total: page.total };
+}
+
+// games.white_name / black_name are only populated for the lab rows; a live PvP
+// or PvE game keeps its seat names on game_participants, which is why the
+// listing used to render real games as a nameless pair.
+function seatName(game: persistence.RecentEveGameRecord, color: 'white' | 'black'): string | null {
+  const stored = color === 'white' ? game.whiteName : game.blackName;
+  if (stored) return stored;
+  const participant = game.participants.find((entry) => entry.color === color);
+  return participant?.displayName ?? null;
 }
 
 async function queryBroadcastXiangqiGames(
@@ -207,7 +220,7 @@ async function queryBroadcastXiangqiGames(
   limit: number,
 ): Promise<UnifiedXiangqiSearchChunk> {
   if (filters.result === '*') return { games: [], total: 0 };
-  const boards = await persistence.queryCompletedXiangqiBroadcastBoards({
+  const page = await persistence.queryCompletedXiangqiBroadcastBoards({
     player: filters.player,
     event: filters.event,
     result: filters.result,
@@ -217,7 +230,7 @@ async function queryBroadcastXiangqiGames(
     plyMax: filters.plyMax,
     limit,
   });
-  const games: UnifiedXiangqiSearchItem[] = boards.map((board) => ({
+  const games: UnifiedXiangqiSearchItem[] = page.boards.map((board) => ({
     id: board.id,
     kind: 'broadcast',
     reviewUrl: `/broadcast/xiangqi/board/${encodeURIComponent(board.id)}`,
@@ -241,7 +254,7 @@ async function queryBroadcastXiangqiGames(
     plyCount: board.plyCount,
     moveFormat: 'broadcast',
   }));
-  return { games, total: games.length };
+  return { games, total: page.total };
 }
 
 function compareSearchItems(a: UnifiedXiangqiSearchItem, b: UnifiedXiangqiSearchItem): number {
