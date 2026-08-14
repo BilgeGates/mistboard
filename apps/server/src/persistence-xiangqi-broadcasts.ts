@@ -865,6 +865,74 @@ export async function queryCompletedXiangqiBroadcastBoards(
   return { boards, total };
 }
 
+export type AggregatableXiangqiBroadcastGame = {
+  id: string;
+  result: XiangqiBroadcastResult;
+  moves: XiangqiMove[];
+  redName: string | null;
+  blackName: string | null;
+  event: string | null;
+  playedOn: string | null;
+};
+
+/**
+ * Completed broadcast boards, for the opening explorer, ascending by id.
+ *
+ * Why this is not gated the way `listAggregatableXiangqiGames` is: that gate
+ * exists because publishing aggregates republishes a corpus in statistical form,
+ * which is the same decision as publishing the games. For broadcast boards that
+ * decision is already made and already shipped — every one of these games is
+ * displayed in full, move by move, at /broadcast/xiangqi with its source URL.
+ * An aggregate over games we already serve in their entirety exposes strictly
+ * less than the pages we already serve.
+ *
+ * What IS enforced here: only finished games (`result <> '*'`). A live board is
+ * still being played and its move list grows underneath the build, so folding
+ * one in would bake a half-game into the statistics and count it again at the
+ * next rebuild.
+ */
+export async function listAggregatableXiangqiBroadcastGames(opts: {
+  limit: number;
+  afterId?: string | null;
+}): Promise<AggregatableXiangqiBroadcastGame[]> {
+  const { rows } = await getPool().query<{
+    id: string;
+    result: XiangqiBroadcastResult;
+    moves: XiangqiMove[];
+    red_name: string | null;
+    black_name: string | null;
+    tour_name: string | null;
+    tour_name_en: string | null;
+    starts_at: Date | null;
+  }>(
+    `SELECT boards.id,
+            boards.result,
+            boards.moves,
+            COALESCE(boards.red->>'nameEn', boards.red->>'name') AS red_name,
+            COALESCE(boards.black->>'nameEn', boards.black->>'name') AS black_name,
+            tours.name AS tour_name,
+            tours.payload->>'nameEn' AS tour_name_en,
+            rounds.starts_at
+     FROM xiangqi_broadcast_boards boards
+     JOIN xiangqi_broadcast_tours tours ON tours.slug = boards.tour_slug
+     JOIN xiangqi_broadcast_rounds rounds ON rounds.id = boards.round_id
+     WHERE boards.result <> '*'
+       AND boards.id > $1
+     ORDER BY boards.id ASC
+     LIMIT $2`,
+    [opts.afterId ?? '', opts.limit],
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    result: row.result,
+    moves: row.moves,
+    redName: row.red_name,
+    blackName: row.black_name,
+    event: row.tour_name_en ?? row.tour_name,
+    playedOn: row.starts_at ? row.starts_at.toISOString().slice(0, 10) : null,
+  }));
+}
+
 export async function getXiangqiBroadcastBoard(
   boardId: string,
 ): Promise<StoredXiangqiBroadcastBoard | null> {

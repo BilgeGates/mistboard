@@ -55,9 +55,45 @@ test('folds a game into per-position move counts split by result', () => {
     draws: 0,
     unknowns: 0,
     sampleGames: [
-      { id: 'g1', rating: null, redRating: null, blackRating: null, result: '1-0', playedOn: null },
+      {
+        id: 'g1',
+        // A caller that names no source is the corpus, which is what every
+        // caller was before broadcast games joined the build.
+        kind: 'historical',
+        rating: null,
+        redRating: null,
+        blackRating: null,
+        redName: null,
+        blackName: null,
+        event: null,
+        result: '1-0',
+        playedOn: null,
+      },
     ],
   });
+});
+
+// Ordering rule with two identity systems in one list: rated corpus games sort
+// by rating, and a named game outranks an unrated anonymous one rather than
+// falling into the unrated tail, because a name is the better example to show.
+test('a named game outranks an unrated anonymous one but not a strong rated one', () => {
+  const acc = createAccumulator();
+  const line = moves('h3e3', 'h10g8');
+  accumulateGame(acc, { id: 'anon', result: '1-0', moves: line });
+  accumulateGame(acc, {
+    id: 'named',
+    kind: 'broadcast',
+    result: '1-0',
+    moves: line,
+    redName: 'Meng Chen',
+    blackName: 'Li Yanyang',
+  });
+  accumulateGame(acc, { id: 'rated', result: '1-0', moves: line, rating: 2400 });
+
+  assert.deepEqual(
+    statsFor(acc, START, 'h3e3')?.sampleGames.map((sample) => sample.id),
+    ['rated', 'named', 'anon'],
+  );
 });
 
 test('an unknown result is counted, never guessed', () => {

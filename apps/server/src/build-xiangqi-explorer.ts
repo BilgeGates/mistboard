@@ -13,6 +13,7 @@
 
 import { close as closePool, init as initPool } from './persistence-db.js';
 import { listAggregatableXiangqiGames } from './persistence-historical-xiangqi.js';
+import { listAggregatableXiangqiBroadcastGames } from './persistence-xiangqi-broadcasts.js';
 import { replaceXiangqiOpeningMoves } from './persistence-xiangqi-explorer.js';
 import {
   accumulateGame,
@@ -50,10 +51,49 @@ async function main(): Promise<void> {
     process.stdout.write(`  folded ${folded} games (${rejected} rejected)\r`);
   }
 
+  // Broadcast boards are the second source (#125). They join by calling the same
+  // accumulator with their own move lists, which is the shape this module was
+  // built for. They are counted and gated separately from the corpus: see
+  // listAggregatableXiangqiBroadcastGames for why their admission is not the
+  // license question the corpus gate answers.
+  let broadcastAfterId: string | null = null;
+  let broadcastFolded = 0;
+  for (;;) {
+    const page = await listAggregatableXiangqiBroadcastGames({
+      limit: PAGE_SIZE,
+      afterId: broadcastAfterId,
+    });
+    if (page.length === 0) break;
+    for (const game of page) {
+      const accepted = accumulateGame(
+        accumulator,
+        {
+          id: game.id,
+          kind: 'broadcast',
+          result: game.result,
+          moves: game.moves,
+          redName: game.redName,
+          blackName: game.blackName,
+          event: game.event,
+          playedOn: game.playedOn,
+        },
+        options,
+      );
+      if (accepted) {
+        folded += 1;
+        broadcastFolded += 1;
+      } else rejected += 1;
+    }
+    if (broadcastFolded > 0) sourceSlugs.add('broadcast');
+    broadcastAfterId = page[page.length - 1]?.id ?? null;
+    process.stdout.write(`  folded ${folded} games (${rejected} rejected)\r`);
+  }
+
   let rows = 0;
   for (const moves of accumulator.values()) rows += moves.size;
   const summary = {
     gamesFolded: folded,
+    broadcastGamesFolded: broadcastFolded,
     gamesRejected: rejected,
     positions: accumulator.size,
     moveRows: rows,

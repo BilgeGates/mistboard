@@ -11,13 +11,20 @@
 import type { XiangqiMove } from '@mistboard/game';
 import {
   insertHistoricalXiangqiGame,
+  listAggregatableXiangqiBroadcastGames,
   listAggregatableXiangqiGames,
   lookupXiangqiOpeningMoves,
   readXiangqiOpeningBuild,
   replaceXiangqiOpeningMoves,
   upsertHistoricalXiangqiSource,
 } from './persistence.js';
-import { assert, definePersistenceTests, test } from './persistence-test-support.js';
+import {
+  assert,
+  definePersistenceTests,
+  pg,
+  TEST_DATABASE_URL,
+  test,
+} from './persistence-test-support.js';
 import { accumulateGame, createAccumulator } from './xiangqi-opening-aggregate.js';
 
 const MOVES: XiangqiMove[] = [
@@ -75,6 +82,91 @@ definePersistenceTests('xiangqi opening explorer', () => {
       false,
       'an unrecorded clearance must fail closed, not default to allowed',
     );
+  });
+
+  // Broadcast boards are the explorer's second source (#125). They are admitted
+  // on a different basis than the corpus: every one of them is already published
+  // in full at /broadcast/xiangqi, so an aggregate over them republishes nothing
+  // the site does not already serve. What this pins is the one rule that IS
+  // enforced — a game still being played must not be folded, because its move
+  // list is still growing.
+  test('broadcast aggregation takes finished boards only, with their names', async () => {
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query(
+        `INSERT INTO xiangqi_broadcast_tours (slug, name, payload)
+         VALUES ('explorer-tour', '团体赛', $1)`,
+        [{ nameEn: 'Team Championship' }],
+      );
+      await client.query(
+        `INSERT INTO xiangqi_broadcast_rounds (id, tour_slug, name, starts_at, payload)
+         VALUES ('explorer-round', 'explorer-tour', '第一轮', '2026-08-02T00:00:00Z', $1)`,
+        [{ nameEn: 'Round 1' }],
+      );
+      const insertBoard = async (id: string, result: string, boardNumber: number) => {
+        await client.query(
+          `INSERT INTO xiangqi_broadcast_boards
+             (id, tour_slug, round_id, source_board_id, board_number, red, black,
+              status, result, moves, ply_count, final_status, payload)
+           VALUES ($1, 'explorer-tour', 'explorer-round', $1, $2, $3, $4,
+                   $5, $6, $7, $8, $9, '{}'::jsonb)`,
+          [
+            id,
+            boardNumber,
+            { name: '孟辰', nameEn: 'Meng Chen' },
+            { name: '李彦阳', nameEn: 'Li Yanyang' },
+            result === '*' ? 'live' : 'complete',
+            result,
+            JSON.stringify(MOVES),
+            MOVES.length,
+            { type: 'playing' },
+          ],
+        );
+      };
+      await insertBoard('explorer-board-done', '1-0', 1);
+      await insertBoard('explorer-board-live', '*', 2);
+
+      const admitted = await listAggregatableXiangqiBroadcastGames({ limit: 100 });
+      const ids = admitted.map((game) => game.id);
+      assert.equal(ids.includes('explorer-board-done'), true);
+      assert.equal(
+        ids.includes('explorer-board-live'),
+        false,
+        'a game still in progress must not be folded: its move list is still growing',
+      );
+
+      const game = admitted.find((entry) => entry.id === 'explorer-board-done');
+      assert.equal(game?.redName, 'Meng Chen');
+      assert.equal(game?.blackName, 'Li Yanyang');
+      assert.equal(game?.event, 'Team Championship');
+      assert.equal(game?.playedOn, '2026-08-02');
+
+      // Folded through the shared accumulator, the sample keeps the source it
+      // came from, so the reader can build the right review link.
+      const accumulator = createAccumulator();
+      assert.equal(
+        accumulateGame(accumulator, {
+          id: game?.id ?? '',
+          kind: 'broadcast',
+          result: game?.result ?? '*',
+          moves: game?.moves ?? [],
+          redName: game?.redName,
+          blackName: game?.blackName,
+          event: game?.event,
+          playedOn: game?.playedOn,
+        }),
+        true,
+      );
+      const samples = [...accumulator.values()]
+        .flatMap((moves) => [...moves.values()])
+        .flatMap((stats) => stats.sampleGames);
+      assert.equal(samples.length > 0, true);
+      assert.equal(samples[0]?.kind, 'broadcast');
+      assert.equal(samples[0]?.redName, 'Meng Chen');
+    } finally {
+      await client.end();
+    }
   });
 
   test('a private game drops out of aggregation without touching its source', async () => {
