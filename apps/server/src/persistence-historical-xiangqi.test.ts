@@ -183,9 +183,14 @@ definePersistenceTests('historical xiangqi', () => {
       await insertGame('unified-lab-b', 'eve', at(2), { white: 'Pikafish', black: 'Pikafish' });
       // A real game keeps its seats on game_participants and leaves the games
       // row's name columns null.
+      //
+      // The seat colours here are 'red'/'black' because that is what a xiangqi
+      // game actually stores. Seeding 'white' would test the reader against the
+      // reader's own assumption: an earlier version of this fixture did exactly
+      // that, passed, and shipped a listing whose red seat was always nameless.
       await insertGame('unified-human', 'pvp', at(3), { white: null, black: null });
       for (const [color, name] of [
-        ['white', 'redseat'],
+        ['red', 'redseat'],
         ['black', 'blackseat'],
       ] as const) {
         await client.query(

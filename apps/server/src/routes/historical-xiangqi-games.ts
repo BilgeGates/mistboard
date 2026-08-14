@@ -208,10 +208,23 @@ async function queryMistboardXiangqiGames(
 // games.white_name / black_name are only populated for the lab rows; a live PvP
 // or PvE game keeps its seat names on game_participants, which is why the
 // listing used to render real games as a nameless pair.
-function seatName(game: persistence.RecentEveGameRecord, color: 'white' | 'black'): string | null {
-  const stored = color === 'white' ? game.whiteName : game.blackName;
+//
+// The two stores disagree on what the first seat is called. The games row calls
+// it white (the generic chess-family column), while game_participants records
+// the seat in the VARIANT's own vocabulary: a xiangqi game stores 'red', not
+// 'white'. Matching only 'white' silently drops every red seat, so accept both
+// spellings of the same seat. GameParticipantColor is `Color | XiangqiColor` for
+// exactly this reason.
+const SEAT_COLORS = {
+  white: ['white', 'red'],
+  black: ['black'],
+} as const satisfies Record<string, readonly persistence.GameParticipantColor[]>;
+
+function seatName(game: persistence.RecentEveGameRecord, seat: 'white' | 'black'): string | null {
+  const stored = seat === 'white' ? game.whiteName : game.blackName;
   if (stored) return stored;
-  const participant = game.participants.find((entry) => entry.color === color);
+  const accepted: readonly string[] = SEAT_COLORS[seat];
+  const participant = game.participants.find((entry) => accepted.includes(entry.color));
   return participant?.displayName ?? null;
 }
 
