@@ -133,6 +133,9 @@ test('Dark Xiangqi PvE route seats the default engine opposite the human', async
       mode: 'pve',
       gameSpecId: DARK_XIANGQI_SPEC_ID,
       region: 'global',
+      // The request named no pace, so the engine pin supplied one and the
+      // response reports it (#283) instead of staying silent about the clock.
+      timeControl: { initialMs: 300_000, incrementMs: 5_000 },
     });
   } finally {
     restoreFlag(before);
@@ -393,6 +396,48 @@ test('Dark Xiangqi room route refuses a bot game at a pace the engine cannot hon
       assert.deepEqual(responseJson(response), { error: 'engine_time_control_unsupported' });
     }
     assert.equal(reservations, 0);
+  } finally {
+    restoreFlag(before);
+  }
+});
+
+test('Dark Xiangqi PvE with no named pace starts at the pin, not the house default', async () => {
+  const before = process.env[darkXiangqiFlag];
+  process.env[darkXiangqiFlag] = 'true';
+  try {
+    // Same resolution as the fog chess route: an omitted pace must not fall
+    // through to the room factory's default clock, which is the house 3+2 (#283).
+    const startedPaces: (RoomTimeControl | undefined)[] = [];
+    const ctx = testContext({
+      reserveLiveEngineSeat: async () => 'reservation',
+      createDarkXiangqiRoom: async (timeControl) => {
+        startedPaces.push(timeControl);
+        return { ok: true, room: darkXiangqiRoom('dxq_defaulted') };
+      },
+    });
+
+    const response = captureResponse();
+    await handleDarkXiangqiCreate(ctx, response, {
+      gameSpecId: DARK_XIANGQI_SPEC_ID,
+      mode: 'pve',
+    });
+    assert.equal(response.status, 201);
+    // The response echoes the effective pace, so a caller that named none can
+    // see what it actually got.
+    assert.deepEqual(responseJson(response).timeControl, {
+      initialMs: 300_000,
+      incrementMs: 5_000,
+    });
+
+    // A human game with no named pace keeps the room factory default.
+    const human = captureResponse();
+    await handleDarkXiangqiCreate(ctx, human, {
+      gameSpecId: DARK_XIANGQI_SPEC_ID,
+      mode: 'pvp',
+    });
+    assert.equal(human.status, 201);
+
+    assert.deepEqual(startedPaces, [{ initialMs: 300_000, incrementMs: 5_000 }, undefined]);
   } finally {
     restoreFlag(before);
   }

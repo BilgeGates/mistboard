@@ -155,8 +155,16 @@ export async function tryHandle(
     // the off-menu check above: the UI mirrors this, it does not enforce it.
     // (Tenant variants delegate before this point; none is pinned today, so
     // their own create handlers do not need the check yet.)
+    //
+    // An OMITTED time control resolves to the pin rather than falling through to
+    // the room factory's default clock, which is the house 3+2 — the very pace
+    // the pin exists to refuse. Callers that name no pace (the prod engine
+    // smokes, bot clients) would otherwise bypass the pin entirely. An EXPLICIT
+    // off-pin pace is still refused, because the caller asked for something the
+    // engine cannot play.
     const createdGameSpecId: GameSpecId =
       variant === 'draft960' || hiddenDraft960 ? DARK_DRAFT960_SPEC_ID : DARK_CHESS_SPEC_ID;
+    const enginePin = mode === 'pve' ? engineTimeControlPin(createdGameSpecId) : null;
     if (
       mode === 'pve' &&
       timeControl &&
@@ -166,6 +174,9 @@ export async function tryHandle(
       response.end(JSON.stringify({ error: 'engine_time_control_unsupported' }));
       return true;
     }
+    const effectiveTimeControl =
+      timeControl ??
+      (enginePin ? { initialMs: enginePin.initialMs, incrementMs: enginePin.incrementMs } : null);
     if (ctx.databaseRequired && !persistence.isInitialized()) {
       response.writeHead(503, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: 'persistence_disabled' }));
@@ -188,7 +199,7 @@ export async function tryHandle(
         variant,
         selectedEngineId,
         hiddenDraft960,
-        timeControl ?? undefined,
+        effectiveTimeControl ?? undefined,
         rated,
         {
           engineColor,

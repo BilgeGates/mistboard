@@ -52,7 +52,8 @@ test('PvE preferredColor=white seats the human as white', async () => {
     mode: 'pve',
     variant: 'dark-chess',
     engineId: 'builtin-random-legal',
-    timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    // Fog PvE is pinned to 5+5; the engine cannot honor 3+2 (#283).
+    timeControl: { initialMs: 300_000, incrementMs: 5_000 },
     preferredColor: 'white',
   });
   const human = await connectClient({ url: serverInstance.url, room: roomId });
@@ -64,7 +65,8 @@ test('PvE preferredColor=black seats the human as black', async () => {
     mode: 'pve',
     variant: 'dark-chess',
     engineId: 'builtin-random-legal',
-    timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+    // Fog PvE is pinned to 5+5; the engine cannot honor 3+2 (#283).
+    timeControl: { initialMs: 300_000, incrementMs: 5_000 },
     preferredColor: 'black',
   });
   const human = await connectClient({ url: serverInstance.url, room: roomId });
@@ -78,7 +80,8 @@ test('PvE preferredColor=random can seat the human as either color', async () =>
       mode: 'pve',
       variant: 'dark-chess',
       engineId: 'builtin-random-legal',
-      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      // Fog PvE is pinned to 5+5; the engine cannot honor 3+2 (#283).
+      timeControl: { initialMs: 300_000, incrementMs: 5_000 },
       preferredColor: 'random',
     });
     const room = serverInstance.rooms.get(roomId);

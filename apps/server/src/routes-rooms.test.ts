@@ -280,6 +280,33 @@ async function insertBotProfile(
 // cost in fog has a floor the 1s and 2s increments do not cover, so it loses on
 // time in long games (#283). The picker narrows to the pin; this is the
 // defense in depth that a hand-crafted POST hits.
+test('a fog PvE create that names no pace starts at the pin, not the house default', async () => {
+  // The room factory's default clock is the house 3+2 — the pace the pin exists
+  // to refuse (#283). Callers that omit a time control (the prod engine smokes,
+  // API clients) would bypass the pin entirely if it only validated explicit
+  // input, so an omitted pace RESOLVES to the pin here.
+  const startedPaces: (RoomTimeControl | undefined)[] = [];
+  const base = createContext({
+    createRoom: async (mode, _variant, _engineId, _hiddenDraft960, timeControl) => {
+      startedPaces.push(timeControl);
+      return roomFixture({ id: 'defaulted-room', mode, timeControl });
+    },
+  });
+  const ctx: HttpApiContext = { ...base, databaseRequired: false };
+
+  const response = captureResponse();
+  await tryHandle(ctx, jsonPost({ mode: 'pve', variant: 'dark-chess' }), response, '/api/rooms');
+  assert.equal(response.status, 201);
+
+  // A human game with no named pace still takes the room factory default: the
+  // pin is a PvE constraint, not a new global default.
+  const human = captureResponse();
+  await tryHandle(ctx, jsonPost({ mode: 'pvp', variant: 'dark-chess' }), human, '/api/rooms');
+  assert.equal(human.status, 201);
+
+  assert.deepEqual(startedPaces, [{ initialMs: 300_000, incrementMs: 5_000 }, undefined]);
+});
+
 test('room creation rejects a fog chess bot game at a pace the engine cannot honor', async () => {
   for (const timeControl of [
     { initialMs: 180_000, incrementMs: 2_000 },

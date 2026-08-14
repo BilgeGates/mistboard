@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { ServerResponse } from 'node:http';
 import {
   DARK_XIANGQI_SPEC_ID,
+  engineTimeControlPin,
   isAllowedEngineTimeControl,
   type RoomTimeControl,
 } from '@mistboard/game';
@@ -70,6 +71,9 @@ export async function handleDarkXiangqiCreate(
   // An engine that cannot honor a pace must not be handed one (#283). Checked
   // before the seat reservation below, so a rejected request never holds one.
   // Human games are untouched: the floor belongs to the engine, not the variant.
+  // An omitted pace resolves to the pin rather than the room factory's default
+  // clock, so a caller that names no pace cannot bypass this (see routes/
+  // rooms.ts for the same resolution on the fog chess side).
   if (
     mode === 'pve' &&
     timeControl &&
@@ -78,6 +82,10 @@ export async function handleDarkXiangqiCreate(
     writeJson(response, 400, { error: 'engine_time_control_unsupported' });
     return;
   }
+  const enginePin = mode === 'pve' ? engineTimeControlPin(DARK_XIANGQI_SPEC_ID) : null;
+  const effectiveTimeControl =
+    timeControl ??
+    (enginePin ? { initialMs: enginePin.initialMs, incrementMs: enginePin.incrementMs } : null);
   const botId = typeof body.botId === 'string' ? body.botId : undefined;
   let engine:
     | { engineId: string; seat: 'red' | 'black'; reservationId: string; botId?: string }
@@ -117,7 +125,11 @@ export async function handleDarkXiangqiCreate(
     return;
   }
 
-  const created = await ctx.createDarkXiangqiRoom(timeControl ?? undefined, preferredColor, engine);
+  const created = await ctx.createDarkXiangqiRoom(
+    effectiveTimeControl ?? undefined,
+    preferredColor,
+    engine,
+  );
   if (!created.ok) {
     const status =
       created.error === 'dark_xiangqi_disabled'
@@ -134,7 +146,9 @@ export async function handleDarkXiangqiCreate(
     mode,
     gameSpecId: created.room.gameSpecId,
     region: 'global',
-    ...(timeControl ? { timeControl } : {}),
+    // The EFFECTIVE pace, so a caller that named none learns what the pin gave
+    // it rather than reading back silence and assuming the house default.
+    ...(effectiveTimeControl ? { timeControl: effectiveTimeControl } : {}),
   });
 }
 
