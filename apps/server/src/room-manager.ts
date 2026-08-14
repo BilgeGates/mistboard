@@ -25,6 +25,7 @@ import { engineCounters, logger } from './obs.js';
 import { computeConnectedSeats, eventAppendedPayload, snapshotPayload } from './payloads.js';
 import type { GameSummary } from './persistence.js';
 import * as persistence from './persistence.js';
+import { LIVE_ENGINE_DECISION_ARTIFACT_TYPE } from './persistence-game-lifecycle.js';
 import { recordRoomLifecycleAuditSafe } from './room-lifecycle-audit.js';
 import { isServerEngineClient, modeForProjection } from './server-policy.js';
 import type { Client, Room, SeatTokenState } from './server-types.js';
@@ -1088,7 +1089,7 @@ async function recordLiveEngineDecisionArtifact(
       gameId: room.id,
       ply: input.contextPly,
       engineColor: engineSeatFor(room) ?? 'black',
-      artifactType: 'live-engine-decision',
+      artifactType: LIVE_ENGINE_DECISION_ARTIFACT_TYPE,
       payload: {
         requested_engine_id: input.requestedEngineId,
         engine_id: input.engineId,
