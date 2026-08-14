@@ -45,6 +45,16 @@ export type RunningGameSummary = {
   visibility?: GameVisibility;
 };
 
+/**
+ * Artifact type written per move by LIVE PvE (room-manager's
+ * `recordLiveEngineDecisionArtifact`) and requestable through the review
+ * artifacts API (routes/games.ts). Writer and reader share this constant on
+ * purpose: they previously agreed on the string by coincidence, drifted, and
+ * every live PvE artifact became unreachable without anything failing loudly
+ * (#287).
+ */
+export const LIVE_ENGINE_DECISION_ARTIFACT_TYPE = 'live-engine-decision';
+
 export type GameDebugArtifactSummary = {
   artifactType: string;
   count: number;

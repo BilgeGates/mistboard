@@ -10,6 +10,7 @@ import { FinishedGameCache } from './../finished-game-cache.js';
 import { attachFlipFirstColors } from './../flip-first-color.js';
 import { buildGamePgn, buildGamePublicationJson } from './../game-export.js';
 import * as persistence from './../persistence.js';
+import { LIVE_ENGINE_DECISION_ARTIFACT_TYPE } from './../persistence-game-lifecycle.js';
 import type { RecentEveGameRecord } from './../persistence-games.js';
 import { eventReplayResponse, parsePositiveInteger } from './../server-policy.js';
 import { listWatchChannels, watchChannelForId } from './../watch-channels.js';
@@ -32,7 +33,14 @@ import {
   writeJson,
 } from './lib.js';
 
-type ReviewArtifactType = 'belief-snapshot' | 'trace-row' | 'engine-move-choice';
+// The first three come from the EvE/bakeoff path; the shared constant is the
+// LIVE PvE writer's type. Omitting it made every live PvE artifact
+// unrequestable — see #287.
+type ReviewArtifactType =
+  | 'belief-snapshot'
+  | 'trace-row'
+  | 'engine-move-choice'
+  | typeof LIVE_ENGINE_DECISION_ARTIFACT_TYPE;
 
 const WATCH_REPLAY_LIMIT = 64;
 const WATCH_SEALED_ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -700,11 +708,17 @@ async function canViewEngineArtifactsForRequest(request: IncomingMessage): Promi
   return isHttpAdminSession(request);
 }
 
-function engineParticipantColors(game: persistence.RecentEveGameRecord): Color[] {
+// An engine seat is any MACHINE seat, not just 'engine-version'. Live PvE writes
+// its bot seats as subjectType 'bot' (room-manager.ts), so an 'engine-version'-only
+// filter silently returned zero engine seats for every PvE game and the artifacts
+// endpoint answered `{artifacts: []}` instead of the data — see #287.
+export function engineParticipantColors(
+  game: Pick<persistence.RecentEveGameRecord, 'participants'>,
+): Color[] {
   return game.participants
     .filter(
       (participant): participant is persistence.GameParticipant & { color: Color } =>
-        participant.subjectType === 'engine-version' &&
+        MACHINE_SUBJECT_TYPES.has(participant.subjectType) &&
         (participant.color === 'white' || participant.color === 'black'),
     )
     .map((participant) => participant.color);
@@ -727,8 +741,11 @@ function uniqueStrings(values: string[]): string[] {
   return values.filter((value, index) => values.indexOf(value) === index);
 }
 
-function parseReviewArtifactType(value: string | null): ReviewArtifactType | null {
-  return value === 'belief-snapshot' || value === 'trace-row' || value === 'engine-move-choice'
+export function parseReviewArtifactType(value: string | null): ReviewArtifactType | null {
+  return value === 'belief-snapshot' ||
+    value === 'trace-row' ||
+    value === 'engine-move-choice' ||
+    value === LIVE_ENGINE_DECISION_ARTIFACT_TYPE
     ? value
     : null;
 }
