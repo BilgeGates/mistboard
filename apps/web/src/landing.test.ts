@@ -5,6 +5,7 @@ import {
   loadPlayableEnginesWithRetry,
   renderLandingShellForPrerender,
   shouldUseBundledShowcaseDemos,
+  watchHrefForTvGame,
 } from './landing.js';
 
 const ROSTER = [
@@ -89,6 +90,27 @@ describe('playable engines loading', () => {
     expect(landingRoomClientKindForUrl('/room/dchess_created')).toBe('tenant');
     expect(landingRoomClientKindForUrl('/room/mxq_created')).toBe('standard');
     expect(landingRoomClientKindForUrl('/room/dark_created')).toBe('standard');
+  });
+});
+
+describe('homepage TV widget link', () => {
+  // Regression (2026-08-14): the widget's href was baked once as
+  // /watch?channel=top, so clicking the board landed the visitor on whatever
+  // game the channel's own head happened to be — a different game than the one
+  // they had just been looking at.
+  it('hands /watch the exact room a frozen or aired board is showing', () => {
+    expect(watchHrefForTvGame('frozen', 'xq_a16ddaaa')).toBe('/watch?channel=top&game=xq_a16ddaaa');
+    expect(watchHrefForTvGame('replay', 'jgf_1234')).toBe('/watch?channel=top&game=jgf_1234');
+  });
+
+  it('links a LIVE board to the bare channel so /watch re-elects the live game', () => {
+    // ?game= resolves against the COMPLETED feed only; a still-running room is
+    // not in it, and /watch runs the same top-election poll anyway.
+    expect(watchHrefForTvGame('live', 'xq_live')).toBe('/watch?channel=top');
+  });
+
+  it('escapes the room id', () => {
+    expect(watchHrefForTvGame('frozen', 'a b&c')).toBe('/watch?channel=top&game=a%20b%26c');
   });
 });
 

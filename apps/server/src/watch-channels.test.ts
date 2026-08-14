@@ -91,6 +91,20 @@ test('the Top Rated channel is cross-variant, human-only, deep-linkable, and lea
   assert.ok(top.legacyVariants.includes('dark-chess'));
 });
 
+test('Top Rated is the ONLY curated channel', () => {
+  // The curation bar (no abandonment, no near-opening stubs) exists to keep the
+  // flagship channel in agreement with the homepage board, which applies the same
+  // filter. It must stay scoped to Top: at current liquidity it would empty the
+  // thin per-variant channels, whose job is to show every game in their variant.
+  for (const channel of listWatchChannels()) {
+    assert.equal(
+      channel.curated,
+      channel.id === 'top',
+      `${channel.id}: only the Top Rated channel may be curated`,
+    );
+  }
+});
+
 test('variant/family channels surface human play only (pvp + pve, never eve)', () => {
   // Decision #6: engine-vs-engine games are segregated to the Engines channel so
   // they never pollute a variant channel; PvE folds in because it is the
