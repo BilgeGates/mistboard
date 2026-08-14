@@ -72,11 +72,13 @@ export async function tryHandle(
   // here. It is the correct denominator for a move's share, not a game census.
   const total = moves.reduce((sum, row) => sum + row.games, 0);
 
-  // Position-level "Top games": each move keeps its own highest-rated examples,
-  // so the union's best N is exactly the position's best N.
+  // Position-level "Top games": each move keeps its own best examples, so the
+  // union's best N is exactly the position's best N — as long as this merge uses
+  // the SAME ordering the per-move lists were built with (see
+  // compareXiangqiOpeningSamples).
   const topGames = moves
     .flatMap((row) => row.sampleGames)
-    .sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1))
+    .sort(persistence.compareXiangqiOpeningSamples)
     .slice(0, TOP_GAMES);
 
   writeJson(response, 200, {

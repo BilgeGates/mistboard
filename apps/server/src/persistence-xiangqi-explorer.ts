@@ -38,6 +38,26 @@ export type XiangqiOpeningSample = {
   playedOn: string | null;
 };
 
+/**
+ * The one ordering for opening-explorer sample games: named first, then by
+ * rating, then the anonymous unrated tail.
+ *
+ * It lives here because BOTH ends need it and they are in different modules —
+ * the aggregator, which decides which samples a (position, move) keeps, and the
+ * explorer route, which merges those per-move lists into one position-level
+ * list. Sorting by rating in only one of the two silently discards the other's
+ * work: that is exactly how named professional games ended up folded into the
+ * statistics while appearing in no position's Top games.
+ */
+export function compareXiangqiOpeningSamples(
+  a: Pick<XiangqiOpeningSample, 'rating' | 'redName' | 'blackName'>,
+  b: Pick<XiangqiOpeningSample, 'rating' | 'redName' | 'blackName'>,
+): number {
+  const named = (sample: typeof a): number => (sample.redName || sample.blackName ? 1 : 0);
+  if (named(a) !== named(b)) return named(b) - named(a);
+  return (b.rating ?? Number.NEGATIVE_INFINITY) - (a.rating ?? Number.NEGATIVE_INFINITY);
+}
+
 export type XiangqiOpeningMoveRow = {
   move: XiangqiMove;
   games: number;

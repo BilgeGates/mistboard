@@ -469,6 +469,7 @@ export type {
   XiangqiOpeningMoveRow,
 } from './persistence-xiangqi-explorer.js';
 export {
+  compareXiangqiOpeningSamples,
   lookupXiangqiOpeningMoves,
   readXiangqiOpeningBuild,
   replaceXiangqiOpeningMoves,
