@@ -6,11 +6,13 @@ import {
   getStandardXiangqiLegalMoves,
   getStandardXiangqiLegalMovesFrom,
   getStandardXiangqiPlayerView,
+  isStandardXiangqiGeneralInCheck,
   isStandardXiangqiLegalMove,
   positionRepetitionKey,
   type XiangqiBoard,
   type XiangqiGameState,
   type XiangqiMove,
+  xiangqiPerpetualCheckLoser,
 } from './index.js';
 
 test('initial position has 44 legal moves for red', () => {
@@ -172,6 +174,135 @@ test('threefold repetition ends the game in a draw', () => {
   assert.equal(terminalReason, 'repetition');
   assert.equal(state.status.type, 'finished');
   if (state.status.type === 'finished') assert.equal(state.status.winner, null);
+});
+
+// ── perpetual check (the chasing rule) ──────────────────────────────────────
+
+test('a repetition manufactured by one side perpetually checking names that side the loser', () => {
+  // Bare black general shuffling d10/e10 under a red chariot that follows it
+  // between d5 and e5. Red's general sits on f1 so the flying-general rule never
+  // interferes with the black general using the e-file.
+  const start = playingState({
+    d10: { color: 'black', role: 'general' },
+    a5: { color: 'red', role: 'chariot' },
+    f1: { color: 'red', role: 'general' },
+  });
+
+  const moves: XiangqiMove[] = [
+    { from: 'a5', to: 'd5' }, // check
+    { from: 'd10', to: 'e10' },
+    { from: 'd5', to: 'e5' }, // check
+    { from: 'e10', to: 'd10' },
+    { from: 'e5', to: 'd5' }, // check
+    { from: 'd10', to: 'e10' },
+    { from: 'd5', to: 'e5' }, // check
+    { from: 'e10', to: 'd10' },
+    { from: 'e5', to: 'd5' }, // check — closes the three-fold
+  ];
+
+  let state = start;
+  for (const move of moves) {
+    if (state.status.type !== 'playing') break;
+    state = applyStandardXiangqiMove(state, move);
+  }
+
+  // The kernel itself still reports a draw: it stays a pure sync function, and
+  // the override lives in the tenant.
+  assert.equal(state.status.type, 'finished');
+  if (state.status.type === 'finished') {
+    assert.equal(state.status.reason, 'repetition');
+    assert.equal(state.status.winner, null);
+  }
+
+  // The adjudicator is what turns it into a loss for the checking side.
+  assert.equal(xiangqiPerpetualCheckLoser(state.moveLog ?? [], start), 'red');
+});
+
+test('mutual perpetual check stays a draw', () => {
+  // The documented mutual-perpetual position (en.wikipedia.org/wiki/Xiangqi,
+  // "Rules"): 1.Hd7+ Hf4+ 2.Ae2+ Hh3+ 3.Af3+ Hf4+ 4.Ae2+ etc. Each side
+  // discovers a cannon check along its own line by stepping a piece off the
+  // screen square, so every ply in the cycle is a check, by both colours.
+  const start = playingState({
+    f10: { color: 'black', role: 'general' },
+    f6: { color: 'red', role: 'horse' },
+    e3: { color: 'red', role: 'general' },
+    f3: { color: 'red', role: 'advisor' },
+    h3: { color: 'black', role: 'horse' },
+    i3: { color: 'black', role: 'cannon' },
+    f1: { color: 'red', role: 'cannon' },
+  });
+
+  const moves: XiangqiMove[] = [
+    { from: 'f6', to: 'd7' }, // 1. Hd7+
+    { from: 'h3', to: 'f4' }, // 1... Hf4+
+    { from: 'f3', to: 'e2' }, // 2. Ae2+
+    { from: 'f4', to: 'h3' }, // 2... Hh3+
+    { from: 'e2', to: 'f3' }, // 3. Af3+
+    { from: 'h3', to: 'f4' }, // 3... Hf4+
+    { from: 'f3', to: 'e2' }, // 4. Ae2+
+    { from: 'f4', to: 'h3' },
+    { from: 'e2', to: 'f3' },
+  ];
+
+  let state = start;
+  for (const move of moves) {
+    if (state.status.type !== 'playing') break;
+    const mover = state.status.turn;
+    assert.ok(
+      isStandardXiangqiLegalMove(state, move),
+      `${mover} ${move.from}->${move.to} should be legal`,
+    );
+    state = applyStandardXiangqiMove(state, move);
+    if (state.status.type === 'playing') {
+      assert.ok(
+        isStandardXiangqiGeneralInCheck(state, mover === 'red' ? 'black' : 'red'),
+        `${mover} ${move.from}->${move.to} should give check`,
+      );
+    }
+  }
+
+  assert.equal(state.status.type, 'finished');
+  if (state.status.type === 'finished') assert.equal(state.status.reason, 'repetition');
+
+  // Both sides check perpetually, so neither is the sole aggressor: draw stands.
+  assert.equal(xiangqiPerpetualCheckLoser(state.moveLog ?? [], start), null);
+});
+
+test('a check-free repetition is not adjudicated as perpetual check', () => {
+  const start = playingState({
+    e1: { color: 'red', role: 'general' },
+    a1: { color: 'red', role: 'chariot' },
+    i10: { color: 'black', role: 'chariot' },
+    f10: { color: 'black', role: 'general' },
+  });
+
+  const cycle: XiangqiMove[] = [
+    { from: 'a1', to: 'a2' },
+    { from: 'i10', to: 'i9' },
+    { from: 'a2', to: 'a1' },
+    { from: 'i9', to: 'i10' },
+  ];
+
+  let state = start;
+  for (let i = 0; i < cycle.length * 3; i += 1) {
+    if (state.status.type !== 'playing') break;
+    state = applyStandardXiangqiMove(state, cycle[i % cycle.length]);
+  }
+
+  assert.equal(state.status.type, 'finished');
+  if (state.status.type === 'finished') assert.equal(state.status.reason, 'repetition');
+  assert.equal(xiangqiPerpetualCheckLoser(state.moveLog ?? [], start), null);
+});
+
+test('perpetual-check adjudication refuses to score a desynced move list', () => {
+  const start = playingState({
+    d10: { color: 'black', role: 'general' },
+    a5: { color: 'red', role: 'chariot' },
+    f1: { color: 'red', role: 'general' },
+  });
+  // A chariot cannot hop from a5 to e7, so the list does not describe this game.
+  assert.equal(xiangqiPerpetualCheckLoser([{ from: 'a5', to: 'e7' }], start), null);
 });
 
 // ── helpers ─────────────────────────────────────────────────────────────────
