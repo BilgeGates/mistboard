@@ -93,7 +93,7 @@ export function watchRendererKindForGame(feed: WatchFeed, roomId: string): Watch
 
 const WATCH_ACTIVE_POLL_MS = 15_000;
 const WATCH_IDLE_POLL_MS = 60_000;
-// Top Rated live-follow poll: matches the homepage viewer's cadence so both
+// Featured live-follow poll: matches the homepage viewer's cadence so both
 // surfaces advance the same live game on the same beat.
 const LIVE_TV_TOP_POLL_MS = 4_000;
 // Rail clock repaint rate. Matches the renderers' own clock ticks; the displayed mm:ss
@@ -208,7 +208,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
   const namesByRoomId: Record<string, { first: string; second: string }> = {};
   const abortController = new AbortController();
 
-  // ── Top Rated channel live-follow ──────────────────────────────────────────
+  // ── Featured channel live-follow ──────────────────────────────────────────
   // Only the cross-variant 'top' channel follows a LIVE game. It polls
   // /api/watch/live?channel=top and, when a game is featured, the center board
   // follows it ply-synced — exactly what the homepage viewer shows. With no live
@@ -660,7 +660,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     if (roomId) void switchWatchGame(roomId, 'replace');
   };
 
-  // ── Top Rated live-follow: poll the cross-channel election and drive the board ──
+  // ── Featured live-follow: poll the cross-channel election and drive the board ──
   const registerLiveNames = (featured: LiveFeatured): void => {
     const players = featured.players ?? [];
     if (players.length < 2 || namesByRoomId[featured.roomId]) return;
@@ -859,7 +859,7 @@ function renderWatchQueuePreviewError(root: HTMLElement): void {
   root.append(message);
 }
 
-// LIVE-follow mount option for the Top Rated channel: the tenant renderer draws
+// LIVE-follow mount option for the Featured channel: the tenant renderer draws
 // an IN-PROGRESS game from the /api/watch/live payload (served through
 // loadPostgameOverride) instead of a finished-game endpoint, and suppresses the
 // end-of-game marks at the final known ply. Only the tenant path honors it — no
@@ -1430,7 +1430,7 @@ function renderWatchPlayers(
 }
 
 // The seat rows for an already-resolved player list (first mover below the board,
-// second mover above). Shared by the completed-game path and the Top Rated
+// second mover above). Shared by the completed-game path and the Featured
 // channel's live path, which resolves players from the /api/watch/live payload
 // rather than a FeaturedGame.
 function renderWatchPlayerRows(

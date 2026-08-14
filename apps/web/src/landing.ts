@@ -566,7 +566,7 @@ function syncGamePlyUrl(ply: number): void {
 
 // Where the TV widget's click goes. A frozen/aired board hands /watch the exact
 // room it is showing (?game=), so clicking through continues THAT game instead
-// of the channel's own head. The two agree on the freshest game (Top Rated and
+// of the channel's own head. The two agree on the freshest game (Featured and
 // the homepage pool share one curation bar), but the widget also airs a game
 // that finished mid-session and freezes on it, so the board can legitimately sit
 // on a non-head game. A LIVE board links to the bare channel: /watch runs the
@@ -605,7 +605,7 @@ function buildLandingStage(
   viewerColumn.className = 'landing-viewer-column';
   const boardColumn = document.createElement('div');
   boardColumn.className = 'landing-board-column';
-  // The viewer is a link to the Top Rated channel on Mistboard TV: /watch's Top
+  // The viewer is a link to the Featured channel on Mistboard TV: /watch's Top
   // channel follows the very same top-election game this widget shows (live,
   // ply-synced, else frozen on the latest), so clicking through keeps watching
   // it full-size. Wrapping the board (not just the caption) makes the whole

@@ -756,7 +756,7 @@
   }
 }
 
-/* ── Top Rated live-follow (mirrors the homepage viewer) ───────────────── */
+/* ── Featured live-follow (mirrors the homepage viewer) ───────────────── */
 /* The LIVE pill above the featured-game card, shown while the Top channel is
    following an in-progress game. */
 .watch-live-badge {

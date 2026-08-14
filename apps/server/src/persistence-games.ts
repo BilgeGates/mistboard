@@ -34,7 +34,7 @@ const MIN_TIMEOUT_SOURCE_PLY_COUNT = 10;
 const MIN_TV_PVP_PLY_COUNT = 30;
 
 // THE curation bar for the site's two flagship surfaces: the homepage viewer
-// and the cross-variant Top Rated watch channel. A curated feed shows only
+// and the cross-variant Featured watch channel. A curated feed shows only
 // games someone played to a real finish — no rage-quits (`abandonment`), no
 // near-opening stubs. One constant on purpose: the two surfaces diverged once
 // (2026-08-14) because only the homepage filtered, so the homepage froze on a
@@ -139,7 +139,7 @@ export type RecentEveGameRecord = GameRecord & {
 
 export type WatchUnlockedGameOptions = {
   // Apply the flagship curation bar (CURATED_MIN_PLY + no abandonment) — the
-  // same filter the homepage showcase pool uses. Only the Top Rated channel
+  // same filter the homepage showcase pool uses. Only the Featured channel
   // passes it: per-variant channels stay the full "seal until finished" feed,
   // because at Mistboard's liquidity the bar would empty the thin ones.
   curated?: boolean;
@@ -568,7 +568,7 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
 // tradeoff again.
 //
 // The ply floor + no-abandonment pair is CURATED_MIN_PLY (see its comment): the
-// same bar the Top Rated watch channel applies, so the homepage's frozen board
+// same bar the Featured watch channel applies, so the homepage's frozen board
 // and /watch?channel=top agree on the site's freshest game.
 // Pool size. Anchored on "games take minutes to finish, low liquidity"; tune from
 // traffic (see also the client poller).
@@ -736,7 +736,7 @@ export async function listWatchUnlockedGames(
   }
   values.push(watchModeFilter(options.modes));
   const modeClause = `AND games.mode = ANY($${values.length}::text[])`;
-  // The curated (Top Rated) cut: same bar as the homepage showcase pool, so the
+  // The curated (Featured) cut: same bar as the homepage showcase pool, so the
   // two flagship surfaces agree on the site's freshest game. Note this filters
   // the recency-ordered feed rather than re-ranking it — Top stays "newest
   // first", it just skips the stubs.
