@@ -8,6 +8,7 @@
  * including a source whose clearance was simply never recorded.
  */
 
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { XiangqiMove } from '@mistboard/game';
 import {
   insertHistoricalXiangqiGame,
@@ -25,7 +26,29 @@ import {
   TEST_DATABASE_URL,
   test,
 } from './persistence-test-support.js';
+import { tryHandle as tryHandleExplorerRoute } from './routes/xiangqi-explorer.js';
 import { accumulateGame, createAccumulator } from './xiangqi-opening-aggregate.js';
+
+type ResponseCapture = { body: string; status: number | null };
+
+function captureResponse(): ServerResponse & ResponseCapture {
+  const capture = {
+    body: '',
+    status: null as number | null,
+    writeHead(status: number) {
+      capture.status = status;
+      return capture;
+    },
+    setHeader() {
+      return capture;
+    },
+    end(chunk?: string) {
+      capture.body += chunk ?? '';
+      return capture;
+    },
+  };
+  return capture as unknown as ServerResponse & ResponseCapture;
+}
 
 const MOVES: XiangqiMove[] = [
   { from: 'h3', to: 'e3' },
@@ -234,6 +257,52 @@ definePersistenceTests('xiangqi opening explorer', () => {
       afterId = page[page.length - 1]?.id ?? null;
     }
     assert.ok(seen.size >= 5);
+  });
+
+  // The explorer route merges the per-move sample lists into one position-level
+  // "Top games". That merge has to use the SAME ordering the lists were built
+  // with. It did not: the accumulator put named games first and the route
+  // re-sorted the union by rating, so on the real corpus (10k anonymous games
+  // rated ~1000-1250, 14 unrated named professional games) every slot went back
+  // to club games and the broadcast games were invisible at every position.
+  test('the route orders top games the way the samples were built', async () => {
+    const acc = createAccumulator();
+    accumulateGame(acc, { id: 'club-1', result: '1-0', moves: MOVES, rating: 1200 });
+    accumulateGame(acc, {
+      id: 'pro-1',
+      kind: 'broadcast',
+      result: '0-1',
+      moves: MOVES,
+      redName: 'Meng Chen',
+      blackName: 'Li Yanyang',
+    });
+    await replaceXiangqiOpeningMoves(acc, {
+      gameCount: 2,
+      positionCount: acc.size,
+      maxPly: 24,
+      sourceSlugs: ['broadcast', 'explorer-cleared-test'],
+    });
+
+    const start = 'rnbakabnr/9/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/9/RNBAKABNR r';
+    const capture = captureResponse();
+    await tryHandleExplorerRoute(
+      {} as never,
+      { method: 'GET', headers: {} } as unknown as IncomingMessage,
+      capture,
+      '/api/xiangqi/explorer',
+      new URL(`http://test.local/api/xiangqi/explorer?fen=${encodeURIComponent(start)}`),
+    );
+    assert.equal(capture.status, 200);
+    const body = JSON.parse(capture.body) as {
+      topGames: { id: string; kind?: string; redName?: string | null }[];
+    };
+    assert.deepEqual(
+      body.topGames.map((game) => game.id),
+      ['pro-1', 'club-1'],
+      'the named game leads, as it does inside the per-move sample list',
+    );
+    assert.equal(body.topGames[0]?.kind, 'broadcast');
+    assert.equal(body.topGames[0]?.redName, 'Meng Chen');
   });
 
   test('a rebuild replaces the previous corpus wholesale', async () => {

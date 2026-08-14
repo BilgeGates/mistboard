@@ -20,9 +20,10 @@ import {
   type XiangqiGameState,
   type XiangqiMove,
 } from '@mistboard/game';
-import type {
-  XiangqiOpeningMoveAccumulator,
-  XiangqiOpeningSample,
+import {
+  compareXiangqiOpeningSamples,
+  type XiangqiOpeningMoveAccumulator,
+  type XiangqiOpeningSample,
 } from './persistence-xiangqi-explorer.js';
 import { canonicalPositionMove } from './xiangqi-opening-mirror.js';
 
@@ -191,29 +192,9 @@ function retainSample(
     result: game.result,
     playedOn: game.playedOn ?? null,
   };
-  // Named games first, then by rating, then the unrated anonymous tail.
-  //
-  // Ranking purely by rating looked right and was wrong in practice: the corpus
-  // is anonymous amateur play (ratings around 1000-1250) and broadcast games are
-  // professional tournament games carrying no rating at all, so every sample
-  // slot filled with club games and the best games on the site never appeared.
-  // A game between two people we can name is the better example at any rating,
-  // and a future named master corpus inherits the same ordering for free.
-  const rank = (sample: {
-    rating: number | null;
-    redName?: string | null;
-    blackName?: string | null;
-  }): [number, number] => [
-    sample.redName || sample.blackName ? 1 : 0,
-    sample.rating ?? Number.NEGATIVE_INFINITY,
-  ];
-  const incoming = rank(entry);
-  const below = (sample: Parameters<typeof rank>[0]): boolean => {
-    const [named, rating] = rank(sample);
-    if (named !== incoming[0]) return named < incoming[0];
-    return rating < incoming[1];
-  };
-  let index = samples.findIndex(below);
+  // Named games first, then by rating, then the unrated anonymous tail — the
+  // shared ordering, so this list and the route's position-level merge agree.
+  let index = samples.findIndex((sample) => compareXiangqiOpeningSamples(entry, sample) < 0);
   if (index < 0) index = samples.length;
   if (index >= limit) return;
   samples.splice(index, 0, entry);

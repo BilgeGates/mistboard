@@ -463,6 +463,7 @@ export {
   recordXiangqiBroadcastSyncLog,
   setXiangqiBroadcastTourSchedule,
 } from './persistence-xiangqi-broadcasts.js';
+export { compareXiangqiOpeningSamples } from './persistence-xiangqi-explorer.js';
 export type {
   XiangqiOpeningBuildInfo,
   XiangqiOpeningMoveAccumulator,
