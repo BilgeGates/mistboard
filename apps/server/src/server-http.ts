@@ -6,7 +6,7 @@ import { serveArticleOgImage, serveGameOgImage, serveStudyOgImage } from './og-i
 import * as persistence from './persistence.js';
 import { RequestBodyTooLargeError } from './routes/lib.js';
 import type { DrainController } from './server-drain.js';
-import { isClientRoute, isReviewShellRoute } from './server-policy.js';
+import { isClientRoute, isReviewShellRoute, legacyPageRedirect } from './server-policy.js';
 import {
   ARTICLE_META,
   serveArticlePage,
@@ -345,6 +345,15 @@ export function createHttpRequestHandler(options: ServerHttpHandlerOptions) {
         request.url = '/';
         void serveHandler(request, response, { public: options.staticDir });
       });
+      return;
+    }
+
+    // Renamed page routes (see legacyPageRedirect): one permanent hop to the
+    // canonical path so published links and crawler-cached URLs do not 404.
+    const legacyPageTarget = legacyPageRedirect(pathname);
+    if (legacyPageTarget) {
+      response.writeHead(301, { location: legacyPageTarget });
+      response.end();
       return;
     }
 

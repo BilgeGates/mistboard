@@ -89,6 +89,16 @@ describe('site shell nav', () => {
     expect(
       watchPanel?.querySelector<HTMLAnchorElement>('a[href="/broadcast/xiangqi"]')?.textContent,
     ).toBe('Broadcasts');
+    // The games database was reachable only by typing its URL until it landed
+    // here; losing this entry makes the whole surface invisible again.
+    expect(watchPanel?.querySelector<HTMLAnchorElement>('a[href="/games"]')?.textContent).toBe(
+      'Games',
+    );
+    expect(
+      [...(watchPanel?.querySelectorAll<HTMLAnchorElement>('a') ?? [])].map(
+        (link) => link.textContent,
+      ),
+    ).toEqual(['Mistboard TV', 'Broadcasts', 'Games', 'Streamers', 'Video library']);
 
     // Tools dropdown surfaces the analysis board.
     const toolsMenu = [...nav.querySelectorAll<HTMLElement>('.site-nav-menu')].find(

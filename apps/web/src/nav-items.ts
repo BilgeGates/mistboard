@@ -82,6 +82,10 @@ export function watchNavItems(): NavItem[] {
   return [
     { label: 'Mistboard TV', labelKey: 'nav.tv', href: '/watch' },
     { label: 'Broadcasts', labelKey: 'nav.broadcasts', href: '/broadcast/xiangqi' },
+    // The games database belongs with the watching surfaces because that is what
+    // it holds: other people's finished games, from broadcasts, from the
+    // archive, and from play here. It was reachable only by URL until now.
+    { label: 'Games', labelKey: 'nav.games', href: '/games' },
     { label: 'Streamers', labelKey: 'nav.streamers', href: '/streamer' },
     { label: 'Video library', labelKey: 'nav.videoLibrary', href: '/videos' },
   ];
