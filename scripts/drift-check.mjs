@@ -332,11 +332,21 @@ function missingIndexEntries() {
   // in INDEX.md with a glob row, so the exclusion is explicit, not silent drift.
   const ignoredPrefixes = ['apps/web/src/articles/content/', 'apps/server/src/scripts/'];
 
-  return gitLines(['ls-files', 'apps/web/src', 'apps/server/src'])
-    .filter((file) => file.endsWith('.ts') && !file.endsWith('.test.ts'))
-    .filter((file) => !basename(file).startsWith('_')) // dev scratch (e.g. _harness.ts)
-    .filter((file) => !ignoredPrefixes.some((prefix) => file.startsWith(prefix)))
-    .filter((file) => !indexedBasenames.has(basename(file)));
+  return (
+    gitLines(['ls-files', 'apps/web/src', 'apps/server/src'])
+      // Tests are not part of the orientation map. `.parkedtest.ts` is the same
+      // thing for a parked lab surface (it runs under `test:parked`, not the
+      // default gate), so it is excluded on the same grounds as `.test.ts` —
+      // otherwise 23 parked test files sit permanently in the drift list and
+      // train readers to ignore it.
+      .filter(
+        (file) =>
+          file.endsWith('.ts') && !file.endsWith('.test.ts') && !file.endsWith('.parkedtest.ts'),
+      )
+      .filter((file) => !basename(file).startsWith('_')) // dev scratch (e.g. _harness.ts)
+      .filter((file) => !ignoredPrefixes.some((prefix) => file.startsWith(prefix)))
+      .filter((file) => !indexedBasenames.has(basename(file)))
+  );
 }
 
 function checkIndex() {
