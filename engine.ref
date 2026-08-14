@@ -1,5 +1,17 @@
-1bca757
+e97009e
 # ^ The mistboard-engine commit the prod build checks out (railpack build step).
+# Decision timing telemetry (2026-08-13): e97009e forwards `componentMs`
+# (sf_eval / sf_children / eq_pass / select_leaf / kluss / expand_seed),
+# `searchSeconds`, and `treeNodes` from gt_cfr into the live decision's
+# diagnostics, which the platform already writes into the live-engine-decision
+# artifact (readable since #287). think_time_ms minus searchSeconds is the
+# UNBUDGETED remainder — belief enumeration + transport — i.e. the ~5s floor in
+# #283, measured directly instead of inferred from clock deltas. Telemetry only:
+# no move-path, budget, or protocol change, and the diagnostics builder is
+# best-effort (returns {} on any error), so a regression here cannot alter play.
+# Rollback target: 1bca757 (the previous pin; drops the three fields, nothing
+# else). No registry or env changes either way.
+#
 # Worker budget fields (2026-07-30): 1bca757 makes the worker read `workerDeadlineMs`
 # for its wall deadline and `computeBudgetMs` for the compute cap, instead of taking
 # both from the single `watchdogTimeoutMs` key that carried the COMPUTE budget. The
