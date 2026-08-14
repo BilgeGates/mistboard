@@ -243,8 +243,11 @@ const profileHandle = profileHandleFromPath(path);
 // flagship (xiangqi); /analysis/<variant> opens any catalog variant. Unknown
 // slugs return null and fall through to 404 (fail-closed — see analysis-catalog).
 const analysisVariant = analysisVariantFromPath(path);
-const wantsHistoricalXiangqiSearch =
-  path === '/historical-xiangqi' || path === '/historical-xiangqi/games';
+// The games database is canonically /games. The old /historical-xiangqi index
+// paths named one of the three sources the page lists rather than the page, and
+// server-http 301s them here, so this matcher stays single-valued: a route
+// literal here that isClientRoute does not know about is a conformance failure.
+const wantsHistoricalXiangqiSearch = path === '/games';
 const historicalXiangqiGameId = historicalXiangqiGameIdFromPath(path);
 // Accepts the locale-prefixed permalink too (/zh-hans/study/:id). The locale
 // itself is already picked up from the URL by initializeLocaleFromCurrentUrl;

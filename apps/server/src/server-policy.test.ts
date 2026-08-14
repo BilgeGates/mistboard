@@ -17,6 +17,7 @@ import {
   isDrainToken,
   isPrivateOrReservedIp,
   isReviewShellRoute,
+  legacyPageRedirect,
   proxyTrustWarningFor,
   type RuntimeEnv,
   recordMessageTimestamp,
@@ -500,9 +501,27 @@ test('isClientRoute matches parametric SPA routes', () => {
   assert.equal(isClientRoute('/analysis/xiangqi'), true); // standalone analysis board
   assert.equal(isClientRoute('/analysis/jungle-flip'), true); // every catalog variant slug
   assert.equal(isClientRoute('/analysis'), true); // bare /analysis opens the flagship
-  assert.equal(isClientRoute('/historical-xiangqi'), true);
-  assert.equal(isClientRoute('/historical-xiangqi/games'), true);
+  assert.equal(isClientRoute('/games'), true); // games database index
+  // The old index paths are 301s now (server-http), not client routes; the
+  // per-game detail path is untouched and still serves the archive review shell.
+  assert.equal(isClientRoute('/historical-xiangqi'), false);
+  assert.equal(isClientRoute('/historical-xiangqi/games'), false);
   assert.equal(isClientRoute('/historical-xiangqi/game/hxq_abc123'), true);
+});
+
+// A renamed page has to do both halves: the old URL redirects, and it stops
+// being a client route. Leaving it in isClientRoute would serve the SPA at two
+// URLs; dropping it without the redirect would 404 every published link.
+test('legacyPageRedirect sends the old games-database paths to /games, once', () => {
+  assert.equal(legacyPageRedirect('/historical-xiangqi'), '/games');
+  assert.equal(legacyPageRedirect('/historical-xiangqi/'), '/games');
+  assert.equal(legacyPageRedirect('/historical-xiangqi/games'), '/games');
+  // The redirect target is itself a client route, so the hop terminates.
+  assert.equal(legacyPageRedirect('/games'), null);
+  assert.equal(isClientRoute('/games'), true);
+  // Game detail keeps its path: it is a different surface, still linked from
+  // the opening explorer.
+  assert.equal(legacyPageRedirect('/historical-xiangqi/game/hxq_abc123'), null);
 });
 
 test('isClientRoute lets vendored ceval engine assets fall through to static', () => {

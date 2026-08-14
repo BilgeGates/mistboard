@@ -165,6 +165,23 @@ export function canServeLiveBoard(gameSpecId: string): boolean {
 // the server must hand them index.html so direct hits and refreshes don't 404. Keep in
 // sync with main.ts — server-policy.test.ts covers literal-route parity, and
 // apps/web/src/variant-registry-sync.test.ts covers the per-tenant game/review routes.
+// Page routes that were renamed, mapped to their canonical path. A renamed page
+// keeps exactly one hop here rather than staying a live client route, so there
+// is a single canonical URL for crawlers and one place to see what moved.
+//
+// /historical-xiangqi named the historical corpus, which is one of the three
+// sources the games database lists (broadcast boards and games played here are
+// the others), so the old path read as a much narrower surface than the page is.
+// The per-game detail path is deliberately absent: /historical-xiangqi/game/:id
+// still serves the archive review shell and the opening explorer links into it.
+export function legacyPageRedirect(pathname: string): string | null {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  if (normalized === '/historical-xiangqi' || normalized === '/historical-xiangqi/games') {
+    return '/games';
+  }
+  return null;
+}
+
 export function isClientRoute(pathname: string): boolean {
   const normalized = pathname.replace(/\/+$/, '') || '/';
   return (
@@ -216,8 +233,10 @@ export function isClientRoute(pathname: string): boolean {
     // (public detail). All three are SPA client routes (apps/web/src/coach.ts).
     normalized === '/coach' ||
     normalized.startsWith('/coach/') ||
-    normalized === '/historical-xiangqi' ||
-    normalized === '/historical-xiangqi/games' ||
+    // Games database. /games is canonical; the /historical-xiangqi index paths
+    // 301 to it in server-http and are not client routes any more. The per-game
+    // detail path (/historical-xiangqi/game/:id) is unchanged and still below.
+    normalized === '/games' ||
     normalized === '/engines' ||
     normalized === '/bots' ||
     normalized === '/mini-xiangqi-spike' ||
