@@ -191,14 +191,29 @@ function retainSample(
     result: game.result,
     playedOn: game.playedOn ?? null,
   };
-  // An unrated game sorts last, so it only fills space nothing better wants.
-  // Named games are the exception: a broadcast game between two people whose
-  // names we can print is a better example than an anonymous rated one, so it
-  // sorts ahead of the unrated tail rather than into it.
-  const score = (sample: { rating: number | null; redName?: string | null }): number =>
-    sample.rating ?? (sample.redName ? 0 : -1);
-  const incoming = score(entry);
-  let index = samples.findIndex((sample) => score(sample) < incoming);
+  // Named games first, then by rating, then the unrated anonymous tail.
+  //
+  // Ranking purely by rating looked right and was wrong in practice: the corpus
+  // is anonymous amateur play (ratings around 1000-1250) and broadcast games are
+  // professional tournament games carrying no rating at all, so every sample
+  // slot filled with club games and the best games on the site never appeared.
+  // A game between two people we can name is the better example at any rating,
+  // and a future named master corpus inherits the same ordering for free.
+  const rank = (sample: {
+    rating: number | null;
+    redName?: string | null;
+    blackName?: string | null;
+  }): [number, number] => [
+    sample.redName || sample.blackName ? 1 : 0,
+    sample.rating ?? Number.NEGATIVE_INFINITY,
+  ];
+  const incoming = rank(entry);
+  const below = (sample: Parameters<typeof rank>[0]): boolean => {
+    const [named, rating] = rank(sample);
+    if (named !== incoming[0]) return named < incoming[0];
+    return rating < incoming[1];
+  };
+  let index = samples.findIndex(below);
   if (index < 0) index = samples.length;
   if (index >= limit) return;
   samples.splice(index, 0, entry);

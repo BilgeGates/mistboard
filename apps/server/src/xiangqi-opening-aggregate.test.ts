@@ -73,13 +73,16 @@ test('folds a game into per-position move counts split by result', () => {
   });
 });
 
-// Ordering rule with two identity systems in one list: rated corpus games sort
-// by rating, and a named game outranks an unrated anonymous one rather than
-// falling into the unrated tail, because a name is the better example to show.
-test('a named game outranks an unrated anonymous one but not a strong rated one', () => {
+// Ordering with two identity systems in one list. Named games lead, then rated
+// ones by rating. Ranking by rating alone put anonymous ~1000-rated club games
+// above named professional games — which is how the first version of this
+// shipped, folding broadcast games into the statistics while keeping them out of
+// every sample slot.
+test('named games lead the sample list, then rated ones, then the anonymous tail', () => {
   const acc = createAccumulator();
   const line = moves('h3e3', 'h10g8');
   accumulateGame(acc, { id: 'anon', result: '1-0', moves: line });
+  accumulateGame(acc, { id: 'club', result: '1-0', moves: line, rating: 1100 });
   accumulateGame(acc, {
     id: 'named',
     kind: 'broadcast',
@@ -88,11 +91,25 @@ test('a named game outranks an unrated anonymous one but not a strong rated one'
     redName: 'Meng Chen',
     blackName: 'Li Yanyang',
   });
-  accumulateGame(acc, { id: 'rated', result: '1-0', moves: line, rating: 2400 });
+  accumulateGame(acc, { id: 'strong', result: '1-0', moves: line, rating: 2400 });
 
   assert.deepEqual(
     statsFor(acc, START, 'h3e3')?.sampleGames.map((sample) => sample.id),
-    ['rated', 'named', 'anon'],
+    ['named', 'strong', 'club', 'anon'],
+  );
+});
+
+// Two named games still order by rating between themselves, so a named corpus
+// with ratings would not scramble into arrival order.
+test('named games order by rating among themselves', () => {
+  const acc = createAccumulator();
+  const line = moves('h3e3', 'h10g8');
+  accumulateGame(acc, { id: 'weaker', result: '1-0', moves: line, rating: 2000, redName: 'A' });
+  accumulateGame(acc, { id: 'stronger', result: '1-0', moves: line, rating: 2600, redName: 'B' });
+
+  assert.deepEqual(
+    statsFor(acc, START, 'h3e3')?.sampleGames.map((sample) => sample.id),
+    ['stronger', 'weaker'],
   );
 });
 
