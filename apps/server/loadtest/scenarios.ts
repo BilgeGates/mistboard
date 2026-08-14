@@ -1,4 +1,11 @@
-import { type Move, type RoomTimeControl, TIME_CONTROLS, type VariantId } from '@mistboard/game';
+import {
+  DARK_CHESS_SPEC_ID,
+  engineTimeControlPin,
+  type Move,
+  type RoomTimeControl,
+  TIME_CONTROLS,
+  type VariantId,
+} from '@mistboard/game';
 
 export type Mode = 'pve' | 'pvp';
 
@@ -21,18 +28,29 @@ export interface Scenario {
 // Other PvE scenarios will get rejected at /api/rooms; bullet/casual PvE
 // scenarios only work locally against an unrestricted server or against
 // PvP, not against PvE-on-prod.
-const BULLET = TIME_CONTROLS.find((tc) => tc.id === '1m1')!;
 const BLITZ = TIME_CONTROLS.find((tc) => tc.id === '3m2')!;
-// CASUAL is loadtest-only — not an official Mistboard TC; useful for stress
-// scenarios where flagging shouldn't dominate the outcome.
-const CASUAL: RoomTimeControl = { initialMs: 600_000, incrementMs: 0 };
+// NB: the loadtest-only BULLET and CASUAL paces are gone with the PvE rows that
+// were their only callers. Fog PvE can no longer be stressed at varying paces
+// (see FOG_PVE below); reintroduce them with a PvP row if pace pressure, rather
+// than engine pressure, is what a future scenario needs to measure.
+// Fog PvE is engine-pinned (#283): the fog engines cannot honor a 1s or 2s
+// increment, and the create route refuses those paces, so a PvE scenario at
+// BULLET/BLITZ/CASUAL would 400 before a single game started. The PvE rows
+// below therefore share one pace and vary what a load test actually varies:
+// concurrency, move count, and duration. The pace dimension lives on the PvP
+// rows, where humans still set their own clock.
+const FOG_PVE: RoomTimeControl = (() => {
+  const pin = engineTimeControlPin(DARK_CHESS_SPEC_ID);
+  if (!pin) throw new Error('fog PvE scenarios expect an engine pin');
+  return { initialMs: pin.initialMs, incrementMs: pin.incrementMs };
+})();
 
 export const scenarios: Record<string, Scenario> = {
   'pve-bullet': {
     name: 'pve-bullet',
     mode: 'pve',
     variant: 'dark-chess',
-    timeControl: BULLET,
+    timeControl: FOG_PVE,
     maxMoves: 250,
     maxGameMs: 90_000,
     moveTimeoutMs: 30_000,
@@ -41,7 +59,7 @@ export const scenarios: Record<string, Scenario> = {
     name: 'pve-blitz',
     mode: 'pve',
     variant: 'dark-chess',
-    timeControl: BLITZ,
+    timeControl: FOG_PVE,
     maxMoves: 250,
     maxGameMs: 240_000,
     moveTimeoutMs: 30_000,
@@ -50,7 +68,7 @@ export const scenarios: Record<string, Scenario> = {
     name: 'pve-casual',
     mode: 'pve',
     variant: 'dark-chess',
-    timeControl: CASUAL,
+    timeControl: FOG_PVE,
     maxMoves: 200,
     maxGameMs: 300_000,
     moveTimeoutMs: 30_000,

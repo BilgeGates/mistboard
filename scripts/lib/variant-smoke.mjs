@@ -61,7 +61,11 @@ async function createRoom(config, baseUrl, timeoutMs) {
       // Human black makes the engine red, so the smoke proves the opening
       // engine move and can still clean up with a pregame abort.
       preferredColor: 'black',
-      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      // No pace named on purpose. The smoke cares that the engine moves, not
+      // about the clock, and the server owns which pace an engine may play:
+      // pinned variants resolve to their pin (the fog engines cannot honor the
+      // house 3+2, #283) and the rest take the room factory default. Naming a
+      // pace here is what red-ed this smoke the moment the first pin landed.
     }),
   });
   const body = await parseJsonResponse(response);
