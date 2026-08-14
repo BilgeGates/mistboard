@@ -208,6 +208,8 @@ definePersistenceTests('game lists', () => {
             'human', 'engine', NULL, NULL, 'pve', 'completed', 'public'),
            ('watch-short-timeout', 'dark-chess', 'black-wins', 'timeout', 4, $1, $1,
             'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
+           ('watch-abandoned', 'dark-chess', 'white-wins', 'abandonment', 40, $1, $1,
+            'white', 'black', NULL, NULL, 'pvp', 'completed', 'public'),
            ('watch-imported-public', 'dark-chess', 'white-wins', 'resignation', 40, $1, $1,
             'white', 'black', NULL, NULL, 'imported', 'completed', 'public')`,
         [newest, middle, oldest, outsideWindow, future],
@@ -330,6 +332,20 @@ definePersistenceTests('game lists', () => {
         `INSERT INTO events (room_id, seq, type, payload)
          VALUES ($1, 1, $2, $3)`,
         ['watch-short-timeout', shortTimeoutEvent.type, shortTimeoutEvent],
+      );
+      // A long but ABANDONED game: it clears the consistency guard (abandonment
+      // pairs with seat-forfeited) and the ply floor, so only the curation bar
+      // can drop it. That is what makes the curated assertion below meaningful.
+      const abandonedEvent: GameEvent = {
+        type: 'seat-forfeited',
+        at: now.getTime() + 1,
+        roomId: 'watch-abandoned',
+        color: 'black',
+      };
+      await client.query(
+        `INSERT INTO events (room_id, seq, type, payload)
+         VALUES ($1, 1, $2, $3)`,
+        ['watch-abandoned', abandonedEvent.type, abandonedEvent],
       );
       const sealedEvents: Array<{ event: GameEvent; roomId: string; seq: number }> = [
         {
@@ -492,6 +508,7 @@ definePersistenceTests('game lists', () => {
         'watch-short-pvp',
         'watch-short-pve',
         'watch-pvp-newest',
+        'watch-abandoned',
         'watch-pve-link',
         'watch-eve',
         'watch-old',
@@ -522,9 +539,26 @@ definePersistenceTests('game lists', () => {
         'watch-short-pvp',
         'watch-short-pve',
         'watch-pvp-newest',
+        'watch-abandoned',
         'watch-pve-link',
         'watch-old',
       ],
+    );
+    // The curated cut (Top Rated only, shared with the homepage showcase pool):
+    // same recency order, minus the rage-quit and every near-opening stub, so the
+    // channel's head is the game the homepage board freezes on. watch-pve-link
+    // (12 ply) and watch-short-* fall to the floor; watch-abandoned falls to the
+    // termination filter despite being 40 ply.
+    const curated = await listWatchUnlockedGames({
+      curated: true,
+      limit: 10,
+      modes: ['pvp', 'pve'],
+      now,
+      variants: ['dark-chess', 'draft960'],
+    });
+    assert.deepEqual(
+      curated.map((game) => game.roomId),
+      ['watch-pvp-newest', 'watch-old'],
     );
     assert.equal(
       await countWatchSealedGames({

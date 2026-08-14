@@ -19,6 +19,14 @@ const VARIANT_CHANNEL_MODES: readonly GameMode[] = ['pvp', 'pve'];
 export type WatchChannelId = string;
 
 export type WatchChannel = {
+  // Whether the channel's completed feed applies the flagship curation bar
+  // (no abandonment, no near-opening stubs) shared with the homepage showcase
+  // pool. True for Top Rated ONLY: it is the one channel that must agree with
+  // the homepage board, and the one whose cross-variant volume can absorb the
+  // filter. A per-variant channel stays the full feed — at current liquidity the
+  // bar would empty the thin ones (dark-xiangqi had 4 games, 0 above the bar on
+  // 2026-08-14), and a variant channel's job is "every game in this variant".
+  curated: boolean;
   default: boolean;
   family: GameFamilyId;
   gameSpecIds: readonly GameSpecId[];
@@ -35,6 +43,7 @@ export type WatchChannel = {
 // stays a hardcoded constant and is always enabled. Every other variant channel
 // derives from a registered tenant's `watch` field.
 const DARK_CHESS_CHANNEL: WatchChannel = {
+  curated: false,
   default: false,
   family: 'chess',
   gameSpecIds: [DARK_CHESS_SPEC_ID, DARK_DRAFT960_SPEC_ID],
@@ -48,7 +57,10 @@ const DARK_CHESS_CHANNEL: WatchChannel = {
 // homepage viewer. It has no fixed variant — the client follows the top LIVE
 // game (the cross-channel election, PvP over PvE, served by
 // /api/watch/live?channel=top) when one exists, and otherwise browses the
-// freshest completed human games across every watchable variant. Like Engines
+// freshest completed human games across every watchable variant that clear the
+// shared curation bar (`curated: true`) — the same filter the homepage showcase
+// pool applies, so this channel's head IS the game the homepage board freezes
+// on. Before 2026-08-14 it was unfiltered and the two disagreed. Like Engines
 // it spans families, so it carries no per-channel gameSpecIds (the watch client
 // picks a renderer per game). Human play only (pvp+pve) — the live election is
 // fail-closed on fog and headless EvE never features here. Its `legacyVariants`
@@ -59,6 +71,7 @@ const DARK_CHESS_CHANNEL: WatchChannel = {
 export const TOP_CHANNEL_ID = 'top';
 
 const TOP_CHANNEL: WatchChannel = {
+  curated: true,
   default: true,
   family: 'chess',
   gameSpecIds: [],
@@ -78,6 +91,7 @@ const TOP_CHANNEL: WatchChannel = {
 // is unused downstream; 'chess' is an inert placeholder. Always enabled; sorts to
 // the end of the rail.
 const ENGINES_CHANNEL: WatchChannel = {
+  curated: false,
   default: false,
   family: 'chess',
   gameSpecIds: [],
@@ -110,6 +124,7 @@ function channelsDerivedFromRegistry(): WatchChannel[] {
     const watch = registration.watch;
     if (!watch) continue;
     channels.push({
+      curated: false,
       default: watch.default ?? false,
       family: watch.family as GameFamilyId,
       gameSpecIds: [registration.gameSpecId as GameSpecId],

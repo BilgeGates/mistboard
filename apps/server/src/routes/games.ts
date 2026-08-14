@@ -229,6 +229,8 @@ export async function tryHandle(
             variants: candidate.legacyVariants,
           }),
           persistence.listWatchUnlockedGames({
+            // Top Rated only: the curated cut that matches the homepage board.
+            curated: candidate.curated,
             limit: WATCH_REPLAY_LIMIT,
             modes: candidate.modes,
             now,

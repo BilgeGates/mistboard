@@ -34,7 +34,7 @@ import {
   setRoomNavigator,
 } from './landing-play.js';
 import { homepageShowcaseGames, pickHeroPovForGame } from './landing-showcase.js';
-import { mountLandingTv } from './landing-tv.js';
+import { type LandingTvMode, mountLandingTv } from './landing-tv.js';
 import { type GameMeta, mountReplay } from './replay.js';
 import { renderWatchReplaySkeleton } from './replay-skeleton.js';
 import { enginePanelsForReview, loadGameForReview } from './review.js';
@@ -194,6 +194,7 @@ export async function mountLanding(root: HTMLElement): Promise<void> {
     loaderForId: landingEventLoader,
     isConnected: () => stage.el.isConnected,
     onGameChange: ({ roomId, specId, mode }) => {
+      stage.viewerLink.href = localizedHref(watchHrefForTvGame(mode, roomId), currentLocale());
       stage.caption.textContent =
         mode === 'live'
           ? `${variantDisplayLabel(variantByRoomId[roomId] ?? specId)} · live`
@@ -563,6 +564,19 @@ function syncGamePlyUrl(ply: number): void {
   window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
+// Where the TV widget's click goes. A frozen/aired board hands /watch the exact
+// room it is showing (?game=), so clicking through continues THAT game instead
+// of the channel's own head. The two agree on the freshest game (Top Rated and
+// the homepage pool share one curation bar), but the widget also airs a game
+// that finished mid-session and freezes on it, so the board can legitimately sit
+// on a non-head game. A LIVE board links to the bare channel: /watch runs the
+// same top-election poll and picks the live game up itself, and ?game= resolves
+// only against the COMPLETED feed, which a still-running room is not in.
+export function watchHrefForTvGame(mode: LandingTvMode, roomId: string): string {
+  if (mode === 'live') return '/watch?channel=top';
+  return `/watch?channel=top&game=${encodeURIComponent(roomId)}`;
+}
+
 function buildLandingStage(
   engines: PlayableEngine[],
   opts: { skipLiveWidgets?: boolean } = {},
@@ -570,6 +584,7 @@ function buildLandingStage(
   el: HTMLElement;
   replayRoot: HTMLElement;
   caption: HTMLElement;
+  viewerLink: HTMLAnchorElement;
   applyEngines: (engines: PlayableEngine[]) => void;
 } {
   const locale = currentLocale();
@@ -754,7 +769,7 @@ function buildLandingStage(
   // The footer lives only on the homepage now (stripped from interior routes),
   // blended into the bottom of the stage rather than rendered as a separate bar.
   stage.append(section, buildHomeFooter(locale));
-  return { el: stage, replayRoot, caption, applyEngines };
+  return { el: stage, replayRoot, caption, viewerLink, applyEngines };
 }
 
 // Build-time static render of the homepage (nav + stage), baked by the prerender

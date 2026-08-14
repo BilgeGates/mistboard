@@ -33,6 +33,20 @@ const MIN_TIMEOUT_SOURCE_PLY_COUNT = 10;
 // uses a ply floor (it relies on the consistency guard + seal-until-finished).
 const MIN_TV_PVP_PLY_COUNT = 30;
 
+// THE curation bar for the site's two flagship surfaces: the homepage viewer
+// and the cross-variant Top Rated watch channel. A curated feed shows only
+// games someone played to a real finish — no rage-quits (`abandonment`), no
+// near-opening stubs. One constant on purpose: the two surfaces diverged once
+// (2026-08-14) because only the homepage filtered, so the homepage froze on a
+// game hours older than the one /watch led with, and the homepage widget's link
+// landed the visitor on a different game than the board it was attached to.
+// Raise or lower it in ONE place or they drift again.
+//
+// The floor dropped 30 → 20 on 2026-07-30: at Mistboard's liquidity a decisive
+// 20-ply game someone actually played is real activity worth showing, and the
+// abandonment filter already drops the rage-quits the floor was standing in for.
+const CURATED_MIN_PLY = 20;
+
 export type GameResult = 'white-wins' | 'black-wins' | 'red-wins' | 'draw';
 export type GameParticipantColor = Color | XiangqiColor;
 export type GameParticipantSubjectType =
@@ -124,6 +138,11 @@ export type RecentEveGameRecord = GameRecord & {
 };
 
 export type WatchUnlockedGameOptions = {
+  // Apply the flagship curation bar (CURATED_MIN_PLY + no abandonment) — the
+  // same filter the homepage showcase pool uses. Only the Top Rated channel
+  // passes it: per-variant channels stay the full "seal until finished" feed,
+  // because at Mistboard's liquidity the bar would empty the thin ones.
+  curated?: boolean;
   limit?: number;
   modes?: readonly GameMode[];
   now?: Date;
@@ -548,11 +567,9 @@ export async function listRecentPublicGames(limit = 10): Promise<RecentEveGameRe
 // homepage. Do not re-add it as a low-liquidity filler tier without deciding that
 // tradeoff again.
 //
-// The human floor dropped 30 → 20 on 2026-07-30: at Mistboard's liquidity a
-// decisive 20-ply game someone actually played is real activity worth showing,
-// and the abandonment filter already drops the rage-quits the floor was standing
-// in for.
-const SHOWCASE_MIN_PLY_HUMAN = 20;
+// The ply floor + no-abandonment pair is CURATED_MIN_PLY (see its comment): the
+// same bar the Top Rated watch channel applies, so the homepage's frozen board
+// and /watch?channel=top agree on the site's freshest game.
 // Pool size. Anchored on "games take minutes to finish, low liquidity"; tune from
 // traffic (see also the client poller).
 const SHOWCASE_POOL_SIZE = 14;
@@ -667,7 +684,7 @@ async function queryShowcasePvp(
        )
      ORDER BY games.ended_at DESC, games.room_id DESC
      LIMIT $2`,
-    [SHOWCASE_MIN_PLY_HUMAN, limit, variants],
+    [CURATED_MIN_PLY, limit, variants],
   );
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
 }
@@ -694,7 +711,7 @@ async function queryShowcasePve(
        )
      ORDER BY games.ended_at DESC, games.room_id DESC
      LIMIT $2`,
-    [SHOWCASE_MIN_PLY_HUMAN, limit, variants],
+    [CURATED_MIN_PLY, limit, variants],
   );
   return attachGameParticipants(rows.map(recentEveGameRecordFromRow));
 }
@@ -719,6 +736,16 @@ export async function listWatchUnlockedGames(
   }
   values.push(watchModeFilter(options.modes));
   const modeClause = `AND games.mode = ANY($${values.length}::text[])`;
+  // The curated (Top Rated) cut: same bar as the homepage showcase pool, so the
+  // two flagship surfaces agree on the site's freshest game. Note this filters
+  // the recency-ordered feed rather than re-ranking it — Top stays "newest
+  // first", it just skips the stubs.
+  let curatedClause = '';
+  if (options.curated) {
+    values.push(CURATED_MIN_PLY);
+    curatedClause = `AND games.termination <> 'abandonment'
+       AND games.ply_count >= $${values.length}`;
+  }
   const { rows } = await getPool().query<RecentEveGameRow>(
     `WITH last_events AS (
        SELECT DISTINCT ON (events.room_id)
@@ -741,6 +768,7 @@ export async function listWatchUnlockedGames(
      WHERE games.status = 'completed'
        ${variantClause}
        ${modeClause}
+       ${curatedClause}
        AND games.ended_at <= $2
        AND (
          -- A move-decided ending always closes on a move-played event, whatever the
