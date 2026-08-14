@@ -93,7 +93,8 @@ async function createPveRoom(): Promise<string> {
       engineId: 'builtin-random-legal',
       // 3+2 is an allowed PvE time control (see isAllowedTimeControl in
       // http-api.ts; allowlist = 1+1 / 3+2). Keep this synced.
-      timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+      // Fog PvE is pinned to 5+5; the engine cannot honor 3+2 (#283).
+      timeControl: { initialMs: 300_000, incrementMs: 5_000 },
       // Force engine to black so the test client (which connects as white
       // by default) drives white moves. Without this, /api/rooms defaults
       // preferredColor to 'random' (added in 047f5c4) — 50% of games would
@@ -211,9 +212,10 @@ test('POST /api/rooms enforces the PvE official-time-control allowlist', async (
   const body = (await nonOfficial.json()) as { error?: string };
   assert.equal(body.error, 'time_control_unsupported');
 
-  // An official bullet TC (1+1) now passes the allowlist — it must NOT be
-  // rejected with the allowlist error (in this engine-less test env it fails
-  // later at seat allocation, which is fine; we only assert the gate opened).
+  // 1+1 clears the official allowlist but not the engine pin: the fog engine's
+  // per-move floor outruns a 1s increment, so it would lose on time in any long
+  // game (#283). Distinct error from the off-menu case above, because the pace
+  // is legitimate for humans and only the engine cannot honor it.
   const bullet = await fetch(`${httpBase}/api/rooms`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -223,9 +225,9 @@ test('POST /api/rooms enforces the PvE official-time-control allowlist', async (
       timeControl: { initialMs: 60_000, incrementMs: 1_000 },
     }),
   });
-  assert.notEqual(bullet.status, 400, 'PvE 1+1 should pass the allowlist now');
+  assert.equal(bullet.status, 400, 'PvE 1+1 should be refused by the engine pin');
   const bulletBody = (await bullet.json().catch(() => ({}))) as { error?: string };
-  assert.notEqual(bulletBody.error, 'time_control_unsupported');
+  assert.equal(bulletBody.error, 'engine_time_control_unsupported');
 
   // Sanity: PvP at 1+1 IS allowed (no PvE restriction; humans set their pace).
   const pvp = await fetch(`${httpBase}/api/rooms`, {
