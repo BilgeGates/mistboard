@@ -320,4 +320,108 @@ definePersistenceTests('showcase + browse queries', () => {
     assert.equal(agg.results.blackWins, 1);
     assert.equal(agg.results.draws, 1);
   });
+
+  // The public games database asks for a subset of modes and public rows only,
+  // and it reports a count. Both have to come out of one WHERE clause: a page
+  // narrowed in JS after the query can report a total that describes a wider
+  // set than the rows beside it.
+  test('queryGames narrows by mode set, visibility, player and event in SQL', async () => {
+    const t = (min: number) => new Date(Date.UTC(2026, 6, 2, 9, min, 0));
+    await seed([
+      {
+        roomId: 'f-lab-1',
+        mode: 'eve',
+        result: 'white-wins',
+        termination: 'king-captured',
+        plyCount: 50,
+        endedAt: t(1),
+        variant: 'xiangqi',
+        withEvent: false,
+      },
+      {
+        roomId: 'f-lab-2',
+        mode: 'eve',
+        result: 'draw',
+        termination: 'draw',
+        plyCount: 60,
+        endedAt: t(2),
+        variant: 'xiangqi',
+        withEvent: false,
+      },
+      {
+        roomId: 'f-human-1',
+        mode: 'pvp',
+        result: 'white-wins',
+        termination: 'king-captured',
+        plyCount: 70,
+        endedAt: t(3),
+        variant: 'xiangqi',
+        corpusId: 'club-night',
+        withEvent: false,
+      },
+      {
+        roomId: 'f-bot-1',
+        mode: 'pve',
+        result: 'black-wins',
+        termination: 'king-captured',
+        plyCount: 80,
+        endedAt: t(4),
+        variant: 'xiangqi',
+        withEvent: false,
+      },
+      {
+        roomId: 'f-hidden',
+        mode: 'pvp',
+        result: 'draw',
+        termination: 'draw',
+        plyCount: 90,
+        endedAt: t(5),
+        variant: 'xiangqi',
+        visibility: 'private',
+        withEvent: false,
+      },
+    ]);
+
+    const listed = await queryGames({
+      variant: 'xiangqi',
+      modes: ['pvp', 'pve'],
+      visibility: 'public',
+    });
+    assert.deepEqual(
+      new Set(listed.games.map((g) => g.roomId)),
+      new Set(['f-human-1', 'f-bot-1']),
+      'engine-lab and private rows stay out of the public set',
+    );
+    assert.equal(listed.total, 2);
+
+    // The count has to survive a limit: it describes the filtered slice, not the
+    // page. This is the shape the games-DB listing reports as "N games".
+    const firstPage = await queryGames({
+      variant: 'xiangqi',
+      modes: ['pvp', 'pve'],
+      visibility: 'public',
+      limit: 1,
+    });
+    assert.equal(firstPage.games.length, 1);
+    assert.equal(firstPage.total, 2, 'total counts the slice, not the rows returned');
+
+    const byPlayer = await queryGames({ variant: 'xiangqi', player: 'whi' });
+    assert.ok(
+      byPlayer.games.every((g) => g.whiteName === 'White'),
+      'player filter matches a seat name substring',
+    );
+    assert.equal(byPlayer.total, byPlayer.games.length);
+
+    const byEvent = await queryGames({ variant: 'xiangqi', event: 'club' });
+    assert.deepEqual(
+      byEvent.games.map((g) => g.roomId),
+      ['f-human-1'],
+    );
+    assert.equal(byEvent.total, 1);
+
+    // An empty allowlist means "no modes", never "every mode".
+    const none = await queryGames({ variant: 'xiangqi', modes: [] });
+    assert.equal(none.total, 0);
+    assert.equal(none.games.length, 0);
+  });
 });

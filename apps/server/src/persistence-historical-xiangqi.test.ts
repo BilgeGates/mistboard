@@ -8,7 +8,13 @@ import {
   queryHistoricalXiangqiGames,
   upsertHistoricalXiangqiSource,
 } from './persistence.js';
-import { assert, definePersistenceTests, test } from './persistence-test-support.js';
+import {
+  assert,
+  definePersistenceTests,
+  pg,
+  TEST_DATABASE_URL,
+  test,
+} from './persistence-test-support.js';
 import { tryHandle as tryHandleHistoricalRoute } from './routes/historical-xiangqi-games.js';
 
 definePersistenceTests('historical xiangqi', () => {
@@ -146,6 +152,82 @@ definePersistenceTests('historical xiangqi', () => {
     assert.equal(page.games[0]?.playedOn, '1982-04-03');
     assert.equal(page.games[0]?.redNameRaw, 'Hu Ronghua');
     assert.equal(page.games[0]?.blackNameRaw, 'Liu Dahua');
+  });
+
+  // The browsable games list is what a visitor means by "the xiangqi games
+  // database". Two ways it used to misrepresent itself: engine-vs-engine
+  // calibration rows outnumbered the real games, and the reported total was the
+  // number of rows fetched, so it grew with the page size.
+  test('games list hides engine-lab rows, names live seats, and counts honestly', async () => {
+    const client = new pg.Client({ connectionString: TEST_DATABASE_URL });
+    await client.connect();
+    try {
+      const at = (min: number) => new Date(Date.UTC(2026, 6, 3, 10, min, 0));
+      const insertGame = async (
+        roomId: string,
+        mode: string,
+        endedAt: Date,
+        names: { white: string | null; black: string | null },
+      ) => {
+        await client.query(
+          `INSERT INTO games
+             (room_id, variant, result, termination, ply_count, started_at, ended_at,
+              white_name, black_name, mode, status, visibility)
+           VALUES ($1, 'xiangqi', 'red-wins', 'king-captured', 44, $2, $2, $3, $4, $5,
+                   'completed', 'public')`,
+          [roomId, endedAt, names.white, names.black, mode],
+        );
+      };
+
+      await insertGame('unified-lab-a', 'eve', at(1), { white: 'Pikafish', black: 'Pikafish' });
+      await insertGame('unified-lab-b', 'eve', at(2), { white: 'Pikafish', black: 'Pikafish' });
+      // A real game keeps its seats on game_participants and leaves the games
+      // row's name columns null.
+      await insertGame('unified-human', 'pvp', at(3), { white: null, black: null });
+      for (const [color, name] of [
+        ['white', 'redseat'],
+        ['black', 'blackseat'],
+      ] as const) {
+        await client.query(
+          `INSERT INTO game_participants (game_id, color, subject_type, display_name, visibility)
+           VALUES ($1, $2, 'guest', $3, 'public')`,
+          ['unified-human', color, name],
+        );
+      }
+
+      const respond = async (query: string) => {
+        const capture = captureResponse();
+        await tryHandleHistoricalRoute(
+          {} as never,
+          { method: 'GET', headers: {} } as unknown as IncomingMessage,
+          capture,
+          '/api/historical-xiangqi/games',
+          new URL(`http://test.local/api/historical-xiangqi/games?${query}`),
+        );
+        assert.equal(capture.status, 200);
+        return JSON.parse(capture.body) as {
+          games: { id: string; redNameRaw: string | null; blackNameRaw: string | null }[];
+          total: number;
+        };
+      };
+
+      const all = await respond('limit=50');
+      const ids = all.games.map((game) => game.id);
+      assert.ok(!ids.includes('unified-lab-a'), 'engine-lab rows are not browsable games');
+      assert.ok(!ids.includes('unified-lab-b'), 'engine-lab rows are not browsable games');
+      assert.ok(ids.includes('unified-human'), 'a played game is listed');
+
+      const human = all.games.find((game) => game.id === 'unified-human');
+      assert.equal(human?.redNameRaw, 'redseat', 'seat names fall back to the participants');
+      assert.equal(human?.blackNameRaw, 'blackseat');
+
+      // The count describes the set, so asking for fewer rows must not shrink it.
+      const narrow = await respond('limit=1');
+      assert.equal(narrow.games.length, 1);
+      assert.equal(narrow.total, all.total, 'total is a count, not the size of the page');
+    } finally {
+      await client.end();
+    }
   });
 
   test('detail route serves an unlisted game by id but hides a private one', async () => {

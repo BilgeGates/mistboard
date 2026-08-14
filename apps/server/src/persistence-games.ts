@@ -953,6 +953,18 @@ export async function listFavoriteGames(
 export type GameQueryFilters = {
   variant?: string;
   mode?: GameMode;
+  // Mode allowlist, for callers that want several modes but not all of them —
+  // the public games DB takes 'pvp' and 'pve' and leaves engine-lab self-play
+  // out. An empty array matches nothing rather than everything, so a caller
+  // that computes its allowlist can never accidentally open the query up.
+  modes?: GameMode[];
+  visibility?: GameVisibility;
+  // Substring match over the stored seat names / corpus label. Public callers
+  // need these in SQL rather than as a post-filter on the fetched page: a page
+  // filtered in JS cannot report an honest total, and it silently drops rows
+  // that sit past the limit.
+  player?: string;
+  event?: string;
   result?: GameResult;
   termination?: GameTermination;
   rated?: boolean;
@@ -1000,6 +1012,23 @@ export function buildGameQueryWhere(filters: GameQueryFilters): {
   };
   if (filters.variant) conditions.push(`games.variant = ${bind(filters.variant)}`);
   if (filters.mode) conditions.push(`games.mode = ${bind(filters.mode)}`);
+  if (filters.modes) {
+    conditions.push(
+      filters.modes.length > 0 ? `games.mode = ANY(${bind(filters.modes)})` : 'FALSE',
+    );
+  }
+  if (filters.visibility) conditions.push(`games.visibility = ${bind(filters.visibility)}`);
+  if (filters.player) {
+    const like = `%${filters.player}%`;
+    conditions.push(
+      `(games.white_name ILIKE ${bind(like)} OR games.black_name ILIKE ${bind(like)}
+        OR EXISTS (
+          SELECT 1 FROM game_participants gp
+          WHERE gp.game_id = games.room_id AND gp.display_name ILIKE ${bind(like)}
+        ))`,
+    );
+  }
+  if (filters.event) conditions.push(`games.corpus_id ILIKE ${bind(`%${filters.event}%`)}`);
   if (filters.result) conditions.push(`games.result = ${bind(filters.result)}`);
   if (filters.termination) conditions.push(`games.termination = ${bind(filters.termination)}`);
   if (typeof filters.rated === 'boolean') conditions.push(`games.rated = ${bind(filters.rated)}`);

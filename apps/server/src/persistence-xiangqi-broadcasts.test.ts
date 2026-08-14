@@ -597,12 +597,14 @@ definePersistenceTests('xiangqi broadcasts', () => {
     // The completed-game search projection surfaces the cached English names
     // and matches English queries against them.
     const found = await queryCompletedXiangqiBroadcastBoards({ player: 'Wang Tianyi' });
-    assert.equal(found.length, 1);
-    assert.equal(found[0]?.redName, '王天一');
-    assert.equal(found[0]?.redNameEn, 'Wang Tianyi');
-    assert.equal(found[0]?.blackNameEn, 'Zheng Weitong');
-    assert.equal(found[0]?.roundNameEn, 'Round 1');
-    assert.match(found[0]?.tourNameEn ?? '', /Cup$/);
+    assert.equal(found.boards.length, 1);
+    // The count describes the same filtered slice as the rows, not the table.
+    assert.equal(found.total, 1);
+    assert.equal(found.boards[0]?.redName, '王天一');
+    assert.equal(found.boards[0]?.redNameEn, 'Wang Tianyi');
+    assert.equal(found.boards[0]?.blackNameEn, 'Zheng Weitong');
+    assert.equal(found.boards[0]?.roundNameEn, 'Round 1');
+    assert.match(found.boards[0]?.tourNameEn ?? '', /Cup$/);
   });
 
   test('translate-backfill recomputes cached English names without re-importing', async () => {
