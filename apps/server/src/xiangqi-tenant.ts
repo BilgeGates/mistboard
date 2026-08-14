@@ -25,6 +25,7 @@ import {
   type XiangqiGameState,
   type XiangqiMove,
   type XiangqiSquare,
+  xiangqiPerpetualCheckLoser,
 } from '@mistboard/game';
 import { xiangqiEnabled } from './feature-flags.js';
 import type * as persistence from './persistence.js';
@@ -110,7 +111,30 @@ export const xiangqiTenant: XiangqiTenant = {
   oppositeColor: (color) => (color === 'red' ? 'black' : 'red'),
   rules: {
     createInitialState: createInitialXiangqiState,
-    applyMove: applyStandardXiangqiMove,
+    // Apply the move, then enforce the chasing rule: a three-fold repetition
+    // reached by one side's perpetual check is a LOSS for that side, not a draw.
+    // Real xiangqi (AXF/WXF/CXA) has never scored it as a draw, and without this
+    // a losing side can perpetual-check its way to half a point. The move
+    // history rides along on state.moveLog, so this needs no shared runtime
+    // change and reruns identically on event replay. Mirrors the Fortress
+    // tenant; perpetual material *chase* is still out of scope on both.
+    applyMove: (state, move) => {
+      const next = applyStandardXiangqiMove(state, move);
+      if (next.status.type === 'finished' && next.status.reason === 'repetition') {
+        const loser = xiangqiPerpetualCheckLoser(next.moveLog ?? []);
+        if (loser) {
+          return {
+            ...next,
+            status: {
+              type: 'finished',
+              winner: loser === 'red' ? 'black' : 'red',
+              reason: 'chasing',
+            },
+          };
+        }
+      }
+      return next;
+    },
     isLegalMove: isStandardXiangqiLegalMove,
     finish: (state, winner, reason) => ({
       ...state,

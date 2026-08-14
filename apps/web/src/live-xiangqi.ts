@@ -102,6 +102,8 @@ function xiangqiReasonPhrase(reason: string): string {
       return 'abandonment';
     case 'repetition':
       return 'threefold repetition';
+    case 'chasing':
+      return 'perpetual check';
     default:
       return 'the game rules';
   }

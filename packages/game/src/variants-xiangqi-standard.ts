@@ -16,13 +16,19 @@
 //   - stalemate  → the side with NO legal move LOSES (opposite of chess). This
 //     is exactly how elephantops's outcome()/isStalemate() score it: both
 //     checkmate and stalemate return { winner: opposite(sideToMove) }.
-//   - 3-fold repetition / no-progress clock → draw.
+//   - 3-fold repetition / no-progress clock → draw, EXCEPT when the repetition
+//     was manufactured by one side's perpetual check: see
+//     xiangqiPerpetualCheckLoser below. The tenant reclassifies those as a loss
+//     for the checking side ('chasing'), which is what every real xiangqi
+//     ruleset (AXF/WXF/CXA) does. This kernel keeps returning 'repetition' so it
+//     stays a pure sync function; the override lives in the tenant.
 
 import type { Square as EoSquare } from 'elephantops';
 import { makeSquare as eoMakeSquare, parseSquare as eoParseSquare } from 'elephantops/util';
 import { Xiangqi as EoXiangqi } from 'elephantops/xiangqi';
 import {
   boardToEoBoard,
+  createInitialXiangqiState,
   eoToRole,
   positionRepetitionKey,
   type XiangqiBoard,
@@ -196,7 +202,93 @@ export function applyStandardXiangqiMove(
     progressClock: newProgressClock,
     lastMove: move,
     positionCounts: newPositionCounts,
+    moveLog: [...(state.moveLog ?? []), move],
   };
+}
+
+// ── Check detection ─────────────────────────────────────────────────────────
+
+// Is `color`'s general currently attacked? Reads through elephantops's checked
+// position, so the flying-general rule counts as an attack exactly as it does
+// for legality.
+export function isStandardXiangqiGeneralInCheck(
+  state: XiangqiGameState,
+  color: XiangqiColor,
+): boolean {
+  return isStandardXiangqiGeneralInCheckOnBoard(state.board, color, state);
+}
+
+// ── Perpetual-check adjudication ────────────────────────────────────────────
+
+// The headline chasing case: "you cannot perpetual-check your way out of a lost
+// game." Every real xiangqi ruleset (AXF/WXF/CXA) scores perpetual check as a
+// LOSS for the checking side, where plain chess would allow a repetition draw.
+//
+// Replays the move list; if the three-fold repetition that ended the game was
+// reached by ONE side giving check on every one of its moves in the repeating
+// cycle (and the other side not), that side is the perpetual checker and loses.
+// Mutual perpetual check and check-free repetitions stay draws, matching the
+// published rules. Returns the losing colour, or null to keep the draw.
+//
+// Deliberate scope limit, mirroring the Fortress kernel
+// (fortressXiangqiPerpetualCheckLoser): this is the deterministic, pure-kernel
+// subset. Perpetual material *chase* (non-check harassment, which needs "is this
+// piece genuinely chased, net of protection and trades") is NOT covered, and
+// neither is the checker-versus-chaser tiebreak that depends on it. Those need a
+// chase classifier; until one exists a perpetual chase still draws.
+export function xiangqiPerpetualCheckLoser(
+  moves: readonly XiangqiMove[],
+  initialState: XiangqiGameState = createInitialXiangqiState('adjudicate'),
+): XiangqiColor | null {
+  let state = initialState;
+  const plies: { mover: XiangqiColor; gaveCheck: boolean; key: string }[] = [];
+  for (const move of moves) {
+    if (state.status.type !== 'playing') break;
+    const mover = state.status.turn;
+    if (!isStandardXiangqiLegalMove(state, move)) return null; // desync — do not adjudicate
+    state = applyStandardXiangqiMove(state, move);
+    const opponent: XiangqiColor = mover === 'red' ? 'black' : 'red';
+    const gaveCheck = isStandardXiangqiGeneralInCheckOnBoard(state.board, opponent, state);
+    // Key with the opponent to move, so it is comparable regardless of whether
+    // this ply finished the game.
+    const key = positionRepetitionKey({
+      ...state,
+      status: { type: 'playing', turn: opponent },
+    });
+    plies.push({ mover, gaveCheck, key });
+  }
+  if (plies.length === 0) return null;
+  const repeatedKey = plies[plies.length - 1]!.key;
+  const occurrences = plies.flatMap((ply, i) => (ply.key === repeatedKey ? [i] : []));
+  if (occurrences.length < 2) return null;
+  // The cycle that closed the repetition: the moves after the 2nd-to-last
+  // occurrence of the repeated position, through the last occurrence.
+  const cycle = plies.slice(occurrences[occurrences.length - 2]! + 1, occurrences.at(-1)! + 1);
+  const perpetualBy = (color: XiangqiColor): boolean => {
+    const own = cycle.filter((ply) => ply.mover === color);
+    return own.length > 0 && own.every((ply) => ply.gaveCheck);
+  };
+  const redPerpetual = perpetualBy('red');
+  const blackPerpetual = perpetualBy('black');
+  if (redPerpetual && !blackPerpetual) return 'red';
+  if (blackPerpetual && !redPerpetual) return 'black';
+  return null;
+}
+
+// Check detection against a board that may already belong to a finished state
+// (the classifier inspects positions after the game-ending ply).
+function isStandardXiangqiGeneralInCheckOnBoard(
+  board: XiangqiBoard,
+  color: XiangqiColor,
+  reference: XiangqiGameState,
+): boolean {
+  const position = EoXiangqi.fromSetup({
+    board: boardToEoBoard(board),
+    turn: color,
+    halfmoves: reference.progressClock,
+    fullmoves: reference.moveNumber,
+  });
+  return position.isOk ? position.unwrap().isCheck() : false;
 }
 
 // ── Open-information player view ─────────────────────────────────────────────

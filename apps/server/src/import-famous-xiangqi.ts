@@ -119,18 +119,20 @@ function convert(game: ParsedGame): ConvertResult {
     });
   }
 
-  // A genuine on-board decisive finish (checkmate / king capture): keep as-is.
+  // A genuine on-board decisive finish (checkmate / general capture / perpetual
+  // check, which the tenant now scores as 'chasing'): keep as-is.
   if (state.status.type === 'finished' && state.status.winner != null) {
     return { ok: true, events, plies, termination: state.status.reason ?? 'checkmate' };
   }
-  // Mistboard scored a natural draw (repetition/stalemate). Real Xiangqi resolves
-  // most of these by the 长将/长捉 perpetual rule (repeating side loses), which we
-  // don't implement — so we can't faithfully assign the winner. Skip rather than
-  // guess and mislabel (e.g. show the materially-ahead side "resigning").
+  // Mistboard scored a natural draw. Perpetual CHECK (长将) is adjudicated now,
+  // but perpetual CHASE (长捉) is not, so a game the record resolves by the chase
+  // half still lands here as a repetition draw and we cannot faithfully assign a
+  // winner. Skip rather than guess and mislabel (e.g. show the materially-ahead
+  // side "resigning").
   if (state.status.type === 'finished') {
     return {
       ok: false,
-      reason: `Mistboard-drawn (${state.status.reason}); perpetual rule not modeled`,
+      reason: `Mistboard-drawn (${state.status.reason}); perpetual chase not modeled`,
     };
   }
   // Still in play after the whole record = the loser resigned. Append their

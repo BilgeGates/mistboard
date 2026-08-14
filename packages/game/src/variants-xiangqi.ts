@@ -100,6 +100,10 @@ export type XiangqiGameEndReason =
   | 'resignation'
   | 'abandonment'
   | 'repetition'
+  // Perpetual check: a repetition one side manufactured by checking on every
+  // move of the cycle. Xiangqi scores it as a LOSS for the checker, not a draw.
+  // Standard play only — the FoW kernel does not adjudicate it.
+  | 'chasing'
   | 'progress-clock';
 
 export type XiangqiGameStatus =
@@ -117,6 +121,12 @@ export type XiangqiGameState = {
   lastMove?: XiangqiMove;
   // True-position repetition counts. Keyed by a canonical position digest.
   positionCounts: Record<string, number>;
+  // Move history, appended by the STANDARD kernel only (variants-xiangqi-standard.ts).
+  // It exists so perpetual-check adjudication can replay the game at the moment a
+  // repetition fires, with no shared-runtime change and identical results on event
+  // replay. The FoW kernel never populates it, so it stays undefined for dark
+  // xiangqi. No PlayerView builder spreads state, so it cannot reach a client.
+  moveLog?: readonly XiangqiMove[];
 };
 
 // ── Role translation ───────────────────────────────────────────────────────
