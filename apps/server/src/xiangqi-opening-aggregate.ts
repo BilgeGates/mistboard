@@ -20,7 +20,10 @@ import {
   type XiangqiGameState,
   type XiangqiMove,
 } from '@mistboard/game';
-import type { XiangqiOpeningMoveAccumulator } from './persistence-xiangqi-explorer.js';
+import type {
+  XiangqiOpeningMoveAccumulator,
+  XiangqiOpeningSample,
+} from './persistence-xiangqi-explorer.js';
 import { canonicalPositionMove } from './xiangqi-opening-mirror.js';
 
 /** '1-0' = red wins; '*' = no recorded result (counted, never guessed). */
@@ -28,6 +31,13 @@ export type AggregateResult = '1-0' | '0-1' | '1/2-1/2' | '*';
 
 export type AggregateGameInput = {
   id: string;
+  /**
+   * Which store this id belongs to. Still not a notion of *where the game came
+   * from* in the licensing sense — it is the id space, which the reader needs
+   * because the two stores resolve at different review routes and their ids can
+   * collide. Defaults to 'historical'.
+   */
+  kind?: 'historical' | 'broadcast';
   result: AggregateResult;
   moves: readonly XiangqiMove[];
   /** Average player rating, when the source records one. Drives "Top games";
@@ -36,6 +46,10 @@ export type AggregateGameInput = {
   /** Per-side ratings for the "Top games" row ("1008 vs 992"). */
   redRating?: number | null;
   blackRating?: number | null;
+  /** Player names and event, for sources that are not anonymized. */
+  redName?: string | null;
+  blackName?: string | null;
+  event?: string | null;
   /** ISO date (YYYY-MM-DD) for display beside a top game. */
   playedOn?: string | null;
 };
@@ -160,29 +174,31 @@ export function accumulatorPositionCount(accumulator: XiangqiOpeningMoveAccumula
  * list exact rather than a sample of a sample.
  */
 function retainSample(
-  samples: Array<{
-    id: string;
-    rating: number | null;
-    redRating: number | null;
-    blackRating: number | null;
-    result: string;
-    playedOn: string | null;
-  }>,
+  samples: XiangqiOpeningSample[],
   game: AggregateGameInput,
   limit: number,
 ): void {
   const rating = typeof game.rating === 'number' ? game.rating : null;
-  const entry = {
+  const entry: XiangqiOpeningSample = {
     id: game.id,
+    kind: game.kind ?? 'historical',
     rating,
     redRating: game.redRating ?? null,
     blackRating: game.blackRating ?? null,
+    redName: game.redName ?? null,
+    blackName: game.blackName ?? null,
+    event: game.event ?? null,
     result: game.result,
     playedOn: game.playedOn ?? null,
   };
   // An unrated game sorts last, so it only fills space nothing better wants.
-  const score = (value: number | null): number => value ?? -1;
-  let index = samples.findIndex((sample) => score(sample.rating) < score(rating));
+  // Named games are the exception: a broadcast game between two people whose
+  // names we can print is a better example than an anonymous rated one, so it
+  // sorts ahead of the unrated tail rather than into it.
+  const score = (sample: { rating: number | null; redName?: string | null }): number =>
+    sample.rating ?? (sample.redName ? 0 : -1);
+  const incoming = score(entry);
+  let index = samples.findIndex((sample) => score(sample) < incoming);
   if (index < 0) index = samples.length;
   if (index >= limit) return;
   samples.splice(index, 0, entry);

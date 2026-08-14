@@ -218,6 +218,52 @@ describe('opening explorer', () => {
     expect(played).toEqual([{ from: 'h3', to: 'e3' }]);
   });
 
+  // Broadcast games are the second source in the build. They carry names rather
+  // than ratings, and their ids resolve at the board route: sending one to the
+  // historical route would 404 a game that exists.
+  it('shows a broadcast top game by name and links it to its board', async () => {
+    const base = payload();
+    const withBroadcast = {
+      ...base,
+      // A broadcast sample carries no ratings at all: the identity is the names.
+      topGames: [
+        {
+          id: 'xqb_board_1',
+          kind: 'broadcast',
+          rating: null,
+          redRating: null,
+          blackRating: null,
+          redName: '孟辰',
+          blackName: '李彦阳',
+          event: '2026 National Xiangqi Team Championship',
+          result: '1-0',
+          playedOn: '2026-08-02',
+        },
+        ...base.topGames,
+      ],
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(withBroadcast)),
+    );
+
+    const explorer = createOpeningExplorer();
+    document.body.append(explorer.el);
+    explorer.setActive(true);
+    explorer.setState(createInitialXiangqiState('t'));
+    await flushPromises();
+
+    const top = [...explorer.el.querySelectorAll('.opening-explorer__top-row')];
+    expect(top[0]?.getAttribute('href')).toBe('/broadcast/xiangqi/board/xqb_board_1');
+    expect(top[0]?.textContent).toContain('孟辰');
+    expect(top[0]?.textContent).toContain('李彦阳');
+    expect(top[0]?.getAttribute('title')).toBe('2026 National Xiangqi Team Championship');
+
+    // A corpus row is unchanged: no kind, ratings, historical route.
+    expect(top[1]?.getAttribute('href')).toBe('/historical-xiangqi/game/hxq_top');
+    expect(top[1]?.textContent).toContain('2450');
+  });
+
   it('shows the share of games each move took', async () => {
     vi.stubGlobal(
       'fetch',

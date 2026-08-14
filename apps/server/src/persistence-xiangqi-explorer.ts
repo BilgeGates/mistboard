@@ -15,9 +15,25 @@ import { getPool, withTransaction } from './persistence-db.js';
 
 export type XiangqiOpeningSample = {
   id: string;
+  /**
+   * Which store the id belongs to. The two do not share an id space and do not
+   * share a review route: 'historical' resolves at /historical-xiangqi/game/:id,
+   * 'broadcast' at /broadcast/xiangqi/board/:id. Optional because rows written
+   * before broadcast games joined the build have no kind; a reader treats a
+   * missing value as 'historical', which is what those rows are.
+   */
+  kind?: 'historical' | 'broadcast';
   rating: number | null;
   redRating: number | null;
   blackRating: number | null;
+  /**
+   * Player names and event, when the source has them. The cleared corpus is
+   * anonymized, so its samples are identified by rating; broadcast games carry
+   * real names, which identify a game far better than a rating pair does.
+   */
+  redName?: string | null;
+  blackName?: string | null;
+  event?: string | null;
   result: string;
   playedOn: string | null;
 };

@@ -453,6 +453,7 @@ export {
   getXiangqiBroadcastTour,
   importXiangqiBroadcastPack,
   importXiangqiBroadcastPackOn,
+  listAggregatableXiangqiBroadcastGames,
   listXiangqiBroadcastBoards,
   listXiangqiBroadcastRounds,
   listXiangqiBroadcastScheduledTours,

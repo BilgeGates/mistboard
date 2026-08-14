@@ -38,9 +38,14 @@ type ExplorerMove = {
 
 type ExplorerSample = {
   id: string;
+  /** Which review route resolves this id; absent on pre-broadcast build rows. */
+  kind?: 'historical' | 'broadcast';
   rating: number | null;
   redRating: number | null;
   blackRating: number | null;
+  redName?: string | null;
+  blackName?: string | null;
+  event?: string | null;
   result: string;
   playedOn: string | null;
 };
@@ -312,6 +317,18 @@ function ratingSpan(rating: number | null, won: boolean): HTMLElement {
   return el;
 }
 
+// Same slot as ratingSpan, for sources that name their players. Reuses the
+// rating classes so a named row and a rated row line up in the same column
+// widths; only the content differs.
+function nameSpan(name: string | null | undefined, won: boolean): HTMLElement {
+  const el = document.createElement('span');
+  el.className = won
+    ? 'opening-explorer__top-rating opening-explorer__top-name opening-explorer__top-rating--won'
+    : 'opening-explorer__top-rating opening-explorer__top-name';
+  el.textContent = name || '–';
+  return el;
+}
+
 function resultLabel(result: string): string {
   if (result === '1-0') return 'Red won';
   if (result === '0-1') return 'Black won';
@@ -330,22 +347,37 @@ function topGamesBlock(samples: ExplorerSample[]): HTMLElement {
   for (const sample of samples.slice(0, TOP_GAMES_SHOWN)) {
     const row = document.createElement('a');
     row.className = 'opening-explorer__top-row';
-    // Corpus games live at the historical review route; the live /xiangqi/game/
-    // route is for rooms and 404s these ids. Unlisted corpus games are viewable
-    // by direct id (the server serves anything not private here).
-    row.href = `/historical-xiangqi/game/${encodeURIComponent(sample.id)}`;
+    // The two sources do not share an id space or a review route, so the link is
+    // built from the sample's kind. Corpus games live at the historical review
+    // route (the live /xiangqi/game/ route is for rooms and 404s these ids;
+    // unlisted corpus games are still viewable by direct id). Broadcast games
+    // live at their board route. A row with no kind predates broadcast games in
+    // the build and is a corpus game.
+    row.href =
+      sample.kind === 'broadcast'
+        ? `/broadcast/xiangqi/board/${encodeURIComponent(sample.id)}`
+        : `/historical-xiangqi/game/${encodeURIComponent(sample.id)}`;
 
-    // The corpus is anonymized, so the two RATINGS are the identity on offer —
-    // "1008 vs 992" says far more than a lone averaged number. The winning side
-    // is emphasised so the row reads as a game, not two loose figures.
+    // Identity depends on what the source has. The corpus is anonymized, so the
+    // two RATINGS are all that is on offer and "1008 vs 992" says far more than
+    // a lone averaged number. Broadcast games are played by named people, so the
+    // names are the identity and the ratings are absent. Either way the winning
+    // side is emphasised, so the row reads as a game rather than two loose
+    // values.
     const matchup = document.createElement('span');
     matchup.className = 'opening-explorer__top-matchup';
-    const redRating = ratingSpan(sample.redRating, sample.result === '1-0');
-    const black = ratingSpan(sample.blackRating, sample.result === '0-1');
+    const named = Boolean(sample.redName || sample.blackName);
+    const redSide = named
+      ? nameSpan(sample.redName, sample.result === '1-0')
+      : ratingSpan(sample.redRating, sample.result === '1-0');
+    const blackSide = named
+      ? nameSpan(sample.blackName, sample.result === '0-1')
+      : ratingSpan(sample.blackRating, sample.result === '0-1');
     const vs = document.createElement('span');
     vs.className = 'opening-explorer__top-vs';
     vs.textContent = 'vs';
-    matchup.append(redRating, vs, black);
+    matchup.append(redSide, vs, blackSide);
+    if (sample.event) row.title = sample.event;
 
     const result = document.createElement('span');
     result.className = 'opening-explorer__top-result';
