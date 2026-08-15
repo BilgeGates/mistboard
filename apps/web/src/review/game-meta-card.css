@@ -204,6 +204,22 @@
   color: var(--site-muted);
 }
 
+/* Final score, pushed to the row's trailing edge so the two numbers stack into a
+   column the eye reads in one pass. Tabular figures keep 1 / 0 / ½ on the same
+   width so the column does not wobble. */
+.game-meta-card__score {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  padding-inline-start: 8px;
+  color: var(--site-muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.game-meta-card__player--won .game-meta-card__score {
+  color: var(--site-text);
+}
+
 .game-meta-card__status {
   margin: 0;
   padding-top: 10px;

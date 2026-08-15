@@ -123,7 +123,8 @@ describe('profile game rows', () => {
     const link = row.querySelector('a');
     expect(link?.getAttribute('href')).toBe('/dark-mini-xiangqi/game/dmxq_profile');
     expect(row.textContent).toContain('Win');
-    expect(row.textContent).toContain('vs Misty DMX 1.0');
+    // The row names the opponent by brand, not by the build it was seated as.
+    expect(row.textContent).toContain('vs Misty');
     expect(row.textContent).toContain('Dark Mini Xiangqi');
     expect(row.textContent).toContain('Red');
   });

@@ -8,10 +8,11 @@ import {
 import { homepageShowcaseGames, pickHeroPovForGame } from './landing-showcase.js';
 
 describe('homepageShowcaseGames', () => {
-  it('presents every side as the current Misty 1.0 engine', () => {
+  it('presents every side as the current Misty engine', () => {
     for (const game of homepageShowcaseGames()) {
       for (const color of ['white', 'black'] as const) {
-        expect(displayParticipantName(game, color)).toBe(MISTBOARD_ENGINE_MISTY_NAME);
+        // The seat is the exact build; the homepage shows the brand.
+        expect(displayParticipantName(game, color)).toBe('Misty');
         expect(participantForColor(game, color)).toMatchObject({
           color,
           displayName: MISTBOARD_ENGINE_MISTY_NAME,

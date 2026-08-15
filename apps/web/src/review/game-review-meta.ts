@@ -20,9 +20,15 @@
 // Everything else (time control, casual/rated, time-ago, players, marker, spectator
 // room) is plain envelope data and lives here so it can't drift between variants.
 
+import { brandedEngineName } from '../game-display.js';
 import type { VariantMiniId } from '../variant-mini-boards.js';
 import { seatColorWord } from '../variant-seat-label.js';
-import { createGameMetaCard, type GameMetaPlayer, timeAgoLabel } from './game-meta-card.js';
+import {
+  createGameMetaCard,
+  type GameMetaPlayer,
+  seatResultScores,
+  timeAgoLabel,
+} from './game-meta-card.js';
 import { type ReviewSeatColors, reviewColorForSeat } from './review-seat-colors.js';
 import { buildSpectatorChat } from './spectator-chat.js';
 
@@ -48,6 +54,10 @@ export type ReviewMetaGame = {
   timeControl?: Record<string, unknown> | null;
   endedAt?: string | null;
   players?: ReviewMetaPlayer[];
+  /** Raw seat-keyed result ('red-wins' | 'black-wins' | 'white-wins' | 'draw'),
+   *  scored onto the player rows as 1 / 0 / ½. Every postgame envelope carries
+   *  it; optional so surfaces that hand-build a partial game object still fit. */
+  result?: string | null;
 };
 
 export type ReviewMetaConfig = {
@@ -83,25 +93,37 @@ export function buildReviewMeta(config: ReviewMetaConfig): ReviewMeta {
     headline: [reviewTimeControlLabel(game), game.rated ? 'Rated' : 'Casual'],
     variantName: config.variantName,
     subline: timeAgoLabel(game.endedAt),
-    players: reviewMetaPlayers(game.players, config.seatColors),
+    players: reviewMetaPlayers(game.players, config.seatColors, game.result),
     status: config.status,
   });
   return { metaCard: card.el, details: buildSpectatorChat(game.roomId) };
 }
 
-/** Map persisted participants into meta-card player rows (engine → BOT tag). */
+/** Map persisted participants into meta-card player rows (engine → BOT tag).
+ *  `result` scores the rows; omit it and they render without numbers. */
 export function reviewMetaPlayers(
   players: ReviewMetaPlayer[] | undefined,
   seatColors?: ReviewSeatColors,
+  result?: string | null,
 ): GameMetaPlayer[] {
-  return (players ?? []).map((player) => ({
+  const rows = players ?? [];
+  // Seat-keyed, so this runs on the persisted `player.color` (the seat) BEFORE
+  // reviewColorForSeat maps it to the flipped ink below.
+  const scores = seatResultScores(
+    result,
+    rows.map((player) => player.color),
+  );
+  return rows.map((player, index) => ({
     color:
       player.color === 'red' || player.color === 'black'
         ? reviewColorForSeat(player.color, seatColors)
         : player.color,
-    name: player.name,
+    // The persisted seat name is the engine BUILD ("Misty DXQ 1.1"); the card
+    // shows the brand, same as every list surface (see brandedEngineName).
+    name: brandedEngineName(player.name) ?? player.name,
     rating: player.rating ?? null,
     isEngine: player.kind === 'engine',
+    score: scores[index] ?? null,
   }));
 }
 

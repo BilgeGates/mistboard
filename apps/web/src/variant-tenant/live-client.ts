@@ -19,6 +19,7 @@
  * room-chrome (clocks/status/actions), replay-controller (scrub state).
  */
 
+import { brandedEngineName } from '../game-display.js';
 import { createLiveLayout, setLiveLayoutGameSpec } from '../live-layout.js';
 import {
   createLiveLifecycleEffects,
@@ -364,7 +365,13 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
     state.clock = frame.clock ?? null;
     state.timeControl = frame.timeControl ?? state.timeControl;
     state.seats = frame.seats ?? state.seats;
-    state.seatDisplayNames = frame.seatDisplayNames ?? state.seatDisplayNames;
+    // Branded on the way in, not at each render site: the room paints these
+    // names into the meta card, the clock rows, and the seat labels, and an
+    // engine seat should read "Misty" in all three rather than "Misty DXQ 1.1"
+    // in whichever one was missed.
+    state.seatDisplayNames = frame.seatDisplayNames
+      ? brandSeatDisplayNames(frame.seatDisplayNames)
+      : state.seatDisplayNames;
     if (frame.connectedSeats) state.connectedSeats = frame.connectedSeats;
     state.abortDeadline = frame.abortDeadline ?? null;
     if (frame.events) state.events = frame.events;
@@ -698,4 +705,16 @@ export function createTenantLiveClient<C extends string, V extends TenantWebView
   }
 
   return { bootstrap, state, renderAll, send, connection, replay };
+}
+
+/** Seat names as the room should show them: engine builds collapse to the brand. */
+function brandSeatDisplayNames<C extends string>(
+  names: Partial<Record<C, string>>,
+): Partial<Record<C, string>> {
+  const branded: Partial<Record<C, string>> = {};
+  for (const [color, name] of Object.entries(names) as [C, string | undefined][]) {
+    if (name === undefined) continue;
+    branded[color] = brandedEngineName(name) ?? name;
+  }
+  return branded;
 }

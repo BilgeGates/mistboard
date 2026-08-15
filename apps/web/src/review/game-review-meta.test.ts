@@ -74,9 +74,58 @@ describe('reviewMetaPlayers', () => {
         { color: 'black', name: 'Pikafish', rating: null, kind: 'engine' },
       ]),
     ).toEqual([
-      { color: 'red', name: 'Alice', rating: 2200, isEngine: false },
-      { color: 'black', name: 'Pikafish', rating: null, isEngine: true },
+      { color: 'red', name: 'Alice', rating: 2200, isEngine: false, score: null },
+      { color: 'black', name: 'Pikafish', rating: null, isEngine: true, score: null },
     ]);
+  });
+
+  it('scores the rows off the seat the result names', () => {
+    expect(
+      reviewMetaPlayers(
+        [
+          { color: 'red', name: 'Alice', kind: 'account' },
+          { color: 'black', name: 'Bob', kind: 'account' },
+        ],
+        undefined,
+        'black-wins',
+      ).map((player) => player.score),
+    ).toEqual(['0', '1']);
+  });
+
+  it('scores a flip game by seat, not by the ink the seat flipped', () => {
+    // Banqi/Flip Jungle: the first-mover seat is still called 'red' after it
+    // flips black, and 'red-wins' still means that seat. Scoring through the ink
+    // would hand the point to the loser in every game that flips.
+    expect(
+      reviewMetaPlayers(
+        [
+          { color: 'red', name: 'First', kind: 'account' },
+          { color: 'black', name: 'Second', kind: 'account' },
+        ],
+        { red: 'black', black: 'red' },
+        'red-wins',
+      ),
+    ).toEqual([
+      { color: 'black', name: 'First', rating: null, isEngine: false, score: '1' },
+      { color: 'red', name: 'Second', rating: null, isEngine: false, score: '0' },
+    ]);
+  });
+
+  it('leaves the rows bare when the game has no settled result', () => {
+    const bare = (result: string | null | undefined): (string | null | undefined)[] =>
+      reviewMetaPlayers(
+        [
+          { color: 'red', name: 'Alice', kind: 'account' },
+          { color: 'black', name: 'Bob', kind: 'account' },
+        ],
+        undefined,
+        result,
+      ).map((player) => player.score);
+    expect(bare(undefined)).toEqual([null, null]);
+    expect(bare('aborted')).toEqual([null, null]);
+    // A winner who is not one of these two seats scores nobody rather than
+    // handing both players a 0.
+    expect(bare('white-wins')).toEqual([null, null]);
   });
 
   it('can bind first/second seats to their flip-revealed inks', () => {
@@ -89,8 +138,8 @@ describe('reviewMetaPlayers', () => {
         { red: 'black', black: 'red' },
       ),
     ).toEqual([
-      { color: 'black', name: 'First', rating: null, isEngine: false },
-      { color: 'red', name: 'Second', rating: null, isEngine: true },
+      { color: 'black', name: 'First', rating: null, isEngine: false, score: null },
+      { color: 'red', name: 'Second', rating: null, isEngine: true, score: null },
     ]);
   });
 
@@ -130,5 +179,50 @@ describe('buildReviewMeta', () => {
     expect(metaCard.textContent).toContain('Alice');
     expect(metaCard.textContent).toContain('Red wins by Checkmate');
     expect(details.classList.contains('review-spectator-chat')).toBe(true);
+  });
+
+  it('marks the winning row and scores both seats from the envelope result', () => {
+    const { metaCard } = buildReviewMeta({
+      markerId: 'xiangqi',
+      variantName: 'Xiangqi',
+      status: 'Checkmate • Red is victorious',
+      game: {
+        roomId: 'xq_test',
+        result: 'red-wins',
+        players: [
+          { color: 'red', name: 'Alice', kind: 'account' },
+          { color: 'black', name: 'Bob', kind: 'account' },
+        ],
+      },
+    });
+    const rows = metaCard.querySelectorAll('.game-meta-card__player');
+    expect(
+      [...rows].map((row) => row.querySelector('.game-meta-card__score')?.textContent),
+    ).toEqual(['1', '0']);
+    expect([...rows].map((row) => row.classList.contains('game-meta-card__player--won'))).toEqual([
+      true,
+      false,
+    ]);
+  });
+
+  it('scores a draw on both rows and marks neither as the winner', () => {
+    const { metaCard } = buildReviewMeta({
+      markerId: 'xiangqi',
+      variantName: 'Xiangqi',
+      status: 'Draw • no progress',
+      game: {
+        roomId: 'xq_draw',
+        result: 'draw',
+        players: [
+          { color: 'red', name: 'Alice', kind: 'account' },
+          { color: 'black', name: 'Bob', kind: 'account' },
+        ],
+      },
+    });
+    const rows = metaCard.querySelectorAll('.game-meta-card__player');
+    expect(
+      [...rows].map((row) => row.querySelector('.game-meta-card__score')?.textContent),
+    ).toEqual(['½', '½']);
+    expect(metaCard.querySelectorAll('.game-meta-card__player--won')).toHaveLength(0);
   });
 });

@@ -7,6 +7,8 @@ import {
 } from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import {
+  brandedEngineName,
+  displayParticipantName,
   type FeaturedGame,
   type GameParticipant,
   matchupLabel,
@@ -90,6 +92,73 @@ describe('matchupLabel', () => {
 
   it('leaves non-flip variants on the literal seat word regardless of firstColor', () => {
     expect(matchupLabel({ ...game(XIANGQI_SPEC_ID), firstColor: 'black' })).toBe('Red vs Black');
+  });
+});
+
+describe('brandedEngineName', () => {
+  it('collapses every Misty build to the brand', () => {
+    expect(brandedEngineName('Misty DXQ 1.1')).toBe('Misty');
+    expect(brandedEngineName('Misty DXQ 1.0')).toBe('Misty');
+    expect(brandedEngineName('Misty DMX 1.0')).toBe('Misty');
+    expect(brandedEngineName('Misty 1.5')).toBe('Misty');
+    expect(brandedEngineName('Misty 1.0')).toBe('Misty');
+  });
+
+  it('leaves anything that is not a build string alone', () => {
+    // A human whose name merely starts with the word, and the brand on its own.
+    expect(brandedEngineName('Misty')).toBeNull();
+    expect(brandedEngineName('Misty the Great')).toBeNull();
+    expect(brandedEngineName('Mistyped 12')).toBeNull();
+    // Other engines keep their own names — this rule is Misty-only by design.
+    expect(brandedEngineName('Mistboard Engine v2.0')).toBeNull();
+    expect(brandedEngineName('Pikafish')).toBeNull();
+    expect(brandedEngineName('MistyBanqi · Strongest')).toBeNull();
+  });
+});
+
+describe('displayParticipantName', () => {
+  it('names an engine seat by brand, whichever build actually played', () => {
+    const seated = (displayName: string, subjectId: string): FeaturedGame => ({
+      ...game(XIANGQI_SPEC_ID),
+      participants: [
+        {
+          color: 'red',
+          displayName: 'Human',
+          subjectType: 'user',
+          subjectId: 'u1',
+          visibility: 'public',
+        },
+        {
+          color: 'black',
+          displayName,
+          subjectType: 'engine-version',
+          subjectId,
+          visibility: 'public',
+        },
+      ],
+    });
+    // Resolved through the id map (python-dmx-v1.0 -> "Misty DMX 1.0")...
+    expect(displayParticipantName(seated('whatever', 'python-dmx-v1.0'), 'black')).toBe('Misty');
+    // ...and straight off a persisted build name with no id mapping.
+    expect(displayParticipantName(seated('Misty DXQ 1.1', 'python-fdx-v1.1'), 'black')).toBe(
+      'Misty',
+    );
+  });
+
+  it('leaves human seats untouched', () => {
+    const human = {
+      ...game(XIANGQI_SPEC_ID),
+      participants: [
+        {
+          color: 'red' as const,
+          displayName: 'Misty the Great',
+          subjectType: 'user' as const,
+          subjectId: 'u1',
+          visibility: 'public' as const,
+        },
+      ],
+    };
+    expect(displayParticipantName(human, 'red')).toBe('Misty the Great');
   });
 });
 

@@ -10,6 +10,7 @@ import { webVariantTenantForSpecId } from './variant-tenant/registry.js';
 import { variantMiniIdForRawVariant } from './variants.js';
 import './watch-route.css';
 import {
+  displayLiveName,
   displayParticipantName,
   type FeaturedGame,
   type GameParticipant,
@@ -23,7 +24,11 @@ import { gameMetaForGame, reviewUrlForGame, timeControlLabelForGame } from './ga
 import { initLiveSound, playSound } from './live-sound.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { renderWatchReplaySkeleton } from './replay-skeleton.js';
-import { createGameMetaCard, type GameMetaPlayer } from './review/game-meta-card.js';
+import {
+  createGameMetaCard,
+  type GameMetaPlayer,
+  seatResultScores,
+} from './review/game-meta-card.js';
 import { createMoveList, type MoveList } from './review/move-list.js';
 import { createReviewShell } from './review/review-shell.js';
 import { showcaseRendererKindForSpec, specIdForShowcaseVariant } from './showcase-dispatch.js';
@@ -667,8 +672,8 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     const first = players.find((p) => p.color === 'red' || p.color === 'white') ?? players[0]!;
     const second = players.find((p) => p !== first) ?? players[1]!;
     namesByRoomId[featured.roomId] = {
-      first: first.name ?? t('watch.anonymous'),
-      second: second.name ?? t('watch.anonymous'),
+      first: displayLiveName(first.name, t('watch.anonymous')),
+      second: displayLiveName(second.name, t('watch.anonymous')),
     };
   };
 
@@ -685,7 +690,7 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     const firstColor = liveFirstColor(featured);
     return ordered.map((p) => ({
       color: seatInkForVariant(featured.gameSpecId, p.color, firstColor),
-      name: p.name ?? t('watch.anonymous'),
+      name: displayLiveName(p.name, t('watch.anonymous')),
       rating: null,
       isEngine: p.isEngine,
     }));
@@ -1312,13 +1317,17 @@ function activeWatchGame(feed: WatchFeed | null, activeRoomId: string | null): F
 // "Black wins" line for half of all Banqi / Flip Jungle games.
 export function watchGamePlayers(game: FeaturedGame): GameMetaPlayer[] {
   const seats = matchupSeats(game);
-  return seats.map((seat) => {
+  // Scored off the SEATS, not the inks resolved below: the feed's result names
+  // the winning seat, so a flip variant scores correctly without firstColor.
+  const scores = seatResultScores(game.result, seats);
+  return seats.map((seat, index) => {
     const participant = participantForColor(game, seat);
     return {
       color: seatInkForVariant(game.variant, seat, game.firstColor ?? null),
       name: displayParticipantName(game, seat),
       rating: watchParticipantRating(participant),
       isEngine: participant?.subjectType === 'engine-version' || participant?.subjectType === 'bot',
+      score: scores[index] ?? null,
     };
   });
 }
