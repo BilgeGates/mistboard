@@ -573,6 +573,13 @@
 
 /* lichess labels only the right-hand columns, in plain sentence case (not the
    uppercase small-caps strip this used to be). */
+/* The grid `display` above outranks the UA sheet's [hidden] rule, so a header
+   hidden from script (the correspondence one, until it has rows to label) needs
+   this to actually disappear. */
+.landing-lobby-thead[hidden] {
+  display: none;
+}
+
 .landing-lobby-thead {
   position: sticky;
   top: 0;
@@ -598,9 +605,11 @@
   flex-direction: column;
 }
 
-/* Correspondence has no second block, so its list keeps the old grow behaviour
-   (the centered "Create a game" empty state relies on the spare height). */
-.landing-lobby-tabpanel > .landing-lobby-tbody:only-child {
+/* Correspondence has no second row block, so its list keeps the old grow
+   behaviour (the centered "Create a game" empty state relies on the spare
+   height). Claimed by class, not :only-child: the tab grew a header sibling. */
+.landing-lobby-tabpanel > .landing-lobby-tbody:only-child,
+.landing-lobby-tbody-corr {
   flex: 1 1 auto;
 }
 
@@ -653,10 +662,22 @@
 }
 
 /* Correspondence seeks keep their own four-column shape (player / game / pace /
-   action) and their Join button. */
-.landing-lobby-trow-corr {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto;
+   action) and their Join button. The header shares the grid so its labels sit
+   over the cells they name; the real-time thead's right-aligned Rating/Time
+   rule does not apply here, so it is reset. */
+.landing-lobby-trow-corr,
+.landing-lobby-thead-corr {
+  /* The last two tracks are FIXED, not auto: header and rows are separate
+     grids, so content-sized tracks size independently and the labels drift off
+     the cells they name (Pace sat 90px right of the paces). */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 72px 76px;
   cursor: default;
+}
+
+/* Pace reads as a measure, so it right-aligns under its label. */
+.landing-lobby-trow-corr > :nth-child(3),
+.landing-lobby-thead-corr > span:nth-child(3) {
+  text-align: right;
 }
 
 .landing-lobby-trow-corr:hover {
@@ -737,6 +758,36 @@
   margin: 0;
 }
 
+/* The what-is-this line under the empty-state headline: narrower than the panel
+   so it reads as a sentence rather than a banner. */
+.landing-lobby-empty-explainer {
+  max-width: 42ch;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.landing-lobby-empty-link {
+  color: var(--site-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.landing-lobby-empty-link:hover {
+  color: var(--site-accent-strong);
+  text-decoration: underline;
+}
+
+/* Same CTA under a populated seek list, so posting a game never depends on the
+   board being empty. */
+.landing-lobby-corr-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px var(--landing-hook-pad);
+}
+
 .landing-lobby-create {
   padding: 10px 22px;
   border: 0;
@@ -798,6 +849,7 @@
 }
 
 .landing-quickpair-chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -838,6 +890,37 @@
 
 .landing-quickpair-chip:disabled {
   cursor: default;
+}
+
+/* A pool somebody else is already waiting in: this chip pairs instantly. The
+   count rides the corner absolutely so a filling pool never reflows the grid. */
+.landing-quickpair-chip.has-waiting {
+  border-color: var(--site-accent-strong);
+  color: var(--site-accent-strong);
+}
+
+/* `display` on the base rule beats the UA sheet's [hidden] { display: none },
+   so a cold pool needs this or it renders an empty badge. */
+.landing-quickpair-waiting[hidden] {
+  display: none;
+}
+
+.landing-quickpair-waiting {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 /* The pool this player is waiting in. */

@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  allowsAnonymousAccess,
   challengeAcceptError,
   challengeViewModel,
+  openSeekPayload,
   parseSeekVisibility,
 } from './routes/correspondence-seeks.js';
 
@@ -100,4 +102,48 @@ test('challengeViewModel: an expired challenge is visible but not acceptable', (
   assert.equal(v.expired, true);
   assert.equal(v.canAccept, false);
   assert.equal(v.canDecline, false);
+});
+
+// The anonymous surface is exactly one request. Enumerated rather than spot
+// -checked: a future verb added to this router must not inherit public access by
+// sitting on the same path.
+test('allowsAnonymousAccess: only the public board GET is served without an account', () => {
+  assert.equal(allowsAnonymousAccess('/api/correspondence/seeks', 'GET'), true);
+  for (const method of ['POST', 'DELETE', 'PUT', 'PATCH']) {
+    assert.equal(allowsAnonymousAccess('/api/correspondence/seeks', method), false);
+  }
+  for (const pathname of [
+    '/api/correspondence/seeks/incoming',
+    '/api/correspondence/seeks/seek_1',
+    '/api/correspondence/seeks/seek_1/accept',
+    '/api/correspondence/seeks/seek_1/decline',
+  ]) {
+    assert.equal(allowsAnonymousAccess(pathname, 'GET'), false);
+    assert.equal(allowsAnonymousAccess(pathname, 'POST'), false);
+  }
+});
+
+test('openSeekPayload: an anonymous reader owns nothing on the public board', () => {
+  const seek = {
+    id: 'seek_1',
+    gameSpecId: 'xiangqi',
+    daysPerMove: 3,
+    preferredColor: 'random',
+    creatorName: 'someone',
+    createdAt: new Date(T0),
+    creatorUserId: 'user_a',
+  };
+  assert.equal(openSeekPayload(seek, null).isMine, false);
+  assert.equal(openSeekPayload(seek, 'user_b').isMine, false);
+  assert.equal(openSeekPayload(seek, 'user_a').isMine, true);
+  // The row carries no viewer-specific field beyond isMine, and no user id.
+  assert.deepEqual(Object.keys(openSeekPayload(seek, null)).sort(), [
+    'createdAt',
+    'creatorName',
+    'daysPerMove',
+    'gameSpecId',
+    'id',
+    'isMine',
+    'preferredColor',
+  ]);
 });

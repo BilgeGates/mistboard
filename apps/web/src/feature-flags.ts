@@ -80,12 +80,15 @@ export function jungleFlipEnabled(): boolean {
   return true;
 }
 
-// Dark-chess correspondence (days-per-move) entry points remain a lab opt-in.
-// The server gates the create route independently
-// (MISTBOARD_CORRESPONDENCE_ENABLED); this only hides the landing picker, so an
-// off web flag never strands a live room.
+// Correspondence (days-per-move) entry points. Launched: on by default, with
+// MISTBOARD_CORRESPONDENCE_ENABLED on the server as the runtime kill-switch
+// (same shape as the launched variants above). The web side only decides
+// whether the entry points are OFFERED, so a build that ships ahead of the
+// server flag degrades rather than breaks: the seek route answers 404
+// correspondence_disabled and the lobby tab falls back to its coming-soon line.
+// VITE_CORRESPONDENCE_ENABLED=false still hides the surface for a build.
 export function correspondenceEnabled(): boolean {
-  return labEnabled() || import.meta.env.VITE_CORRESPONDENCE_ENABLED === 'true';
+  return import.meta.env.VITE_CORRESPONDENCE_ENABLED !== 'false';
 }
 
 // Perfect-information Crossroads Chess play surface. Explicit build-time opt-in
