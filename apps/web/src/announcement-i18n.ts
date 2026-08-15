@@ -22,6 +22,13 @@ export const ANNOUNCEMENT_LANGS: AnnouncementLang[] = ['zh-Hans', 'zh-Hant'];
 
 const ZH_HANS: Record<string, string> = {
   // ── headlines ──
+  'A games database for xiangqi.': '象棋对局库。',
+  'Perpetual check now loses in standard xiangqi.': '标准象棋中长将判负。',
+  'Mistboard works on a phone.': 'Mistboard 已适配手机。',
+  'Every composition has its own page.': '每则排局都有独立页面。',
+  'Mistboard reads in Chinese.': 'Mistboard 已支持中文。',
+  'Rated games at every time control.': '各种时限都可下等级分对局。',
+  'An opening explorer for xiangqi.': '象棋开局库。',
   'Rated xiangqi is live.': '等级分象棋已上线。',
   'Secret in the Tangerine, both game volumes.': '《橘中秘》全部对局卷。',
   'Classical xiangqi, from the original woodblocks.': '古谱象棋，源自原始刻本。',
@@ -52,6 +59,20 @@ const ZH_HANS: Record<string, string> = {
   'Misty 1.0 has launched.': 'Misty 1.0 已上线。',
 
   // ── bodies ──
+  'Search finished games from three sources in one place: the historical corpus, the tournament boards we broadcast, and games played here.':
+    '在同一处检索三个来源的已结束对局：历史棋谱库、我们直播的赛事棋盘，以及在本站下的对局。',
+  'Repeating a check forever used to draw. The checker has to vary or lose the game, which is how the published rulesets score it and how the course has always taught it.':
+    '此前一直重复将军会判和。现在长将的一方必须变着，否则判负，这与公布的规则以及本站课程一贯的讲法一致。',
+  'Every page was swept at phone width: a full-size live board, lobby rows that still name the variant, and real touch targets on the controls you tap.':
+    '每个页面都按手机宽度检查过：对局棋盘完整显示，大厅列表仍标明棋类，常用控件也有足够大的触控区域。',
+  'Each endgame composition in the library is a page you can link to, and sharing one previews its own diagram rather than the site card.':
+    '棋谱库中的每则排局都有可分享的链接，分享时预览的是该局自己的棋图，而不是站点的通用卡片。',
+  'Playing, watching, the forum, and the xiangqi rules pages are all available in Simplified and Traditional Chinese. Switch languages in the settings menu.':
+    '对局、观战、论坛和象棋规则页面均已提供简体中文与繁体中文。可在设置菜单中切换语言。',
+  'Bullet, blitz, and rapid each keep their own rating now, instead of rated meaning 3+2 only. Correspondence stays casual on purpose.':
+    '子弹、闪电和快速各自记录独立的等级分，不再只有 3+2 才算等级分对局。通信对局仍然只计休闲，这是有意为之。',
+  'Open any position on the analysis board and see what has been played from it, with example games to study and the corpus it came from named on the panel.':
+    '在分析棋盘上打开任意局面，即可看到从这里走出的着法统计，附示例对局，面板上也注明了数据出自哪个棋谱库。',
   'Choose Rated in the lobby. Your rating starts at 1500 and appears after it settles.':
     '在大厅选择「等级分」。等级分从 1500 起算，稳定后显示。',
   'Both volumes are playable move by move in English: 33 games with every printed variation.':
@@ -108,6 +129,7 @@ const ZH_HANS: Record<string, string> = {
   'Our Fog of War dark chess engine is now live to play.': '我们的迷雾国际象棋引擎现已开放对弈。',
 
   // ── CTA labels ──
+  'Search the games': '检索对局',
   'See the leaderboard': '查看排行榜',
   'Open volume one': '打开第一卷',
   'Browse the studies': '浏览研习',
@@ -126,6 +148,13 @@ const ZH_HANS: Record<string, string> = {
 
 const ZH_HANT: Record<string, string> = {
   // ── headlines ──
+  'A games database for xiangqi.': '象棋對局庫。',
+  'Perpetual check now loses in standard xiangqi.': '標準象棋中長將判負。',
+  'Mistboard works on a phone.': 'Mistboard 已適配手機。',
+  'Every composition has its own page.': '每則排局都有獨立頁面。',
+  'Mistboard reads in Chinese.': 'Mistboard 已支援中文。',
+  'Rated games at every time control.': '各種時限都可下等級分對局。',
+  'An opening explorer for xiangqi.': '象棋開局庫。',
   'Rated xiangqi is live.': '等級分象棋已上線。',
   'Secret in the Tangerine, both game volumes.': '《橘中祕》全部對局卷。',
   'Classical xiangqi, from the original woodblocks.': '古譜象棋，源自原始刻本。',
@@ -156,6 +185,20 @@ const ZH_HANT: Record<string, string> = {
   'Misty 1.0 has launched.': 'Misty 1.0 已上線。',
 
   // ── bodies ──
+  'Search finished games from three sources in one place: the historical corpus, the tournament boards we broadcast, and games played here.':
+    '在同一處檢索三個來源的已結束對局：歷史棋譜庫、我們轉播的賽事棋盤，以及在本站下的對局。',
+  'Repeating a check forever used to draw. The checker has to vary or lose the game, which is how the published rulesets score it and how the course has always taught it.':
+    '此前一直重複將軍會判和。現在長將的一方必須變著，否則判負，這與公布的規則以及本站課程一貫的講法一致。',
+  'Every page was swept at phone width: a full-size live board, lobby rows that still name the variant, and real touch targets on the controls you tap.':
+    '每個頁面都按手機寬度檢查過：對局棋盤完整顯示，大廳列表仍標明棋類，常用控制項也有足夠大的觸控區域。',
+  'Each endgame composition in the library is a page you can link to, and sharing one previews its own diagram rather than the site card.':
+    '棋譜庫中的每則排局都有可分享的連結，分享時預覽的是該局自己的棋圖，而不是站點的通用卡片。',
+  'Playing, watching, the forum, and the xiangqi rules pages are all available in Simplified and Traditional Chinese. Switch languages in the settings menu.':
+    '對局、觀戰、論壇和象棋規則頁面均已提供簡體中文與繁體中文。可在設定選單中切換語言。',
+  'Bullet, blitz, and rapid each keep their own rating now, instead of rated meaning 3+2 only. Correspondence stays casual on purpose.':
+    '子彈、閃電和快速各自記錄獨立的等級分，不再只有 3+2 才算等級分對局。通信對局仍然只計休閒，這是刻意為之。',
+  'Open any position on the analysis board and see what has been played from it, with example games to study and the corpus it came from named on the panel.':
+    '在分析棋盤上開啟任意局面，即可看到從這裡走出的著法統計，附範例對局，面板上也註明了資料出自哪個棋譜庫。',
   'Choose Rated in the lobby. Your rating starts at 1500 and appears after it settles.':
     '在大廳選擇「等級分」。等級分從 1500 起算，穩定後顯示。',
   'Both volumes are playable move by move in English: 33 games with every printed variation.':
@@ -212,6 +255,7 @@ const ZH_HANT: Record<string, string> = {
   'Our Fog of War dark chess engine is now live to play.': '我們的迷霧國際象棋引擎現已開放對弈。',
 
   // ── CTA labels ──
+  'Search the games': '檢索對局',
   'See the leaderboard': '查看排行榜',
   'Open volume one': '開啟第一卷',
   'Browse the studies': '瀏覽研習',
