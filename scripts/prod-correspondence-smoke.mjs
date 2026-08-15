@@ -6,11 +6,16 @@
 // Expected codes are pinned from the route code:
 //   - apps/server/src/routes/correspondence-games.ts: account-only, unauthenticated
 //     GET -> 401 {"error":"not_signed_in"}; non-GET -> 405.
-//   - apps/server/src/routes/correspondence-seeks.ts: every verb is account-only;
-//     unauthenticated GET/POST -> 401 {"error":"not_signed_in"}. When the
-//     correspondence feature flag is OFF the seeks routes return 404
-//     {"error":"correspondence_disabled"}, so a 404 here is a real deploy-config
-//     regression (flag lost), not a pass.
+//   - apps/server/src/routes/correspondence-seeks.ts: every verb is account-only
+//     EXCEPT reading the public board, which serves anonymous callers a 200 (see
+//     allowsAnonymousAccess). Unauthenticated writes and the per-user lists ->
+//     401 {"error":"not_signed_in"}. When the correspondence feature flag is OFF
+//     the seeks routes return 404 {"error":"correspondence_disabled"}, so a 404
+//     here is a real deploy-config regression (flag lost), not a pass.
+//
+// The public-board check also asserts no row comes back owned: isMine is a
+// viewer-relative field, and an anonymous caller owns nothing, so a true here
+// would mean the route leaked one caller's ownership to everybody.
 //
 // Read-only by design: the only POST bodies are empty and rejected by the auth
 // gate before any parsing or writes.
@@ -45,7 +50,14 @@ const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
 const CHECKS = [
   { method: 'GET', path: '/api/correspondence/games', status: 401, error: 'not_signed_in' },
-  { method: 'GET', path: '/api/correspondence/seeks', status: 401, error: 'not_signed_in' },
+  {
+    method: 'GET',
+    path: '/api/correspondence/seeks',
+    status: 200,
+    expect: (body) =>
+      Array.isArray(body?.seeks) && body.seeks.every((seek) => seek?.isMine === false),
+    describe: 'a seeks array with no row owned by an anonymous caller',
+  },
   {
     method: 'GET',
     path: '/api/correspondence/seeks/incoming',
@@ -68,9 +80,13 @@ for (const check of CHECKS) {
         : {}),
     },
   });
-  if (status !== check.status || body?.error !== check.error) {
+  // A gate check pins the error code; a public-read check pins the shape of what
+  // came back instead (there is no error to match on a 200).
+  const bodyOk = check.expect ? check.expect(body) : body?.error === check.error;
+  if (status !== check.status || !bodyOk) {
+    const wanted = check.expect ? check.describe : `{"error":"${check.error}"}`;
     throw new Error(
-      `${check.method} ${check.path}: expected ${check.status} {"error":"${check.error}"}, got ${status} ${JSON.stringify(body)}`,
+      `${check.method} ${check.path}: expected ${check.status} ${wanted}, got ${status} ${JSON.stringify(body)}`,
     );
   }
   results.push({ method: check.method, path: check.path, status });
