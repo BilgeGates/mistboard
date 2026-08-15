@@ -13,6 +13,7 @@
 
 import type { GameEvent } from '@mistboard/game';
 import { reloadForChunkLoadError } from './chunk-load-recovery.js';
+import { displayLiveName } from './game-display.js';
 import type { GameMeta, ReplayHandle } from './replay.js';
 import { renderWatchReplayFailure } from './replay-skeleton.js';
 import { mountShowcaseBoard } from './showcase-board.js';
@@ -193,8 +194,8 @@ export async function mountLandingTv(
     const first = players.find((player) => player.color === 'red') ?? players[0]!;
     const second = players.find((player) => player !== first)!;
     options.namesByRoomId[featured.roomId] = {
-      first: first.name ?? 'Anonymous',
-      second: second.name ?? 'Anonymous',
+      first: displayLiveName(first.name, 'Anonymous'),
+      second: displayLiveName(second.name, 'Anonymous'),
     };
   };
 

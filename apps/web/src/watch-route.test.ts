@@ -149,7 +149,9 @@ describe('watch route copy helpers', () => {
       whiteName: null,
     };
 
-    expect(watchQueueMatchupLabel(game)).toBe('Red Human vs Misty DMX 1.0');
+    // 'python-dmx-v1.0' resolves to the build "Misty DMX 1.0"; list rows show
+    // the brand.
+    expect(watchQueueMatchupLabel(game)).toBe('Red Human vs Misty');
     expect(resultLabel(game.result)).toBe('Red wins');
   });
 
@@ -278,6 +280,24 @@ describe('watchGamePlayers', () => {
   it('passes the seat straight through for variants where seat == ink', () => {
     const rows = watchGamePlayers(flipGame('xiangqi', null));
     expect(rows.map((row) => row.color)).toEqual(['red', 'black']);
+  });
+
+  it('scores the hero rows so a finished game reads without parsing the status line', () => {
+    expect(watchGamePlayers(flipGame('xiangqi', null)).map((row) => row.score)).toEqual(['1', '0']);
+  });
+
+  it('scores a flip game by seat even when the ink came out the other way', () => {
+    // 'red-wins' names the first-mover SEAT; that seat's disc here is black.
+    const rows = watchGamePlayers(flipGame('banqi', 'black'));
+    expect(rows.map((row) => [row.color, row.score])).toEqual([
+      ['black', '1'],
+      ['red', '0'],
+    ]);
+  });
+
+  it('scores a draw on both rows', () => {
+    const drawn = { ...flipGame('xiangqi', null), result: 'draw' };
+    expect(watchGamePlayers(drawn).map((row) => row.score)).toEqual(['½', '½']);
   });
 });
 
@@ -419,18 +439,18 @@ describe('renderWatchChannelList', () => {
     }
   });
 
-  it('uses the rounded house crown for the Top Rated channel', () => {
+  it('uses the rounded house crown for the Featured channel', () => {
     const root = document.createElement('nav');
     renderWatchChannelList(root, {
       activeChannel: 'top',
-      channels: [channel('top', 'Top Rated'), channel('xiangqi', 'Xiangqi')],
+      channels: [channel('top', 'Featured'), channel('xiangqi', 'Xiangqi')],
       now: '2026-07-23T00:00:00.000Z',
       unlockLimit: 64,
       sealedCount: 0,
       unlocked: [],
     });
 
-    const crown = root.querySelector<SVGElement>('a[aria-label="Top Rated"] .watch-channel-crown');
+    const crown = root.querySelector<SVGElement>('a[aria-label="Featured"] .watch-channel-crown');
     expect(crown?.classList.contains('ui-icon-featured-channel')).toBe(true);
     expect(crown?.getAttribute('fill')).toBe('none');
     expect(crown?.getAttribute('stroke-linecap')).toBe('round');

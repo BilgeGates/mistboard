@@ -544,7 +544,7 @@ definePersistenceTests('game lists', () => {
         'watch-old',
       ],
     );
-    // The curated cut (Top Rated only, shared with the homepage showcase pool):
+    // The curated cut (Featured only, shared with the homepage showcase pool):
     // same recency order, minus the rage-quit and every near-opening stub, so the
     // channel's head is the game the homepage board freezes on. watch-pve-link
     // (12 ply) and watch-short-* fall to the floor; watch-abandoned falls to the

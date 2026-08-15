@@ -456,6 +456,10 @@ Edit task → find file → open only that file.
 | `stripe-client.ts` | Lazily-constructed Stripe SDK client (078): `getStripeClient` builds from patron config on first use (never instantiated while the program is unconfigured), `resetStripeClientForTest` |
 | `generate-variant-fixtures.ts` | CLI: deterministic random-legal self-play fixture generator for every variant tenant; emits a minimal tenant event-log JSONL (doubles as postgame-review sample data + multi-variant test fixtures), no network/DB |
 | `seed-variant-fixtures.ts` | CLI: seed the local DB with committed per-variant postgame fixtures (`fixtures/variant-postgame/*.jsonl`), each replayed through its tenant to derive the terminal GameSummary and persisted as a public eve game for the watch feed + native postgame pages |
+| `verify-xiangqi-endgames.ts` | CLI: check every entry in `XIANGQI_ENDGAME_CORPUS` against Pikafish, printing book verdict beside engine read and recording the principal variation. Exists to catch OUR bad representative positions (a "book draw" the engine mates in 2 is a broken position, not a wrong manual), not to audit the manuals. `--depth`, `--only`, `--json` |
+| `build-xiangqi-endgame-reference.ts` | CLI: render the endgame corpus + a verification JSON into a standalone HTML reference page; diagrams go through the OG-card board renderer, so the page carries no font or stylesheet dependency |
+| `seed-xiangqi-endgame-study.ts` | CLI: load the endgame corpus into a Mistboard study over `/api/studies`, one chapter per verdict, `rootFen` from the corpus and the engine PV as the mainline. Replays each PV through the real kernel and truncates at the first illegal move; refuses to run unless the server hands back a dev auth code |
+| `repair-missing-jungle-flip-games.ts` | One-off repair: rebuild the `games` rows for finished Flip Jungle rooms whose terminal write was rejected by `games_termination_check` |
 
 ## apps/server/integration/ — Two-client WebSocket integration tests
 
@@ -962,6 +966,21 @@ Run with `MISTBOARD_ALLOW_IN_MEMORY_PERSISTENCE=true npm run test:integration --
 | `dobutsu-chess-preview.ts` | DEV `/dobutsu-chess-preview` page: renders standard chess piece sets remapped to Dobutsu animal art on `@mistboard/board-render` boards. Exports `mountDobutsuChessPreview` |
 | `ui-icon.ts` | House UI icon set: `buildUiIcon(name)` renders a Lucide (MIT) line glyph as inline SVG inheriting `currentColor`, and `uiIconForAnnouncementKind`. Semantic-name→glyph map lives here. Loads `ui-icon.css` (base sizing via zero-specificity `:where(.ui-icon)`) |
 | `variant-markers.ts` | Variant marker-art registry (renamed from `variant-marks.ts`): `FINAL_VARIANT_MARKERS` (per-variant `/variant-markers/final/*.png`), `hasFinalVariantMarker`, and `renderVariantMarker` (falls back to a rendered mini-board). Loads `variant-markers.css` |
+| `analysis-catalog.ts` | Fail-closed `/analysis/<variant>` catalog and route parser; supplies canonical dropdown order and analysis-specific display labels (including the disambiguated "Fortress Xiangqi") |
+| `analysis-page.ts` | Generic `/analysis/<variant>` entry: builds the variant dropdown and dispatches to that variant's analysis mount. `analysis-catalog.ts` is the fail-closed allowlist, and the loader map must cover every `AnalysisVariantId` or the build fails |
+| `variant-analysis.ts` | Standalone analysis boards for every non-xiangqi catalog variant: a fresh interactive board at the start position (hidden-deal variants mint a client-side deal from the same bag the server draws from), branching into a tree with the variant's in-browser engine where one exists. Each case dynamic-imports its own review module so the board stacks stay code-split |
+| `review/xiangqi-phases.ts` | Opening / middlegame / endgame segmentation for standard xiangqi, behind the advantage chart's dividers and the summary's per-phase accuracy. A HEURISTIC, not rules: middlegame starts at first real contact (two pieces captured, or any non-soldier captured) |
+| `metrics.ts` | `/stats` (public) and `/metrics` (admin) from one module, the way `coach.ts` serves directory + detail. Public shows aggregate games, activity, mode + variant splits; admin adds account count and growth, the result split, and live in-play/online figures |
+| `stats-charts.ts` | Shared statistics rendering: the cumulative-activity SVG chart, the public stats shape, and number/date formatting. Used by the `/about` platform-activity section and by `/stats` + `/metrics`, so every stats surface draws one identical chart |
+| `bot-play.ts` | One-click PvE room creation against a public bot identity. Callers name only the bot, variant, and optional pace; the server resolves the per-variant engine from the bot profile and the tenant time-control gates stay authoritative |
+| `variant-seat-label.ts` | Display word for a seat colour. The Jungle family brands its dark side "Blue" (navy pieces); the internal colour id stays `'black'`, so this is presentation-only with no data or protocol migration |
+| `xiangqi-notation.ts` | Resolves the stored xiangqi move-notation preference (script-neutral `'chinese'`) to a concrete `@mistboard/game` formatter style, with the locale picking the glyph set at resolve time (馬8進7 for zh-Hant, 马8进7 otherwise) |
+| `announcement-i18n.ts` | Announcement localization (zh-Hans / zh-Hant): the English entry in `announcements.ts` stays the source of truth and a localized render substitutes headline/body/CTA per language, falling back to English. Coverage is enforced both directions, so an untranslated string AND an orphaned key fail the build |
+| `study-i18n.ts` | Localized study text: a study keeps ONE structural source of truth (name, description, chapter names, move tree with comments) and translations are an overlay resolved against the reader's locale |
+| `jungle-skins.ts` | Jungle-family look on the two axes it actually has: BOARD (`illustrated` painted terrain vs `bare` flat land) and the piece art, with the den/trap tokens each implies |
+| `jungle-appearance-storage.ts` | Jungle-family appearance resolution, split out of `theme.ts` so renderers can read the current look without importing the whole theme module. No settings UI yet by decision (2026-07-26) |
+| `review/engine/pikajieqi-ceval.ts` | Client-side Jieqi analysis on the classical-evaluation PikaJieQi WebAssembly build: a persistent UCI session in a dedicated worker streaming iterative-deepening MultiPV updates |
+| `review/engine/uci-info.ts` | Parsed shape of a UCI `info` line (`depth`, `seldepth`, `multipv`, score, PV) shared by the in-browser engine adapters |
 | `scripts/prerender-articles.mjs` (under `apps/web/scripts/`) | Build-time article pre-render (runs after `vite build`): renders published articles under happy-dom into `dist/blog/<slug>.html` with per-route meta, and also emits `dist/route-preload-manifest.json` (per-route module/CSS lists derived from the Vite build manifest, #31) consumed by `server-static-pages.ts` for SPA-shell modulepreload injection; zh article shells get their locale chunk preloaded too |
 
 ## apps/server/migrations/ — Postgres schema migrations
@@ -995,11 +1014,3 @@ Numbered raw SQL files starting at `001_init.sql`; the count moves fast (105+ as
 - **`.env` files are off-limits** to Claude — touching them leaks via auto-include. Use Node `--env-file` or provider dashboards.
 - **Lesson trailers** on commits that teach a transferable rule (see `~/projects/CLAUDE.md`).
 
-## Unindexed (auto-added by `index:fix`, needs a description)
-
-| File | Owns |
-|------|------|
-| `apps/web/src/analysis-catalog.ts` | Fail-closed `/analysis/<variant>` catalog and route parser; supplies canonical dropdown order and analysis-specific display labels (including the disambiguated “Fortress Xiangqi”) |
-| `apps/web/src/analysis-page.ts` | _needs a one-line description_ |
-| `apps/web/src/review/xiangqi-phases.ts` | _needs a one-line description_ |
-| `apps/web/src/variant-analysis.ts` | _needs a one-line description_ |
