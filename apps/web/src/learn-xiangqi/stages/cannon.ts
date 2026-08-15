@@ -28,33 +28,36 @@ const levels: LearnLevelPartial[] = [
   },
   {
     // First screen capture: jump the friendly soldier to take a real piece.
+    // Target on e7 (a black soldier's own starting point), not deeper in black's
+    // half: soldiers never retreat, so no black soldier can stand behind rank 7.
     goal: 'learn.xiangqi.cannon.goal.3',
-    fen: '9/9/4p4/9/9/4P4/9/9/4C4/9 w',
+    fen: '9/9/9/4p4/9/4P4/9/9/4C4/9 w',
     nbMoves: 1,
     captures: 1,
     pointsForCapture: true,
     detectCapture: false,
     success: extinct('black'),
-    sampleSolution: 'e2e8',
-    shapes: [circle('e5', 'blue'), arrow('e2', 'e8')],
+    sampleSolution: 'e2e7',
+    shapes: [circle('e5', 'blue'), arrow('e2', 'e7')],
   },
   {
     // Reposition first, then use the screen. The cannon cannot reach the target
-    // in one move; slide behind the soldier, then jump it.
+    // in one move; slide behind the soldier, then jump it. Both soldiers sit on
+    // their own side's starting file so the position is one a real game reaches.
     goal: 'learn.xiangqi.cannon.goal.4',
-    fen: '9/5p3/9/9/5P3/9/9/9/2C6/9 w',
+    fen: '9/9/9/6p2/9/9/6P2/9/2C6/9 w',
     nbMoves: 2,
     captures: 1,
     pointsForCapture: true,
     detectCapture: false,
     success: extinct('black'),
-    sampleSolution: 'c2f2 f2f9',
+    sampleSolution: 'c2g2 g2g7',
   },
   {
     // The enemy's own pieces work as your screens. Jump one black soldier to
     // take the piece behind it, twice; the screens themselves stay put.
     goal: 'learn.xiangqi.cannon.goal.5',
-    fen: '9/9/9/p2p2r2/9/9/p8/9/9/C8 w',
+    fen: '9/9/9/p1p3r2/9/9/p8/9/9/C8 w',
     nbMoves: 2,
     captures: 2,
     pointsForCapture: true,
@@ -80,8 +83,12 @@ const levels: LearnLevelPartial[] = [
   },
   {
     // Capstone: a four-capture tour, each capture over its own screen.
+    // The e2 screen is an ADVISOR, not a soldier: e2 sits inside the red palace
+    // and red soldiers only move forward, so no soldier can ever stand there.
+    // The advisor is the piece that legally occupies the palace centre. Same
+    // reason for the horse on i8: black soldiers never retreat behind rank 7.
     goal: 'learn.xiangqi.cannon.goal.7',
-    fen: '9/9/2r2P2p/9/9/2P5P/9/9/p1C1P3p/9 w',
+    fen: '9/9/2r2P2n/9/9/2P5P/9/9/p1C1A3p/9 w',
     nbMoves: 4,
     captures: 4,
     pointsForCapture: true,

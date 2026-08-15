@@ -11,13 +11,15 @@ import { arrow, type LearnLevelPartial } from '../learn-types.js';
 const levels: LearnLevelPartial[] = [
   {
     // Chariot tour: three loose black pieces, three captures, no danger if
-    // you follow the line of the file and the rank.
+    // you follow the line of the rank and then the file. Both black soldiers
+    // stand where a real game could put them: g7 is a starting point, g2 is a
+    // crossed soldier deep in red's half.
     goal: 'learn.xiangqi.combat.goal.main',
-    fen: '6n2/9/9/1p4p2/9/4P4/9/7N1/1R7/9 w',
+    fen: '6n2/9/9/6p2/9/4P4/9/7N1/1R4p2/9 w',
     nbMoves: 3,
     captures: 3,
-    shapes: [arrow('b2', 'b7'), arrow('b7', 'g7'), arrow('g7', 'g10', 'yellow')],
-    sampleSolution: 'b2b7 b7g7 g7g10',
+    shapes: [arrow('b2', 'g2'), arrow('g2', 'g7'), arrow('g7', 'g10', 'yellow')],
+    sampleSolution: 'b2g2 g2g7 g7g10',
   },
   {
     // Order matters: the black horse eyes your soldier on e5. Remove the
@@ -30,12 +32,14 @@ const levels: LearnLevelPartial[] = [
   },
   {
     // Screens: the cannon opens fire over the enemy soldier, then the
-    // chariot finishes what the cannon cannot reach without a screen.
+    // chariot finishes what the cannon cannot reach without a screen. The
+    // screen sits on h5, not h6: h is not a black soldier's file, so it can
+    // only stand there having already crossed into red's half.
     goal: 'learn.xiangqi.combat.goal.screens',
-    fen: '9/9/4b2n1/9/7p1/9/4P4/7C1/9/7R1 w',
+    fen: '9/9/4b2n1/9/9/7p1/4P4/7C1/9/7R1 w',
     nbMoves: 4,
     captures: 3,
-    sampleSolution: 'h3h8 h1h6 h6e6 e6e8',
+    sampleSolution: 'h3h8 h1h5 h5e5 e5e8',
   },
   {
     // Values on: the horse opens by taking the big chariot (90), then the

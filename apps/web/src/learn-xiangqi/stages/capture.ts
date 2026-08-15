@@ -36,9 +36,12 @@ const levels: LearnLevelPartial[] = [
   },
   {
     // Horse tour: the cannon is one jump away, but your own soldier stands on
-    // the leg. Go the long way around.
+    // the leg. Go the long way around. The h7 stop is a chariot, not a soldier:
+    // h is not a black soldier's starting file and soldiers cannot step sideways
+    // before the river, so h7 is unreachable for one. A horse there would guard
+    // g5 and break the tour's safety, so the chariot is the piece that fits.
     goal: 'learn.xiangqi.capture.goal.legs',
-    fen: '9/9/9/7p1/5c3/4P1p2/4N4/9/9/9 w',
+    fen: '9/9/9/7r1/5c3/4P1p2/4N4/9/9/9 w',
     nbMoves: 3,
     captures: 3,
     shapes: [arrow('e4', 'f6', 'red'), circle('e5', 'red')],
@@ -46,9 +49,11 @@ const levels: LearnLevelPartial[] = [
   },
   {
     // Capstone: mixed force, safe order required. Cannon first hangs your
-    // chariot to the black one: the enemy chariot dies first.
+    // chariot to the black one: the enemy chariot dies first. The b9 piece is a
+    // horse (rank 9 is behind black's soldier line) and the cannon's screen sits
+    // on h6, the first h-file point a red soldier can legally occupy.
     goal: 'learn.xiangqi.capture.goal.capstone',
-    fen: '9/1p2r4/7n1/9/9/7P1/9/7C1/4R4/9 w',
+    fen: '9/1n2r4/7n1/9/7P1/9/9/7C1/4R4/9 w',
     nbMoves: 3,
     captures: 3,
     sampleSolution: 'e2e9 h3h8 e9b9',
