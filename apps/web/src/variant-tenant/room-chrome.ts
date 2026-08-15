@@ -18,7 +18,7 @@ import { readAccountPreferences, shouldShowClockTenths } from '../account-prefer
 import { openConfirmDialog } from '../confirm-dialog.js';
 import { maybePlayLowTimeSound } from '../live-sound.js';
 import type { LiveRefs } from '../live-state.js';
-import { createGameMetaCard } from '../review/game-meta-card.js';
+import { createGameMetaCard, seatResultScores } from '../review/game-meta-card.js';
 import type { VariantMiniId } from '../variant-mini-boards.js';
 import { formatClock } from '../web-utils.js';
 import { capitalize, noticeBody, noticeTitle, presenceDot, roomLink } from './chrome-dom.js';
@@ -374,15 +374,24 @@ export function createTenantRoomChrome<C extends string>(
       subline = waitingForOpponent() ? 'Waiting for opponent' : 'Playing right now';
     }
 
+    // The status line above names the winning COLOUR; these score the ROWS, so a
+    // finished game says who won without a hop back to the discs. Scored on the
+    // seats (status.winner is a seat), which is also what tenant.colors holds.
+    const scores = seatResultScores(
+      status?.type === 'finished' ? (status.winner ? `${status.winner}-wins` : 'draw') : null,
+      tenant.colors,
+    );
+
     const card = createGameMetaCard({
       markerId: tenant.metaMarkerId,
       glyph: tenant.metaGlyph,
       headline: [tcLabel, 'Casual'],
       variantName: detail ? `${tenant.displayName} · ${detail}` : tenant.displayName,
       subline,
-      players: tenant.colors.map((color) => {
+      players: tenant.colors.map((color, index) => {
         const serverName = ctx.seatDisplayNames()[color];
         return {
+          score: scores[index] ?? null,
           // The disc wants the INK, not the seat. When a server display name exists it
           // replaces the ink-aware seatLabel below, so the disc is the ONLY colour cue
           // left on the row — a raw seat here is silently wrong for half of all flip

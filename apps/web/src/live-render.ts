@@ -68,7 +68,7 @@ import {
   seatLabel,
 } from './live-status.js';
 import { currentCaptures, currentProjection, currentView } from './live-view.js';
-import { createGameMetaCard } from './review/game-meta-card.js';
+import { createGameMetaCard, seatResultScores } from './review/game-meta-card.js';
 import type { VariantMiniId } from './variant-mini-boards.js';
 import { activeLiveShellTenant, liveShellTenants } from './variant-tenant/live-shell.js';
 import { installSelectionClickAway } from './variant-tenant/selection-click-away.js';
@@ -636,6 +636,14 @@ function renderGameInfo(view: PlayerView | null): void {
     subline = t('live.playingRightNow');
   }
 
+  // The status line above names the winning COLOUR; these score the ROWS, so a
+  // finished game reads without a hop back to the discs.
+  const seats = ['white', 'black'] as const;
+  const scores = seatResultScores(
+    status?.type === 'finished' ? (status.winner ? `${status.winner}-wins` : 'draw') : null,
+    seats,
+  );
+
   const card = createGameMetaCard({
     // Same finalized marker the picker/watch/review surfaces use; the ♔ glyph
     // stays only as the fallback for a variant string we can't map.
@@ -644,11 +652,12 @@ function renderGameInfo(view: PlayerView | null): void {
     headline: [timeLabel, modeEntry ? modeEntry[1] : t('live.modeCasual')],
     variantName: fmt,
     subline,
-    players: (['white', 'black'] as const).map((color) => {
+    players: seats.map((color, index) => {
       const colorName = color === 'white' ? t('setup.white') : t('setup.black');
       return {
         color,
         name: liveState.seat === color ? t('live.youAre', { color: colorName }) : colorName,
+        score: scores[index] ?? null,
       };
     }),
     status: statusLine,

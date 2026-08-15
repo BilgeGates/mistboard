@@ -162,10 +162,34 @@ function displayParticipant(
   fallback: string,
   subjectId?: string | null,
 ): string {
-  const detailed = engineDisplayName(subjectId ?? name);
-  if (detailed) return detailed;
+  const label = engineDisplayName(subjectId ?? name) ?? name;
+  if (!label) return fallback;
+  return brandedEngineName(label) ?? label;
+}
+
+// Player-facing brand for a Misty build. Every Misty ships one brand: the
+// variant tag and version ("Misty DXQ 1.1", "Misty 1.5", "Misty DMX 1.0") are
+// engine identity, and asking a player to parse them mid-board buys nothing —
+// they are playing Misty. The exact build still shows wherever it decides
+// something: the admin engine registry, /engines, and the engine detail pages
+// all read the registry directly rather than passing through here.
+//
+// The shape is deliberately narrow — brand, optional uppercase variant tag,
+// dotted version — so it can only ever match a build string. A human account
+// called "Misty" already renders as "Misty"; one called "Misty the Great" is
+// left alone rather than being renamed by an engine rule.
+const MISTY_BUILD = /^Misty(?:\s+[A-Z]{2,5})?\s+\d+(?:\.\d+)*$/;
+
+export function brandedEngineName(name: string): string | null {
+  return MISTY_BUILD.test(name) ? 'Misty' : null;
+}
+
+/** A live payload's seat name as a page should show it. The finished-game feeds
+ *  reach the same result through displayParticipant; live frames carry a bare
+ *  name, so they brand here instead. */
+export function displayLiveName(name: string | null | undefined, fallback: string): string {
   if (!name) return fallback;
-  return name;
+  return brandedEngineName(name) ?? name;
 }
 
 // Correspondence seeks store a side as MOVE ORDER ('first'/'second'), variant-neutral, so
@@ -249,8 +273,10 @@ function engineDisplayName(name: string | null | undefined): string | null {
     'builtin-random-legal': 'Random Legal v1',
     [MISTBOARD_ENGINE_SNAPSHOT_ID]: MISTBOARD_ENGINE_SNAPSHOT_NAME,
     [MISTBOARD_ENGINE_MISTY_ID]: MISTBOARD_ENGINE_MISTY_NAME,
-    // Historical Misty versions still render their exact shipped version so old
-    // games are labelled correctly after the active engine moves on.
+    // Historical Misty versions keep their exact shipped label here so an id
+    // always resolves to the build that actually played. Player-facing rows then
+    // collapse them to the brand (brandedEngineName); this map is the identity,
+    // not the display.
     'python-v2-v1.0': 'Misty 1.0',
     'python-v2-v1.1': 'Misty 1.1',
     'python-v2-v1.2': 'Misty 1.2',
