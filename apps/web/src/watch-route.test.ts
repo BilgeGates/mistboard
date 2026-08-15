@@ -24,7 +24,28 @@ import {
   watchPovToggleApplies,
   watchQueueMatchupLabel,
   watchQueueResultLabel,
+  watchRailAnchor,
 } from './watch-route.js';
+
+describe('watchRailAnchor', () => {
+  it('keeps tall boards as the anchor', () => {
+    // Xiangqi (621px board) and fog chess (560px) both dwarf the ~480px rail.
+    expect(watchRailAnchor(621, 480)).toBe('board');
+    expect(watchRailAnchor(560, 480)).toBe('board');
+    expect(watchRailAnchor(480, 480)).toBe('board');
+  });
+
+  it('switches to the middle column when the rail outgrows the board', () => {
+    // Banqi is 8x4: a ~308px board under a 480px rail.
+    expect(watchRailAnchor(308, 480)).toBe('column');
+  });
+
+  it('falls back to the board before anything has been measured', () => {
+    expect(watchRailAnchor(0, 0)).toBe('board');
+    expect(watchRailAnchor(0, 480)).toBe('board');
+    expect(watchRailAnchor(308, 0)).toBe('board');
+  });
+});
 
 describe('watch move sounds', () => {
   it('sounds only a single forward ply, not initial paint, jumps, or loop resets', () => {

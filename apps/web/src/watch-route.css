@@ -1101,6 +1101,16 @@
     overflow: visible;
     justify-content: center;
   }
+
+  /* Short boards are the exception: banqi is 8x4, so its board is a ~300px stub
+     and the rail is taller than the thing it is meant to hug. Centering on the
+     board then lifts the clocks above the board's own top edge while the middle
+     column keeps running down through the previously-on strip. Center against
+     that whole column instead. watchRailAnchor picks the anchor from measured
+     heights, so no variant is named here. */
+  .watch-review-shell[data-rail-anchor="column"] .review-shell__right {
+    height: var(--watch-center-height, auto);
+  }
 }
 
 @media (min-width: 1260px) {
