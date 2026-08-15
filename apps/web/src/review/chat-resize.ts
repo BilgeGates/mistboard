@@ -124,6 +124,25 @@ export function attachChatResize(panel: HTMLElement): HTMLElement {
   };
   window.addEventListener('resize', onViewportResize);
 
+  // The rail's leftover space is not settled at mount: the board refits on a
+  // timer (review-layout.ts), so the rail bottom moves long after the panel
+  // first measured its parent. A preference clamped against that early
+  // measurement stays too tall, and the rail clips its overflow — the composer
+  // and this separator end up below the cut, leaving a feed nobody can type
+  // into. The viewport listener above never fires for that, so watch the space
+  // itself. The panel is capped at the parent's height in CSS, so re-rendering
+  // here cannot grow the parent back and loop.
+  if (typeof ResizeObserver !== 'undefined' && panel.parentElement) {
+    const spaceObserver = new ResizeObserver(() => {
+      if (!panel.isConnected) {
+        spaceObserver.disconnect();
+        return;
+      }
+      renderPreferredHeight();
+    });
+    spaceObserver.observe(panel.parentElement);
+  }
+
   queueMicrotask(renderPreferredHeight);
   return separator;
 }

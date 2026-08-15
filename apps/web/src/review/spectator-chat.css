@@ -288,9 +288,16 @@
     min-height: 0;
   }
 
+  /* The rail is height-locked to the board and clips (review-shell.css), so a
+     stored preference taller than the rail's leftover space pushes the composer
+     and the resize handle out of sight: the room reads as a bare feed with no
+     way to type. Cap on the group's own height so the panel can never outgrow
+     what the rail can show. The preference is kept, not rewritten, so a taller
+     window restores it. */
   .review-spectator-chat--manual-height {
     flex: 0 0 auto;
     height: var(--review-chat-manual-height);
+    max-height: 100%;
   }
 
   .review-spectator-chat__resize {

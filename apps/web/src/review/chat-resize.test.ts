@@ -13,6 +13,7 @@ describe('chat vertical resize', () => {
     document.body.replaceChildren();
     window.localStorage.clear();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('supports keyboard sizing, persistence, and restoring automatic height', async () => {
@@ -51,6 +52,23 @@ describe('chat vertical resize', () => {
     expect(manualHeight(panel)).toBe('620px');
   });
 
+  it('re-clamps when the rail shrinks under it without a viewport resize', async () => {
+    // The board refits on a timer after mount, so the rail settles shorter than
+    // the panel measured. Nothing dispatches a window resize for that, and the
+    // rail clips its overflow: a stale height puts the composer below the cut.
+    const resizes = observeResizes();
+    window.localStorage.setItem(chatResizeStorageKey, '620');
+    let parentHeight = 700;
+    const { panel } = mountedChat(() => parentHeight);
+    await flushMicrotasks();
+    expect(manualHeight(panel)).toBe('528px');
+
+    parentHeight = 420;
+    resizes.trigger();
+    expect(manualHeight(panel)).toBe('248px');
+    expect(window.localStorage.getItem(chatResizeStorageKey)).toBe('620');
+  });
+
   it('resets to automatic height on double-click', async () => {
     window.localStorage.setItem(chatResizeStorageKey, '400');
     const { panel, separator } = mountedChat();
@@ -82,6 +100,26 @@ function mountedChat(parentHeight: () => number = () => 700): {
 
   const separator = attachChatResize(panel);
   return { panel, separator };
+}
+
+// jsdom has no ResizeObserver, so the panel skips the observer entirely unless a
+// test installs one. trigger() stands in for the parent's box changing.
+function observeResizes(): { trigger: () => void } {
+  const callbacks: ResizeObserverCallback[] = [];
+  class StubResizeObserver {
+    constructor(callback: ResizeObserverCallback) {
+      callbacks.push(callback);
+    }
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  vi.stubGlobal('ResizeObserver', StubResizeObserver);
+  return {
+    trigger: () => {
+      for (const callback of callbacks) callback([], {} as ResizeObserver);
+    },
+  };
 }
 
 function manualHeight(panel: HTMLElement): string {
