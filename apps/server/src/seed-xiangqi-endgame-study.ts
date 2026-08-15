@@ -16,6 +16,18 @@
  *   npx tsx apps/server/src/seed-xiangqi-endgame-study.ts \
  *     --json /tmp/verify.json --email you@example.com [--base http://127.0.0.1:3001] \
  *     [--visibility public|unlisted|private] [--dry-run]
+ *
+ * Against a REAL server there is no dev code to read, so `--email` cannot work
+ * and this script will not try to reach an inbox. Supply an already-established
+ * session instead and it skips sign-in entirely:
+ *
+ *   MISTBOARD_SESSION_COOKIE='mistboard_session=...' \
+ *     npx tsx apps/server/src/seed-xiangqi-endgame-study.ts \
+ *       --json /tmp/verify.json --base https://mistboard.com --visibility public
+ *
+ * Copy that cookie out of your own browser's devtools and run this yourself.
+ * The value is a live credential: it is read from the environment, never
+ * logged, and must not be pasted anywhere it would be recorded.
  */
 import { readFileSync } from 'node:fs';
 import {
@@ -28,6 +40,12 @@ import {
   type XiangqiGameState,
   type XiangqiMove,
 } from '@mistboard/game';
+import {
+  ENDGAME_STUDY_I18N,
+  ENDGAME_STUDY_LANGS,
+  localizedChapterName,
+  localizedRootComment,
+} from './xiangqi-endgame-study-i18n.js';
 
 type VerifyRow = {
   id: string;
@@ -43,9 +61,14 @@ type VerifyRow = {
 
 type SerializedNode = {
   uci?: string;
-  annotations?: { comments?: { text: string }[] };
+  // `i18n` rides on the comment itself inside the tree, which is where
+  // study-i18n.ts reads per-node comment translations from.
+  annotations?: { comments?: { text: string; i18n?: Record<string, string> }[] };
   children: SerializedNode[];
 };
+
+/** Per-locale overrides for a study or chapter, in the shape migration 115 stores. */
+type I18nOverlay = Record<string, { name?: string; description?: string }>;
 
 // Long enough to carry a mate in 15 to its end; past that a study chapter stops
 // being readable and the reader should be moving pieces themselves.
@@ -130,15 +153,36 @@ function chapterPayload(entry: EndgameEntry, row: VerifyRow | undefined) {
     child = { uci: `${move.from}${move.to}`, children: child ? [child] : [] };
   }
   const chain = child ? [child] : [];
+
+  // Both overlays are built per locale and omitted when the dictionary cannot
+  // render the whole string, so a chapter is never half English and half
+  // Chinese — it either localizes completely or stays in the base language.
+  const chapterI18n: I18nOverlay = {};
+  const commentI18n: Record<string, string> = {};
+  for (const lang of ENDGAME_STUDY_LANGS) {
+    const name = localizedChapterName(entry, lang);
+    if (name) chapterI18n[lang] = { name };
+    const comment = localizedRootComment(entry, row, moves.length, lang);
+    if (comment) commentI18n[lang] = comment;
+  }
+
   return {
     name: chapterName(entry),
     variant: 'xiangqi' as const,
     orientation: 'red' as const,
+    ...(Object.keys(chapterI18n).length > 0 ? { i18n: chapterI18n } : {}),
     root: {
       version: 1 as const,
       rootFen: endgameEntryFen(entry),
       root: {
-        annotations: { comments: [{ text: rootComment(entry, row, moves.length) }] },
+        annotations: {
+          comments: [
+            {
+              text: rootComment(entry, row, moves.length),
+              ...(Object.keys(commentI18n).length > 0 ? { i18n: commentI18n } : {}),
+            },
+          ],
+        },
         children: chain,
       },
     },
@@ -149,6 +193,11 @@ class Session {
   private cookie = '';
 
   constructor(private readonly base: string) {}
+
+  /** Adopt a session established elsewhere (a real browser login). */
+  useCookie(cookie: string): void {
+    this.cookie = cookie;
+  }
 
   async post(path: string, body: unknown): Promise<Response> {
     const response = await fetch(`${this.base}${path}`, {
@@ -217,15 +266,26 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (!email) {
-    console.error('--email is required unless --dry-run is set');
+  // A supplied cookie wins over --email: it is the only way to reach a server
+  // that does not hand out dev codes, and it means this script never handles a
+  // password or an inbox. Never logged — the value is a live session.
+  const suppliedCookie = process.env.MISTBOARD_SESSION_COOKIE?.trim();
+  if (!suppliedCookie && !email) {
+    console.error(
+      '--email is required unless --dry-run is set, or set MISTBOARD_SESSION_COOKIE to use an existing session',
+    );
     process.exitCode = 1;
     return;
   }
 
   const session = new Session(base);
-  await session.signIn(email);
-  console.log(`signed in as ${email} at ${base}`);
+  if (suppliedCookie) {
+    session.useCookie(suppliedCookie);
+    console.log(`using the supplied session at ${base}`);
+  } else {
+    await session.signIn(email as string);
+    console.log(`signed in as ${email} at ${base}`);
+  }
 
   const [first, ...rest] = chapters;
   if (!first) return;
@@ -233,6 +293,7 @@ async function main(): Promise<void> {
     name: 'Xiangqi basic endgames: what wins and what draws',
     description:
       'The book verdicts of the basic endgames, each rooted at a representative position with Pikafish’s line as the mainline. Play them out against the engine rather than taking the verdict on trust.',
+    i18n: ENDGAME_STUDY_I18N,
     visibility,
     chapter: first,
   });
