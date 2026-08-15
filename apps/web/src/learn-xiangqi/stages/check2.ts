@@ -51,10 +51,11 @@ const levels: LearnLevelPartial[] = [
     // 6. Capstone: only the cannon plan works. The e9 advisor blocks every
     //    chariot idea on the e-file but is the perfect cannon screen; the d9
     //    horse plugs the d-file and rank 9, the c10 elephant shields rank 10,
-    //    the i7 soldier and your own f4 soldier force the cannon to reroute
-    //    around the bottom (i4-i2-e2).
+    //    the i7 soldier and your own g4 soldier force the cannon to reroute
+    //    around the bottom (i4-i2-e2). The blocker stands on g4, a red soldier's
+    //    own starting point, rather than f4, which no red soldier can reach.
     goal: 'learn.xiangqi.check2.goal.6',
-    fen: '2bak4/3na4/9/8p/9/9/5P2C/6N2/9/R3K4 w',
+    fen: '2bak4/3na4/9/8p/9/9/6P1C/6N2/9/R3K4 w',
     sampleSolution: 'i4i2 i2e2',
   },
 ].map((level) => ({

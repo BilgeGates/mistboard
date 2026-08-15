@@ -30,10 +30,12 @@ const levels: LearnLevelPartial[] = [
   },
   {
     // Cannon (45) vs horse (40): the close call. The horse on b5 is guarded
-    // by the soldier on b6, so the 40-point grab costs 90; the cannon up the
-    // file is unprotected.
+    // by the soldier on a5, so the 40-point grab costs 90; the cannon up the
+    // file is unprotected. The guard is a crossed soldier covering b5 sideways,
+    // not one sitting on b6: b is not a black soldier's file, so it could never
+    // stand there before the river.
     goal: 'learn.xiangqi.value.goal.cannonOverHorse',
-    fen: '9/4c4/9/9/1p7/1n2R4/9/9/9/9 w',
+    fen: '9/4c4/9/9/9/pn2R4/9/9/9/9 w',
     success: pieceNotOn('black', 'cannon', 'e9'),
     sampleSolution: 'e5e9',
     intent: {
@@ -63,17 +65,19 @@ const levels: LearnLevelPartial[] = [
     },
   },
   {
-    // The flashy trap: the cannon's board-length leap only wins a soldier
-    // (10), and the black chariot on b10 eats the cannon the moment it lands.
-    // The quiet chariot slide wins the horse (40) for nothing.
+    // The flashy trap: the cannon's leap up the file only wins a soldier (10),
+    // and the black chariot on c10 eats the cannon the moment it lands. The
+    // quiet chariot slide wins the horse (40) for nothing. The trap runs on the
+    // c-file rather than the b-file so both black soldiers stand on squares a
+    // soldier can actually occupy (c7 is a starting point, c5 has crossed).
     goal: 'learn.xiangqi.value.goal.flashyTrap',
-    fen: '1r7/1p7/7n1/9/1p7/9/7R1/9/1C7/9 w',
+    fen: '2r6/9/7n1/2p6/9/2p6/7R1/9/2C6/9 w',
     success: pieceNotOn('black', 'horse', 'h8'),
     sampleSolution: 'h4h8',
     intent: {
       solutions: 1,
       candidates: {
-        assert: or(pieceNotOn('black', 'horse', 'h8'), pieceNotOn('black', 'soldier', 'b9')),
+        assert: or(pieceNotOn('black', 'horse', 'h8'), pieceNotOn('black', 'soldier', 'c7')),
         min: 2,
       },
     },

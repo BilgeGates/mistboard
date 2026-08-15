@@ -10,7 +10,13 @@
 //     pipeline (capture-threat scan, failure/success asserts, lila order)
 //     must complete in exactly nbMoves player moves.
 
-import type { XiangqiGameState, XiangqiMove, XiangqiSquare } from '@mistboard/game';
+import type {
+  XiangqiColor,
+  XiangqiGameState,
+  XiangqiMove,
+  XiangqiPieceRole,
+  XiangqiSquare,
+} from '@mistboard/game';
 import { describe, expect, it } from 'vitest';
 import { applesEaten } from './learn-assert.js';
 import { learnCopy } from './learn-copy.js';
@@ -29,6 +35,46 @@ import { learnXiangqiStages } from './stages/index.js';
 const SQUARE_PATTERN = /^[a-i](10|[1-9])$/;
 const MOVE_PATTERN = /^([a-i](?:10|[1-9]))([a-i](?:10|[1-9]))$/;
 const BFS_STATE_CAP = 500_000;
+
+/** Points a piece can NEVER stand on, no matter how the game went. Soldiers
+ *  never retreat and cannot step sideways before the river, so a soldier off
+ *  its own file below rank 6 (own-side relative) is a misread board, not a
+ *  hard position; advisors, elephants and generals are confined outright. A
+ *  learner who knows the rules reads such a diagram as a bug, so the authoring
+ *  gate enforces it. Sliders (chariot, horse, cannon) go anywhere. */
+function reachablePoint(
+  color: XiangqiColor,
+  role: XiangqiPieceRole,
+  square: XiangqiSquare,
+): boolean {
+  const file = square.charCodeAt(0) - 97;
+  const rank = Number(square.slice(1));
+  // Own-side relative coordinates: rank 1 is the piece's own back rank.
+  const r = color === 'red' ? rank : 11 - rank;
+  const f = color === 'red' ? file : 8 - file;
+  switch (role) {
+    case 'soldier':
+      // Starts on rank 4 on every other file, crosses the river at rank 6, and
+      // only then unlocks the sideways step.
+      return r >= 6 || (r >= 4 && f % 2 === 0);
+    case 'advisor':
+      return (
+        (r === 1 && (f === 3 || f === 5)) ||
+        (r === 2 && f === 4) ||
+        (r === 3 && (f === 3 || f === 5))
+      );
+    case 'elephant':
+      return (
+        (r === 1 && (f === 2 || f === 6)) ||
+        (r === 3 && (f === 0 || f === 4 || f === 8)) ||
+        (r === 5 && (f === 2 || f === 6))
+      );
+    case 'general':
+      return r <= 3 && f >= 3 && f <= 5;
+    default:
+      return true;
+  }
+}
 
 function levelState(level: LearnLevel): XiangqiGameState {
   const state = makeLearnState(level.fen, `verify-${level.id}`);
@@ -310,6 +356,16 @@ describe('learn xiangqi level verifier', () => {
             for (const square of readApples(level.apples)) {
               expect(square, `bad apple square ${square}`).toMatch(SQUARE_PATTERN);
               expect(state.board[square], `apple on occupied point ${square}`).toBeUndefined();
+            }
+          });
+
+          it('places every piece on a point a real game could reach', () => {
+            const state = makeLearnState(level.fen, 'verify');
+            for (const [square, piece] of Object.entries(state.board)) {
+              expect(
+                reachablePoint(piece.color, piece.role, square as XiangqiSquare),
+                `${piece.color} ${piece.role} on ${square} is unreachable in a legal game`,
+              ).toBe(true);
             }
           });
 
