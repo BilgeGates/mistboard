@@ -142,6 +142,17 @@ export async function loadWatchMainBeforePreviews(
   loadPreviews();
 }
 
+// What the right rail's contents center against. Normally the board: it is the
+// tallest thing in the middle and the rail reads as its console. Banqi is 8x4,
+// so its board is a ~300px stub while the middle column runs on through the
+// previously-on strip, and centering on the board floats the clocks up past the
+// board's own top edge. When the rail is taller than the board it has already
+// outgrown that anchor, so switch to the whole middle column.
+export function watchRailAnchor(boardHeight: number, railHeight: number): 'board' | 'column' {
+  if (!(boardHeight > 0) || !(railHeight > 0)) return 'board';
+  return railHeight > boardHeight ? 'column' : 'board';
+}
+
 export async function mountWatch(root: HTMLElement): Promise<void> {
   initLiveSound();
   root.replaceChildren();
@@ -165,6 +176,17 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
     if (height > 0) {
       watch.el.style.setProperty('--watch-board-height', `${height}px`);
     }
+    // The column height is only consumed by the short-board anchor, but it is
+    // measured unconditionally: the rail's own height is what decides, and that
+    // changes with the move list, not with the board.
+    const columnHeight = watch.centerColumn.getBoundingClientRect().height;
+    if (columnHeight > 0) {
+      watch.el.style.setProperty('--watch-center-height', `${columnHeight}px`);
+    }
+    // The rail box is height-constrained by CSS; its CONTENT keeps its natural
+    // height and overflows, so this measurement does not feed back into itself.
+    const railHeight = watch.railContent.getBoundingClientRect().height;
+    watch.el.dataset.railAnchor = watchRailAnchor(height, railHeight);
   };
   let boardResizeObserver: ResizeObserver | null = null;
   if (typeof ResizeObserver !== 'undefined') {
@@ -176,6 +198,8 @@ export async function mountWatch(root: HTMLElement): Promise<void> {
       syncBoardHeight();
     });
     boardResizeObserver.observe(watch.boardBox);
+    boardResizeObserver.observe(watch.centerColumn);
+    boardResizeObserver.observe(watch.railContent);
   }
   syncBoardHeight();
 
@@ -1190,6 +1214,11 @@ type WatchSection = {
   movesRoot: HTMLElement;
   replayControlsRoot: HTMLElement;
   boardBox: HTMLElement;
+  // The whole middle column (board + pov slot + previously-on strip) and the
+  // right rail's own content box, both measured to decide what the rail centers
+  // against. See watchRailAnchor.
+  centerColumn: HTMLElement;
+  railContent: HTMLElement;
 };
 
 // The /watch page rides the SHARED review-shell (left info rail | center board |
@@ -1293,6 +1322,8 @@ function buildWatchSection(feed: WatchFeed | null): WatchSection {
     movesRoot: gameTable.refs.movesRoot,
     replayControlsRoot: gameTable.refs.replayControlsRoot,
     boardBox,
+    centerColumn: center,
+    railContent: right,
   };
 }
 
