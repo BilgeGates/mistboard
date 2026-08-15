@@ -22,6 +22,7 @@ export const ANNOUNCEMENT_LANGS: AnnouncementLang[] = ['zh-Hans', 'zh-Hant'];
 
 const ZH_HANS: Record<string, string> = {
   // ── headlines ──
+  'What Patron support will cost.': '赞助 Mistboard 的价格。',
   'A games database for xiangqi.': '象棋对局库。',
   'Perpetual check now loses in standard xiangqi.': '标准象棋中长将判负。',
   'Mistboard works on a phone.': 'Mistboard 已适配手机。',
@@ -59,6 +60,8 @@ const ZH_HANS: Record<string, string> = {
   'Misty 1.0 has launched.': 'Misty 1.0 已上线。',
 
   // ── bodies ──
+  'The Support page lists the monthly amounts, what they include (a profile badge, no gameplay advantage), and the billing and refund terms in full. Checkout is not open yet.':
+    '「支持 Mistboard」页面列出了每月的赞助金额、包含的内容（个人资料上的徽章，不影响对局），以及完整的计费与退款条款。结账尚未开放。',
   'Search finished games from three sources in one place: the historical corpus, the tournament boards we broadcast, and games played here.':
     '在同一处检索三个来源的已结束对局：历史棋谱库、我们直播的赛事棋盘，以及在本站下的对局。',
   'Repeating a check forever used to draw. The checker has to vary or lose the game, which is how the published rulesets score it and how the course has always taught it.':
@@ -130,6 +133,7 @@ const ZH_HANS: Record<string, string> = {
 
   // ── CTA labels ──
   'Search the games': '检索对局',
+  'See the amounts': '查看赞助金额',
   'See the leaderboard': '查看排行榜',
   'Open volume one': '打开第一卷',
   'Browse the studies': '浏览研习',
@@ -148,6 +152,7 @@ const ZH_HANS: Record<string, string> = {
 
 const ZH_HANT: Record<string, string> = {
   // ── headlines ──
+  'What Patron support will cost.': '贊助 Mistboard 的價格。',
   'A games database for xiangqi.': '象棋對局庫。',
   'Perpetual check now loses in standard xiangqi.': '標準象棋中長將判負。',
   'Mistboard works on a phone.': 'Mistboard 已適配手機。',
@@ -185,6 +190,8 @@ const ZH_HANT: Record<string, string> = {
   'Misty 1.0 has launched.': 'Misty 1.0 已上線。',
 
   // ── bodies ──
+  'The Support page lists the monthly amounts, what they include (a profile badge, no gameplay advantage), and the billing and refund terms in full. Checkout is not open yet.':
+    '「支持 Mistboard」頁面列出了每月的贊助金額、包含的內容（個人資料上的徽章，不影響對局），以及完整的計費與退款條款。結帳尚未開放。',
   'Search finished games from three sources in one place: the historical corpus, the tournament boards we broadcast, and games played here.':
     '在同一處檢索三個來源的已結束對局：歷史棋譜庫、我們轉播的賽事棋盤，以及在本站下的對局。',
   'Repeating a check forever used to draw. The checker has to vary or lose the game, which is how the published rulesets score it and how the course has always taught it.':
@@ -256,6 +263,7 @@ const ZH_HANT: Record<string, string> = {
 
   // ── CTA labels ──
   'Search the games': '檢索對局',
+  'See the amounts': '查看贊助金額',
   'See the leaderboard': '查看排行榜',
   'Open volume one': '開啟第一卷',
   'Browse the studies': '瀏覽研習',

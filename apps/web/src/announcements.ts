@@ -25,6 +25,15 @@ export type Announcement = {
 const baseAnnouncements: Announcement[] = [
   {
     date: '2026-08-13',
+    kind: 'update',
+    headline: 'What Patron support will cost.',
+    body: 'The Support page lists the monthly amounts, what they include (a profile badge, no gameplay advantage), and the billing and refund terms in full. Checkout is not open yet.',
+    href: '/patron',
+    cta: 'See the amounts',
+    showInHomeArticleWidget: false,
+  },
+  {
+    date: '2026-08-13',
     kind: 'release',
     headline: 'A games database for xiangqi.',
     body: 'Search finished games from three sources in one place: the historical corpus, the tournament boards we broadcast, and games played here.',

@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { localizeAnnouncement } from './announcement-i18n.js';
-import { announcements } from './announcements.js';
+import { type AnnouncementKind, announcements } from './announcements.js';
 import { buildLandingAnnouncements } from './landing-announcements.js';
 import { buildNewsPage } from './news-page.js';
+import { uiIconForAnnouncementKind } from './ui-icon.js';
 import { variantPublicSurfaceEnabled } from './variant-public-surfaces.js';
 import { leaderboardVariants } from './variants.js';
 
@@ -141,7 +142,12 @@ describe('landing announcements', () => {
     const kind = firstRow?.dataset.announcementKind;
     expect(kind).toBeTruthy();
     expect(marker?.dataset.announcementKind).toBe(kind);
-    expect(marker?.querySelector(`svg.ui-icon-announcement-${kind}`)).not.toBeNull();
+    // Kinds share icons ('update' draws the release icon, 'status' the article
+    // one), so the icon has to be resolved through the same mapping the view
+    // uses. Asserting `ui-icon-announcement-${kind}` passes only while every
+    // newest entry happens to be a kind whose name matches its icon.
+    const icon = uiIconForAnnouncementKind(kind as AnnouncementKind);
+    expect(marker?.querySelector(`svg.ui-icon-${icon}`)).not.toBeNull();
     // The slot is assigned from the kind, so assert it is present and
     // well-formed rather than pinning whichever kind is currently newest.
     expect(marker?.dataset.futureDobutsuSlot).toMatch(/^announcement-[a-z]$/);
