@@ -38,7 +38,7 @@ const levels: LearnLevelPartial[] = [
   {
     // Escape: find the square the horse cannot reach.
     goal: 'learn.xiangqi.protection.goal.escape',
-    fen: '9/9/9/9/6n2/1P7/5R3/9/9/9 w',
+    fen: '9/9/9/9/6n2/2P6/5R3/9/9/9 w',
     sampleSolution: 'f4f5',
   },
   {
@@ -54,9 +54,12 @@ const levels: LearnLevelPartial[] = [
     sampleSolution: 'b3a5',
   },
   {
-    // Capstone: defend from a distance.
+    // Capstone: defend from a distance. The soldier stands on f6 rather than f5:
+    // f is not a red soldier's starting file, so it can only occupy the f-file
+    // after crossing the river. It stays screenless under the f10 cannon either
+    // way, which is the point of the level.
     goal: 'learn.xiangqi.protection.goal.noUndefended',
-    fen: '3r1c3/9/9/9/9/3N1P3/9/9/1C7/8R w',
+    fen: '3r1c3/9/9/9/5P3/3N5/9/9/1C7/8R w',
     sampleSolution: 'i1d1',
   },
 ].map((level) => ({ nbMoves: 1, ...level }));

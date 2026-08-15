@@ -1,6 +1,10 @@
 // Xiangqi Learn — Stage: the soldier (兵). Ports lila's pawn-stage arc, with
-// the river crossing standing in for promotion as the milestone: soldiers step
-// one point forward, NEVER backward, and unlock the sideways step on rank 6+.
+// the SIDEWAYS STEP as the milestone (level 3): soldiers step one point
+// forward, NEVER backward, and unlock the sideways step once across the river.
+// Every soldier starts on rank 4, its real starting rank, so no board shows a
+// soldier on a point it could not have walked to; the consequence is that any
+// march longer than one step crosses the river before level 3 names it, which
+// is fine because crossing is not the new POWER, sidestepping is.
 // All levels are emptyApples (bare markers): phantom soldiers would distort
 // the forward-only geometry the stage is teaching. Pars are BFS-verified
 // optimal, and since a soldier can never retreat, star ORDER is load-bearing
@@ -10,25 +14,26 @@ import { arrow, type LearnLevelPartial } from '../learn-types.js';
 
 const levels: LearnLevelPartial[] = [
   {
-    // One point forward at a time: three humble steps to the star.
+    // One point forward at a time: three humble steps to the star, starting
+    // from the soldier's own rank-4 home point.
     goal: 'learn.xiangqi.soldier.goal.1',
-    fen: '9/9/9/9/9/9/9/9/4P4/9 w',
-    apples: 'e5',
+    fen: '9/9/9/9/9/9/4P4/9/9/9 w',
+    apples: 'e7',
     emptyApples: true,
     nbMoves: 3,
-    shapes: [arrow('e2', 'e3'), arrow('e3', 'e4'), arrow('e4', 'e5')],
+    shapes: [arrow('e4', 'e5'), arrow('e5', 'e6'), arrow('e6', 'e7')],
   },
   {
     // Forward only: the red arrow marks the move that does not exist.
     // Pre-river, the soldier cannot reach anything behind or beside it;
-    // the star sits straight ahead. Soldier on file c (a faithful red
-    // soldier file) so a pre-river square never looks off to a xiangqi eye.
+    // the star sits straight ahead. Soldier on c4, one of red's five real
+    // soldier home points, so the board reads true to a xiangqi eye.
     goal: 'learn.xiangqi.soldier.goal.2',
-    fen: '9/9/9/9/9/9/9/2P6/9/9 w',
-    apples: 'c5',
+    fen: '9/9/9/9/9/9/2P6/9/9/9 w',
+    apples: 'c6',
     emptyApples: true,
     nbMoves: 2,
-    shapes: [arrow('c3', 'c4', 'green'), arrow('c3', 'c2', 'red')],
+    shapes: [arrow('c4', 'c5', 'green'), arrow('c4', 'c3', 'red')],
   },
   {
     // THE milestone: cross the river, then the brand-new sideways step.
@@ -59,11 +64,12 @@ const levels: LearnLevelPartial[] = [
   },
   {
     // Two soldiers: the crossed one can sidestep to d7 but never come back
-    // for e5; the rear one marches up for it. Each star has exactly one
-    // sensible owner.
+    // for e6; the rear one marches up for it from its home point. Each star
+    // has exactly one possible owner, so the assignment is forced, not merely
+    // sensible: e7 cannot retreat to e6, and e4 needs four steps to reach d7.
     goal: 'learn.xiangqi.soldier.goal.6',
-    fen: '9/9/9/4P4/9/9/9/4P4/9/9 w',
-    apples: 'd7 e5',
+    fen: '9/9/9/4P4/9/9/4P4/9/9/9 w',
+    apples: 'd7 e6',
     emptyApples: true,
     nbMoves: 3,
   },
