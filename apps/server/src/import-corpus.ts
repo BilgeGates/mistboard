@@ -32,6 +32,23 @@ type Args = {
   whiteName: string;
   blackName: string;
   mode: GameMode;
+  manifest?: string;
+};
+
+/**
+ * Per-game overrides, keyed by roomId. A single --white-name/--black-name pair
+ * fits an engine bakeoff (two fixed opponents) but not an imported human corpus:
+ * the chess.com fog archive has 780 distinct opponents and the player is White
+ * in half of it. The manifest also carries real timestamps, so imported games
+ * keep the date they were PLAYED instead of collapsing to the import time —
+ * without which every game sorts identically and the review header lies.
+ */
+type ManifestEntry = {
+  roomId: string;
+  whiteName?: string;
+  blackName?: string;
+  startedAt?: string;
+  endedAt?: string;
 };
 
 function parseArgs(argv: string[]): Args {
@@ -51,6 +68,9 @@ function parseArgs(argv: string[]): Args {
     } else if (arg === '--black-name' && next) {
       args.blackName = next;
       i++;
+    } else if (arg === '--manifest' && next) {
+      args.manifest = next;
+      i++;
     } else if (arg === '--mode' && next) {
       if (!IMPORT_MODES.includes(next as GameMode)) {
         console.error(`invalid --mode "${next}"; expected one of ${IMPORT_MODES.join(', ')}`);
@@ -60,12 +80,15 @@ function parseArgs(argv: string[]): Args {
       i++;
     }
   }
-  if (!args.dir || !args.corpus || !args.whiteName || !args.blackName) {
+  // Names are only required without a manifest, which supplies them per game.
+  if (!args.dir || !args.corpus || (!args.manifest && (!args.whiteName || !args.blackName))) {
     console.error(
-      'usage: import-corpus --dir <path> --corpus <id> --white-name <name> --black-name <name> [--mode <imported|eve|pve|pvp|manual>]',
+      'usage: import-corpus --dir <path> --corpus <id> (--white-name <name> --black-name <name> | --manifest <path.json>) [--mode <imported|eve|pve|pvp|manual>]',
     );
     process.exit(1);
   }
+  args.whiteName ??= '';
+  args.blackName ??= '';
   args.mode ??= 'imported';
   return args as Args;
 }
@@ -76,6 +99,7 @@ async function importFile(
   whiteName: string,
   blackName: string,
   mode: GameMode,
+  manifest?: Map<string, ManifestEntry>,
 ): Promise<{ roomId: string; plyCount: number; status: string }> {
   const raw = await readFile(filePath, 'utf-8');
   const events: GameEvent[] = raw
@@ -115,20 +139,45 @@ async function importFile(
     throw new Error(`unknown finished-game reason: ${String(status.reason)}`);
   }
   const termination: GameSummary['termination'] = status.reason;
+  const entry = manifest?.get(roomId);
   const now = new Date();
+  // Prefer the manifest, then the event log's own timestamps, then now. The
+  // event-log fallback is a strict improvement for every caller: `at` is already
+  // on every event, so even manifest-less imports stop being stamped with the
+  // import time.
+  const firstAt = events[0]?.at;
+  const lastAt = events[events.length - 1]?.at;
+  const startedAt = entry?.startedAt
+    ? new Date(entry.startedAt)
+    : typeof firstAt === 'number'
+      ? new Date(firstAt)
+      : now;
+  const endedAt = entry?.endedAt
+    ? new Date(entry.endedAt)
+    : typeof lastAt === 'number'
+      ? new Date(lastAt)
+      : now;
+
+  // room-created already carries the pace; without lifting it the review header
+  // reads "Untimed" for a game that was played on a clock.
+  const roomTimeControl = (first as { timeControl?: { initialMs?: number; incrementMs?: number } })
+    .timeControl;
 
   const summary: GameSummary = {
     variant: projection.variant,
+    ...(roomTimeControl?.initialMs != null
+      ? { initialMs: roomTimeControl.initialMs, incrementMs: roomTimeControl.incrementMs ?? 0 }
+      : {}),
     mode,
     result,
     termination,
     plyCount: moveEvents.length,
-    startedAt: now,
-    endedAt: now,
+    startedAt,
+    endedAt,
     whiteClient: null,
     blackClient: null,
-    whiteName,
-    blackName,
+    whiteName: entry?.whiteName ?? whiteName,
+    blackName: entry?.blackName ?? blackName,
     corpusId,
   };
   await recordGameEnd(roomId, summary);
@@ -159,6 +208,13 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  let manifest: Map<string, ManifestEntry> | undefined;
+  if (args.manifest) {
+    const entries = JSON.parse(await readFile(args.manifest, 'utf-8')) as ManifestEntry[];
+    manifest = new Map(entries.map((e) => [e.roomId, e]));
+    console.log(`manifest: ${manifest.size} game(s)`);
+  }
+
   console.log(
     `importing ${files.length} file(s) from ${args.dir} as corpus="${args.corpus}", mode="${args.mode}", names=("${args.whiteName}" / "${args.blackName}")`,
   );
@@ -169,6 +225,7 @@ async function main(): Promise<void> {
       args.whiteName,
       args.blackName,
       args.mode,
+      manifest,
     );
     console.log(`  ${file} → room=${result.roomId} plies=${result.plyCount} ${result.status}`);
   }
