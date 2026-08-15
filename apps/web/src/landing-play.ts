@@ -691,10 +691,29 @@ function fillSeedRatings(seedsBlock: HTMLElement, bots: LandingBotRosterEntry[])
 const QUICK_PAIR_COLUMN_IDS: TimeControlId[] = ['1m1', '3m2', '5m5'];
 // How many variants get a promoted pool row. Order is the canonical product
 // order (xiangqi first since the 2026-07 pivot), so this promotes the top of the
-// catalog rather than a second hand-maintained ranking.
-const QUICK_PAIR_ROW_COUNT = 6;
+// catalog rather than a second hand-maintained ranking. Sized to the full
+// product catalog (config/product-profile.json), so in prod every playable
+// variant gets a pool row and the grid fills the card instead of trailing off
+// into dead space; the cap only bites in the lab profile, where the parked
+// variants would otherwise stretch the panel well past the tabs beside it.
+const QUICK_PAIR_ROW_COUNT = 8;
 
-function buildQuickPairPools(locale: Locale): HTMLElement {
+// One pool = one variant at one clock, the granularity a chip pairs at. Shared
+// by the chip index and the open-seek counter so the two can only agree.
+function quickPairPoolKey(gameSpecId: string, initialMs: number, incrementMs: number): string {
+  return `${gameSpecId}|${initialMs}|${incrementMs}`;
+}
+
+type QuickPairPools = {
+  element: HTMLElement;
+  /** Re-badge the chips from the open-seek poll the Lobby tab already runs. A
+   *  pool somebody is already waiting in is the one click that pairs INSTANTLY,
+   *  and at our liquidity that is the difference between playing now and
+   *  queueing into an empty pool, so it belongs on the chip. */
+  applyOpenSeeks: (requests: OpenLobbyRequest[]) => void;
+};
+
+function buildQuickPairPools(locale: Locale): QuickPairPools {
   const wrap = document.createElement('div');
   wrap.className = 'landing-quickpair-pools';
 
@@ -712,6 +731,12 @@ function buildQuickPairPools(locale: Locale): HTMLElement {
   // deletes its ticket) rather than queueing the player into two pools.
   let cancelPending: (() => void) | null = null;
   const chipResets: (() => void)[] = [];
+  // Pool key → the chips that pair into it, so the open-seek poll can badge them
+  // without re-rendering the grid out from under a click.
+  const chipsByPool = new Map<
+    string,
+    { chip: HTMLButtonElement; badge: HTMLElement; label: string }[]
+  >();
   const clearPending = (): void => {
     cancelPending?.();
     cancelPending = null;
@@ -780,7 +805,23 @@ function buildQuickPairPools(locale: Locale): HTMLElement {
       const chipState = document.createElement('span');
       chipState.className = 'landing-play-action-label landing-quickpair-chip-state';
       chipState.textContent = chipLabel;
-      chip.append(chipText, chipState);
+      // Liquidity badge: how many people are already waiting in THIS pool. It
+      // sits absolutely on the chip's corner so a pool filling up never reflows
+      // the grid, and stays empty (not "0") when the pool is cold.
+      const badge = document.createElement('span');
+      badge.className = 'landing-quickpair-waiting';
+      badge.setAttribute('aria-hidden', 'true');
+      badge.hidden = true;
+      chip.append(chipText, chipState, badge);
+      const poolChips = chipsByPool.get(
+        quickPairPoolKey(gameSpecId, column.initialMs, column.incrementMs),
+      );
+      const chipEntry = { chip, badge, label: `${label} ${chipLabel}` };
+      if (poolChips) poolChips.push(chipEntry);
+      else
+        chipsByPool.set(quickPairPoolKey(gameSpecId, column.initialMs, column.incrementMs), [
+          chipEntry,
+        ]);
       chipResets.push(() => {
         chip.disabled = false;
         chip.removeAttribute('aria-busy');
@@ -864,7 +905,40 @@ function buildQuickPairPools(locale: Locale): HTMLElement {
   statusRow.className = 'landing-quickpair-statusrow';
   statusRow.append(status, cancel);
   wrap.append(statusRow);
-  return wrap;
+
+  const applyOpenSeeks = (requests: OpenLobbyRequest[]): void => {
+    const counts = new Map<string, number>();
+    for (const request of requests) {
+      // These chips post casual, standard-start seeks, so a rated hook or a
+      // draft960 one is a DIFFERENT pool even at the same variant and clock:
+      // counting it here would promise an instant pair that never comes.
+      if (request.rated || request.hiddenDraft960) continue;
+      const key = quickPairPoolKey(
+        request.gameSpecId ?? DARK_CHESS_SPEC_ID,
+        request.timeControl.initialMs,
+        request.timeControl.incrementMs,
+      );
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    for (const [key, chips] of chipsByPool) {
+      const count = counts.get(key) ?? 0;
+      for (const { chip, badge, label } of chips) {
+        // The pool you are personally sitting in counts YOUR ticket, and the
+        // chip already says so in accent. Badging it "1" would read as somebody
+        // to pair with; anyone actually there would have matched you instantly.
+        const own = chip.classList.contains('is-waiting');
+        chip.classList.toggle('has-waiting', count > 0 && !own);
+        badge.hidden = count === 0 || own;
+        badge.textContent = count > 0 && !own ? String(count) : '';
+        chip.setAttribute(
+          'aria-label',
+          count > 0 && !own ? `${label}, ${t('play.waitingCount', { count }, locale)}` : label,
+        );
+      }
+    }
+  };
+
+  return { element: wrap, applyOpenSeeks };
 }
 
 function headCell(label: string): HTMLElement {
@@ -964,6 +1038,9 @@ export function buildLobbyPanel(
   // list, so an empty-state line would only add noise above them.
   const renderLobby = (requests: OpenLobbyRequest[]): void => {
     lobbyRows.replaceChildren(...requests.map((request) => lobbyTableRow(request, locale)));
+    // One poll feeds both tabs: the same open seeks that fill this table are
+    // what make a Quick pairing chip an instant match rather than a queue.
+    quickPairPools.applyOpenSeeks(requests);
   };
 
   // Quick pairing tab: the variant catalog, filling the panel edge to edge (no
@@ -978,7 +1055,8 @@ export function buildLobbyPanel(
   quickPanelEl.setAttribute('role', 'tabpanel');
   quickPanelEl.hidden = true;
 
-  quickPanelEl.append(buildQuickPairPools(locale));
+  const quickPairPools = buildQuickPairPools(locale);
+  quickPanelEl.append(quickPairPools.element);
 
   // Correspondence tab: open days-per-move seeks (they carry a creator name). A row
   // links to the challenge/accept page.
@@ -986,28 +1064,53 @@ export function buildLobbyPanel(
   corrPanelEl.className = 'landing-lobby-tabpanel landing-lobby-flush';
   corrPanelEl.setAttribute('role', 'tabpanel');
   corrPanelEl.hidden = true;
-  const corrRows = document.createElement('div');
-  corrRows.className = 'landing-lobby-tbody';
-  // When correspondence is live, seed the empty state with a centered "Create a
-  // game" CTA (lichess-style) from first paint, so a loading/empty list is a call
-  // to action rather than a blank panel. It survives the fetch when no seeks come
-  // back; only a non-empty list replaces it with rows.
-  if (correspondenceEnabled()) {
-    corrRows.append(correspondenceEmptyState(locale));
-  } else {
-    const soon = document.createElement('p');
-    soon.className = 'landing-lobby-empty';
-    soon.textContent = 'Correspondence play is coming soon.';
-    corrRows.append(soon);
+  // Seek rows carry their own four-column grammar, so they get their own header
+  // rather than borrowing the real-time table's five. It stays hidden until
+  // there are rows to label: a header over a centered empty state reads as a
+  // broken table.
+  const corrHead = document.createElement('div');
+  corrHead.className = 'landing-lobby-thead landing-lobby-thead-corr';
+  corrHead.hidden = true;
+  for (const label of [
+    t('lobby.colPlayer', {}, locale),
+    t('lobby.colGame', {}, locale),
+    t('lobby.colPace', {}, locale),
+    '',
+  ]) {
+    const cell = document.createElement('span');
+    cell.textContent = label;
+    corrHead.append(cell);
   }
-  corrPanelEl.append(corrRows);
-  const renderCorrespondence = (seeks: LobbyCorrespondenceSeek[]): void => {
+  const corrRows = document.createElement('div');
+  corrRows.className = 'landing-lobby-tbody landing-lobby-tbody-corr';
+  // Seed the empty state with a centered "Create a game" CTA (lichess-style)
+  // from first paint, so a loading/empty list is a call to action rather than a
+  // blank panel. It survives the fetch when no seeks come back; only a non-empty
+  // list replaces it with rows, and only the server saying the feature is off
+  // replaces it with the coming-soon line.
+  corrRows.append(correspondenceEmptyState(locale));
+  corrPanelEl.append(corrHead, corrRows);
+  const renderCorrespondence = (feed: LobbyCorrespondenceFeed): void => {
     corrRows.replaceChildren();
-    if (seeks.length === 0) {
+    if (feed.status === 'disabled') {
+      // Server truth beats the build flag: the web bundle ships correspondence
+      // on, so a deploy that lands before MISTBOARD_CORRESPONDENCE_ENABLED does
+      // shows the coming-soon line instead of a CTA that 404s.
+      corrHead.hidden = true;
+      const soon = document.createElement('p');
+      soon.className = 'landing-lobby-empty';
+      soon.textContent = t('lobby.corrComingSoon', {}, locale);
+      corrRows.append(soon);
+      return;
+    }
+    if (feed.seeks.length === 0) {
+      corrHead.hidden = true;
       corrRows.append(correspondenceEmptyState(locale));
       return;
     }
-    for (const seek of seeks) corrRows.append(corrSeekRow(seek, locale));
+    corrHead.hidden = false;
+    for (const seek of feed.seeks) corrRows.append(corrSeekRow(seek, locale));
+    corrRows.append(correspondenceListFooter(locale));
   };
 
   panels.set('lobby', lobbyPanelEl);
@@ -1045,20 +1148,28 @@ export function buildLobbyPanel(
       .catch(() => {
         /* keep the placeholder */
       });
+    const refreshCorrespondence = (): void => {
+      if (!correspondenceEnabled()) return;
+      void fetchCorrespondenceSeeks()
+        .then(renderCorrespondence)
+        .catch(() => {
+          /* keep whatever is on screen */
+        });
+    };
+    refreshCorrespondence();
+    // One timer for both tabs. The correspondence board moves on a days scale,
+    // so it rides every tenth tick of the real-time poll (~30s) instead of
+    // taking an interval of its own: a second timer is a second thing to leak.
+    let tick = 0;
     const timer = window.setInterval(() => {
       if (!document.body.contains(board)) {
         window.clearInterval(timer);
         return;
       }
       void refreshLobby();
+      tick += 1;
+      if (tick % 10 === 0) refreshCorrespondence();
     }, 3_000);
-    if (correspondenceEnabled()) {
-      void fetchCorrespondenceSeeks()
-        .then(renderCorrespondence)
-        .catch(() => {
-          /* leave the placeholder */
-        });
-    }
   }
 
   return board;
@@ -1111,11 +1222,34 @@ function correspondenceEmptyState(locale: Locale): HTMLElement {
   wrap.className = 'landing-lobby-empty-cta';
   const message = document.createElement('p');
   message.className = 'landing-lobby-empty';
-  message.textContent = 'No open correspondence challenges right now.';
+  message.textContent = t('lobby.corrEmpty', {}, locale);
+  // An empty board has to say what the format IS, not just that nobody is on
+  // it: correspondence is the one surface that works at zero concurrency, and a
+  // first-time visitor has no reason to guess that from a bare "no games" line.
+  const explainer = document.createElement('p');
+  explainer.className = 'landing-lobby-empty landing-lobby-empty-explainer';
+  explainer.textContent = t('lobby.corrExplainer', {}, locale);
+  const create = correspondenceCreateButton(locale);
+  // The full board (your games in progress, the post form, private share links)
+  // lives on /correspondence; this tab is the shop window onto it, so it links
+  // there instead of growing a second copy of that page.
+  const mine = document.createElement('a');
+  mine.className = 'landing-lobby-empty-link';
+  mine.href = '/correspondence';
+  mine.textContent = t('lobby.corrYourGames', {}, locale);
+  wrap.append(message, explainer, create, mine);
+  return wrap;
+}
+
+// The one control that posts an open days-per-move seek: opens the Find-opponent
+// dialog on its correspondence segment. Shared by the empty state and the footer
+// under a populated list, so posting a game never depends on the board being
+// empty (before, a single existing seek hid the only way to add your own).
+function correspondenceCreateButton(locale: Locale): HTMLButtonElement {
   const create = document.createElement('button');
   create.type = 'button';
   create.className = 'landing-lobby-create';
-  create.textContent = 'Create a game';
+  create.textContent = t('lobby.corrCreate', {}, locale);
   create.addEventListener('click', () => {
     openLandingSetupDialog({
       locale,
@@ -1126,8 +1260,20 @@ function correspondenceEmptyState(locale: Locale): HTMLElement {
       ratedDisabled: true,
     });
   });
-  wrap.append(message, create);
-  return wrap;
+  return create;
+}
+
+// Footer under a populated seek list: the same "Create a game" control the empty
+// state leads with, demoted to a row under the rows.
+function correspondenceListFooter(locale: Locale): HTMLElement {
+  const footer = document.createElement('div');
+  footer.className = 'landing-lobby-corr-footer';
+  const mine = document.createElement('a');
+  mine.className = 'landing-lobby-empty-link';
+  mine.href = '/correspondence';
+  mine.textContent = t('lobby.corrYourGames', {}, locale);
+  footer.append(correspondenceCreateButton(locale), mine);
+  return footer;
 }
 
 function lobbyTableRow(request: OpenLobbyRequest, locale: Locale): HTMLElement {
@@ -1222,11 +1368,24 @@ type LobbyCorrespondenceSeek = {
   isMine: boolean;
 };
 
-async function fetchCorrespondenceSeeks(): Promise<LobbyCorrespondenceSeek[]> {
+// What the tab knows after one poll. `disabled` is the server's own answer
+// (404 correspondence_disabled), kept distinct from "no seeks" and from a
+// transient network failure so only the first one hides the CTA.
+type LobbyCorrespondenceFeed =
+  | { status: 'ok'; seeks: LobbyCorrespondenceSeek[] }
+  | { status: 'disabled' };
+
+async function fetchCorrespondenceSeeks(): Promise<LobbyCorrespondenceFeed> {
   const response = await fetch('/api/correspondence/seeks').catch(() => null);
-  if (!response?.ok) return [];
+  if (!response) return { status: 'ok', seeks: [] };
+  if (response.status === 404) {
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    if (body?.error === 'correspondence_disabled') return { status: 'disabled' };
+    return { status: 'ok', seeks: [] };
+  }
+  if (!response.ok) return { status: 'ok', seeks: [] };
   const data = (await response.json()) as { seeks?: LobbyCorrespondenceSeek[] };
-  return Array.isArray(data.seeks) ? data.seeks : [];
+  return { status: 'ok', seeks: Array.isArray(data.seeks) ? data.seeks : [] };
 }
 
 function corrSeekRow(seek: LobbyCorrespondenceSeek, locale: Locale): HTMLElement {

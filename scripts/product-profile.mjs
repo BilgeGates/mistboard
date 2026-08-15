@@ -8,12 +8,18 @@ const rawProfile = JSON.parse(readFileSync(profilePath, 'utf8'));
 
 export const PRODUCT_GAME_SPEC_IDS = Object.freeze([...rawProfile.gameSpecIds]);
 export const PRODUCT_GAME_SPEC_ID_SET = new Set(PRODUCT_GAME_SPEC_IDS);
-export const PRODUCT_SERVER_FLAGS = Object.freeze(
-  PRODUCT_GAME_SPEC_IDS.flatMap((gameSpecId) => {
-    const flag = rawProfile.serverFlagByGameSpecId[gameSpecId];
-    return flag ? [flag] : [];
-  }),
-);
+// Variant flags come from the spec map; `productAdditionalServerFlags` carries
+// the launched NON-variant surfaces (correspondence), which have no game-spec id
+// of their own but are just as much part of the product profile.
+export const PRODUCT_SERVER_FLAGS = Object.freeze([
+  ...new Set([
+    ...PRODUCT_GAME_SPEC_IDS.flatMap((gameSpecId) => {
+      const flag = rawProfile.serverFlagByGameSpecId[gameSpecId];
+      return flag ? [flag] : [];
+    }),
+    ...(rawProfile.productAdditionalServerFlags ?? []),
+  ]),
+]);
 export const LAB_SERVER_FLAGS = Object.freeze([
   ...new Set([...PRODUCT_SERVER_FLAGS, ...rawProfile.labAdditionalServerFlags]),
 ]);
@@ -36,7 +42,9 @@ function validateProfile(profile) {
   if (
     !profile.serverFlagByGameSpecId ||
     typeof profile.serverFlagByGameSpecId !== 'object' ||
-    !Array.isArray(profile.labAdditionalServerFlags)
+    !Array.isArray(profile.labAdditionalServerFlags) ||
+    (profile.productAdditionalServerFlags !== undefined &&
+      !Array.isArray(profile.productAdditionalServerFlags))
   ) {
     throw new Error('product profile flag configuration is invalid');
   }

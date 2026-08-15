@@ -184,6 +184,20 @@ async function renderSeekBoard(container: HTMLElement): Promise<void> {
   headerRow.append(heading);
 
   const resp = await fetch('/api/correspondence/seeks').catch(() => null);
+  if (resp?.status === 404) {
+    // The server's own kill-switch (MISTBOARD_CORRESPONDENCE_ENABLED) answers
+    // here. That is a state, not a failure: say the format is coming rather
+    // than showing a broken-looking notice, and offer no post form that would
+    // 404 on submit.
+    const body = (await resp.json().catch(() => null)) as { error?: string } | null;
+    if (body?.error === 'correspondence_disabled') {
+      const soon = document.createElement('p');
+      soon.className = 'correspondence-seek-empty';
+      soon.textContent = t('lobby.corrComingSoon');
+      container.replaceChildren(headerRow, soon);
+      return;
+    }
+  }
   if (!resp?.ok) {
     container.replaceChildren(
       headerRow,
@@ -446,7 +460,9 @@ function buildSeekRow(seek: CorrespondenceSeek, onChange: () => void): HTMLLIEle
 }
 
 function seekColorLabel(gameSpecId: string, color: CorrespondenceSeek['preferredColor']): string {
-  if (color === 'first') return `Plays ${firstMoverColorName(gameSpecId)}`;
-  if (color === 'second') return `Plays ${secondMoverColorName(gameSpecId)}`;
-  return 'Either color';
+  if (color === 'first')
+    return t('correspondence.playsColor', { color: firstMoverColorName(gameSpecId) });
+  if (color === 'second')
+    return t('correspondence.playsColor', { color: secondMoverColorName(gameSpecId) });
+  return t('correspondence.eitherColor');
 }

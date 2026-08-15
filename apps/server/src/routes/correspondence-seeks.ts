@@ -93,10 +93,20 @@ export function challengeViewModel(
   };
 }
 
+/** The ONE request these routes serve without an account: reading the public
+ *  board. Kept as a named predicate (and pinned by tests) so the anonymous
+ *  surface is a single line to audit rather than an implicit branch order —
+ *  every other verb, including every write and the per-user challenge lists,
+ *  needs a signed-in user. */
+export function allowsAnonymousAccess(pathname: string, method: string): boolean {
+  return pathname === '/api/correspondence/seeks' && method === 'GET';
+}
+
 // The open async-seek board (C3) plus directed + link challenges: standing
 // correspondence invitations that form games without both players ever being
-// online together (the cold-start lever). Account-only on every verb.
-//   GET    /api/correspondence/seeks             list open board seeks (+ isMine)
+// online together (the cold-start lever). Account-only on every verb EXCEPT the
+// public board's GET (see allowsAnonymousAccess).
+//   GET    /api/correspondence/seeks             list open board seeks (+ isMine), no account needed
 //   GET    /api/correspondence/seeks/incoming    directed challenges to me
 //   POST   /api/correspondence/seeks             post a seek or a challenge
 //   GET    /api/correspondence/seeks/:id         view one seek (challenge landing)
@@ -121,6 +131,18 @@ export async function tryHandle(
   }
   if (!requirePersistence(response)) return true;
   const user = await currentAccountUser(request);
+
+  // The public seek board READS without an account. It is the shop window on the
+  // homepage's Correspondence tab, and gating the read left that tab permanently
+  // empty for exactly the signed-out visitors it exists to convert. Safe by
+  // construction: listOpenCorrespondenceSeeks is already
+  // `visibility = 'public' AND target_user_id IS NULL`, so a directed challenge
+  // can never surface here, and `isMine` is false for a caller with no id.
+  // Everything below still requires a user: posting, accepting, declining,
+  // cancelling, the challenge landing, and the "challenges to me" list.
+  if (allowsAnonymousAccess(pathname, request.method ?? 'GET')) {
+    return listOpenSeeks(user, response);
+  }
   if (!user) {
     writeJson(response, 401, { error: 'not_signed_in' });
     return true;
@@ -128,7 +150,6 @@ export async function tryHandle(
 
   if (pathname === '/api/correspondence/seeks') {
     const method = request.method ?? 'GET';
-    if (method === 'GET') return listOpenSeeks(user, response);
     if (method === 'POST') return createSeek(ctx, user, request, response);
     writeJson(response, 405, { error: 'method_not_allowed' });
     return true;
@@ -165,18 +186,37 @@ export async function tryHandle(
   return true;
 }
 
-async function listOpenSeeks(user: UserAccount, response: ServerResponse): Promise<boolean> {
+/** One public-board row as the client sees it. `viewerUserId` is null for an
+ *  anonymous reader: nobody owns a row without an account, so isMine is false
+ *  rather than unknown — a signed-out visitor must never be handed a Cancel
+ *  control for somebody else's seek. */
+export function openSeekPayload(
+  seek: {
+    id: string;
+    gameSpecId: string;
+    daysPerMove: number;
+    preferredColor: string;
+    creatorName: string | null;
+    createdAt: Date;
+    creatorUserId: string;
+  },
+  viewerUserId: string | null,
+): Record<string, unknown> {
+  return {
+    id: seek.id,
+    gameSpecId: seek.gameSpecId,
+    daysPerMove: seek.daysPerMove,
+    preferredColor: seek.preferredColor,
+    creatorName: seek.creatorName,
+    createdAt: seek.createdAt.toISOString(),
+    isMine: viewerUserId !== null && seek.creatorUserId === viewerUserId,
+  };
+}
+
+async function listOpenSeeks(user: UserAccount | null, response: ServerResponse): Promise<boolean> {
   const seeks = await persistence.listOpenCorrespondenceSeeks();
   writeJson(response, 200, {
-    seeks: seeks.map((seek) => ({
-      id: seek.id,
-      gameSpecId: seek.gameSpecId,
-      daysPerMove: seek.daysPerMove,
-      preferredColor: seek.preferredColor,
-      creatorName: seek.creatorName,
-      createdAt: seek.createdAt.toISOString(),
-      isMine: seek.creatorUserId === user.id,
-    })),
+    seeks: seeks.map((seek) => openSeekPayload(seek, user?.id ?? null)),
   });
   return true;
 }

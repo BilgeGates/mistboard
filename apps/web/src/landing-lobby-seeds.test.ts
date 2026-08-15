@@ -222,7 +222,9 @@ describe('landing lobby bot seeks', () => {
     // never a second one wedged between the bot and human blocks.
     const lobbyTab = panel.querySelector('.landing-lobby-tabpanel');
     expect(lobbyTab?.firstElementChild?.classList.contains('landing-lobby-thead')).toBe(true);
-    expect(panel.querySelectorAll('.landing-lobby-thead').length).toBe(1);
+    // Scoped to this tab: the correspondence tab carries its own four-column
+    // header, so a whole-panel count would no longer measure this claim.
+    expect(lobbyTab?.querySelectorAll('.landing-lobby-thead').length).toBe(1);
 
     // Rows on both sides of the Players divider carry the same five cells, so
     // the rating/time/mode columns line up down the panel.
@@ -275,7 +277,7 @@ describe('landing lobby bot seeks', () => {
     expect(chip?.querySelector('.landing-quickpair-chip-text')?.textContent).toBe('3+2');
   });
 
-  it('promotes the first six canonical variants in the quick-pair table', () => {
+  it('promotes the whole product catalog in the quick-pair table, in canonical order', () => {
     const panel = buildLobbyPanel('en', { hydrate: false });
     const specs = [
       ...panel.querySelectorAll<HTMLElement>('.landing-quickpair-row[data-game-spec]'),
@@ -288,6 +290,8 @@ describe('landing lobby bot seeks', () => {
       'fortress-xiangqi',
       'dark-xiangqi',
       'dark-chess',
+      'jungle',
+      'jungle-flip',
     ]);
   });
 
@@ -341,6 +345,109 @@ describe('landing lobby bot seeks', () => {
     expect((presets as HTMLElement | null)?.hidden).toBe(true);
 
     overlay?.remove();
+  });
+
+  it('badges a quick-pair chip with the players already waiting in that pool', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/api/lobby') {
+        return jsonResponse({
+          requests: [
+            // Two in the xiangqi 3+2 pool...
+            {
+              gameSpecId: 'xiangqi',
+              rated: false,
+              hiddenDraft960: false,
+              timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+              waitingMs: 4_000,
+            },
+            {
+              gameSpecId: 'xiangqi',
+              rated: false,
+              hiddenDraft960: false,
+              timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+              waitingMs: 9_000,
+            },
+            // ...and one rated seek at the same variant + clock, which is a
+            // different pool: these chips post casual.
+            {
+              gameSpecId: 'xiangqi',
+              rated: true,
+              hiddenDraft960: false,
+              timeControl: { initialMs: 180_000, incrementMs: 2_000 },
+              waitingMs: 2_000,
+            },
+          ],
+        });
+      }
+      return jsonResponse({}, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLobbyPanel('en');
+    document.body.append(panel);
+    await flushPromises();
+
+    const row = '.landing-quickpair-row[data-game-spec="xiangqi"] ';
+    const hot = panel.querySelector<HTMLButtonElement>(`${row}[data-time-control="3m2"]`);
+    expect(hot?.querySelector('.landing-quickpair-waiting')?.textContent).toBe('2');
+    expect(hot?.classList.contains('has-waiting')).toBe(true);
+    expect(hot?.getAttribute('aria-label')).toBe('Xiangqi 3+2, 2 waiting');
+
+    // A pool nobody is in stays cold, badge hidden rather than badged "0".
+    const cold = panel.querySelector<HTMLButtonElement>(`${row}[data-time-control="5m5"]`);
+    const coldBadge = cold?.querySelector<HTMLElement>('.landing-quickpair-waiting');
+    expect(coldBadge?.hidden).toBe(true);
+    expect(cold?.classList.contains('has-waiting')).toBe(false);
+  });
+
+  it('shows the coming-soon line only when the server says correspondence is off', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/api/correspondence/seeks') {
+        return jsonResponse({ error: 'correspondence_disabled' }, { status: 404 });
+      }
+      return jsonResponse({ requests: [] });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLobbyPanel('en');
+    document.body.append(panel);
+    await flushPromises();
+
+    const corrPanel = [...panel.querySelectorAll('.landing-lobby-tabpanel')][2];
+    expect(corrPanel?.textContent).toContain('Correspondence play is coming soon.');
+    // No CTA that would 404 against a gated server.
+    expect(corrPanel?.querySelector('.landing-lobby-create')).toBeNull();
+    expect(corrPanel?.querySelector<HTMLElement>('.landing-lobby-thead-corr')?.hidden).toBe(true);
+  });
+
+  it('keeps the create CTA available once the seek board has rows', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/api/correspondence/seeks') {
+        return jsonResponse({
+          seeks: [
+            {
+              id: 'seek_1',
+              gameSpecId: 'xiangqi',
+              daysPerMove: 3,
+              creatorName: 'someone',
+              isMine: false,
+            },
+          ],
+        });
+      }
+      return jsonResponse({ requests: [] });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+    const panel = buildLobbyPanel('en');
+    document.body.append(panel);
+    await flushPromises();
+
+    const corrPanel = [...panel.querySelectorAll('.landing-lobby-tabpanel')][2];
+    expect(corrPanel?.querySelectorAll('.landing-lobby-trow-corr').length).toBe(1);
+    // The header labels the rows it now has, and posting your own game does not
+    // require the board to be empty.
+    expect(corrPanel?.querySelector<HTMLElement>('.landing-lobby-thead-corr')?.hidden).toBe(false);
+    expect(
+      corrPanel?.querySelector('.landing-lobby-corr-footer .landing-lobby-create'),
+    ).not.toBeNull();
   });
 
   it('renders the same seed list for two builds in the same bucket', () => {
