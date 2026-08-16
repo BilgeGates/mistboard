@@ -14,6 +14,7 @@ import { chessArticle } from './articles/content/chess.js';
 import { crossroadsChessArticle } from './articles/content/crossroads-chess.js';
 import { darkChessArticle } from './articles/content/dark-chess.js';
 import { darkChessConceptsArticle } from './articles/content/dark-chess-concepts.js';
+import { fogOpeningsArticle } from './articles/content/fog-openings.js';
 import { darkCrazyhouseArticle } from './articles/content/dark-crazyhouse.js';
 import { darkCrossroadsChessArticle } from './articles/content/dark-crossroads-chess.js';
 import { darkDraft960Article } from './articles/content/dark-draft960.js';
@@ -40,6 +41,7 @@ export const articles: Article[] = [
   chessArticle,
   darkChessArticle,
   darkChessConceptsArticle,
+  fogOpeningsArticle,
   darkDraft960Article,
   xiangqiArticle,
   darkXiangqiArticle,

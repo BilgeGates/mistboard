@@ -270,8 +270,24 @@ export type CodeBlock = {
   maxHeight?: number;
 };
 
+/**
+ * A data table. Added for articles whose argument IS the numbers (opening
+ * statistics, engine comparisons), where prose or a code block would bury the
+ * comparison the reader came for. Cells are plain strings so a column can hold
+ * "79.1%" or "17 of 17" without the block needing to know about units.
+ */
+export type TableBlock = {
+  kind: 'table';
+  headers: string[];
+  rows: string[][];
+  caption?: string;
+  /** Emphasise a row (a result worth reading twice). Zero-indexed into `rows`. */
+  highlightRows?: number[];
+};
+
 export type ArticleBlock =
   | ParagraphBlock
+  | TableBlock
   | SubHeadingBlock
   | StaticBoardsBlock
   | InteractiveBlock

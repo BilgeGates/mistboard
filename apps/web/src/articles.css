@@ -1258,6 +1258,46 @@
   width: 100%;
 }
 
+.article-figure-table {
+  align-items: stretch;
+  width: 100%;
+}
+
+/* Data tables scroll inside their own figure rather than widening the article,
+   so a wide comparison never forces the page to scroll sideways on a phone. */
+.article-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.article-table th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.62;
+  padding: 8px 14px 8px 0;
+  border-bottom: 1px solid var(--site-border, rgba(0, 0, 0, 0.14));
+}
+
+.article-table td {
+  padding: 8px 14px 8px 0;
+  border-bottom: 1px solid var(--site-border-soft, rgba(0, 0, 0, 0.07));
+}
+
+.article-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.article-table-row-emphasis td {
+  font-weight: 600;
+}
+
 .article-code-block {
   margin: 0;
   padding: 16px 18px;

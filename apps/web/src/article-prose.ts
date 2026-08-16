@@ -92,6 +92,9 @@ const BLOCK_PROSE: {
   'jungle-replay': caption,
   'jungle-flip-replay': caption,
   code: caption,
+  // Headers and caption are prose; cells are data and mostly numbers, so they
+  // are not sent for translation.
+  table: (block) => [...((block as { headers?: string[] }).headers ?? []), ...caption(block)],
 };
 
 function blockProse(block: ArticleBlock, path: string): Prose[] {
