@@ -8,11 +8,18 @@ import type { XiangqiPieceSet } from '../xiangqi-piece-sets.js';
 export const VIDEO_BACKGROUND = '#12161c';
 
 /** The frozen channel piece set. Every episode renders with this, so changing it
- *  re-skins the whole back catalog on the next recompile — a branding decision,
- *  not a preference. Traditional characters over the product's `international`
- *  default: the channel's premise is that this is Chinese chess, and the
- *  international general is a cross-topped Western king. */
-export const VIDEO_PIECE_SET: XiangqiPieceSet = 'traditional';
+ *  re-skins the whole back catalog on the next recompile: a branding decision,
+ *  not a preference.
+ *
+ *  `international` (Brian, 2026-08-15), matching the product default and the
+ *  channel's founding premise: the audience is people who bounced off the
+ *  characters, and xiangqi.com's own beginner help recommends graphical pieces
+ *  to Western learners. This reverses an earlier argument for traditional
+ *  characters (that the channel's premise is that this IS Chinese chess, and
+ *  that the international general reads as a cross-topped Western king). That
+ *  concern is real and survives here as a note: if a piece ever reads as the
+ *  wrong game, fix the glyph rather than the whole set. */
+export const VIDEO_PIECE_SET: XiangqiPieceSet = 'international';
 
 /** Board height as a fraction of the canvas. 1 = full bleed, the broadcast
  *  convention (ChessNetwork et al): make the board as large as the frame

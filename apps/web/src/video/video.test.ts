@@ -206,11 +206,11 @@ describe('renderShotSvg', () => {
     // the render process — unpinned, the whole back catalog silently re-skins
     // whenever the app default changes. Pinning it is a branding decision, so
     // changing this value should have to break a test.
-    expect(VIDEO_PIECE_SET).toBe('traditional');
-    // Traditional draws characters as vector outlines. The default we would
-    // otherwise inherit ('international') is an image set, so a stray
-    // /piece-sets/ href means the pin stopped reaching the renderer.
-    // Every path that draws a piece must carry the pin, not just the board
+    expect(VIDEO_PIECE_SET).toBe('international');
+    // International is an image set: every piece resolves to a
+    // /piece-sets/xiangqi/international/ href, inlined as a data URI at raster
+    // time. A layer that draws anything else is a layer the pin stopped
+    // reaching. Every path that draws a piece must carry it, not just the board
     // layer: the overlay layer re-draws glowed pieces and the sliding piece
     // itself, and those calls silently fell back to the product default.
     const glow = { ...shot({}).overlays, glow: ['e5' as XiangqiSquare], dimOthers: true };
@@ -230,7 +230,17 @@ describe('renderShotSvg', () => {
       ),
     };
     for (const [name, svg] of Object.entries(cases)) {
-      expect(svg, `${name} layer fell back to the product piece set`).not.toContain('/piece-sets/');
+      expect(svg, `${name} layer drew no piece art`).toContain(
+        '/piece-sets/xiangqi/international/',
+      );
+      // No other set may appear anywhere in the frame, which is what a fallback
+      // to the product default would look like.
+      expect(svg.match(/\/piece-sets\/xiangqi\/([^/]+)\//g) ?? [], `${name} layer mixed sets`).toEqual(
+        Array.from(
+          { length: (svg.match(/\/piece-sets\/xiangqi\//g) ?? []).length },
+          () => '/piece-sets/xiangqi/international/',
+        ),
+      );
     }
     expect(cases.board).toContain('aria-label="red chariot"');
   });
