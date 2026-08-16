@@ -8,6 +8,7 @@
 // inputs (number[], { red, black }, input elements, strings), so the standard-
 // xiangqi tree surface and the generalized tree controller share it unchanged.
 
+import { t } from '../i18n/catalog.js';
 import { type ReviewSeatColors, reviewColorForSeat } from './review-seat-colors.js';
 
 export type UnderboardOptions = {
@@ -54,27 +55,31 @@ export function underboardPanel(analysisBody: HTMLElement, opts: UnderboardOptio
   }
   if (opts.tools) tabDefs.push(...opts.tools);
   if (opts.hasAnalysis) {
-    tabDefs.push({ id: 'analysis', label: 'Computer analysis', body: analysisBody });
+    tabDefs.push({ id: 'analysis', label: t('underboard.computerAnalysis'), body: analysisBody });
   }
   if (opts.explorer) {
-    tabDefs.push({ id: 'explorer', label: 'Opening explorer', body: opts.explorer });
+    tabDefs.push({ id: 'explorer', label: t('underboard.explorer'), body: opts.explorer });
   }
   if (opts.provenance) {
-    tabDefs.push({ id: 'info', label: 'Game info', body: opts.provenance });
+    tabDefs.push({ id: 'info', label: t('underboard.gameInfo'), body: opts.provenance });
   }
   if (opts.moveTimes && opts.moveTimes.length > 0) {
     tabDefs.push({
       id: 'times',
-      label: 'Move times',
+      label: t('underboard.moveTimes'),
       body: moveTimesBody(opts.moveTimes, opts.seatColors),
     });
   }
   if (opts.players) {
-    tabDefs.push({ id: 'crosstable', label: 'Crosstable', body: crosstableBody(opts.players) });
+    tabDefs.push({
+      id: 'crosstable',
+      label: t('underboard.crosstable'),
+      body: crosstableBody(opts.players),
+    });
   }
   tabDefs.push({
     id: 'share',
-    label: 'Share & export',
+    label: t('underboard.shareExport'),
     body: shareExportBody(opts.shareFenInput, opts.shareMovesInput, opts.gameUrl),
   });
 

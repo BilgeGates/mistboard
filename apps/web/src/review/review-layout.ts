@@ -16,6 +16,7 @@
 
 import { attachBoardResizeGrip, currentBoardScale, restoreBoardScale } from '../board-resize.js';
 import { createGameFavoriteButton } from '../game-favorite.js';
+import { t } from '../i18n/catalog.js';
 import { createReviewControls, REVIEW_MENU_ICONS } from './review-controls.js';
 import { type BoardStageHandle, type BoardStageSlot, createBoardStage } from './review-stage.js';
 import './review-shell.css';
@@ -388,7 +389,9 @@ export function mountReviewLayout(root: HTMLElement, adapter: ReviewLayoutAdapte
     onPrevious: () => go(ply - 1),
     onNext: () => go(ply + 1),
     onLast: () => go(adapter.maxPly),
-    menuItems: [{ label: 'Flip board', icon: REVIEW_MENU_ICONS.flip, onClick: () => flip() }],
+    menuItems: [
+      { label: t('review.flipBoard'), icon: REVIEW_MENU_ICONS.flip, onClick: () => flip() },
+    ],
   });
   const scaffold = createReviewScaffold(root, {
     reviewSurface: 'game',
@@ -734,8 +737,8 @@ export function createReviewNavBar(handlers: {
   const previous = scrubButton('<', 'Previous move');
   const next = scrubButton('>', 'Next move');
   const last = scrubButton('>|', 'End of line');
-  const flip = scrubButton('Flip', 'Flip board');
-  flip.title = 'Flip board (f)';
+  const flip = scrubButton('Flip', t('review.flipBoard'));
+  flip.title = `${t('review.flipBoard')} (f)`;
   first.addEventListener('click', handlers.first);
   previous.addEventListener('click', handlers.previous);
   next.addEventListener('click', handlers.next);

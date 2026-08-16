@@ -7,7 +7,9 @@
 // Every control here is live. Placeholder affordances were removed 2026-07-23
 // (two disabled toolbar buttons + four muted menu rows); the bar advertises only
 // what it can do, and a new entry arrives together with its implementation.
+
 import { BookOpenText, createElement } from 'lucide';
+import { t } from '../i18n/catalog.js';
 import './review-controls.css';
 
 export type ReviewMenuItem = {
@@ -157,7 +159,7 @@ function buildMenuOverlay(items: ReviewMenuItem[], onAction: () => void): HTMLEl
 
   const header = document.createElement('div');
   header.className = 'review-menu__header';
-  header.textContent = 'Analysis board';
+  header.textContent = t('review.analysisBoard');
 
   const grid = document.createElement('div');
   grid.className = 'review-menu__grid';

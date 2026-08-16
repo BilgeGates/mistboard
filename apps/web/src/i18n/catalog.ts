@@ -111,7 +111,21 @@ const APP_I18N_DOMAIN_DEFS: readonly AppI18nDomainDef[] = [
     // 'study' and 'analysis' ride the review domain: both surfaces ARE the
     // review shell, so their chrome loads with the same lazy chunk rather than
     // a chunk apiece.
-    prefixes: ['replay', 'watch', 'study', 'analysis', 'historical', 'broadcast'],
+    // 'underboard', 'annotate', 'engine' and 'review' are the board chrome
+    // itself (tab strip, annotation editor, local-engine widget, controls),
+    // which loads with this same chunk.
+    prefixes: [
+      'replay',
+      'watch',
+      'study',
+      'analysis',
+      'historical',
+      'broadcast',
+      'underboard',
+      'annotate',
+      'engine',
+      'review',
+    ],
     english: EN_REVIEW,
     critical: CRITICAL_REVIEW_I18N_KEYS,
   },
