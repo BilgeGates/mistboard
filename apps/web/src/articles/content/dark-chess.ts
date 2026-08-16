@@ -47,6 +47,10 @@ export const darkChessArticle: Article = {
     kind: 'rules',
     playableOnMistboard: true,
     title: 'Fog Chess Rules',
+    // "Fog Chess" is our name for it; "fog of war chess" is what players search.
+    // The page ranked 8th for the first and 26th for the second, so the document
+    // title carries theirs while the h1 keeps ours.
+    seoTitle: 'Fog of War Chess Rules',
     summary:
       'Fog Chess rules: chess under Fog of War, where each side sees only the squares its pieces reach, there are no check warnings, and the king falls by capture.',
     status: 'published',
