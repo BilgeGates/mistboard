@@ -224,8 +224,11 @@
 }
 
 /* Difficulty leads the badge row in a neutral, outlined pill so it reads as a
-   separate axis from the accent-colored topic tags. */
-.videos-card-level {
+   separate axis from the accent-colored topic tags. Spoken language follows in
+   the same outlined treatment: both answer "can I use this?", before the topic
+   tags answer "what is it about?". */
+.videos-card-level,
+.videos-card-language {
   color: var(--site-muted);
   background: transparent;
   border: 1px solid var(--site-border);

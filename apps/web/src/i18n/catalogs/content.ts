@@ -3,7 +3,7 @@
 export const EN_CONTENT = {
   'videos.heading': 'Video library',
   'videos.intro':
-    'Curated xiangqi (Chinese chess) videos in English: rules, openings, tactics, endgames, and commented games.',
+    'Curated xiangqi (Chinese chess) videos in English and Chinese: rules, openings, tactics, endgames, and commented games.',
   'videos.searchLabel': 'Search videos',
   'videos.searchPlaceholder': 'Search by title or author',
   'videos.filterLabel': 'Filter by topic',
@@ -24,6 +24,10 @@ export const EN_CONTENT = {
   'videos.levelLabel': 'Level',
   'videos.variantLabel': 'Game',
   'videos.sourceLabel': 'Source',
+  'videos.languageLabel': 'Language',
+  'videos.allLanguages': 'All languages',
+  'videos.language.en': 'English',
+  'videos.language.zh': 'Chinese',
   'videos.level.intro': 'Beginner',
   'videos.level.intermediate': 'Intermediate',
   'videos.level.advanced': 'Advanced',

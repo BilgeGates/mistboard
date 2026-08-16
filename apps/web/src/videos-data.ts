@@ -1,15 +1,17 @@
 // Curated video library data for /videos. Every YouTube entry was verified
 // against YouTube's oembed endpoint (https://www.youtube.com/oembed?url=...) on
 // the date in `addedAt`; `title` and `author` are the exact oembed values, so
-// they stay verbatim even where they break house copy style. English-language
-// xiangqi first: this list is the seed for a lichess.org/video-style library
-// and the future home for Mistboard's own videos.
+// they stay verbatim even where they break house copy style (that covers the
+// CJK titles below). English-language xiangqi is still the spine of this list;
+// the zh section gives the site's Chinese locales a catalog of their own instead
+// of Chinese chrome over English-only content.
 //
-// The library catalogs on three axes: topic (`tags`), difficulty (`level`), and
-// game (`variant`). Each entry declares its `source` — an external YouTube video
-// or a first-party Mistboard-hosted one — as a discriminated union, so the render
-// layer derives the watch URL and thumbnail per source rather than assuming
-// YouTube everywhere. Add Mistboard how-tos and deep dives to MISTBOARD_VIDEOS.
+// The library catalogs on four axes: topic (`tags`), difficulty (`level`), game
+// (`variant`), and spoken `language`. Each entry declares its `source` — an
+// external YouTube video or a first-party Mistboard-hosted one — as a
+// discriminated union, so the render layer derives the watch URL and thumbnail
+// per source rather than assuming YouTube everywhere. Add Mistboard how-tos and
+// deep dives to MISTBOARD_VIDEOS.
 
 export type VideoTag =
   | 'basics'
@@ -40,6 +42,17 @@ export const VIDEO_LEVELS: readonly VideoLevel[] = ['intro', 'intermediate', 'ad
 // a schema change. The variant facet only renders when more than one is present.
 export type VideoVariant = 'xiangqi' | 'fog';
 
+// Spoken language of the video. Deliberately NOT the site `Locale`: speech and
+// script are different axes, so one 'zh' covers Mandarin video for both the
+// Simplified and Traditional locales. Locale to language is a mapping, never
+// identity; it lives in videos.ts as an exhaustive switch. A new member here is
+// a catalog decision first: it needs enough curated entries to earn a facet chip
+// (see the language test in videos.test.ts), not just a union entry.
+export type VideoLanguage = 'en' | 'zh';
+
+// English first, then by catalog depth. The order drives the facet row.
+export const VIDEO_LANGUAGES: readonly VideoLanguage[] = ['en', 'zh'];
+
 export type VideoSource = 'youtube' | 'mistboard';
 
 interface VideoBase {
@@ -51,7 +64,8 @@ interface VideoBase {
   tags: readonly VideoTag[];
   level: VideoLevel;
   variant: VideoVariant;
-  language: 'en';
+  /** Spoken language, not subtitles: what a viewer has to understand to follow. */
+  language: VideoLanguage;
   /** ISO date the entry was curated (and, for YouTube, oembed-verified). */
   addedAt: string;
 }
@@ -519,6 +533,185 @@ const YOUTUBE_VIDEOS: readonly YoutubeVideo[] = [
     variant: 'xiangqi',
     language: 'en',
     addedAt: '2026-07-21',
+  },
+
+  // ── Chinese (Mandarin) ────────────────────────────────────────────────────
+  // For /zh-hans and /zh-hant visitors, who until now got Chinese page chrome
+  // over an all-English catalog. Curated to cover every topic tag rather than to
+  // be exhaustive: the Chinese-language shelf is effectively bottomless, so the
+  // bar here is a clear teaching frame and a channel with a track record, not
+  // view count. `language` is 'zh' for both scripts (see VideoLanguage).
+  {
+    source: 'youtube',
+    id: 'vE1TGi6QAWo',
+    title:
+      '【象棋教学】2分钟从零学象棋！初学者必看的影片！象棋vlog #7 Learn Chinese Chess in just 2 MINUTES!! Chinese Chess Vlog #7',
+    author: 'KC Thien锦聪象棋',
+    durationMinutes: 4,
+    tags: ['basics'],
+    level: 'intro',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: '90vfBo4J3fc',
+    title: '【七分钟学会中国象棋】中国象棋规则、棋子、基本技巧及马、象走法限制教学',
+    author: 'Zenden Goh',
+    durationMinutes: 7,
+    tags: ['basics'],
+    level: 'intro',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: 'e_8iAlhvtt0',
+    title: '【象棋教學】象棋初學者必看：棋子基本走法、棋盤、棋譜記錄｜Beginneros',
+    author: '網上學習平台Beginneros',
+    durationMinutes: 10,
+    tags: ['basics'],
+    level: 'intro',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: 'f0TszcBeWWg',
+    title:
+      '象棋玩法|從零開始|快來跟著老師認識有趣的棋盤與棋子！孩子的象棋入門課第01堂（趙奕帆象棋教學）',
+    author: '趙奕帆象棋教學',
+    durationMinutes: 34,
+    tags: ['basics'],
+    level: 'intro',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: 'eGe52Bcp08g',
+    title:
+      '【象棋教学】象棋布局秘密！象棋开局前面三步走什么？象棋vlog #43 XiangQi / Chinese Chess Opening Technique and Secret Vlog#43',
+    author: 'KC Thien锦聪象棋',
+    durationMinutes: 15,
+    tags: ['openings'],
+    level: 'intro',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: 'Sw2NmD0KE2M',
+    title: '象棋必修课：顺炮开局要领第1讲，牢记这些棋理，棋力暴涨',
+    author: '吾爱象棋',
+    durationMinutes: 24,
+    tags: ['openings'],
+    level: 'intermediate',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: 'u0-YMk1ndqI',
+    title: '胡榮華：象棋開局要領一',
+    author: '雲淡風輕',
+    durationMinutes: 57,
+    tags: ['openings', 'strategy'],
+    level: 'intermediate',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: 'Fc-nKojaoI8',
+    title:
+      '【象棋教学】长盛不衰的象棋布局开局！五九炮对屏风马平炮兑车！象棋vlog #44 XiangQi/ Chinese Chess Opening Technique and Secret Vlog#44',
+    author: 'KC Thien锦聪象棋',
+    durationMinutes: 30,
+    tags: ['openings'],
+    level: 'advanced',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: 'hBljfkvvLxs',
+    title: '教你下棋核心技巧，不用背棋谱，抢占这5个位置，基本就赢了一半',
+    author: '吾爱象棋',
+    durationMinutes: 18,
+    tags: ['strategy'],
+    level: 'intermediate',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: 'ZxUA7c5xKWc',
+    title: '象棋25大基本杀法，一条视频全覆盖！',
+    author: '小斌说棋',
+    durationMinutes: 17,
+    tags: ['tactics'],
+    level: 'intermediate',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: 'UMmwd_bfmfg',
+    title: '3、中国象棋入门快易精（3）实用残局基本杀法',
+    author: '雲淡風輕',
+    durationMinutes: 60,
+    tags: ['endgames', 'tactics'],
+    level: 'intro',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: 'DUv0OS1n1L4',
+    title: '4、中国象棋入门快易精（4）实用残局',
+    author: '雲淡風輕',
+    durationMinutes: 60,
+    tags: ['endgames'],
+    level: 'intermediate',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: 'khNTfp_hzt4',
+    title: '许银川血战王天一最精彩对决 罕见弃车火爆对攻 登峰造极致命一击',
+    author: '京京讲棋',
+    durationMinutes: 14,
+    tags: ['games', 'tactics'],
+    level: 'advanced',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
+  },
+  {
+    source: 'youtube',
+    id: 'Cc4Kl4e8-7I',
+    title: '老梁看象：象棋的起源和江湖残局',
+    author: '老梁',
+    durationMinutes: 7,
+    tags: ['culture'],
+    level: 'intro',
+    variant: 'xiangqi',
+    language: 'zh',
+    addedAt: '2026-08-15',
   },
 ];
 

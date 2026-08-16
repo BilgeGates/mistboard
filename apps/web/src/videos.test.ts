@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SUPPORTED_LOCALES } from './i18n/locale.js';
 import {
   buildHomeVideoCards,
   buildVideoCard,
@@ -7,24 +8,36 @@ import {
   mountVideos,
   sortVideos,
   type VideoFilters,
+  videoLanguageForLocale,
   videoThumbUrl,
   videoWatchUrl,
 } from './videos.js';
 import {
+  VIDEO_LANGUAGES,
   VIDEO_LEVELS,
   VIDEO_TAGS,
   VIDEOS,
   type VideoEntry,
+  type VideoLanguage,
   type VideoLevel,
   type VideoTag,
   type VideoVariant,
   videoKey,
 } from './videos-data.js';
 
+// jsdom reports an English navigator locale, so a bare mount lands on the
+// English-language default. Tests that assert against the whole catalog widen it
+// back out through the facet's own All chip rather than reaching into state.
 function mount(): HTMLElement {
   const root = document.createElement('div');
   document.body.replaceChildren(root);
   mountVideos(root);
+  return root;
+}
+
+function mountAllLanguages(): HTMLElement {
+  const root = mount();
+  chip(root, 'Language', 'all').click();
   return root;
 }
 
@@ -54,6 +67,7 @@ function noFilter(query = ''): VideoFilters {
     levels: new Set(),
     variants: new Set(),
     sources: new Set(),
+    languages: new Set(),
     query,
   };
 }
@@ -78,7 +92,7 @@ describe('videos data', () => {
     for (const video of VIDEOS) {
       expect(video.title.trim()).not.toBe('');
       expect(video.author.trim()).not.toBe('');
-      expect(video.language).toBe('en');
+      expect(VIDEO_LANGUAGES).toContain(video.language);
       expect(video.tags.length).toBeGreaterThan(0);
       for (const tag of video.tags) expect(VIDEO_TAGS).toContain(tag);
       expect(VIDEO_LEVELS).toContain(video.level);
@@ -100,6 +114,42 @@ describe('videos data', () => {
     }
     for (const level of VIDEO_LEVELS) {
       expect(VIDEOS.some((video) => video.level === level)).toBe(true);
+    }
+  });
+
+  // Replaces the old blanket `language === 'en'` assertion. That check was the
+  // editorial English-first guarantee wearing a schema check's clothes; widening
+  // the type would have dropped the guarantee silently, so it is restated here as
+  // what it always meant: English is the largest shelf, not merely a present one.
+  it('keeps English the deepest shelf and ships no token language', () => {
+    const counts = new Map<VideoLanguage, number>();
+    for (const video of VIDEOS) counts.set(video.language, (counts.get(video.language) ?? 0) + 1);
+
+    const english = counts.get('en') ?? 0;
+    for (const [language, count] of counts) {
+      if (language !== 'en') expect(english).toBeGreaterThan(count);
+      // A language thin enough to look accidental should not get a facet chip.
+      expect(count).toBeGreaterThanOrEqual(4);
+      // The locale default lands a beginner somewhere useful in every language.
+      expect(
+        VIDEOS.some((video) => video.language === language && video.tags.includes('basics')),
+      ).toBe(true);
+    }
+  });
+});
+
+describe('videoLanguageForLocale', () => {
+  it('maps every supported locale, folding both Chinese scripts onto one spoken language', () => {
+    for (const locale of SUPPORTED_LOCALES) {
+      expect(VIDEO_LANGUAGES).toContain(videoLanguageForLocale(locale));
+    }
+    expect(videoLanguageForLocale('en')).toBe('en');
+    expect(videoLanguageForLocale('zh-Hans')).toBe('zh');
+    expect(videoLanguageForLocale('zh-Hant')).toBe('zh');
+    // Every site locale has a catalog behind it: no locale maps to a language
+    // the library does not stock, which is what keeps the default non-empty.
+    for (const locale of SUPPORTED_LOCALES) {
+      expect(VIDEOS.some((video) => video.language === videoLanguageForLocale(locale))).toBe(true);
     }
   });
 });
@@ -151,8 +201,8 @@ describe('video card', () => {
 });
 
 describe('videos page', () => {
-  it('renders every curated entry, newest first by default', () => {
-    const root = mount();
+  it('renders every curated entry, newest first, once language is widened', () => {
+    const root = mountAllLanguages();
     const cards = root.querySelectorAll<HTMLAnchorElement>('.videos-card-link');
     expect(cards.length).toBe(VIDEOS.length);
     expect(root.querySelector('.videos-count')?.textContent).toBe(`${VIDEOS.length} videos`);
@@ -167,6 +217,9 @@ describe('videos page', () => {
     const labels = [...root.querySelectorAll('.videos-facet-label')].map((el) => el.textContent);
     expect(labels).toContain('Topic');
     expect(labels).toContain('Level');
+    // Language discriminates now that the catalog is mixed, and leads the stack
+    // because it is the one facet that starts with a selection.
+    expect(labels[0]).toBe('Language');
     expect(labels).not.toContain('Game');
     expect(labels).not.toContain('Source');
     // Level facet exposes All + the three ordered levels.
@@ -175,7 +228,7 @@ describe('videos page', () => {
   });
 
   it('narrows by a toggled topic tag and restores on untoggle', () => {
-    const root = mount();
+    const root = mountAllLanguages();
     const openings = chip(root, 'Topic', 'openings');
     openings.click();
     const expected = VIDEOS.filter((v) => v.tags.includes('openings'));
@@ -187,7 +240,7 @@ describe('videos page', () => {
   });
 
   it('intersects across axes (topic AND level)', () => {
-    const root = mount();
+    const root = mountAllLanguages();
     chip(root, 'Topic', 'games').click();
     chip(root, 'Level', 'advanced').click();
     const expected = VIDEOS.filter((v) => v.tags.includes('games') && v.level === 'advanced');
@@ -196,7 +249,7 @@ describe('videos page', () => {
   });
 
   it('resets a facet via its All chip', () => {
-    const root = mount();
+    const root = mountAllLanguages();
     chip(root, 'Level', 'intro').click();
     expect(root.querySelectorAll('.videos-card-link').length).toBeLessThan(VIDEOS.length);
     chip(root, 'Level', 'all').click();
@@ -204,7 +257,7 @@ describe('videos page', () => {
   });
 
   it('narrows by text across title and author, case-insensitively', () => {
-    const root = mount();
+    const root = mountAllLanguages();
     const search = root.querySelector<HTMLInputElement>('.videos-search');
     if (!search) throw new Error('missing search input');
     search.value = 'CHECKMATE';
@@ -215,7 +268,7 @@ describe('videos page', () => {
   });
 
   it('reorders by the sort control', () => {
-    const root = mount();
+    const root = mountAllLanguages();
     const select = root.querySelector<HTMLSelectElement>('.videos-sort-select');
     if (!select) throw new Error('missing sort select');
     select.value = 'shortest';
@@ -247,6 +300,65 @@ describe('videos page', () => {
   });
 });
 
+describe('language facet', () => {
+  // Language leads the facet stack, so the first row is it. The ordering itself
+  // is asserted in the facet-presence test above.
+  function languageRow(root: HTMLElement): HTMLElement {
+    const row = root.querySelector<HTMLElement>('.videos-facet');
+    if (!row) throw new Error('missing language facet');
+    return row;
+  }
+
+  function pressedChips(root: HTMLElement): (string | undefined)[] {
+    return [...languageRow(root).querySelectorAll<HTMLButtonElement>('.videos-tag-chip')]
+      .filter((el) => el.getAttribute('aria-pressed') === 'true')
+      .map((el) => el.dataset.value);
+  }
+
+  function cardCount(root: HTMLElement): number {
+    return root.querySelectorAll('.videos-card-link').length;
+  }
+
+  it("opens on the visitor's language instead of a mixed list", () => {
+    const root = mount();
+    expect(pressedChips(root)).toEqual(['en']);
+    expect(cardCount(root)).toBe(VIDEOS.filter((v) => v.language === 'en').length);
+    expect(cardCount(root)).toBeLessThan(VIDEOS.length);
+  });
+
+  it('is one click from the whole catalog', () => {
+    const root = mount();
+    chip(root, 'Language', 'all').click();
+    expect(pressedChips(root)).toEqual(['all']);
+    expect(cardCount(root)).toBe(VIDEOS.length);
+  });
+
+  it('opens a Chinese-locale visitor on Chinese-language video', () => {
+    const page = buildVideosPage('zh-Hant');
+    expect(pressedChips(page)).toEqual(['zh']);
+    const chinese = VIDEOS.filter((v) => v.language === 'zh');
+    expect(chinese.length).toBeGreaterThan(0);
+    expect(cardCount(page)).toBe(chinese.length);
+  });
+
+  // The guard that makes a default-on filter safe: no locale may land on the
+  // empty state, which would read as a broken library rather than as a filter.
+  it('never opens on an empty grid for any supported locale', () => {
+    for (const locale of SUPPORTED_LOCALES) {
+      const page = buildVideosPage(locale);
+      expect(cardCount(page)).toBeGreaterThan(0);
+      expect(page.querySelector('.videos-empty')?.hasAttribute('hidden')).toBe(true);
+    }
+  });
+
+  it('badges each card with its spoken language now that the catalog is mixed', () => {
+    const chinese = VIDEOS.find((v) => v.language === 'zh');
+    if (!chinese) throw new Error('expected a Chinese entry');
+    const card = buildVideoCard(chinese, 'en');
+    expect(card.querySelector('.videos-card-language')?.textContent).toBe('Chinese');
+  });
+});
+
 describe('buildHomeVideoCards', () => {
   it('builds a curated carousel of external video cards that open on YouTube', () => {
     const row = buildHomeVideoCards(8, 'en');
@@ -271,6 +383,18 @@ describe('buildHomeVideoCards', () => {
   it('honors the limit', () => {
     const row = buildHomeVideoCards(3, 'en');
     expect(row!.querySelectorAll('.landing-video-card').length).toBe(3);
+  });
+
+  it('follows the locale into a language-matched arc', () => {
+    const row = buildHomeVideoCards(8, 'zh-Hans');
+    const byId = new Map(
+      VIDEOS.flatMap((video) => (video.source === 'youtube' ? [[video.id, video] as const] : [])),
+    );
+    const languages = [...row!.querySelectorAll<HTMLAnchorElement>('.landing-video-card')].map(
+      (card) => byId.get(new URL(card.href).searchParams.get('v') ?? '')?.language,
+    );
+    expect(languages.length).toBeGreaterThanOrEqual(4);
+    expect(new Set(languages)).toEqual(new Set<VideoLanguage>(['zh']));
   });
 
   it('only surfaces curated keys that resolve against the catalog', () => {
@@ -300,15 +424,32 @@ describe('filterVideos', () => {
     expect(matches).toEqual(expected);
   });
 
-  it('intersects tag, level, variant, and source selections', () => {
+  it('intersects tag, level, variant, source, and language selections', () => {
     const pool: readonly VideoEntry[] = [...VIDEOS, MISTBOARD_FIXTURE];
     const filters: VideoFilters = {
       tags: new Set<VideoTag>(['basics']),
       levels: new Set<VideoLevel>(['intro']),
       variants: new Set<VideoVariant>(['fog']),
       sources: new Set(['mistboard']),
+      languages: new Set<VideoLanguage>(['en']),
       query: '',
     };
     expect(filterVideos(pool, filters)).toEqual([MISTBOARD_FIXTURE]);
+  });
+
+  it('treats selected languages as OR', () => {
+    // Selecting every language is the same list as selecting none.
+    const all = filterVideos(VIDEOS, {
+      ...noFilter(),
+      languages: new Set<VideoLanguage>(VIDEO_LANGUAGES),
+    });
+    expect(all).toEqual(VIDEOS);
+
+    const chinese = filterVideos(VIDEOS, {
+      ...noFilter(),
+      languages: new Set<VideoLanguage>(['zh']),
+    });
+    expect(chinese.length).toBeGreaterThan(0);
+    expect(chinese).toEqual(VIDEOS.filter((v) => v.language === 'zh'));
   });
 });

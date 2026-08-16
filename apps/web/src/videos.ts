@@ -6,9 +6,10 @@
 // are exactly what credentialless permits. Link-out behaves identically in dev
 // and prod; revisit lazy embeds only if the dev header scoping changes.
 //
-// The catalog filters on three axes (topic / level / game) plus a source filter,
-// and sorts by recency or length. Watch URL and thumbnail are derived per
-// `source` so first-party Mistboard videos render alongside YouTube ones.
+// The catalog filters on four axes (topic / level / game / spoken language) plus
+// a source filter, and sorts by recency or length. Watch URL and thumbnail are
+// derived per `source` so first-party Mistboard videos render alongside YouTube
+// ones.
 
 import './videos.css';
 
@@ -16,10 +17,12 @@ import { t } from './i18n/catalog.js';
 import { currentLocale, type Locale } from './i18n/locale.js';
 import { buildNav } from './site-shell.js';
 import {
+  VIDEO_LANGUAGES,
   VIDEO_LEVELS,
   VIDEO_TAGS,
   VIDEOS,
   type VideoEntry,
+  type VideoLanguage,
   type VideoLevel,
   type VideoSource,
   type VideoTag,
@@ -48,6 +51,25 @@ const VARIANT_LABEL_KEYS: Record<VideoVariant, `videos.variant.${VideoVariant}`>
   fog: 'videos.variant.fog',
 };
 
+const LANGUAGE_LABEL_KEYS: Record<VideoLanguage, `videos.language.${VideoLanguage}`> = {
+  en: 'videos.language.en',
+  zh: 'videos.language.zh',
+};
+
+// Site locale to spoken video language. Both Chinese locales want Mandarin
+// video: script is a writing-system axis, speech is not. Exhaustive switch with
+// no default, so a new Locale member fails the build here instead of silently
+// falling back to English.
+export function videoLanguageForLocale(locale: Locale): VideoLanguage {
+  switch (locale) {
+    case 'en':
+      return 'en';
+    case 'zh-Hans':
+    case 'zh-Hant':
+      return 'zh';
+  }
+}
+
 export type VideoSort = 'newest' | 'longest' | 'shortest';
 
 const SORT_OPTIONS: readonly VideoSort[] = ['newest', 'longest', 'shortest'];
@@ -63,6 +85,7 @@ export interface VideoFilters {
   levels: ReadonlySet<VideoLevel>;
   variants: ReadonlySet<VideoVariant>;
   sources: ReadonlySet<VideoSource>;
+  languages: ReadonlySet<VideoLanguage>;
   query: string;
 }
 
@@ -110,9 +133,10 @@ export function buildVideosPage(locale: Locale = currentLocale()): HTMLElement {
   intro.textContent = t('videos.intro', {}, locale);
 
   // Which facet options actually exist in the data. Level always spans its full
-  // ordered set; variant and source facets render only when they discriminate
-  // (more than one variant present / any first-party video present), so the page
-  // never shows a dead single-option facet.
+  // ordered set; language, variant, and source facets render only when they
+  // discriminate (more than one language/variant present, any first-party video
+  // present), so the page never shows a dead single-option facet.
+  const presentLanguages = PRESENT_LANGUAGES;
   const presentVariants = presentVideoVariants();
   const presentSources = presentVideoSources();
 
@@ -149,6 +173,7 @@ export function buildVideosPage(locale: Locale = currentLocale()): HTMLElement {
     levels: Set<VideoLevel>;
     variants: Set<VideoVariant>;
     sources: Set<VideoSource>;
+    languages: Set<VideoLanguage>;
     query: string;
     sort: VideoSort;
   } = {
@@ -156,11 +181,38 @@ export function buildVideosPage(locale: Locale = currentLocale()): HTMLElement {
     levels: new Set(),
     variants: new Set(),
     sources: new Set(),
+    languages: new Set(),
     query: '',
     sort: 'newest',
   };
 
+  // The one facet that starts with a selection: a visitor reading zh-Hant should
+  // land on Chinese-language video, not on an English list they cannot follow.
+  // Two guards keep the default honest. It only applies when the facet renders
+  // (never an invisible filter), and only when the visitor's language actually
+  // has entries, so an unrepresented locale falls open to the whole catalog
+  // instead of to an empty grid that reads as a broken page. The chip sits first
+  // in the facet stack, pressed, with All beside it: the narrowing is visible
+  // and one click from undone.
+  const preferredLanguage = videoLanguageForLocale(locale);
+  if (presentLanguages.length > 1 && presentLanguages.includes(preferredLanguage)) {
+    state.languages.add(preferredLanguage);
+  }
+
   const groups: Array<() => void> = [];
+
+  if (presentLanguages.length > 1) {
+    const languageGroup = buildChipGroup({
+      labelText: t('videos.languageLabel', {}, locale),
+      allLabel: t('videos.allLanguages', {}, locale),
+      values: presentLanguages,
+      optionLabel: (language) => t(LANGUAGE_LABEL_KEYS[language], {}, locale),
+      selected: state.languages,
+      onChange: apply,
+    });
+    facets.append(languageGroup.row);
+    groups.push(languageGroup.sync);
+  }
 
   const topicGroup = buildChipGroup({
     labelText: t('videos.topicLabel', {}, locale),
@@ -242,6 +294,7 @@ export function buildVideosPage(locale: Locale = currentLocale()): HTMLElement {
         levels: state.levels,
         variants: state.variants,
         sources: state.sources,
+        languages: state.languages,
         query: state.query,
       }),
       state.sort,
@@ -272,6 +325,7 @@ export function filterVideos(videos: readonly VideoEntry[], filters: VideoFilter
     if (filters.levels.size > 0 && !filters.levels.has(video.level)) return false;
     if (filters.variants.size > 0 && !filters.variants.has(video.variant)) return false;
     if (filters.sources.size > 0 && !filters.sources.has(video.source)) return false;
+    if (filters.languages.size > 0 && !filters.languages.has(video.language)) return false;
     if (needle === '') return true;
     return (
       video.title.toLowerCase().includes(needle) || video.author.toLowerCase().includes(needle)
@@ -305,6 +359,15 @@ function presentVideoSources(): VideoSource[] {
   for (const video of VIDEOS) seen.add(video.source);
   return (['youtube', 'mistboard'] as const).filter((source) => seen.has(source));
 }
+
+// Unlike the variant/source helpers this is computed once at module load: the
+// card renderer consults it per card to decide whether a language badge carries
+// information, and VIDEOS is a static list that cannot change at runtime.
+const PRESENT_LANGUAGES: readonly VideoLanguage[] = (() => {
+  const seen = new Set<VideoLanguage>();
+  for (const video of VIDEOS) seen.add(video.language);
+  return VIDEO_LANGUAGES.filter((language) => seen.has(language));
+})();
 
 interface ChipGroupOptions<T extends string> {
   labelText: string;
@@ -424,6 +487,15 @@ export function buildVideoCard(video: VideoEntry, locale: Locale = currentLocale
   levelBadge.textContent = t(LEVEL_LABEL_KEYS[video.level], {}, locale);
   tags.append(levelBadge);
 
+  // Only informative once the catalog is mixed: on a single-language library the
+  // badge would repeat the same word on every card.
+  if (PRESENT_LANGUAGES.length > 1) {
+    const languageBadge = document.createElement('span');
+    languageBadge.className = 'videos-card-tag videos-card-language';
+    languageBadge.textContent = t(LANGUAGE_LABEL_KEYS[video.language], {}, locale);
+    tags.append(languageBadge);
+  }
+
   for (const tag of video.tags) {
     const badge = document.createElement('span');
     badge.className = 'videos-card-tag';
@@ -447,18 +519,40 @@ export function buildVideoCard(video: VideoEntry, locale: Locale = currentLocale
 // Newest-first is deliberately NOT used here (it skews to dense game commentary).
 // Keys are videoKey() values; an unknown key is dropped so a removed video never
 // breaks the row. First-party Mistboard videos, once they exist, can be pinned
-// here to lead the strip. Every id below was re-verified live against YouTube's
-// oembed endpoint on 2026-07-22 (200 + exact title/author match).
-const HOME_VIDEO_KEYS: readonly string[] = [
-  'yt:qbbFuWyx0XI', // 60-second hook — Sam Copeland (a name chess players know)
-  'yt:kSL7JErRMx8', // Full rules primer — AncientChess
-  'yt:vklqOLf6mtU', // A Chess Player's Guide to Xiangqi — the conversion framing
-  'yt:950nyyjOirU', // Basic checkmate strategies — the first step past the rules
-  'yt:MyLXgkL4C5A', // The Most Popular Openings in Xiangqi
-  'yt:dmSDt1VQNfs', // Endgame compositions — ties to the classical PD study corpus
-  'yt:uF3-KrlXprE', // 2023 World Championship final — the aspirational ceiling
-  'yt:gkD29aQW3Vw', // The Four Types of Chinese Chess Players — culture
-];
+// here to lead the strip. Every English id below was re-verified live against
+// YouTube's oembed endpoint on 2026-07-22, and every zh/vi id on 2026-08-15
+// (200 + exact title/author match).
+//
+// One arc per spoken language, each hand-ordered on the same beats: the strip a
+// visitor sees follows their locale, because a homepage row of video they cannot
+// follow is decoration, not a front door. The Record is keyed by VideoLanguage,
+// so a new language fails the build here until it gets an arc of its own.
+const HOME_VIDEO_KEYS: Record<VideoLanguage, readonly string[]> = {
+  en: [
+    'yt:qbbFuWyx0XI', // 60-second hook — Sam Copeland (a name chess players know)
+    'yt:kSL7JErRMx8', // Full rules primer — AncientChess
+    'yt:vklqOLf6mtU', // A Chess Player's Guide to Xiangqi — the conversion framing
+    'yt:950nyyjOirU', // Basic checkmate strategies — the first step past the rules
+    'yt:MyLXgkL4C5A', // The Most Popular Openings in Xiangqi
+    'yt:dmSDt1VQNfs', // Endgame compositions — ties to the classical PD study corpus
+    'yt:uF3-KrlXprE', // 2023 World Championship final — the aspirational ceiling
+    'yt:gkD29aQW3Vw', // The Four Types of Chinese Chess Players — culture
+  ],
+  zh: [
+    'yt:vE1TGi6QAWo', // 两分钟从零学象棋 — the short hook
+    'yt:90vfBo4J3fc', // 七分钟学会中国象棋 — full rules primer
+    'yt:eGe52Bcp08g', // 开局前面三步 — first openings step
+    'yt:hBljfkvvLxs', // 抢占这5个位置 — positional strategy
+    'yt:ZxUA7c5xKWc', // 25大基本杀法 — the tactics reference
+    'yt:UMmwd_bfmfg', // 实用残局基本杀法 — endgames
+    'yt:khNTfp_hzt4', // 许银川 vs 王天一 — the aspirational ceiling
+    'yt:Cc4Kl4e8-7I', // 象棋的起源和江湖残局 — culture
+  ],
+};
+
+// A locale arc has to be deep enough to fill the carousel's three visible cards
+// before it displaces English; below that the row reads as a stub.
+const MIN_HOME_VIDEOS_PER_LANGUAGE = 4;
 
 // Builds the homepage video carousel: the same `.landing-carousel` structure the
 // blog strip uses (so initLandingCarousel drives it), filled with compact video
@@ -468,10 +562,16 @@ export function buildHomeVideoCards(
   locale: Locale = currentLocale(),
 ): HTMLElement | null {
   const byKey = new Map(VIDEOS.map((video) => [videoKey(video), video]));
-  const picks = HOME_VIDEO_KEYS.flatMap((key) => {
-    const video = byKey.get(key);
-    return video ? [video] : [];
-  }).slice(0, limit);
+  const resolve = (keys: readonly string[]): VideoEntry[] =>
+    keys.flatMap((key) => {
+      const video = byKey.get(key);
+      return video ? [video] : [];
+    });
+
+  const preferred = resolve(HOME_VIDEO_KEYS[videoLanguageForLocale(locale)]);
+  const arc =
+    preferred.length >= MIN_HOME_VIDEOS_PER_LANGUAGE ? preferred : resolve(HOME_VIDEO_KEYS.en);
+  const picks = arc.slice(0, limit);
   if (picks.length === 0) return null;
 
   const section = document.createElement('section');

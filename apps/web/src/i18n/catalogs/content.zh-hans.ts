@@ -8,7 +8,7 @@ import type { ContentI18nKey } from './content.js';
 
 export const ZH_HANS_CONTENT = {
   'videos.heading': '视频库',
-  'videos.intro': '精选英文象棋视频：规则、开局、战术、残局与讲解对局。',
+  'videos.intro': '精选中文与英文象棋视频：规则、开局、战术、残局与讲解对局。',
   'videos.searchLabel': '搜索视频',
   'videos.searchPlaceholder': '按标题或作者搜索',
   'videos.filterLabel': '按主题筛选',
@@ -29,6 +29,10 @@ export const ZH_HANS_CONTENT = {
   'videos.levelLabel': '难度',
   'videos.variantLabel': '棋种',
   'videos.sourceLabel': '来源',
+  'videos.languageLabel': '语言',
+  'videos.allLanguages': '所有语言',
+  'videos.language.en': '英语',
+  'videos.language.zh': '中文',
   'videos.level.intro': '入门',
   'videos.level.intermediate': '中级',
   'videos.level.advanced': '高级',
