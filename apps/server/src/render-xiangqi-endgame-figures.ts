@@ -47,16 +47,32 @@ const RANKS = 10;
 /** width / height for a 9x10 board, from the renderer's own ratios. */
 const ASPECT = (2 * 0.58 + (FILES - 1)) / (RANKS - 1 + 2 * 0.58);
 
-/** Per-role art framing inside the 100x100 piece box, copied from the web set. */
-const FRAMES: Record<string, { x: number; y: number; width: number; height: number }> = {
-  general: { x: -7, y: -7, width: 114, height: 114 },
-  advisor: { x: -7, y: -7, width: 114, height: 114 },
-  elephant: { x: -5, y: -5, width: 110, height: 110 },
-  horse: { x: -7, y: -7, width: 114, height: 114 },
-  chariot: { x: -5.5, y: -7, width: 111, height: 114 },
-  cannon: { x: -11, y: -11, width: 122, height: 122 },
-  soldier: { x: 0, y: 0, width: 100, height: 100 },
+const ART_CANVAS = 1024;
+
+/**
+ * Where the drawing actually is inside each 1024px art file: [x, y, w, h] of the
+ * non-transparent pixels, measured from the files themselves. Red and black share
+ * artwork, so this keys on role.
+ *
+ * It matters because the art is mostly empty. A chariot's ink is 390x487 in a
+ * 1024x1024 canvas, so mapping the whole canvas into the piece box (what the
+ * per-role frame table used to do) spends 60% of the box on transparent padding
+ * and leaves the glyph at under half the disc's width. In the article that came
+ * out at ~13 CSS pixels of actual drawing, which reads as blur at any resolution:
+ * the problem was never pixel count, it was that the piece was tiny.
+ */
+const INK: Record<string, [number, number, number, number]> = {
+  general: [263, 220, 498, 560],
+  advisor: [318, 234, 386, 554],
+  elephant: [180, 250, 670, 624],
+  horse: [289, 239, 463, 522],
+  chariot: [315, 256, 390, 487],
+  cannon: [246, 363, 553, 342],
+  soldier: [349, 186, 326, 604],
 };
+
+/** The ink's long side as a fraction of the disc diameter. */
+const GLYPH_FILL = 0.72;
 
 const artCache = new Map<string, string>();
 function pieceDataUri(color: string, role: string): string {
@@ -137,12 +153,19 @@ function board(pieces: XiangqiOgPiece[], centerX: number, y: number, height: num
   const art = pieces.map((p) => {
     const cx = ox + margin + p.file * cell;
     const cy = y + margin + (RANKS - p.rank) * cell;
-    const f = FRAMES[p.role] ?? FRAMES.soldier;
     const u = size / 100; // 100x100 piece box -> board units
     const rim = p.color === 'red' ? '#c30d0d' : '#202427';
+    const discDiameter = 92 * u;
+    // Scale the art so its INK fills the disc, then offset so the ink's centre
+    // (not the canvas centre) lands on the point. Fitting the long side keeps a
+    // wide piece like the cannon and a tall one like the soldier inside the same
+    // circle, and gives every role the same visual weight.
+    const [ix, iy, iw, ih] = INK[p.role] ?? INK.soldier;
+    const perPx = (GLYPH_FILL * discDiameter) / Math.max(iw, ih);
+    const drawn = ART_CANVAS * perPx;
     return [
       `<circle cx="${cx}" cy="${cy}" r="${46 * u}" fill="#fef0d7" stroke="${rim}" stroke-width="${4.2 * u}"/>`,
-      `<image href="${pieceDataUri(p.color, p.role)}" x="${cx - size / 2 + f.x * u}" y="${cy - size / 2 + f.y * u}" width="${f.width * u}" height="${f.height * u}" preserveAspectRatio="xMidYMid meet"/>`,
+      `<image image-rendering="optimizeQuality" href="${pieceDataUri(p.color, p.role)}" x="${cx - (ix + iw / 2) * perPx}" y="${cy - (iy + ih / 2) * perPx}" width="${drawn}" height="${drawn}"/>`,
     ].join('');
   });
   return grid + art.join('');
@@ -153,19 +176,24 @@ type Panel = { pieces: XiangqiOgPiece[]; title: string; verdict: string; win: bo
 const TITLE_Y = 52;
 const BOARD_Y = 78;
 
-// These two are set against the post's 680px content column, and they trade
-// against each other.
+// Two different sharpness problems live here, and they have opposite fixes.
 //
-// A pair figure is ~1386 units wide and displays at 680 CSS px, so the SVG is
-// authored at almost exactly 2x its display size and rasterizes at zoom 1. The
-// earlier zoom of 2 was not extra quality: 2772px downscaled 4x by the browser
-// turned the grid into grey mush, because the line is defined in board units and
-// a board is ~630 units wide. One unit lands at half a CSS pixel however many
-// device pixels the PNG has, so the fix is a thicker line, not a bigger file.
+// VECTOR detail (the grid) is defined in board units. A pair figure is ~1386
+// units wide and displays at ~680 CSS px, so one unit is half a CSS pixel at
+// reading size NO MATTER how many device pixels the PNG has. Adding resolution
+// cannot save a hairline; only a thicker line can. 2.4 units puts the grid just
+// over a CSS pixel, which is what fixed the grey-mush grid.
 //
-// 2.4 units puts the grid just over one CSS pixel at the size it is read.
+// RASTER detail (the piece art) is the opposite: it needs the pixels. A piece is
+// drawn ~72 units wide, so it displays at ~35 CSS px, which is ~70 device pixels
+// on a 2x screen. At zoom 1 the file holds exactly 72 — no headroom, and every
+// resampling step downstream shows. At zoom 2 it holds 144 and the browser has
+// something to downscale from.
+//
+// So: thick lines AND a generous raster. Lowering the zoom to fix the grid was a
+// misdiagnosis that starved the glyphs.
 const GRID_LINE = 2.4;
-const FIGURE_ZOOM = 1;
+const FIGURE_ZOOM = Number(process.env.MISTBOARD_FIGURE_ZOOM ?? 2);
 
 function pair(panels: [Panel, Panel], out: string): void {
   const BOARD_H = 700;
