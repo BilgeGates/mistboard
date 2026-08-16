@@ -194,7 +194,7 @@ function studyCreateBody(visibility: string, chapter: unknown): Record<string, u
   return {
     name: 'Xiangqi basic endgames: what wins and what draws',
     description:
-      'The book verdicts of the basic endgames, each rooted at a representative position with Pikafish’s line as the mainline. Play them out against the engine rather than taking the verdict on trust.',
+      'The book verdicts of the basic endgames, each rooted at a representative position with Pikafish’s line as the mainline. Play them out against the engine rather than taking the verdict on trust. Where the verdicts come from, how they were checked, and the two the engine refused to confirm until a tablebase settled them: https://brianhliou.com/posts/xiangqi-basic-endgames/',
     i18n: ENDGAME_STUDY_I18N,
     visibility,
     chapter,

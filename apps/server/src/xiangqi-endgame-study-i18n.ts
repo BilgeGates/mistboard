@@ -274,12 +274,12 @@ export const ENDGAME_STUDY_I18N: Record<EndgameStudyLang, { name: string; descri
   'zh-Hans': {
     name: '象棋基本残局：什么例胜，什么例和',
     description:
-      '基本残局的通例结论，每一则都配一个有代表性的局面，主变是 Pikafish 给出的着法。请自己摆棋验证，不要只凭结论。',
+      '基本残局的通例结论，每一则都配一个有代表性的局面，主变是 Pikafish 给出的着法。请自己摆棋验证，不要只凭结论。这些结论的出处、核对过程，以及残局库给出的确切答案，见 https://brianhliou.com/posts/xiangqi-basic-endgames/',
   },
   'zh-Hant': {
     name: '象棋基本殘局：什麼例勝，什麼例和',
     description:
-      '基本殘局的通例結論，每一則都配一個有代表性的局面，主變是 Pikafish 給出的著法。請自己擺棋驗證，不要只憑結論。',
+      '基本殘局的通例結論，每一則都配一個有代表性的局面，主變是 Pikafish 給出的著法。請自己擺棋驗證，不要只憑結論。這些結論的出處、核對過程，以及殘局庫給出的確切答案，見 https://brianhliou.com/posts/xiangqi-basic-endgames/',
   },
 };
 
