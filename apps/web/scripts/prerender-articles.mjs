@@ -300,7 +300,12 @@ try {
         .replace('<html lang="en">', `<html lang="${v.htmlLang}">`)
         .replace('<div id="app"></div>', `<div id="app">${main.outerHTML}</div>`);
       html = injectPageMeta(html, {
-        title: `${localized.title} | Mistboard`,
+        // seoTitle drives the document title and, through injectPageMeta, the
+        // og/twitter titles — all the places a stranger meets the page cold. The
+        // h1 and the JSON-LD headline keep `title`, so the page still presents
+        // itself under the name we actually use for the variant and the two stay
+        // consistent with each other.
+        title: `${localized.seoTitle ?? localized.title} | Mistboard`,
         description: localized.summary,
         url,
         imageUrl,

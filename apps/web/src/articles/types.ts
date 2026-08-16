@@ -347,6 +347,14 @@ type ArticleBase = {
   // is a reference for a game we do not host yet.
   playableOnMistboard?: boolean;
   title: string;
+  /**
+   * Document <title> when it should differ from the on-page h1, which `title`
+   * still drives. Exists because a variant's brand name and its search name can
+   * be different words: Fog Chess is what we call it, "fog of war chess" is what
+   * players type, and the page ranked 8th for the former and 26th for the latter.
+   * Set this to serve search without renaming the variant on the page.
+   */
+  seoTitle?: string;
   summary: string;
   showSummaryOnPage?: boolean;
   // Non-variant guest pages only. Variant rules listings are controlled in
