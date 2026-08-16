@@ -72,6 +72,12 @@ export const VIDEO_BOARD_STYLE = `
     stroke-linecap: round;
   }
   .xqv-measure-head { fill: #f5dca8; }
+  .xqv-blocked line {
+    stroke: #d64545;
+    stroke-width: 6;
+    stroke-linecap: round;
+  }
+  .xqv-blocked-disc { fill: rgba(18, 22, 28, 0.55); }
   .xqv-measure-plate { fill: rgba(18, 22, 28, 0.92); }
   .xqv-measure-label {
     fill: #f5dca8;

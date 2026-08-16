@@ -193,11 +193,24 @@ function overlayMarkup(shot: Shot, perspective: 'red' | 'black'): string {
   if (overlays.points.length > 0) {
     for (const square of overlays.points) {
       const center = squareCenter(square, perspective);
-      parts.push(
-        overlays.pointsCapture
-          ? `<circle class="xq-live-hint-capture" cx="${center.x}" cy="${center.y}" r="28"/>`
-          : `<circle class="xq-live-hint-dot" cx="${center.x}" cy="${center.y}" r="7"/>`,
-      );
+      if (overlays.pointsBlocked) {
+        // A cross, drawn at piece scale so it reads as "not here" rather than
+        // as another marker on the board.
+        const r = 17;
+        parts.push(
+          `<g class="xqv-blocked">` +
+            `<circle cx="${center.x}" cy="${center.y}" r="${r + 6}" class="xqv-blocked-disc"/>` +
+            `<line x1="${center.x - r}" y1="${center.y - r}" x2="${center.x + r}" y2="${center.y + r}"/>` +
+            `<line x1="${center.x - r}" y1="${center.y + r}" x2="${center.x + r}" y2="${center.y - r}"/>` +
+            `</g>`,
+        );
+      } else {
+        parts.push(
+          overlays.pointsCapture
+            ? `<circle class="xq-live-hint-capture" cx="${center.x}" cy="${center.y}" r="28"/>`
+            : `<circle class="xq-live-hint-dot" cx="${center.x}" cy="${center.y}" r="7"/>`,
+        );
+      }
     }
   }
 

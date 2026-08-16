@@ -176,6 +176,7 @@ describe('renderShotSvg', () => {
       dimOthers: false,
       points: [],
       pointsCapture: false,
+      pointsBlocked: false,
       raysFrom: null,
       region: null,
       arrows: [],

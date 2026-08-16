@@ -27,6 +27,7 @@ export type OverlayState = {
   dimOthers: boolean;
   points: readonly XiangqiSquare[];
   pointsCapture: boolean;
+  pointsBlocked: boolean;
   raysFrom: XiangqiSquare | null;
   region: VideoRegion | null;
   arrows: readonly VideoArrowSpec[];
@@ -70,6 +71,7 @@ const EMPTY_OVERLAYS: OverlayState = {
   dimOthers: false,
   points: [],
   pointsCapture: false,
+  pointsBlocked: false,
   raysFrom: null,
   region: null,
   arrows: [],
@@ -189,7 +191,12 @@ export function expandTimeline(plan: ScenePlan): Timeline {
           break;
         }
         case 'points': {
-          overlays = { ...overlays, points: step.squares, pointsCapture: step.capture ?? false };
+          overlays = {
+            ...overlays,
+            points: step.squares,
+            pointsCapture: step.capture ?? false,
+            pointsBlocked: step.blocked ?? false,
+          };
           still(step.holdMs ?? DEFAULT_STEP_HOLD_MS);
           break;
         }

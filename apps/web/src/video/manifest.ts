@@ -52,7 +52,16 @@ export type VideoStep =
    *  pseudo-legal generator (fine on sparse demo boards). */
   | { kind: 'rays'; square: XiangqiSquare; holdMs?: number }
   /** Explicit destination markers when auto rays are wrong for the story. */
-  | { kind: 'points'; squares: readonly XiangqiSquare[]; capture?: boolean; holdMs?: number }
+  | {
+      kind: 'points';
+      squares: readonly XiangqiSquare[];
+      capture?: boolean;
+      /** Draw each point as a cross: somewhere a piece may NOT go. Teaching
+       *  boards need the negative case (a hobbled horse, a king with no exit)
+       *  as often as the positive one. */
+      blocked?: boolean;
+      holdMs?: number;
+    }
   | { kind: 'region'; region: VideoRegion; holdMs?: number }
   | { kind: 'arrows'; arrows: readonly VideoArrowSpec[]; holdMs?: number }
   | {
