@@ -115,6 +115,7 @@ function board(pieces: XiangqiOgPiece[], centerX: number, y: number, height: num
     files: FILES,
     ranks: RANKS,
     pieces: [],
+    lineWidth: GRID_LINE,
     riverBetweenRanks: [5, 6],
     palaces: [
       { fileLo: 3, fileHi: 5, rankLo: 1, rankHi: 3 },
@@ -140,7 +141,7 @@ function board(pieces: XiangqiOgPiece[], centerX: number, y: number, height: num
     const u = size / 100; // 100x100 piece box -> board units
     const rim = p.color === 'red' ? '#c30d0d' : '#202427';
     return [
-      `<circle cx="${cx}" cy="${cy}" r="${46 * u}" fill="#fef0d7" stroke="${rim}" stroke-width="${2.8 * u}"/>`,
+      `<circle cx="${cx}" cy="${cy}" r="${46 * u}" fill="#fef0d7" stroke="${rim}" stroke-width="${4.2 * u}"/>`,
       `<image href="${pieceDataUri(p.color, p.role)}" x="${cx - size / 2 + f.x * u}" y="${cy - size / 2 + f.y * u}" width="${f.width * u}" height="${f.height * u}" preserveAspectRatio="xMidYMid meet"/>`,
     ].join('');
   });
@@ -151,6 +152,20 @@ type Panel = { pieces: XiangqiOgPiece[]; title: string; verdict: string; win: bo
 
 const TITLE_Y = 52;
 const BOARD_Y = 78;
+
+// These two are set against the post's 680px content column, and they trade
+// against each other.
+//
+// A pair figure is ~1386 units wide and displays at 680 CSS px, so the SVG is
+// authored at almost exactly 2x its display size and rasterizes at zoom 1. The
+// earlier zoom of 2 was not extra quality: 2772px downscaled 4x by the browser
+// turned the grid into grey mush, because the line is defined in board units and
+// a board is ~630 units wide. One unit lands at half a CSS pixel however many
+// device pixels the PNG has, so the fix is a thicker line, not a bigger file.
+//
+// 2.4 units puts the grid just over one CSS pixel at the size it is read.
+const GRID_LINE = 2.4;
+const FIGURE_ZOOM = 1;
 
 function pair(panels: [Panel, Panel], out: string): void {
   const BOARD_H = 700;
@@ -174,12 +189,15 @@ function pair(panels: [Panel, Panel], out: string): void {
     );
   });
   parts.push(`</svg>`);
-  writeFileSync(out, svgToPng(parts.join('')));
+  writeFileSync(out, svgToPng(parts.join(''), '#0f1115', FIGURE_ZOOM));
   console.log(`wrote ${out} (${W}x${H}, board ${Math.round(boardW)}x${BOARD_H})`);
 }
 
+// A single board gets the same 2x treatment as a pair, but a pair fills the
+// column and a lone board should not: the post displays these at 380px via an
+// explicit width, so the file is authored at ~760 and halves on the page.
 function single(panel: Panel, out: string): void {
-  const BOARD_H = 760;
+  const BOARD_H = 750;
   const boardW = BOARD_H * ASPECT;
   const pad = 40;
   const W = Math.round(boardW + 2 * pad);
@@ -193,13 +211,20 @@ function single(panel: Panel, out: string): void {
     `<text x="${W / 2}" y="${verdictY}" text-anchor="middle" font-family="${FONT}" font-size="31" font-weight="700" fill="#9ca3af">${panel.verdict}</text>`,
     `</svg>`,
   ];
-  writeFileSync(out, svgToPng(parts.join('')));
+  writeFileSync(out, svgToPng(parts.join(''), '#0f1115', FIGURE_ZOOM));
   console.log(`wrote ${out} (${W}x${H}, board ${Math.round(boardW)}x${BOARD_H})`);
 }
 
 const dir = process.argv[2] ?? '.';
 const DEFENCE = ['ke10', 'ae9', 'af10', 'be8', 'bc10'];
 
+// The opening figure only. This script deliberately does NOT emit thumbnail.png
+// or social-card.png any more: a feed thumbnail is a tall crop shown in a fixed
+// box, a share card is landscape at a fixed size, and an in-body figure is
+// downscaled into the content column. They want different crops at different
+// sizes, and pointing all three at one file meant whichever pipeline ran last
+// decided how the other two looked. Those two are produced by the site's own
+// image pass, in the blog repo.
 pair(
   [
     {
@@ -215,7 +240,7 @@ pair(
       win: true,
     },
   ],
-  `${dir}/thumbnail.png`,
+  `${dir}/chariot-vs-soldiers.png`,
 );
 
 pair(
@@ -247,7 +272,9 @@ pair(
     {
       pieces: piecesOf(stateFromTokens(['Ke1', 'Pc6', 'Pe6', 'Pg6', ...DEFENCE])),
       title: 'Soldiers on the 6th',
-      verdict: 'Level (+0.04)',
+      // Not a tempo verdict: c6 and g6 are two of the seven points a black
+      // elephant can ever stand on, so a soldier there is simply hanging.
+      verdict: 'Black takes one',
       win: false,
     },
   ],

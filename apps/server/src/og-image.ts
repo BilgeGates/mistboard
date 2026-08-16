@@ -861,10 +861,16 @@ const FONT_FILES = ['NotoSans-Regular.ttf', 'NotoSans-Bold.ttf'].map((file) =>
 
 // Render at 2x the SVG's nominal dimensions so the resulting PNG stays crisp
 // on retina displays and survives scraper recompression.
-export function svgToPng(svg: string, background = '#0f1115'): Buffer {
+/**
+ * Rasterize an SVG. `zoom` multiplies the SVG's own dimensions: 2 is right for
+ * OG cards (rendered at half their delivered size), 1 for a figure whose SVG is
+ * already authored at twice its display width. Oversampling past ~2x the display
+ * size is not free quality — it thins hairlines below a pixel on the way down.
+ */
+export function svgToPng(svg: string, background = '#0f1115', zoom = 2): Buffer {
   return new Resvg(svg, {
     background,
-    fitTo: { mode: 'zoom', value: 2 },
+    fitTo: { mode: 'zoom', value: zoom },
     font: {
       loadSystemFonts: false,
       fontFiles: FONT_FILES,
