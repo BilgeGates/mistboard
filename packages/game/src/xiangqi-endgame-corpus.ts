@@ -2,6 +2,23 @@
 // that every Chinese-language endgame manual states and almost no English source
 // collects in one place.
 //
+// WHERE THE VERDICTS COME FROM. Two Wikipedia articles, not a manual we own:
+//
+//   'en-wikipedia' — the Endgame section of the English "Xiangqi" article. It
+//                    states these verdicts in prose and cites NOTHING; treat it
+//                    as a compressed report of the Chinese manual tradition, not
+//                    as a source of record.
+//   'zh-wikipedia' — 象棋勝和定式 ("Winning and drawing formations in xiangqi
+//                    endgames"), which diagrams the positions and cites 金启昌 /
+//                    杨典《象棋残局胜和定式》(北京体育大学出版社, 2008, ISBN
+//                    9787810513623) and 薛榮賢《象棋初學實戰指南》(2009).
+//
+// Neither book has been read first-hand. Where the two articles disagree, the
+// Chinese one wins: it carries the diagram, and twice now the English prose has
+// turned out to be a lossy summary of it (Chinese endgame verdicts are graded
+// 必胜 / 例胜 / 巧胜 / 难胜 / 例和 / 必和, and English "win / draw" only has two
+// buckets to put six words in).
+//
 // Each entry pairs a verdict with ONE representative position. A position is not
 // a proof of its class: book results assume best play from a sound defensive
 // formation, and a badly-placed snapshot can be a tactical win in a drawn class
@@ -24,6 +41,9 @@
 // parser rather than reaching an engine as a plausible-looking wrong board.
 //
 // Verify with: npx tsx apps/server/src/verify-xiangqi-endgames.ts
+// Add --tablebase to cross-check every position that fits in the chessdb.cn
+// cloud database, which answers exactly (win/draw/loss plus distance to mate)
+// for the small-material end of this corpus.
 
 import type {
   XiangqiBoard,
@@ -46,6 +66,9 @@ export type EndgameCategory =
 
 export type EndgameProvenance = 'diagram' | 'constructed';
 
+/** Which article the verdict (and, for 'diagram' entries, the position) is from. */
+export type EndgameSource = 'en-wikipedia' | 'zh-wikipedia';
+
 export type EndgameEntry = {
   id: string;
   category: EndgameCategory;
@@ -59,6 +82,8 @@ export type EndgameEntry = {
   /** `Ke1` style tokens: k/a/b/n/r/c/p, uppercase = red. */
   pieces: readonly string[];
   provenance: EndgameProvenance;
+  /** Defaults to 'en-wikipedia'; set where the entry follows the Chinese article. */
+  source?: EndgameSource;
   /** What a reader needs to know that the verdict alone does not say. */
   note?: string;
   /**
@@ -437,14 +462,13 @@ export const XIANGQI_ENDGAME_CORPUS: readonly EndgameEntry[] = [
     id: 'chariot-vs-two-minor-pieces',
     category: 'chariot',
     attacker: 'A bare chariot',
-    defender: 'Two minor pieces, no defensive pieces',
+    defender: 'A horse and cannon, no defensive pieces (單車難勝馬炮)',
     verdict: 'draw',
     turn: 'red',
-    pieces: ['Ke1', 'Ra5', 'kd10', 'ne8', 'ce9'],
-    provenance: 'constructed',
-    note: 'Drawn, but the defence needs accurate placement.',
-    engineDispute:
-      'Pikafish finds a forced mate from every placement we tried, including this one (the most resistant of eight). Either the drawing setup is narrower than we could reconstruct, or the defence depends on resources the engine scores differently. Do not rely on this row.',
+    pieces: ['Ke1', 'Ra5', 'kf9', 'cf10', 'nd7'],
+    provenance: 'diagram',
+    source: 'zh-wikipedia',
+    note: 'The whole draw is one geometric relation: the cannon sits directly behind its own general, where it covers the back rank and cannot be skewered against it. Move that cannon one point sideways and the tablebase turns the position into a Red mate. The horse only has to stay off squares a single chariot move attacks. This replaced a position of our own (Ke1 Ra5 kd10 ne8 ce9) that had the cannon beside the general instead of behind it, and loses: Pikafish mates it in 15 and the database in 13.',
   },
   {
     id: 'chariot-cannon-vs-chariot',
@@ -453,11 +477,9 @@ export const XIANGQI_ENDGAME_CORPUS: readonly EndgameEntry[] = [
     defender: 'A bare chariot holding the middle file',
     verdict: 'draw',
     turn: 'red',
-    pieces: ['Ke1', 'Ra5', 'Cc5', 'ke10', 're9'],
+    pieces: ['Kd1', 'Ra5', 'Cc5', 'kf10', 're5'],
     provenance: 'constructed',
-    note: 'The defending chariot on the middle file is what draws. Give the attacker any single defensive piece and it becomes a win.',
-    engineDispute:
-      'Pikafish scores this as clearly winning for Red from every placement of the defending chariot we tried. One plausible reason: with both generals bare, the defence leans on checking resources, and perpetual check is a LOSS in xiangqi rather than the draw the analogous chess endgame would give. Do not rely on this row.',
+    note: 'The defending chariot has to hold the middle file BELOW the attacking pieces, because the mate it is preventing (海底撈月) is executed at the bottom of that file. It also drives the red general off the middle file. Leave the chariot on the middle file but a rank too high and Red plants the cannon underneath it, defended by the chariot on the same rank, and wins: move the defender here from e5 to e6 and the database turns the draw into a Red win.',
   },
   {
     id: 'chariot-cannon-full-vs-chariot-full',

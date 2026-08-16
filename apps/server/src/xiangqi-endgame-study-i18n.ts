@@ -66,7 +66,7 @@ const MATERIAL: Record<EndgameStudyLang, Record<string, string>> = {
     'A cannon': '单炮',
     'A horse and two elephants, in the drawing fortress': '马双象，摆成例和阵形',
     'A horse and two elephants, one elephant misplaced': '马双象，其中一象位置有误',
-    'Two minor pieces, no defensive pieces': '两个小子，无士象',
+    'A horse and cannon, no defensive pieces (單車難勝馬炮)': '马炮，无士象（单车难胜马炮）',
     'A bare chariot holding the middle file': '单车占住中路',
     'A chariot with all four defensive pieces': '车士象全',
     'A chariot and all four defensive pieces': '车士象全',
@@ -111,7 +111,7 @@ const MATERIAL: Record<EndgameStudyLang, Record<string, string>> = {
     'A cannon': '單砲',
     'A horse and two elephants, in the drawing fortress': '馬雙象，擺成例和陣形',
     'A horse and two elephants, one elephant misplaced': '馬雙象，其中一象位置有誤',
-    'Two minor pieces, no defensive pieces': '兩個小子，無士象',
+    'A horse and cannon, no defensive pieces (單車難勝馬炮)': '馬砲，無士象（單車難勝馬炮）',
     'A bare chariot holding the middle file': '單車佔住中路',
     'A chariot with all four defensive pieces': '車士象全',
     'A chariot and all four defensive pieces': '車士象全',
@@ -160,13 +160,10 @@ const PROSE: Record<EndgameStudyLang, Record<string, string>> = {
       '只有摆成这一阵形才守得住。同样的子力换成其他大多数摆法都要输，所以这是一个阵形问题，而不是子力问题。',
     'The fortress above with the g6 elephant moved to g10 instead. Same material, same attacker, and now Red wins starting with 1.Rb7. The pair is the clearest demonstration in the corpus that material does not decide these endgames.':
       '把上一型阵形中位于３路的象改摆到底线。子力相同，进攻方也相同，红方却可以走车二进六取胜。这一对局面最能说明：这类残局不是由子力决定的。',
-    'Drawn, but the defence needs accurate placement.': '和棋，但防守方的位置必须准确。',
-    'Pikafish finds a forced mate from every placement we tried, including this one (the most resistant of eight). Either the drawing setup is narrower than we could reconstruct, or the defence depends on resources the engine scores differently. Do not rely on this row.':
-      'Pikafish 在我们尝试过的每一种摆法中都算出了必杀，包括本局面（八种当中最顽强的一种）。要么求和的阵形比我们能复原的更窄，要么防守依赖的手段被引擎另作评估。此条结论不可依赖。',
-    'The defending chariot on the middle file is what draws. Give the attacker any single defensive piece and it becomes a win.':
-      '和棋靠的是防守方的车占住中路。只要进攻方多任何一个士或象，就变成胜势。',
-    'Pikafish scores this as clearly winning for Red from every placement of the defending chariot we tried. One plausible reason: with both generals bare, the defence leans on checking resources, and perpetual check is a LOSS in xiangqi rather than the draw the analogous chess endgame would give. Do not rely on this row.':
-      '在我们尝试过的每一种防守车位上，Pikafish 都判红方明显占优。一种说得通的解释是：双方都没有士象时，防守要靠连续将军，而象棋中长将判负，不像国际象棋中同类残局可以长将求和。此条结论不可依赖。',
+    'The whole draw is one geometric relation: the cannon sits directly behind its own general, where it covers the back rank and cannot be skewered against it. Move that cannon one point sideways and the tablebase turns the position into a Red mate. The horse only has to stay off squares a single chariot move attacks. This replaced a position of our own (Ke1 Ra5 kd10 ne8 ce9) that had the cannon beside the general instead of behind it, and loses: Pikafish mates it in 15 and the database in 13.':
+      '守和全靠一个位置关系：炮摆在自己将的正后方，既守住底线，又不会被车串将吃掉。把这个炮平开一路，残局库就判红方胜。马只要避开红车一步能捉到的位置即可。此局面替换了我们原先自拟的摆法，那一摆法是把炮放在将的旁边而不是身后，Pikafish 十五回合成杀，残局库十三回合成杀。',
+    'The defending chariot has to hold the middle file BELOW the attacking pieces, because the mate it is preventing (海底撈月) is executed at the bottom of that file. It also drives the red general off the middle file. Leave the chariot on the middle file but a rank too high and Red plants the cannon underneath it, defended by the chariot on the same rank, and wins: move the defender here from e5 to e6 and the database turns the draw into a Red win.':
+      '防守方的车要占住中路，而且必须占在进攻子力的下方，因为它要防的杀法（海底捞月）是在中路底部完成的。车占中同时也把红帅逼离中路。若车虽在中路却高了一路，红方就能把炮送到它下面，由同一横线上的车保护，从而取胜：同一局面把黑车从中路第五线挪到第六线，残局库便由和转为红胜。',
     'Drawn with good defensive placement.': '防守位置得当即可求和。',
     'Two horses is the losing pair; other two-minor-piece combinations hold.':
       '双马这一组合守不住；其他两个小子的组合则可以守和。',
@@ -210,13 +207,10 @@ const PROSE: Record<EndgameStudyLang, Record<string, string>> = {
       '只有擺成這一陣形才守得住。同樣的子力換成其他大多數擺法都要輸，所以這是一個陣形問題，而不是子力問題。',
     'The fortress above with the g6 elephant moved to g10 instead. Same material, same attacker, and now Red wins starting with 1.Rb7. The pair is the clearest demonstration in the corpus that material does not decide these endgames.':
       '把上一型陣形中位於３路的象改擺到底線。子力相同，進攻方也相同，紅方卻可以走車二進六取勝。這一對局面最能說明：這類殘局不是由子力決定的。',
-    'Drawn, but the defence needs accurate placement.': '和棋，但防守方的位置必須準確。',
-    'Pikafish finds a forced mate from every placement we tried, including this one (the most resistant of eight). Either the drawing setup is narrower than we could reconstruct, or the defence depends on resources the engine scores differently. Do not rely on this row.':
-      'Pikafish 在我們嘗試過的每一種擺法中都算出了必殺，包括本局面（八種當中最頑強的一種）。要麼求和的陣形比我們能復原的更窄，要麼防守依賴的手段被引擎另作評估。此條結論不可依賴。',
-    'The defending chariot on the middle file is what draws. Give the attacker any single defensive piece and it becomes a win.':
-      '和棋靠的是防守方的車佔住中路。只要進攻方多任何一個士或象，就變成勝勢。',
-    'Pikafish scores this as clearly winning for Red from every placement of the defending chariot we tried. One plausible reason: with both generals bare, the defence leans on checking resources, and perpetual check is a LOSS in xiangqi rather than the draw the analogous chess endgame would give. Do not rely on this row.':
-      '在我們嘗試過的每一種防守車位上，Pikafish 都判紅方明顯佔優。一種說得通的解釋是：雙方都沒有士象時，防守要靠連續將軍，而象棋中長將判負，不像西洋棋中同類殘局可以長將求和。此條結論不可依賴。',
+    'The whole draw is one geometric relation: the cannon sits directly behind its own general, where it covers the back rank and cannot be skewered against it. Move that cannon one point sideways and the tablebase turns the position into a Red mate. The horse only has to stay off squares a single chariot move attacks. This replaced a position of our own (Ke1 Ra5 kd10 ne8 ce9) that had the cannon beside the general instead of behind it, and loses: Pikafish mates it in 15 and the database in 13.':
+      '守和全靠一個位置關係：砲擺在自己將的正後方，既守住底線，又不會被車串將吃掉。把這個砲平開一路，殘局庫就判紅方勝。馬只要避開紅車一步能捉到的位置即可。此局面替換了我們原先自擬的擺法，那一擺法是把砲放在將的旁邊而不是身後，Pikafish 十五回合成殺，殘局庫十三回合成殺。',
+    'The defending chariot has to hold the middle file BELOW the attacking pieces, because the mate it is preventing (海底撈月) is executed at the bottom of that file. It also drives the red general off the middle file. Leave the chariot on the middle file but a rank too high and Red plants the cannon underneath it, defended by the chariot on the same rank, and wins: move the defender here from e5 to e6 and the database turns the draw into a Red win.':
+      '防守方的車要佔住中路，而且必須佔在進攻子力的下方，因為它要防的殺法（海底撈月）是在中路底部完成的。車佔中同時也把紅帥逼離中路。若車雖在中路卻高了一路，紅方就能把砲送到它下面，由同一橫線上的車保護，從而取勝：同一局面把黑車從中路第五線挪到第六線，殘局庫便由和轉為紅勝。',
     'Drawn with good defensive placement.': '防守位置得當即可求和。',
     'Two horses is the losing pair; other two-minor-piece combinations hold.':
       '雙馬這一組合守不住；其他兩個小子的組合則可以守和。',
