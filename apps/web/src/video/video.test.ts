@@ -179,6 +179,8 @@ describe('renderShotSvg', () => {
       raysFrom: null,
       region: null,
       arrows: [],
+      measures: [],
+      measuresDim: true,
       flash: null,
     },
     moving: null,

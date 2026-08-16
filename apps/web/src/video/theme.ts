@@ -63,6 +63,23 @@ export const VIDEO_BOARD_STYLE = `
   .xqv-region { fill: rgba(46, 134, 222, 0.22); stroke: rgba(46, 134, 222, 0.55); stroke-width: 2; }
   .xqv-flash-ring { fill: none; stroke: #d64545; stroke-width: 5; }
   .xqv-flash-arrow { stroke: #d64545; fill: #d64545; }
+  /* Dimension callout: board ink, not the move-arrow blue, so a measurement
+     never reads as a move. */
+  .xqv-measure-line,
+  .xqv-measure-tick {
+    stroke: #f5dca8;
+    stroke-width: 3.5;
+    stroke-linecap: round;
+  }
+  .xqv-measure-head { fill: #f5dca8; }
+  .xqv-measure-plate { fill: rgba(18, 22, 28, 0.92); }
+  .xqv-measure-label {
+    fill: #f5dca8;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
   .xqv-coord {
     fill: rgba(255, 255, 255, 0.34);
     font-family: Helvetica, Arial, sans-serif;

@@ -25,7 +25,7 @@ import {
   RIVER_TOP,
   squareCenter,
 } from './geometry.js';
-import type { ScenePlan, VideoRegion } from './manifest.js';
+import type { ScenePlan, VideoMeasureSpec, VideoRegion } from './manifest.js';
 import { BOARD_HEIGHT_FILL, VIDEO_BOARD_STYLE, VIDEO_PIECE_SET } from './theme.js';
 import type { Shot } from './timeline.js';
 
@@ -181,6 +181,15 @@ function overlayMarkup(shot: Shot, perspective: 'red' | 'black'): string {
 
   if (overlays.region) parts.push(regionRect(overlays.region, perspective));
 
+  if (overlays.measures.length > 0) {
+    if (overlays.measuresDim) {
+      parts.push(
+        `<rect class="xqv-dim" x="0" y="0" width="${BOARD_WIDTH}" height="${BOARD_HEIGHT}" rx="16"/>`,
+      );
+    }
+    for (const measure of overlays.measures) parts.push(measureMarkup(measure));
+  }
+
   if (overlays.points.length > 0) {
     for (const square of overlays.points) {
       const center = squareCenter(square, perspective);
@@ -259,6 +268,77 @@ function regionRect(region: VideoRegion, perspective: 'red' | 'black'): string {
   const fileIndex = Math.max(0, BOARD_FILES.indexOf(region.file));
   const x = MARGIN + fileIndex * CELL;
   return `<rect class="xqv-region" x="${x - 20}" y="${MARGIN - 20}" width="40" height="${BOARD_HEIGHT - (MARGIN - 20) * 2}" rx="8"/>`;
+}
+
+/** Board dimension callout, engineering-drawing style: a double-headed line
+ *  with end ticks and a centred label plate. Placed in the board's own margin
+ *  band, which is narrower than a piece, so the caller dims the board behind it
+ *  (default) and the measurement becomes the subject rather than a line
+ *  competing with thirty-two pieces. */
+function measureMarkup(spec: VideoMeasureSpec): string {
+  const files = spec.axis === 'files';
+  const label = spec.label ?? (files ? '9 lines wide' : '10 lines deep');
+  // Half the margin: clear of the outer grid line, inside the viewBox so it
+  // cannot clip.
+  const offset = MARGIN / 2;
+  const from = files ? { x: MARGIN, y: offset } : { x: offset, y: MARGIN };
+  const to = files
+    ? { x: BOARD_WIDTH - MARGIN, y: offset }
+    : { x: offset, y: BOARD_HEIGHT - MARGIN };
+  const tick = 11;
+  const head = 13;
+  const parts: string[] = [`<g class="xqv-measure">`];
+  // A ruler bar behind the whole run. The board margin is narrower than a
+  // piece, so without it the measure crosses the back rank and reads as
+  // clutter; with it, the callout is its own object sitting on the board.
+  const bar = 32;
+  parts.push(
+    files
+      ? `<rect x="${round2(from.x - 16)}" y="${round2(offset - bar / 2)}" width="${round2(to.x - from.x + 32)}" height="${bar}" rx="${bar / 2}" class="xqv-measure-plate"/>`
+      : `<rect x="${round2(offset - bar / 2)}" y="${round2(from.y - 16)}" width="${bar}" height="${round2(to.y - from.y + 32)}" rx="${bar / 2}" class="xqv-measure-plate"/>`,
+  );
+  // Extension ticks at both ends, perpendicular to the run.
+  for (const end of [from, to]) {
+    parts.push(
+      files
+        ? `<line x1="${round2(end.x)}" y1="${round2(end.y - tick)}" x2="${round2(end.x)}" y2="${round2(end.y + tick)}" class="xqv-measure-tick"/>`
+        : `<line x1="${round2(end.x - tick)}" y1="${round2(end.y)}" x2="${round2(end.x + tick)}" y2="${round2(end.y)}" class="xqv-measure-tick"/>`,
+    );
+  }
+  parts.push(
+    `<line x1="${round2(from.x)}" y1="${round2(from.y)}" x2="${round2(to.x)}" y2="${round2(to.y)}" class="xqv-measure-line"/>`,
+  );
+  // Arrowheads pointing outward at each end: extent, not direction.
+  const heads: [{ x: number; y: number }, number][] = files
+    ? [
+        [from, 1],
+        [to, -1],
+      ]
+    : [
+        [from, 1],
+        [to, -1],
+      ];
+  for (const [end, sign] of heads) {
+    const points = files
+      ? `${round2(end.x)},${round2(end.y)} ${round2(end.x + sign * head)},${round2(end.y - 7)} ${round2(end.x + sign * head)},${round2(end.y + 7)}`
+      : `${round2(end.x)},${round2(end.y)} ${round2(end.x - 7)},${round2(end.y + sign * head)} ${round2(end.x + 7)},${round2(end.y + sign * head)}`;
+    parts.push(`<polygon points="${points}" class="xqv-measure-head"/>`);
+  }
+  // Label plate at the midpoint, so the text survives whatever is behind it.
+  const mid = files
+    ? { x: (from.x + to.x) / 2, y: offset + 34 }
+    : { x: offset + 34, y: (from.y + to.y) / 2 };
+  const width = label.length * 11 + 26;
+  const height = 30;
+  const rotate = files ? '' : ` transform="rotate(-90 ${round2(mid.x)} ${round2(mid.y)})"`;
+  parts.push(
+    `<g${rotate}>` +
+      `<rect x="${round2(mid.x - width / 2)}" y="${round2(mid.y - height / 2)}" width="${width}" height="${height}" rx="8" class="xqv-measure-plate"/>` +
+      `<text x="${round2(mid.x)}" y="${round2(mid.y + 7)}" text-anchor="middle" class="xqv-measure-label">${escapeXml(label)}</text>` +
+      `</g>`,
+  );
+  parts.push(`</g>`);
+  return parts.join('');
 }
 
 function flashArrow(a: { x: number; y: number }, b: { x: number; y: number }): string {

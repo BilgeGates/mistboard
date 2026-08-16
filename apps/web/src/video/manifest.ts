@@ -20,6 +20,17 @@ export type VideoRegion = 'river' | 'palace-red' | 'palace-black' | { file: stri
 
 export type VideoArrowSpec = { from: XiangqiSquare; to: XiangqiSquare; dashed?: boolean };
 
+/** A board DIMENSION callout: how wide or how deep the board is. Deliberately
+ *  not an arrow — an arrow means a move, and reusing it to mean "this is nine
+ *  lines across" reads as a piece travelling nine squares. Drawn as a
+ *  double-headed measure with end ticks and a label plate, engineering-drawing
+ *  style, over a dimmed board so the measurement is the subject. */
+export type VideoMeasureSpec = {
+  axis: 'files' | 'ranks';
+  /** Defaults to the count with its noun ("9 lines wide" / "10 lines deep"). */
+  label?: string;
+};
+
 export type VideoStep =
   /** Snap the board to a position. Clears overlays and any moving piece. */
   | { kind: 'position'; position: VideoPosition; holdMs?: number }
@@ -44,7 +55,14 @@ export type VideoStep =
   | { kind: 'points'; squares: readonly XiangqiSquare[]; capture?: boolean; holdMs?: number }
   | { kind: 'region'; region: VideoRegion; holdMs?: number }
   | { kind: 'arrows'; arrows: readonly VideoArrowSpec[]; holdMs?: number }
-  /** Drop all sticky overlays (glow/rays/points/region/arrows). */
+  | {
+      kind: 'measures';
+      measures: readonly VideoMeasureSpec[];
+      /** Wash the board back so the callout reads. Default true. */
+      dim?: boolean;
+      holdMs?: number;
+    }
+  /** Drop all sticky overlays (glow/rays/points/region/arrows/measures). */
   | { kind: 'clearOverlays'; holdMs?: number }
   | { kind: 'hold'; ms: number };
 
