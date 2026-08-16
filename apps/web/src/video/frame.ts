@@ -7,6 +7,7 @@ import type {
   StandardXiangqiPlayerView,
   XiangqiGameState,
   XiangqiMove,
+  XiangqiPiece,
   XiangqiSquare,
 } from '@mistboard/game';
 import { getLegalMovesFrom } from '@mistboard/game';
@@ -26,7 +27,12 @@ import {
   squareCenter,
 } from './geometry.js';
 import type { ScenePlan, VideoMeasureSpec, VideoRegion } from './manifest.js';
-import { BOARD_HEIGHT_FILL, VIDEO_BOARD_STYLE, VIDEO_PIECE_SET } from './theme.js';
+import {
+  BOARD_HEIGHT_FILL,
+  SHOW_SECTION_LABEL,
+  VIDEO_BOARD_STYLE,
+  VIDEO_PIECE_SET,
+} from './theme.js';
 import type { Shot } from './timeline.js';
 
 export function renderShotSvg(plan: ScenePlan, shot: Shot): string {
@@ -71,7 +77,8 @@ export function renderShotSvg(plan: ScenePlan, shot: Shot): string {
   // The gutter is only as wide as the board's offset, and the rank column eats
   // the right edge of it. Section titles are sentences, not surnames, so they
   // wrap rather than run under the board.
-  const label = shot.label ? labelMarkup(shot.label, tx - LABEL_X - RANK_GUTTER_W) : '';
+  const label =
+    SHOW_SECTION_LABEL && shot.label ? labelMarkup(shot.label, tx - LABEL_X - RANK_GUTTER_W) : '';
 
   const watermark = plan.watermark
     ? `<text x="${plan.width - 28}" y="${plan.height - 26}" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="26" fill="rgba(255,255,255,0.30)" letter-spacing="1">${escapeXml(plan.watermark)}</text>`
@@ -173,6 +180,16 @@ function escapeXml(value: string): string {
     .replaceAll('"', '&quot;');
 }
 
+/** Mirrors the board layer's rule (xiangqi-board.ts): a soldier past the river
+ *  draws with the promoted art. The overlay and moving layers render pieces
+ *  themselves, so without this a crossed soldier reverts to the unpromoted
+ *  glyph mid-glide and snaps back on landing. */
+function drawsCrossed(piece: XiangqiPiece, square: XiangqiSquare): boolean {
+  if (piece.role !== 'soldier') return false;
+  const rank = Number(square.slice(1));
+  return piece.color === 'red' ? rank >= 6 : rank <= 5;
+}
+
 /** Video overlays live in board viewBox coordinates, injected inside the board
  *  SVG so one transform moves everything together. */
 function overlayMarkup(shot: Shot, perspective: 'red' | 'black'): string {
@@ -231,6 +248,7 @@ function overlayMarkup(shot: Shot, perspective: 'red' | 'black'): string {
             size: PIECE_SIZE,
             className: 'xq-piece',
             pieceSet: VIDEO_PIECE_SET,
+            crossed: drawsCrossed(piece, square),
           }),
         );
       }
@@ -255,6 +273,7 @@ function overlayMarkup(shot: Shot, perspective: 'red' | 'black'): string {
     const at = lerpPoint(from, to, moving.t);
     parts.push(
       renderXiangqiPiece(moving.piece, {
+        crossed: drawsCrossed(moving.piece, moving.to),
         x: at.x - PIECE_SIZE / 2,
         y: at.y - PIECE_SIZE / 2,
         size: PIECE_SIZE,
@@ -361,12 +380,19 @@ function flashArrow(a: { x: number; y: number }, b: { x: number; y: number }): s
   if (dist < 1) return '';
   const ux = dx / dist;
   const uy = dy / dist;
-  const startX = a.x + ux * 34;
-  const startY = a.y + uy * 34;
-  const tipX = b.x - ux * 36;
-  const tipY = b.y - uy * 36;
-  const baseX = tipX - ux * 18;
-  const baseY = tipY - uy * 18;
+  // Clear the piece discs at both ends, but never by more than the arrow is
+  // long: a one-square arrow is 60 units, and fixed 34/36 insets put the tip
+  // BEHIND the start, drawing the whole arrow backwards. Adjacent-square flashes
+  // (an illegal general step, a one-point shuffle) are exactly that case.
+  const startInset = Math.min(34, dist * 0.3);
+  const tipInset = Math.min(36, dist * 0.3);
+  const startX = a.x + ux * startInset;
+  const startY = a.y + uy * startInset;
+  const tipX = b.x - ux * tipInset;
+  const tipY = b.y - uy * tipInset;
+  const headLength = Math.min(18, (dist - startInset - tipInset) * 0.8);
+  const baseX = tipX - ux * headLength;
+  const baseY = tipY - uy * headLength;
   const px = -uy;
   const py = ux;
   return (

@@ -7,6 +7,12 @@ import type { XiangqiPieceSet } from '../xiangqi-piece-sets.js';
 
 export const VIDEO_BACKGROUND = '#12161c';
 
+/** Section titles in the gutter. Off (Brian, 2026-08-16): chapter-length
+ *  sentences in an empty gutter read as a slide deck rather than a board, and
+ *  YouTube chapters already give the viewer the same map. The story's `chapter`
+ *  fields still drive chapter generation; this only hides them on screen. */
+export const SHOW_SECTION_LABEL = false;
+
 /** The frozen channel piece set. Every episode renders with this, so changing it
  *  re-skins the whole back catalog on the next recompile: a branding decision,
  *  not a preference.

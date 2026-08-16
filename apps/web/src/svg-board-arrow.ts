@@ -70,7 +70,9 @@ export function svgBoardArrow(
   const color = arrow.color ?? options.color ?? DEFAULT_COLOR;
   const baseClassName = options.baseClassName ?? 'board-arrow';
   const className = arrow.className ? `${baseClassName} ${arrow.className}` : baseClassName;
-  const dash = arrow.dashed ? ' stroke-dasharray="10 8"' : '';
+  // Long dashes, not dots: with a round linecap a 10/8 pattern reads as a
+  // dotted line and the arrow stops looking like a line of force.
+  const dash = arrow.dashed ? ' stroke-dasharray="26 14"' : '';
   const head =
     `${fmt(tipX)},${fmt(tipY)} ` +
     `${fmt(baseX + px * headHalfWidth)},${fmt(baseY + py * headHalfWidth)} ` +

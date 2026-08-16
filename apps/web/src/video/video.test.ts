@@ -4,7 +4,7 @@ import { renderShotSvg } from './frame.js';
 import { BOARD_HEIGHT, BOARD_WIDTH, PIECE_SIZE, squareCenter } from './geometry.js';
 import { type ScenePlan, validateScenePlan } from './manifest.js';
 import { inlinePieceImages } from './raster.js';
-import { VIDEO_PIECE_SET } from './theme.js';
+import { SHOW_SECTION_LABEL, VIDEO_PIECE_SET } from './theme.js';
 import { expandTimeline, type Shot } from './timeline.js';
 
 const basePlan = (segments: ScenePlan['segments']): ScenePlan => ({
@@ -248,12 +248,11 @@ describe('renderShotSvg', () => {
     expect(cases.board).toContain('aria-label="red chariot"');
   });
 
-  it('draws the section label and rank gutter outside the board transform', () => {
+  it('draws gutter chrome outside the board transform, and honours the label flag', () => {
     // Coordinates must live in canvas space: the board's own margin is 36 units
     // against a 27-unit piece radius, so anything drawn there sits under the
-    // edge pieces. Both belong after the board group, not inside it.
+    // edge pieces. Gutter chrome belongs after the board group, not inside it.
     const svg = renderShotSvg(plan, { ...shot({}), label: 'The cannon' });
-    expect(svg).toContain('THE CANNON');
     // The first </svg> closes the nested board; anything after it is canvas
     // space, outside the scale() transform.
     const boardEnd = svg.indexOf('</svg>');
@@ -261,8 +260,18 @@ describe('renderShotSvg', () => {
     // Match the attribute, not the bare class name: the inlined <style> block
     // mentions both selectors near the top of the document.
     expect(svg.indexOf('class="xqv-coords"')).toBeGreaterThan(boardEnd);
-    expect(svg.indexOf('class="xqv-label"')).toBeGreaterThan(boardEnd);
     for (const rank of [1, 5, 10]) expect(svg).toContain(`>${rank}</text>`);
+    // Section titles are a channel look, not a renderer feature: the flag turns
+    // them off without touching the story's chapter fields, which still drive
+    // YouTube chapter generation. Assert whichever state is configured, so
+    // flipping it back cannot quietly lose the canvas-space placement above.
+    if (SHOW_SECTION_LABEL) {
+      expect(svg).toContain('THE CANNON');
+      expect(svg.indexOf('class="xqv-label"')).toBeGreaterThan(boardEnd);
+    } else {
+      expect(svg).not.toContain('THE CANNON');
+      expect(svg).not.toContain('class="xqv-label"');
+    }
   });
 
   it('places the piece where the geometry mirror says it is (drift guard)', () => {
