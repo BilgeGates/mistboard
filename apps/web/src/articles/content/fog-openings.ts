@@ -475,6 +475,33 @@ export const fogOpeningsArticle: Article = {
           caption:
             'A win against a 1976 in 15 moves. The queen leaves a4, comes back to b3, and the second diagonal does what the first one could not.',
         } as ArticleBlock,
+        {
+          kind: 'paragraph',
+          text:
+            'The 1…e5 version of the same story, against the highest-rated opponent I have beaten with this system. Black’s dark bishop does go hunting, by the h6 route rather than c5, and it ends up trading itself off on e3 so my f-pawn recaptures toward the centre. The f2 square is never the problem.',
+        },
+        {
+          kind: 'chess-replay',
+          spec: {
+            uci: 'c2c4 e7e5 d1a4 d8e7 e2e4 a7a5 b1c3 c7c6 g1f3 d7d6 a4d1 c8e6 f1d3 b8a6 d3c2 b7b6 e1h1 a6c5 d2d3 g7g6 c1e3 h7h5 a2a3 f8h6 d1e1 h6e3 f2e3 g8h6 c3a2 f7f5 e4f5 h6f5 b2b4 a5b4 a3b4 c5d7 g1h1 a8c8 a2c3 e8h8 b4b5 c6b5 c3b5 d7c5 f3d2 e6d7 d3d4 e5d4 e3d4 e7e1 a1e1 c5b7 c2f5 d7f5 d2f3 b7d8 e1d1 d8f7 f1e1 g8g7 d1c1 f7h6 d4d5 h6g8 f3d4 g8f6 e1f1 c8e8 d4f5 g6f5 c1d1 g7g6 b5d4 e8e7 d4f5 g6f5 f1f5',
+            white: 'bhliou (2040)',
+            black: 'RansonKFern (2115)',
+            event: 'chess.com Fog of War, 3+0, July 2026',
+            perspective: 'white',
+            fog: 'white',
+            resultText: 'White wins by king capture on f5.',
+            notes: {
+              3: 'again. Black’s queen steps to e7, and the diagonal never opens.',
+              11: 'six moves out, nothing found, and the setup takes over.',
+              26: 'the bishop that came to hunt trades itself off instead.',
+              27: 'the f2 pawn recaptures toward the centre, which is the opposite of the disaster f2 is supposed to be.',
+              76: 'the king takes the knight. Legal, winning, and fatal.',
+              77: 'Rxf5. The rook had been on the f-file since move 19 and Black could not see it.',
+            },
+          },
+          caption:
+            'A win over a 2115, the strongest player this system has beaten. The last two moves are the variant in miniature: the king captures a knight it can take, and a rook it never saw takes it back.',
+        } as ArticleBlock,
       ],
     },
     {
