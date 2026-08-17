@@ -37,10 +37,10 @@ export const ARTICLE_META: Record<
       'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.',
   },
   'fog-openings': {
-    title: 'The Three-Move Kill in Fog Chess',
+    title: 'An Opening System for Fog Chess',
     kind: 'article',
     description:
-      'A Fog of War chess opening trap that captures the king on move three, and the Qa4 system it belongs to. Measured across 598 games: which Black replies switch it on, which stop it dead, and what actually happens to the queen afterwards.',
+      'A complete Fog of War chess opening system built on 1.c4 and 2.Qa4, measured across 899 games. The queen doubles as a sensor and sometimes captures the king on move three. Which Black replies hold, which collapse, and where the system stops working.',
   },
   'dark-draft960': {
     title: 'Dark Draft960',

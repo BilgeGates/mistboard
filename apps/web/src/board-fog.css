@@ -201,6 +201,7 @@
 :root[data-fog-theme="mistveil"] .replay-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="mistveil"] .stepper-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="mistveil"] .live-boards-board cg-board square.fog-hidden.white,
+:root[data-fog-theme="mistveil"] .chess-replay-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="mistveil"] .articles-thumb-board cg-board square.fog-hidden.white {
   background: var(--board-fog-tile), var(--board-fog-light-fill);
   background-repeat: no-repeat;
@@ -211,6 +212,7 @@
 :root[data-fog-theme="mistveil"] .replay-board cg-board square.fog-hidden.black,
 :root[data-fog-theme="mistveil"] .stepper-board cg-board square.fog-hidden.black,
 :root[data-fog-theme="mistveil"] .live-boards-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="mistveil"] .chess-replay-board cg-board square.fog-hidden.black,
 :root[data-fog-theme="mistveil"] .articles-thumb-board cg-board square.fog-hidden.black {
   background: var(--board-fog-tile), var(--board-fog-dark-fill);
   background-repeat: no-repeat;
@@ -234,6 +236,7 @@
 .replay-board.cg-wrap,
 .stepper-board.cg-wrap,
 .live-boards-board.cg-wrap,
+.chess-replay-board.cg-wrap,
 .articles-thumb-board.cg-wrap {
   border-radius: var(--board-corner-radius);
   overflow: hidden;
@@ -261,6 +264,7 @@
 :root[data-fog-theme="invisible"] .replay-board.cg-wrap,
 :root[data-fog-theme="invisible"] .stepper-board.cg-wrap,
 :root[data-fog-theme="invisible"] .live-boards-board.cg-wrap,
+:root[data-fog-theme="invisible"] .chess-replay-board.cg-wrap,
 :root[data-fog-theme="invisible"] .articles-thumb-board.cg-wrap {
   background: transparent;
 }
@@ -273,8 +277,11 @@
 :root[data-fog-theme="invisible"] .stepper-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="invisible"] .stepper-board cg-board square.fog-hidden.black,
 :root[data-fog-theme="invisible"] .live-boards-board cg-board square.fog-hidden,
+:root[data-fog-theme="invisible"] .chess-replay-board cg-board square.fog-hidden,
 :root[data-fog-theme="invisible"] .live-boards-board cg-board square.fog-hidden.white,
+:root[data-fog-theme="invisible"] .chess-replay-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="invisible"] .live-boards-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="invisible"] .chess-replay-board cg-board square.fog-hidden.black,
 :root[data-fog-theme="invisible"] .articles-thumb-board cg-board square.fog-hidden,
 :root[data-fog-theme="invisible"] .articles-thumb-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="invisible"] .articles-thumb-board cg-board square.fog-hidden.black {
@@ -291,8 +298,11 @@
 :root[data-fog-theme="veil"] .stepper-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="veil"] .stepper-board cg-board square.fog-hidden.black,
 :root[data-fog-theme="veil"] .live-boards-board cg-board square.fog-hidden,
+:root[data-fog-theme="veil"] .chess-replay-board cg-board square.fog-hidden,
 :root[data-fog-theme="veil"] .live-boards-board cg-board square.fog-hidden.white,
+:root[data-fog-theme="veil"] .chess-replay-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="veil"] .live-boards-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="veil"] .chess-replay-board cg-board square.fog-hidden.black,
 :root[data-fog-theme="veil"] .articles-thumb-board cg-board square.fog-hidden,
 :root[data-fog-theme="veil"] .articles-thumb-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="veil"] .articles-thumb-board cg-board square.fog-hidden.black,
@@ -308,8 +318,11 @@
 :root[data-fog-theme="drift"] .stepper-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="drift"] .stepper-board cg-board square.fog-hidden.black,
 :root[data-fog-theme="drift"] .live-boards-board cg-board square.fog-hidden,
+:root[data-fog-theme="drift"] .chess-replay-board cg-board square.fog-hidden,
 :root[data-fog-theme="drift"] .live-boards-board cg-board square.fog-hidden.white,
+:root[data-fog-theme="drift"] .chess-replay-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="drift"] .live-boards-board cg-board square.fog-hidden.black,
+:root[data-fog-theme="drift"] .chess-replay-board cg-board square.fog-hidden.black,
 :root[data-fog-theme="drift"] .articles-thumb-board cg-board square.fog-hidden,
 :root[data-fog-theme="drift"] .articles-thumb-board cg-board square.fog-hidden.white,
 :root[data-fog-theme="drift"] .articles-thumb-board cg-board square.fog-hidden.black {
@@ -324,6 +337,7 @@
 :root[data-fog-theme="mistveil"] .replay-board cg-board square.fog-hidden,
 :root[data-fog-theme="mistveil"] .stepper-board cg-board square.fog-hidden,
 :root[data-fog-theme="mistveil"] .live-boards-board cg-board square.fog-hidden,
+:root[data-fog-theme="mistveil"] .chess-replay-board cg-board square.fog-hidden,
 :root[data-fog-theme="mistveil"] .articles-thumb-board cg-board square.fog-hidden {
   background-size: 100% 100%;
   background-repeat: no-repeat;
