@@ -76,7 +76,11 @@ interface VideoBase {
   /** Serve the card image from our own domain instead of deriving it. Our own
    *  episodes use this: a YouTube-derived thumbnail is a third-party request
    *  that ad and privacy blockers routinely drop, and our card is the one on
-   *  this page that must never fail to render. */
+   *  this page that must never fail to render.
+   *
+   *  VERSION THE FILENAME when the art changes. These are served with a
+   *  four-hour max-age, so re-uploading the same path leaves the CDN handing
+   *  out the old bytes long after the deploy reports success. */
   thumbnailUrl?: string;
 }
 
@@ -751,7 +755,7 @@ const MISTBOARD_CHANNEL_VIDEOS: readonly YoutubeVideo[] = [
   {
     source: 'youtube',
     id: 'aWxafeWsncQ',
-    thumbnailUrl: '/video-thumbs/ep01-chess-players-guide.png',
+    thumbnailUrl: '/video-thumbs/ep01-chess-players-guide-v2.png',
     title: 'Chinese Chess (Xiangqi) for Chess Players: All the Rules in 6 Minutes',
     author: 'Mistboard',
     firstParty: true,
