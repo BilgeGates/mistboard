@@ -429,11 +429,14 @@ describe('buildHomeVideoCards', () => {
 
   it('only surfaces curated keys that resolve against the catalog', () => {
     const row = buildHomeVideoCards(8, 'en');
-    const known = new Set(VIDEOS.map((video) => videoKey(video)));
+    // Ours are curated into the strip too, and they live outside VIDEOS.
+    const known = new Set([...FIRST_PARTY_VIDEOS, ...VIDEOS].map((video) => videoKey(video)));
     const hrefs = [...row!.querySelectorAll<HTMLAnchorElement>('.landing-video-card')].map(
       (card) => card.href,
     );
-    // Each rendered card's watch URL corresponds to a real catalog video.
+    // Each rendered card's watch URL corresponds to a real entry, and ours
+    // leads the English arc.
+    expect(hrefs[0]).toContain('aWxafeWsncQ');
     for (const href of hrefs) {
       const id = new URL(href).searchParams.get('v');
       expect(known.has(`yt:${id}`)).toBe(true);
