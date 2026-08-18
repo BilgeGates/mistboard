@@ -17,6 +17,7 @@ import { t } from './i18n/catalog.js';
 import { currentLocale, type Locale } from './i18n/locale.js';
 import { buildNav } from './site-shell.js';
 import {
+  FIRST_PARTY_VIDEOS,
   VIDEO_LANGUAGES,
   VIDEO_LEVELS,
   VIDEO_TAGS,
@@ -131,6 +132,29 @@ export function buildVideosPage(locale: Locale = currentLocale()): HTMLElement {
   const intro = document.createElement('p');
   intro.className = 'videos-intro';
   intro.textContent = t('videos.intro', {}, locale);
+
+  // Ours lead. The library's job changed the day the channel published: it is
+  // the site's one surface that can turn a visitor into a subscriber, and a
+  // page whose every card sends traffic to another channel cannot do that.
+  // The curated catalogue still carries the page while there is one episode.
+  const ours = document.createElement('section');
+  ours.className = 'videos-ours';
+  const oursHeading = document.createElement('h2');
+  oursHeading.className = 'videos-ours-heading';
+  oursHeading.textContent = t('videos.ourHeading', {}, locale);
+  const oursIntro = document.createElement('p');
+  oursIntro.className = 'videos-ours-intro';
+  oursIntro.textContent = t('videos.ourIntro', {}, locale);
+  const oursList = document.createElement('ul');
+  oursList.className = 'videos-grid videos-ours-grid';
+  for (const video of FIRST_PARTY_VIDEOS) oursList.append(buildVideoCard(video, locale));
+  const subscribe = document.createElement('a');
+  subscribe.className = 'videos-subscribe';
+  subscribe.href = 'https://www.youtube.com/@Mistboard?sub_confirmation=1';
+  subscribe.target = '_blank';
+  subscribe.rel = 'noopener noreferrer';
+  subscribe.textContent = t('videos.subscribe', {}, locale);
+  ours.append(oursHeading, oursIntro, oursList, subscribe);
 
   // Which facet options actually exist in the data. Level always spans its full
   // ordered set; language, variant, and source facets render only when they
@@ -267,7 +291,7 @@ export function buildVideosPage(locale: Locale = currentLocale()): HTMLElement {
   count.setAttribute('aria-live', 'polite');
 
   const grid = document.createElement('ul');
-  grid.className = 'videos-grid';
+  grid.className = 'videos-grid videos-catalog-grid';
 
   const empty = document.createElement('p');
   empty.className = 'videos-empty';
@@ -311,7 +335,7 @@ export function buildVideosPage(locale: Locale = currentLocale()): HTMLElement {
 
   apply();
 
-  section.append(heading, intro, controls, facets, count, grid, empty, note);
+  section.append(heading, intro, ours, controls, facets, count, grid, empty, note);
   return section;
 }
 
@@ -461,7 +485,7 @@ export function buildVideoCard(video: VideoEntry, locale: Locale = currentLocale
   img.loading = 'lazy';
   thumb.append(img);
 
-  if (video.source === 'mistboard') {
+  if (video.firstParty === true || video.source === 'mistboard') {
     const badge = document.createElement('span');
     badge.className = 'videos-source-badge';
     badge.textContent = t('videos.badge.mistboard', {}, locale);
@@ -646,7 +670,7 @@ function landingVideoCard(video: VideoEntry, locale: Locale): HTMLElement {
     thumb.append(duration);
   }
 
-  if (video.source === 'mistboard') {
+  if (video.firstParty === true || video.source === 'mistboard') {
     const badge = document.createElement('span');
     badge.className = 'landing-video-card-badge';
     badge.textContent = t('videos.badge.mistboard', {}, locale);

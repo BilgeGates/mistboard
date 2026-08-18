@@ -244,3 +244,41 @@
   color: var(--site-muted);
   font-size: 13px;
 }
+
+/* Ours, above the curated catalogue. Bordered off so it reads as the site's own
+   shelf rather than the first three cards of someone else's list. */
+.videos-ours {
+  margin: 0 0 30px;
+  padding: 20px 20px 24px;
+  border: 1px solid var(--site-border-soft);
+  border-radius: var(--site-radius, 10px);
+  background: var(--site-panel);
+}
+
+.videos-ours-heading {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.videos-ours-intro {
+  margin: 0 0 16px;
+  color: var(--site-muted);
+  font-size: 13px;
+}
+
+.videos-subscribe {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 9px 18px;
+  border-radius: var(--site-radius-sm, 6px);
+  background: var(--site-accent);
+  color: var(--site-on-accent);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.videos-subscribe:hover {
+  background: var(--site-accent-strong);
+}
