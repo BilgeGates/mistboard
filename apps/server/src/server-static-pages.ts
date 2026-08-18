@@ -5,6 +5,7 @@ import type { Color } from '@mistboard/game';
 import { ARTICLE_META, articleIsIndexable, canonicalArticleBase } from './article-meta.js';
 import { GAME_OG_IMAGE_VERSION, STUDY_OG_IMAGE_VERSION } from './og-image.js';
 import * as persistence from './persistence.js';
+import { isNoindexRoute } from './server-policy.js';
 import { chapterIsSubstantial, chapterPageMeta, renderStudyBody } from './study-page-body.js';
 
 export { ARTICLE_META, canonicalArticleBase };
@@ -206,10 +207,13 @@ export async function serveSpaShellWithRoutePreloads(params: {
 }): Promise<boolean> {
   const links = await routePreloadLinksForPath(params);
   const routeMeta = SPA_ROUTE_META[params.pathname];
-  // Either signal alone is worth serving the shell ourselves: a route can have
-  // meta but no preload manifest entry, or vice versa. Only bail when we would
-  // add nothing over the plain static file.
-  if (!links && !routeMeta) return false;
+  const noindex = isNoindexRoute(params.pathname);
+  // Any one signal alone is worth serving the shell ourselves: a route can have
+  // meta but no preload manifest entry, or vice versa, or neither but still need
+  // the robots tag. Only bail when we would add nothing over the plain static
+  // file. Leaving noindex out of this condition would silently do nothing for
+  // exactly the private routes that have no meta and no preloads.
+  if (!links && !routeMeta && !noindex) return false;
   const indexPath = resolve(params.staticDir, 'index.html');
   let html = await fs.readFile(indexPath, 'utf-8');
   if (routeMeta && params.publicHost) {
@@ -218,6 +222,9 @@ export async function serveSpaShellWithRoutePreloads(params: {
       description: routeMeta.description,
       url: `${params.publicHost}${params.pathname}`,
     });
+  }
+  if (noindex) {
+    html = html.replace('</head>', '<meta name="robots" content="noindex, follow"></head>');
   }
   if (links) html = html.replace('</head>', `${links}</head>`);
   params.response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });

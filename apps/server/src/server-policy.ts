@@ -300,6 +300,40 @@ export function isClientRoute(pathname: string): boolean {
   );
 }
 
+// Client routes that must never appear in a search index: the signed-in surface
+// (auth, settings, inbox) and the personalised feeds, whose content is either
+// per-account or empty to a crawler.
+//
+// These are already absent from the sitemap, which is not sufficient — a
+// sitemap invites crawling, it does not forbid it, and Search Console showed
+// /account?tab=login, /feed and /following all picking up impressions on brand
+// queries in the 90 days to 2026-08-14. A login page as a search result is the
+// visible symptom; the quieter cost is that a dozen thin account pages compete
+// with the real pages for the same query.
+//
+// robots.txt Disallow is the wrong tool here. These URLs are already indexed,
+// and disallowing them would block the recrawl that is required to *see* the
+// noindex, freezing them in the index instead of removing them. Serve the tag
+// and let the crawler act on it.
+//
+// Deliberately excluded: /player, /source, /leaderboard, /privacy and /terms.
+// The first two are in the sitemap on purpose and the rest are ordinary public
+// pages — thin is not the same as private.
+export function isNoindexRoute(pathname: string): boolean {
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+  return (
+    normalized === '/account' ||
+    normalized === '/account/settings' ||
+    normalized.startsWith('/account/settings/') ||
+    normalized === '/inbox' ||
+    normalized.startsWith('/inbox/') ||
+    normalized === '/feed' ||
+    normalized === '/following' ||
+    normalized === '/correspondence' ||
+    normalized.startsWith('/challenge/')
+  );
+}
+
 // Review-shell document routes: the postgame board at /game/:id and each
 // /<variant>/game/:id, the standalone analysis board /analysis/:variant, study
 // pages, and the puzzle trainer /puzzles(/:id). These serve a SPA shell that can

@@ -509,6 +509,39 @@ test('serveSpaShellWithRoutePreloads leaves the response untouched when nothing 
   assert.equal(response.body, '');
 });
 
+// The load-bearing case: /following has no route meta and no preload manifest
+// entry, so before the noindex branch joined the bail condition this handler
+// returned false and served the plain static shell with no robots tag. The
+// policy would have looked correct in server-policy.ts and done nothing.
+test('serveSpaShellWithRoutePreloads serves a robots tag for a private route with no meta or preloads', async () => {
+  const staticDir = await staticDirWithPreloadManifest();
+  const response = captureResponse();
+
+  const served = await serveSpaShellWithRoutePreloads({
+    response,
+    staticDir,
+    pathname: '/following',
+  });
+
+  assert.equal(served, true);
+  assert.equal(response.status, 200);
+  assert.match(response.body, /<meta name="robots" content="noindex, follow">/);
+});
+
+test('serveSpaShellWithRoutePreloads leaves a public route indexable', async () => {
+  const staticDir = await staticDirWithPreloadManifest();
+  const response = captureResponse();
+
+  await serveSpaShellWithRoutePreloads({
+    response,
+    staticDir,
+    pathname: '/rules',
+    publicHost: 'https://mistboard.com',
+  });
+
+  assert.doesNotMatch(response.body, /noindex/);
+});
+
 test('serveStudyPage without persistence serves the plain shell (no meta leak, no crash)', async () => {
   const staticDir = await mkdtemp(join(tmpdir(), 'mistboard-static-'));
   await writeFile(join(staticDir, 'index.html'), indexHtml(), 'utf-8');

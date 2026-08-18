@@ -15,6 +15,7 @@ import {
   isClientRoute,
   isDatabaseRequired,
   isDrainToken,
+  isNoindexRoute,
   isPrivateOrReservedIp,
   isReviewShellRoute,
   legacyPageRedirect,
@@ -443,6 +444,59 @@ test('isClientRoute covers every parametric route matcher declared in main.ts', 
       `main.ts routes ${prefix}* client-side but server isClientRoute() rejects ${sample}`,
     );
   }
+});
+
+// One concrete path per branch of isNoindexRoute, including the parametric
+// prefixes, so the parity check below actually exercises each one.
+const NOINDEX_ROUTE_SAMPLES = [
+  '/account',
+  '/account/settings',
+  '/account/settings/profile',
+  '/inbox',
+  '/inbox/abc123',
+  '/feed',
+  '/following',
+  '/correspondence',
+  '/challenge/abc123',
+];
+
+// A noindex route that is not a client route never reaches the shell handler
+// that injects the tag, so the policy would be inert without anyone noticing.
+test('every noindex route is a client route', () => {
+  for (const route of NOINDEX_ROUTE_SAMPLES) {
+    assert.equal(
+      isClientRoute(route),
+      true,
+      `${route} is marked noindex but is not a client route, so the robots tag is never served`,
+    );
+  }
+});
+
+// Advertising a URL in the sitemap while telling crawlers not to index it is a
+// direct contradiction, and it is the exact hand-mirror shape this file already
+// guards elsewhere: two lists maintained separately, drifting silently.
+test('no noindex route is advertised in the sitemap', () => {
+  for (const route of SITEMAP_STATIC_ROUTES) {
+    assert.equal(
+      isNoindexRoute(route),
+      false,
+      `sitemap advertises ${route}, but isNoindexRoute() marks it noindex`,
+    );
+  }
+});
+
+// Thin is not the same as private. These are ordinary public pages and a
+// regression that swept them into the noindex set would quietly delist real
+// content, which is far more expensive than the problem this policy solves.
+test('public pages are never noindexed', () => {
+  for (const route of ['/', '/about', '/player', '/source', '/leaderboard', '/privacy', '/terms']) {
+    assert.equal(isNoindexRoute(route), false, `${route} is a public page and must stay indexable`);
+  }
+});
+
+test('isNoindexRoute ignores a trailing slash', () => {
+  assert.equal(isNoindexRoute('/account/'), true);
+  assert.equal(isNoindexRoute('/following/'), true);
 });
 
 // The sitemap must never advertise a route the server 404s: every static route
