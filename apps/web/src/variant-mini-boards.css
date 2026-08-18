@@ -15,10 +15,10 @@
  * intent, so those classes carry literal colours. */
 
 .variant-mini .vm-sq-light {
-  fill: var(--board-light, #f5dca8);
+  fill: var(--board-light, #f0d9b5);
 }
 .variant-mini .vm-sq-dark {
-  fill: var(--board-dark, #bd9051);
+  fill: var(--board-dark, #b58863);
 }
 .variant-mini .vm-chess-fog {
   fill: #17261a;

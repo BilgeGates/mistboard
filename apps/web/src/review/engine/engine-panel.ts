@@ -4,6 +4,7 @@
 // pushed in via setPosition() from the postgame's ply navigation; scores are
 // normalised to Red's POV so the eval reads the same regardless of whose turn it is.
 // Before a flip game binds ink ownership, the same seat is labelled P1 instead.
+import { t } from '../../i18n/catalog.js';
 import { gearIconSvg } from '../../theme.js';
 import {
   type CevalEffort,
@@ -97,7 +98,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   toggle.className = 'engine-panel__switch';
   toggle.setAttribute('role', 'switch');
   toggle.setAttribute('aria-checked', 'false');
-  toggle.setAttribute('aria-label', 'Toggle local engine');
+  toggle.setAttribute('aria-label', t('engine.toggleLocal'));
   const knob = document.createElement('span');
   knob.className = 'engine-panel__switch-knob';
   knob.innerHTML = KNOB_OFF_ICON + KNOB_ON_ICON;
@@ -116,7 +117,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   const gear = document.createElement('button');
   gear.type = 'button';
   gear.className = 'engine-panel__gear';
-  gear.setAttribute('aria-label', 'Engine settings');
+  gear.setAttribute('aria-label', t('engine.settings'));
   gear.setAttribute('aria-expanded', 'false');
   gear.innerHTML = gearIconSvg(16);
   head.append(toggle, evalLabel, id, gear);
@@ -137,16 +138,21 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
   settings.hidden = true;
   if (opts.arrowsSupported !== false) {
     settings.append(
-      checkboxRow('Best move indicators', showArrowsToggle, opts.showArrows ?? true, (enabled) => {
-        opts.onShowArrowsChange?.(enabled);
-      }),
+      checkboxRow(
+        t('engine.bestMoveIndicators'),
+        showArrowsToggle,
+        opts.showArrows ?? true,
+        (enabled) => {
+          opts.onShowArrowsChange?.(enabled);
+        },
+      ),
     );
   } else {
     showArrowsToggle.checked = opts.showArrows ?? true;
   }
   settings.append(
     sliderRow(
-      'Multiple lines',
+      t('engine.multipleLines'),
       { min: 1, max: 5, step: 1, value: multiPv },
       (value) => `${value} / 5`,
       (value) => {
@@ -155,7 +161,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
       },
     ),
     sliderRow(
-      'Search effort',
+      t('engine.searchEffort'),
       {
         min: 0,
         max: effortOptions.length - 1,
@@ -209,7 +215,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     toggle.classList.toggle('engine-panel__switch--on', on);
     el.classList.toggle('engine-panel--on', on);
     // Off-state status line, lichess-style: where the engine would run.
-    if (supported && !on) sub.textContent = 'in local browser';
+    if (supported && !on) sub.textContent = t('engine.inLocalBrowser');
   }
 
   function clearOutput(): void {
@@ -227,7 +233,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
       const { cp, mate } = redPov(best, side);
       const display = formatScore(opts.variant, cp, mate);
       evalLabel.textContent = firstPlayer ? `P1 ${display}` : display;
-      if (firstPlayer) evalLabel.title = 'First player perspective';
+      if (firstPlayer) evalLabel.title = t('engine.firstPlayerPerspective');
       else evalLabel.removeAttribute('title');
       opts.evalBar?.setEval(cp, mate);
     }
@@ -281,7 +287,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
       handle?.stop();
       clearOutput();
       opts.evalBar?.setIdle(true);
-      sub.textContent = 'Game over';
+      sub.textContent = t('engine.gameOver');
       return;
     }
     opts.evalBar?.setIdle(false);
@@ -296,7 +302,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     if (!currentSearchable) {
       clearOutput();
       opts.evalBar?.setIdle(true);
-      sub.textContent = 'Game over';
+      sub.textContent = t('engine.gameOver');
       return;
     }
     opts.evalBar?.setIdle(false);
@@ -324,7 +330,7 @@ export function createEnginePanel(opts: EnginePanelOptions): EnginePanel {
     if (!on || effort !== 'infinite') return;
     if (document.hidden) {
       handle?.stop();
-      sub.textContent = 'Paused while tab inactive';
+      sub.textContent = t('engine.pausedInactive');
       return;
     }
     evaluateNow();
@@ -376,11 +382,11 @@ function effortForInitialDepth(maxDepth?: number): CevalEffort {
 function effortLabel(effort: CevalEffort): string {
   switch (effort) {
     case 'quick':
-      return 'Quick';
+      return t('engine.effortQuick');
     case 'standard':
-      return 'Standard';
+      return t('engine.effortStandard');
     case 'deep':
-      return 'Deep';
+      return t('engine.effortDeep');
     case 'max':
       return 'Max';
     case 'infinite':

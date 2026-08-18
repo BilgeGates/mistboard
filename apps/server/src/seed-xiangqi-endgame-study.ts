@@ -29,7 +29,7 @@
  * The value is a live credential: it is read from the environment, never
  * logged, and must not be pasted anywhere it would be recorded.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import {
   applyStandardXiangqiMove,
   type EndgameEntry,
@@ -189,6 +189,18 @@ function chapterPayload(entry: EndgameEntry, row: VerifyRow | undefined) {
   };
 }
 
+/** The create-study body, shared by the poster and by --emit. */
+function studyCreateBody(visibility: string, chapter: unknown): Record<string, unknown> {
+  return {
+    name: 'Xiangqi basic endgames: what wins and what draws',
+    description:
+      'The book verdicts of the basic endgames, each rooted at a representative position with Pikafish’s line as the mainline. Play them out against the engine rather than taking the verdict on trust. Where the verdicts come from, how they were checked, and the two the engine refused to confirm until a tablebase settled them: https://brianhliou.com/posts/xiangqi-basic-endgames/',
+    i18n: ENDGAME_STUDY_I18N,
+    visibility,
+    chapter,
+  };
+}
+
 class Session {
   private cookie = '';
 
@@ -253,6 +265,19 @@ async function main(): Promise<void> {
       (rows.length === 0 ? ' (no verification JSON given, so positions only)' : ''),
   );
 
+  // Write exactly what would be POSTed, without posting it. Lets the payloads be
+  // inspected, diffed, or handed to a client that already holds a session.
+  const emitPath = typeof args.emit === 'string' ? args.emit : null;
+  if (emitPath) {
+    const [firstChapter, ...restChapters] = chapters;
+    writeFileSync(
+      emitPath,
+      JSON.stringify({ study: studyCreateBody(visibility, firstChapter), chapters: restChapters }),
+    );
+    console.log(`wrote ${chapters.length} chapter payloads to ${emitPath}`);
+    return;
+  }
+
   if (dryRun) {
     for (const chapter of chapters) {
       let depth = 0;
@@ -289,14 +314,7 @@ async function main(): Promise<void> {
 
   const [first, ...rest] = chapters;
   if (!first) return;
-  const createResponse = await session.post('/api/studies', {
-    name: 'Xiangqi basic endgames: what wins and what draws',
-    description:
-      'The book verdicts of the basic endgames, each rooted at a representative position with Pikafish’s line as the mainline. Play them out against the engine rather than taking the verdict on trust.',
-    i18n: ENDGAME_STUDY_I18N,
-    visibility,
-    chapter: first,
-  });
+  const createResponse = await session.post('/api/studies', studyCreateBody(visibility, first));
   if (!createResponse.ok) {
     throw new Error(`create study failed: ${createResponse.status} ${await createResponse.text()}`);
   }

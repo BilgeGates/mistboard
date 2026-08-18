@@ -5,18 +5,20 @@
 // values. Shapes themselves are drawn on the board (right-drag); this panel only
 // offers a clear-all for them.
 
+import { t } from '../i18n/catalog.js';
+import type { ReviewI18nKey } from '../i18n/catalogs/review.js';
 import type { NodeAnnotations } from './game-tree.js';
 import './annotations-editor.css';
 
 /** The six standard move glyphs, in NAG code order. User-set here; kept distinct
  *  from the engine judgment glyph the move list derives from analysis. */
-const GLYPHS: ReadonlyArray<{ code: number; label: string; title: string }> = [
-  { code: 1, label: '!', title: 'Good move' },
-  { code: 3, label: '!!', title: 'Brilliant move' },
-  { code: 5, label: '!?', title: 'Interesting move' },
-  { code: 6, label: '?!', title: 'Dubious move' },
-  { code: 2, label: '?', title: 'Mistake' },
-  { code: 4, label: '??', title: 'Blunder' },
+const GLYPHS: ReadonlyArray<{ code: number; label: string; titleKey: ReviewI18nKey }> = [
+  { code: 1, label: '!', titleKey: 'annotate.goodMove' },
+  { code: 3, label: '!!', titleKey: 'annotate.brilliantMove' },
+  { code: 5, label: '!?', titleKey: 'annotate.interestingMove' },
+  { code: 6, label: '?!', titleKey: 'annotate.dubiousMove' },
+  { code: 2, label: '?', titleKey: 'annotate.mistake' },
+  { code: 4, label: '??', titleKey: 'annotate.blunder' },
 ];
 
 export interface AnnotationEditorOptions {
@@ -59,7 +61,7 @@ export function createAnnotationEditor(opts: AnnotationEditorOptions): Annotatio
     button.type = 'button';
     button.className = 'annotation-editor__glyph';
     button.textContent = glyph.label;
-    button.title = glyph.title;
+    button.title = t(glyph.titleKey);
     button.addEventListener('click', () => {
       const active = button.classList.contains('annotation-editor__glyph--active');
       opts.onGlyph(active ? null : glyph.code);
@@ -72,7 +74,7 @@ export function createAnnotationEditor(opts: AnnotationEditorOptions): Annotatio
   clearShapes.type = 'button';
   clearShapes.className = 'annotation-editor__clear-shapes';
   clearShapes.textContent = 'Clear shapes';
-  clearShapes.title = 'Remove drawn arrows and circles from this move';
+  clearShapes.title = t('annotate.clearShapes');
   clearShapes.addEventListener('click', () => opts.onClearShapes());
   glyphRow.append(clearShapes);
 
@@ -136,11 +138,11 @@ export function createAnnotationEditor(opts: AnnotationEditorOptions): Annotatio
 
   setAnnotations(undefined);
   const tabs = [
-    { id: 'comment', label: 'Comment', body: commentPanel },
-    { id: 'glyphs', label: 'Glyphs', body: glyphPanel },
+    { id: 'comment', label: t('annotate.comment'), body: commentPanel },
+    { id: 'glyphs', label: t('annotate.glyphs'), body: glyphPanel },
   ];
   if (lessonPanel.childElementCount > 0) {
-    tabs.push({ id: 'lesson', label: 'Lesson', body: lessonPanel });
+    tabs.push({ id: 'lesson', label: t('annotate.lesson'), body: lessonPanel });
   }
   return { el: panel, tabs, setAnnotations };
 }

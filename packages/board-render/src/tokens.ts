@@ -3,12 +3,14 @@
 // (chessground.brown.css); mirror any change to those CSS values here so the
 // two render paths stay in sync.
 
-// Wood: the light square is the xiangqi board surface (--xq-board-bg) and the
-// dark square is the same tan carried down the wood ramp, so chess-family boards
-// read as the same material as the xiangqi ones. Mirrors the :root block in
-// apps/web/src/app-base.css.
-export const LIGHT_SQUARE = '#f5dca8';
-export const DARK_SQUARE = '#bd9051';
+// Lichess brown. Mirrors --board-light/--board-dark in the :root block of
+// apps/web/src/app-base.css, which carries the full rationale (including that
+// the pair sits under the 3:1 contrast floor, knowingly). Restored 2026-08-16
+// from a wood pair; these two constants had already drifted from the CSS by
+// then, so change both files together or the SVG and chessground render paths
+// will disagree again.
+export const LIGHT_SQUARE = '#f0d9b5';
+export const DARK_SQUARE = '#b58863';
 
 // Fog veil tokens — matched to the live-game CSS variables
 // (--board-fog-* in apps/web/src/styles.css). Fog is drawn as a translucent

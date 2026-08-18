@@ -15,8 +15,15 @@
  *   - It DOES show where raw material misleads, which is the interesting half:
  *     a chariot against four defensive pieces is +900 of material and a draw.
  *
+ * --tablebase adds the one thing a search cannot give: for the small-material
+ * end of the corpus, chessdb.cn answers exactly (win / draw / loss plus a mate
+ * distance that falls by one every ply, which is what tells you it is a lookup
+ * and not a search wearing a mate score). Roughly 27 of the 32 rows fit. It is a
+ * network call, so it stays opt-in.
+ *
  * Usage:
  *   npx tsx apps/server/src/verify-xiangqi-endgames.ts [--depth 30] [--json out.json]
+ *   npx tsx apps/server/src/verify-xiangqi-endgames.ts --tablebase
  */
 import { writeFileSync } from 'node:fs';
 import {
@@ -60,7 +67,48 @@ type Row = {
    * is reported apart from real disagreements rather than counted as one.
    */
   unresolved: boolean;
+  /** Exact verdict from Red's point of view, when the position fits the database. */
+  tablebase?: 'win' | 'draw' | 'loss' | 'not-in-db';
+  /** Plies to mate, as the database reports them. */
+  tablebasePlies?: number | null;
 };
+
+const TABLEBASE_ENDPOINT = 'http://www.chessdb.cn/chessdb.php';
+
+/**
+ * Ask the cloud database for one position. Returns the verdict from the SIDE TO
+ * MOVE, which the caller normalises, plus the plies-to-mate it reports.
+ */
+async function queryTablebase(
+  fen: string,
+): Promise<{ verdict: 'win' | 'draw' | 'loss' | 'not-in-db'; plies: number | null }> {
+  const url = `${TABLEBASE_ENDPOINT}?action=queryall&board=${encodeURIComponent(fen)}`;
+  let text: string;
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+    text = (await response.text()).trim();
+  } catch {
+    return { verdict: 'not-in-db', plies: null };
+  }
+  // "move:e0f0,score:29975,rank:2,note:! (W-M-0025)|move:…"
+  const best = text.split('|')[0] ?? '';
+  const note = /note:[^(]*\((W|D|L)-M-(\d+)\)/.exec(best);
+  if (note) {
+    const verdict = note[1] === 'W' ? 'win' : note[1] === 'L' ? 'loss' : 'draw';
+    return { verdict, plies: Number(note[2]) };
+  }
+  const score = Number(/score:(-?\d+)/.exec(best)?.[1] ?? 'NaN');
+  if (Number.isFinite(score)) {
+    return { verdict: score > 0 ? 'win' : score < 0 ? 'loss' : 'draw', plies: null };
+  }
+  return { verdict: 'not-in-db', plies: null };
+}
+
+function flipVerdict(verdict: 'win' | 'draw' | 'loss' | 'not-in-db') {
+  if (verdict === 'win') return 'loss' as const;
+  if (verdict === 'loss') return 'win' as const;
+  return verdict;
+}
 
 function classify(cp: number | null, mate: number | null): EngineRead {
   if (mate != null && mate !== 0) return mate > 0 ? 'decisive-red' : 'decisive-black';
@@ -147,6 +195,7 @@ async function main(): Promise<void> {
   const jsonPath = jsonArg >= 0 ? args[jsonArg + 1] : null;
   const onlyArg = args.indexOf('--only');
   const only = onlyArg >= 0 ? args[onlyArg + 1] : null;
+  const withTablebase = args.includes('--tablebase');
 
   const corpus = only
     ? XIANGQI_ENDGAME_CORPUS.filter((entry) => entry.id.includes(only))
@@ -165,10 +214,18 @@ async function main(): Promise<void> {
       console.log(`?? ${entry.id.padEnd(42)} eval failed: ${(error as Error).message}`);
       continue;
     }
+    if (withTablebase) {
+      const exact = await queryTablebase(row.fen);
+      row.tablebase = entry.turn === 'red' ? exact.verdict : flipVerdict(exact.verdict);
+      row.tablebasePlies = exact.plies;
+    }
     rows.push(row);
     const flag = row.agrees ? '  ' : row.expected ? '~~' : row.unresolved ? '..' : '!!';
+    const tb = row.tablebase
+      ? `  tb=${row.tablebase}${row.tablebasePlies == null ? '' : `/${row.tablebasePlies}ply`}`
+      : '';
     console.log(
-      `${flag} ${row.id.padEnd(42)} book=${row.verdict.padEnd(5)} engine=${row.read.padEnd(14)} ${scoreText(row).padStart(9)}  d${row.depth}`,
+      `${flag} ${row.id.padEnd(42)} book=${row.verdict.padEnd(5)} engine=${row.read.padEnd(14)} ${scoreText(row).padStart(9)}  d${row.depth}${tb}`,
     );
   }
 
@@ -182,6 +239,21 @@ async function main(): Promise<void> {
       (unresolved.length > 0 ? `, ${unresolved.length} leaning-but-unresolved (..)` : '') +
       '.',
   );
+  if (withTablebase) {
+    const covered = rows.filter((row) => row.tablebase && row.tablebase !== 'not-in-db');
+    const exactAgree = covered.filter(
+      (row) => (row.verdict === 'win') === (row.tablebase === 'win'),
+    );
+    console.log(
+      `${covered.length}/${rows.length} fit the cloud database; ${exactAgree.length}/${covered.length} of those match the book verdict exactly.`,
+    );
+    for (const row of covered) {
+      if ((row.verdict === 'win') !== (row.tablebase === 'win')) {
+        console.log(`  EXACT MISMATCH ${row.id}: book ${row.verdict}, database ${row.tablebase}`);
+        console.log(`    ${row.fen}`);
+      }
+    }
+  }
   if (disagreements.length > 0) {
     console.log('');
     console.log('NEW disagreements (check the POSITION first — a bad representative is the');

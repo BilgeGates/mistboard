@@ -1230,6 +1230,70 @@
   cursor: pointer;
 }
 
+/* Board + move list sit side by side on desktop and stack on phones. The list
+   is height-capped rather than full-length so a 120-ply game does not push the
+   stepper controls off the screen. */
+.chess-replay-body {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.chess-replay-moves {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  max-height: 320px;
+  overflow-y: auto;
+  min-width: 150px;
+  flex: 0 1 170px;
+}
+
+.chess-replay-move-row {
+  display: grid;
+  grid-template-columns: 2.2em 1fr 1fr;
+  gap: 2px;
+  align-items: baseline;
+}
+
+.chess-replay-move-no {
+  color: var(--site-muted);
+  text-align: right;
+  padding-right: 4px;
+}
+
+.chess-replay-move {
+  background: none;
+  border: 0;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.chess-replay-move:hover {
+  background: var(--site-hover, rgb(128 128 128 / 18%));
+}
+
+.chess-replay-move.is-current {
+  background: var(--site-accent);
+  color: var(--site-accent-contrast, #fff);
+}
+
+@media (max-width: 560px) {
+  .chess-replay-moves {
+    max-height: 160px;
+    flex-basis: 100%;
+  }
+}
+
 .article-figure-caption {
   color: var(--site-muted);
   font-size: 14px;
@@ -1256,6 +1320,46 @@
 .article-figure-code {
   align-items: stretch;
   width: 100%;
+}
+
+.article-figure-table {
+  align-items: stretch;
+  width: 100%;
+}
+
+/* Data tables scroll inside their own figure rather than widening the article,
+   so a wide comparison never forces the page to scroll sideways on a phone. */
+.article-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.article-table th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.62;
+  padding: 8px 14px 8px 0;
+  border-bottom: 1px solid var(--site-border, rgba(0, 0, 0, 0.14));
+}
+
+.article-table td {
+  padding: 8px 14px 8px 0;
+  border-bottom: 1px solid var(--site-border-soft, rgba(0, 0, 0, 0.07));
+}
+
+.article-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.article-table-row-emphasis td {
+  font-weight: 600;
 }
 
 .article-code-block {
@@ -1640,18 +1744,24 @@
   pointer-events: none;
 }
 
-.live-boards-board cg-board square.fog-hidden {
+/* Fog on the article boards. The container list is hand-maintained and appears
+   again in board-fog.css per fog theme, so a new fogged article surface has to
+   be added in BOTH files or it silently renders hidden squares as empty ones. */
+.live-boards-board cg-board square.fog-hidden,
+.chess-replay-board cg-board square.fog-hidden {
   background: var(--board-fog-light-background);
   background-size: var(--board-fog-size) var(--board-fog-size);
   box-shadow: inset 0 0 0 1px var(--board-fog-shadow);
 }
 
-.live-boards-board cg-board square.fog-hidden.white {
+.live-boards-board cg-board square.fog-hidden.white,
+.chess-replay-board cg-board square.fog-hidden.white {
   background: var(--board-fog-light-background);
   background-size: var(--board-fog-size) var(--board-fog-size);
 }
 
-.live-boards-board cg-board square.fog-hidden.black {
+.live-boards-board cg-board square.fog-hidden.black,
+.chess-replay-board cg-board square.fog-hidden.black {
   background: var(--board-fog-dark-background);
   background-size: var(--board-fog-size) var(--board-fog-size);
 }

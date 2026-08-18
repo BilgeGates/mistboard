@@ -364,6 +364,42 @@ export const EN_REVIEW = {
   'replay.gameSheet': 'Game sheet',
   'replay.openExternal': 'Open ↗',
   'replay.postgameReview': 'Postgame review',
+
+  // Underboard tab strip (underboard-tabs.ts), the annotation editor
+  // (annotations-editor.ts), and the local-engine widget (engine/engine-panel.ts).
+  // All three rendered hardcoded English on the study and analysis boards long
+  // after the chrome around them was translated, because none of them ever
+  // called t() — the catalog read complete while the surface did not.
+  'underboard.computerAnalysis': 'Computer analysis',
+  'underboard.explorer': 'Opening explorer',
+  'underboard.gameInfo': 'Game info',
+  'underboard.moveTimes': 'Move times',
+  'underboard.crosstable': 'Crosstable',
+  'underboard.shareExport': 'Share & export',
+  'annotate.comment': 'Comment',
+  'annotate.glyphs': 'Glyphs',
+  'annotate.lesson': 'Lesson',
+  'annotate.goodMove': 'Good move',
+  'annotate.brilliantMove': 'Brilliant move',
+  'annotate.interestingMove': 'Interesting move',
+  'annotate.dubiousMove': 'Dubious move',
+  'annotate.mistake': 'Mistake',
+  'annotate.clearShapes': 'Remove drawn arrows and circles from this move',
+  'annotate.blunder': 'Blunder',
+  'engine.settings': 'Engine settings',
+  'engine.toggleLocal': 'Toggle local engine',
+  'engine.inLocalBrowser': 'in local browser',
+  'engine.bestMoveIndicators': 'Best move indicators',
+  'engine.multipleLines': 'Multiple lines',
+  'engine.searchEffort': 'Search effort',
+  'engine.firstPlayerPerspective': 'First player perspective',
+  'engine.gameOver': 'Game over',
+  'engine.pausedInactive': 'Paused while tab inactive',
+  'engine.effortQuick': 'Quick',
+  'engine.effortStandard': 'Standard',
+  'engine.effortDeep': 'Deep',
+  'review.analysisBoard': 'Analysis board',
+  'review.flipBoard': 'Flip board',
 } as const;
 
 export type ReviewI18nKey = keyof typeof EN_REVIEW;

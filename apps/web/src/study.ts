@@ -10,6 +10,7 @@
 import './game-shell.css';
 import { t } from './i18n/catalog.js';
 import { localizedHref } from './i18n/locale.js';
+import { appendLinkedText } from './link-text.js';
 import { localizedStudyDescription, localizedStudyName } from './study-i18n.js';
 import './live-xiangqi.css';
 import './xiangqi-postgame.css';
@@ -672,9 +673,14 @@ function aboutPanel(study: StudyDto, chapter: ChapterDto): HTMLElement {
   const desc = localizedStudyDescription(study.description, study.i18n);
   const description = document.createElement('p');
   description.className = 'study-about__description';
-  description.textContent =
-    desc || (study.isOwner ? t('study.addDescription') : t('study.noDescription'));
-  if (!desc) description.classList.add('is-empty');
+  if (desc) {
+    // Author-written text, so it goes through the linkifier rather than
+    // innerHTML: a description that cites a source should be able to reach it.
+    appendLinkedText(description, desc);
+  } else {
+    description.textContent = study.isOwner ? t('study.addDescription') : t('study.noDescription');
+    description.classList.add('is-empty');
+  }
   panel.append(description);
 
   const row = document.createElement('div');

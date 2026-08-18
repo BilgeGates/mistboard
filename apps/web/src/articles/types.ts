@@ -270,8 +270,24 @@ export type CodeBlock = {
   maxHeight?: number;
 };
 
+/**
+ * A data table. Added for articles whose argument IS the numbers (opening
+ * statistics, engine comparisons), where prose or a code block would bury the
+ * comparison the reader came for. Cells are plain strings so a column can hold
+ * "79.1%" or "17 of 17" without the block needing to know about units.
+ */
+export type TableBlock = {
+  kind: 'table';
+  headers: string[];
+  rows: string[][];
+  caption?: string;
+  /** Emphasise a row (a result worth reading twice). Zero-indexed into `rows`. */
+  highlightRows?: number[];
+};
+
 export type ArticleBlock =
   | ParagraphBlock
+  | TableBlock
   | SubHeadingBlock
   | StaticBoardsBlock
   | InteractiveBlock
@@ -347,6 +363,14 @@ type ArticleBase = {
   // is a reference for a game we do not host yet.
   playableOnMistboard?: boolean;
   title: string;
+  /**
+   * Document <title> when it should differ from the on-page h1, which `title`
+   * still drives. Exists because a variant's brand name and its search name can
+   * be different words: Fog Chess is what we call it, "fog of war chess" is what
+   * players type, and the page ranked 8th for the former and 26th for the latter.
+   * Set this to serve search without renaming the variant on the page.
+   */
+  seoTitle?: string;
   summary: string;
   showSummaryOnPage?: boolean;
   // Non-variant guest pages only. Variant rules listings are controlled in

@@ -73,11 +73,22 @@ export type XiangqiOgBoardOptions = {
   centerX: number; // width derives from the grid's aspect ratio, so center it
   y: number;
   height: number;
+  /**
+   * Grid stroke width in board units (default 1).
+   *
+   * A hairline grid survives an OG card, which is viewed at roughly the size it
+   * was rendered. It does not survive a figure in an article: the board is ~630
+   * units wide and displays around 330 CSS pixels, so a 1-unit line lands at
+   * half a pixel and renders as grey mush rather than a line. Callers that know
+   * their display size should scale this so the line lands at 1 pixel or more.
+   */
+  lineWidth?: number;
 };
 
 // Renders from Red's perspective: rank 1 at the bottom.
 export function renderXiangqiOgBoardSvg(opts: XiangqiOgBoardOptions): string {
   const { files, ranks, pieces, fogPoints = [], riverBetweenRanks, palaces } = opts;
+  const lineWidth = opts.lineWidth ?? 1;
   // Ratios from the web diagrams (cell 31, margin 18, piece 28).
   const cell = opts.height / (ranks - 1 + 2 * 0.58);
   const margin = 0.58 * cell;
@@ -90,7 +101,7 @@ export function renderXiangqiOgBoardSvg(opts: XiangqiOgBoardOptions): string {
   parts.push(`<rect x="0" y="0" width="${width}" height="${opts.height}" rx="8" fill="${BG}"/>`);
   for (let rank = 1; rank <= ranks; rank += 1) {
     parts.push(
-      `<line x1="${px(0)}" y1="${py(rank)}" x2="${px(files - 1)}" y2="${py(rank)}" stroke="${INK}" stroke-width="1"/>`,
+      `<line x1="${px(0)}" y1="${py(rank)}" x2="${px(files - 1)}" y2="${py(rank)}" stroke="${INK}" stroke-width="${lineWidth}"/>`,
     );
   }
   for (let file = 0; file < files; file += 1) {
@@ -98,23 +109,23 @@ export function renderXiangqiOgBoardSvg(opts: XiangqiOgBoardOptions): string {
     if (riverBetweenRanks && !edge) {
       // Interior verticals stop at the river banks.
       parts.push(
-        `<line x1="${px(file)}" y1="${py(ranks)}" x2="${px(file)}" y2="${py(riverBetweenRanks[1])}" stroke="${INK}" stroke-width="1"/>`,
+        `<line x1="${px(file)}" y1="${py(ranks)}" x2="${px(file)}" y2="${py(riverBetweenRanks[1])}" stroke="${INK}" stroke-width="${lineWidth}"/>`,
       );
       parts.push(
-        `<line x1="${px(file)}" y1="${py(riverBetweenRanks[0])}" x2="${px(file)}" y2="${py(1)}" stroke="${INK}" stroke-width="1"/>`,
+        `<line x1="${px(file)}" y1="${py(riverBetweenRanks[0])}" x2="${px(file)}" y2="${py(1)}" stroke="${INK}" stroke-width="${lineWidth}"/>`,
       );
     } else {
       parts.push(
-        `<line x1="${px(file)}" y1="${py(ranks)}" x2="${px(file)}" y2="${py(1)}" stroke="${INK}" stroke-width="1"/>`,
+        `<line x1="${px(file)}" y1="${py(ranks)}" x2="${px(file)}" y2="${py(1)}" stroke="${INK}" stroke-width="${lineWidth}"/>`,
       );
     }
   }
   for (const palace of palaces) {
     parts.push(
-      `<line x1="${px(palace.fileLo)}" y1="${py(palace.rankHi)}" x2="${px(palace.fileHi)}" y2="${py(palace.rankLo)}" stroke="${INK}" stroke-width="1"/>`,
+      `<line x1="${px(palace.fileLo)}" y1="${py(palace.rankHi)}" x2="${px(palace.fileHi)}" y2="${py(palace.rankLo)}" stroke="${INK}" stroke-width="${lineWidth}"/>`,
     );
     parts.push(
-      `<line x1="${px(palace.fileHi)}" y1="${py(palace.rankHi)}" x2="${px(palace.fileLo)}" y2="${py(palace.rankLo)}" stroke="${INK}" stroke-width="1"/>`,
+      `<line x1="${px(palace.fileHi)}" y1="${py(palace.rankHi)}" x2="${px(palace.fileLo)}" y2="${py(palace.rankLo)}" stroke="${INK}" stroke-width="${lineWidth}"/>`,
     );
   }
   const fogged = new Set(fogPoints.map((point) => `${point.file}:${point.rank}`));

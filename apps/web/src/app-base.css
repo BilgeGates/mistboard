@@ -82,22 +82,26 @@
   --site-warning-bg: #fff4d6;
   --site-warning-border: #e6c870;
   --site-warning-text: #5a3d05;
-  /* Wood board: the ONLY chess-family board (2026-07-31). The light square IS
-     the xiangqi board surface (--xq-board-bg below) and the dark square is that
-     same tan carried down the wood ramp, so a chess board reads as the same
-     material as the xiangqi boards it sits beside. It replaced the lichess brown
-     pair (#f0d9b5/#b58863), which was cooler and pinker than the xiangqi tan.
+  /* Lichess brown, the ONLY chess-family board (restored 2026-08-16). This is
+     the reference palette for chess UI, so a player arriving from lichess or
+     chess.com reads our board without adjusting, and that legibility-by-habit
+     is what the pair is chosen for.
 
-     The dark square is pinned at #98794b because the square pair has to clear
-     3:1 on its own: with the board picker gone there is no High contrast tile to
-     escape to, so this pair IS the accessibility floor (WCAG non-text contrast
-     for a graphical object you must read to follow the game). It measures
-     3.03:1. Warmer/lighter woods that look better in isolation do not clear it
-     (the golden #bd9051 lands at 2.16:1, below even the green it replaced), so
-     do not lighten this value without re-checking the ratio. */
+     It reverses the 2026-07-31 wood pair (#f5dca8/#98794b), which matched the
+     chess board to the xiangqi board surface (--xq-board-bg, still #f5dca8).
+     Chess and xiangqi boards therefore no longer share a material — deliberate,
+     not drift. Do not "fix" it by re-tanning the chess board.
+
+     Contrast: this pair measures 2.29:1, UNDER the 3:1 WCAG non-text floor, and
+     the wood pair it replaced measured 3.03:1. Called knowingly (2026-08-16):
+     lichess and chess.com both sit near 2.3:1, so the floor was costing us the
+     standard look every chess player already reads. With the board picker gone
+     there is no high-contrast tile to escape to, so if accessibility comes back
+     as a real complaint the fix is to reinstate a picker, not to quietly darken
+     this value. Re-check the ratio before changing either square. */
   --board-frame: #5f412c;
-  --board-light: #f5dca8;
-  --board-dark: #98794b;
+  --board-light: #f0d9b5;
+  --board-dark: #b58863;
   --board-fog-line: rgba(0, 0, 0, 0.36);
   --board-fog-line-soft: rgba(255, 255, 255, 0.06);
   --board-fog-shadow: rgba(255, 244, 224, 0.1);
@@ -123,12 +127,13 @@
     ),
     var(--board-fog-dark-fill);
   /* Last move is a wash laid over a square, so on a warm board it reads by HUE,
-     not by lightness: the old amber (rgba(216,174,76,0.4)) all but vanished on
-     tan once the board went wood. This is the brand green at low alpha, which
-     separates from both wood squares while staying quieter than an acid
-     highlight. --board-highlight keeps the amber; it draws rings, glows and
-     label text on dark surfaces rather than washing a square. */
-  --board-last-move: rgba(56, 160, 135, 0.38);
+     not by lightness: an amber wash all but vanishes on tan. This is lichess's
+     own last-move olive, restored 2026-08-16 alongside the brown squares — the
+     two were designed against each other, and the teal that preceded it
+     (rgba(56,160,135,0.38)) was picked for the wood pair that is now gone.
+     --board-highlight keeps the amber; it draws rings, glows and label text on
+     dark surfaces rather than washing a square. */
+  --board-last-move: rgba(155, 199, 0, 0.41);
   --board-highlight: #d6af4e;
   --board-reveal: #d6af4e;
   --belief-opp-rgb: 194 73 67;

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 // updating the server map fails here instead of shipping a wrong-direction
 // 301 (kind falls back to 'article', so /rules/<slug> redirects away from its
 // own prerendered page) or a generic share card.
-import { ARTICLE_META } from '../../server/src/article-meta.js';
+import { ARTICLE_META, articleIsUnpublished } from '../../server/src/article-meta.js';
 import { articles } from './articles-data.js';
 
 describe('articles-data <-> server ARTICLE_META sync', () => {
@@ -22,6 +22,20 @@ describe('articles-data <-> server ARTICLE_META sync', () => {
         meta?.description.length,
         `ARTICLE_META description is empty for '${article.slug}'`,
       ).toBeGreaterThan(0);
+    }
+  });
+
+  // The server answers /blog/<slug> with a 200 shell + real title/description
+  // even for an article the web build hides, so an unpublished article that is
+  // not marked here leaks an indexable page for work that is not ready.
+  it('unpublished articles are marked unpublished on the server', () => {
+    for (const article of articles) {
+      expect(
+        articleIsUnpublished(article.slug),
+        article.status === 'published'
+          ? `'${article.slug}' is published but still listed in UNPUBLISHED_ARTICLE_SLUGS`
+          : `'${article.slug}' is status '${article.status}' but missing from UNPUBLISHED_ARTICLE_SLUGS (apps/server/src/article-meta.ts), so the server would serve it as indexable`,
+      ).toBe(article.status !== 'published');
     }
   });
 

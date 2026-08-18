@@ -18,6 +18,7 @@
 // (play a move → it branches the tree, promote/delete variations).
 
 import type { MoveJudgment } from '@mistboard/game';
+import { t } from '../i18n/catalog.js';
 import type { StudyVariantId } from '../study-catalog.js';
 import { displayComment } from '../study-i18n.js';
 import { type AdvantageChart, createAdvantageChart } from './advantage-chart.js';
@@ -789,7 +790,7 @@ export function mountTreeReview<Move, Truth, View, Color, Arrow, Marker>(
   // that is mostly greyed out reads as a broken product, not a roadmap. Re-add an
   // item WITH its implementation, not ahead of it.
   const menuItems: ReviewMenuItem[] = [
-    { label: 'Flip board', icon: REVIEW_MENU_ICONS.flip, onClick: () => flipBoard() },
+    { label: t('review.flipBoard'), icon: REVIEW_MENU_ICONS.flip, onClick: () => flipBoard() },
   ];
   if (config.studyExport) {
     menuItems.push({ label: 'Study', icon: REVIEW_MENU_ICONS.study, onClick: () => saveAsStudy() });

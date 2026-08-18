@@ -52,6 +52,7 @@ import {
   type StaticBoardsBlock,
   type SubHeadingBlock,
   type SvgRowBlock,
+  type TableBlock,
   withXiangqiBoardLayout,
   withXiangqiPieceSet,
   type XiangqiReplayBlock,
@@ -1119,6 +1120,7 @@ function renderBlock(block: ArticleBlock, lang?: ArticleLang): HTMLElement {
   if (block.kind === 'svg-row') return renderSvgRowBlock(block, lang);
   if (block.kind === 'raw-svg-stepper') return renderRawSvgStepperBlock(block, lang);
   if (block.kind === 'code') return renderCodeBlock(block);
+  if (block.kind === 'table') return renderTableBlock(block);
   if (block.kind === 'live-boards') return renderLiveBoardsBlock(block);
   if (block.kind === 'xq-replay') return renderXiangqiReplayBlock(block);
   if (block.kind === 'mxq-replay') return renderMiniXiangqiReplayBlock(block);
@@ -1765,6 +1767,42 @@ function highlightCode(text: string): string {
                 : '';
     return cls ? `<span class="${cls}">${m}</span>` : m;
   });
+}
+
+function renderTableBlock(block: TableBlock): HTMLElement {
+  const figure = document.createElement('figure');
+  figure.className = 'article-figure article-figure-table';
+  const table = document.createElement('table');
+  table.className = 'article-table';
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  for (const h of block.headers) {
+    const th = document.createElement('th');
+    th.textContent = h;
+    headRow.append(th);
+  }
+  thead.append(headRow);
+  const tbody = document.createElement('tbody');
+  const highlight = new Set(block.highlightRows ?? []);
+  block.rows.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    if (highlight.has(i)) tr.className = 'article-table-row-emphasis';
+    for (const cell of row) {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.append(td);
+    }
+    tbody.append(tr);
+  });
+  table.append(thead, tbody);
+  figure.append(table);
+  if (block.caption) {
+    const cap = document.createElement('figcaption');
+    cap.className = 'article-figure-caption';
+    cap.textContent = block.caption;
+    figure.append(cap);
+  }
+  return figure;
 }
 
 function renderCodeBlock(block: CodeBlock): HTMLElement {

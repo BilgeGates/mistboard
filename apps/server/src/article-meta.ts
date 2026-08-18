@@ -10,8 +10,22 @@ export type ArticleKind = 'rules' | 'article';
 
 const NON_INDEXED_ARTICLE_SLUGS = new Set(['shogi', 'shogi4', 'dark-shogi']);
 
+// Slugs that exist in articles-data but are not published yet. A draft is
+// hidden in the production web build (the route 404s client-side), but the
+// server still answers /blog/<slug> with a 200 shell and injects this file's
+// title + description, so without this set a crawler sees a live page for an
+// unpublished article. Kept in sync by articles-meta-sync.test.ts, which fails
+// if a non-published article is missing here or a published one is still
+// listed - so promoting an article to 'published' is what removes it, and
+// nobody has to remember this file exists.
+const UNPUBLISHED_ARTICLE_SLUGS = new Set(['fog-openings', 'dark-chess-concepts', 'shogi']);
+
+export function articleIsUnpublished(slug: string): boolean {
+  return UNPUBLISHED_ARTICLE_SLUGS.has(slug);
+}
+
 export function articleIsIndexable(slug: string): boolean {
-  return !NON_INDEXED_ARTICLE_SLUGS.has(slug);
+  return !NON_INDEXED_ARTICLE_SLUGS.has(slug) && !UNPUBLISHED_ARTICLE_SLUGS.has(slug);
 }
 
 export const ARTICLE_META: Record<
@@ -35,6 +49,12 @@ export const ARTICLE_META: Record<
     kind: 'article',
     description:
       'Strategy concepts for dark chess: how to read fogged squares, pawn signals, vanished moves, and capture clues after you know the rules.',
+  },
+  'fog-openings': {
+    title: 'An Opening System for Fog Chess',
+    kind: 'article',
+    description:
+      'A complete Fog of War chess opening system built on 1.c4 and 2.Qa4, measured across 899 games. The queen doubles as a sensor and sometimes captures the king on move three. Which Black replies hold, which collapse, and where the system stops working.',
   },
   'dark-draft960': {
     title: 'Dark Draft960',
