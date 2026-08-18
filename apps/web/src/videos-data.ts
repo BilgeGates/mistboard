@@ -68,6 +68,11 @@ interface VideoBase {
   language: VideoLanguage;
   /** ISO date the entry was curated (and, for YouTube, oembed-verified). */
   addedAt: string;
+  /** Ours. Orthogonal to `source`, which says where a video is HOSTED: our own
+   *  episodes live on YouTube too, so hosting cannot identify them. First-party
+   *  entries lead the library, because a page that sends every visitor to
+   *  someone else's channel is not promotion. */
+  firstParty?: boolean;
 }
 
 /** An external YouTube video. Watch URL + thumbnail derive from `id`. */
@@ -734,4 +739,30 @@ const YOUTUBE_VIDEOS: readonly YoutubeVideo[] = [
 //   }
 const MISTBOARD_VIDEOS: readonly MistboardVideo[] = [];
 
+/** Mistboard's own episodes. On YouTube (so the card and thumbnail derive the
+ *  same way any YouTube entry does), flagged first-party so they lead the list.
+ *  Titles are the exact oembed values, same rule as the curated entries. */
+const MISTBOARD_CHANNEL_VIDEOS: readonly YoutubeVideo[] = [
+  {
+    source: 'youtube',
+    id: 'aWxafeWsncQ',
+    title: 'Chinese Chess (Xiangqi) for Chess Players: All the Rules in 6 Minutes',
+    author: 'Mistboard',
+    firstParty: true,
+    durationMinutes: 6,
+    tags: ['basics'],
+    level: 'intro',
+    variant: 'xiangqi',
+    language: 'en',
+    addedAt: '2026-08-18',
+  },
+];
+
+/** The curated catalogue: other people's videos, filtered and faceted by the
+ *  page. Deliberately does NOT include our own episodes — they have their own
+ *  shelf above it, and mixing them in would double-render every card and shift
+ *  every count and facet the page derives from this list. */
 export const VIDEOS: readonly VideoEntry[] = [...YOUTUBE_VIDEOS, ...MISTBOARD_VIDEOS];
+
+/** Ours, newest first. Rendered above the catalogue, never inside it. */
+export const FIRST_PARTY_VIDEOS: readonly VideoEntry[] = MISTBOARD_CHANNEL_VIDEOS;

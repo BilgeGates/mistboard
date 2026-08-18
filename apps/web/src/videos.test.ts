@@ -13,6 +13,7 @@ import {
   videoWatchUrl,
 } from './videos.js';
 import {
+  FIRST_PARTY_VIDEOS,
   VIDEO_LANGUAGES,
   VIDEO_LEVELS,
   VIDEO_TAGS,
@@ -42,7 +43,9 @@ function mountAllLanguages(): HTMLElement {
 }
 
 function visibleTitles(root: HTMLElement): string[] {
-  return [...root.querySelectorAll('.videos-card-title')].map((el) => el.textContent ?? '');
+  return [...root.querySelectorAll('.videos-catalog-grid .videos-card-title')].map(
+    (el) => el.textContent ?? '',
+  );
 }
 
 function facetRow(root: HTMLElement, label: string): HTMLElement {
@@ -156,7 +159,7 @@ describe('videoLanguageForLocale', () => {
 
 describe('source-dispatched watch + thumbnail', () => {
   it('derives YouTube URLs from the id', () => {
-    const yt = VIDEOS.find((v) => v.source === 'youtube');
+    const yt = VIDEOS.find((v) => v.source === 'youtube' && v.firstParty !== true);
     if (!yt || yt.source !== 'youtube') throw new Error('expected a youtube video');
     expect(videoWatchUrl(yt)).toBe(`https://www.youtube.com/watch?v=${yt.id}`);
     expect(videoThumbUrl(yt)).toBe(`https://img.youtube.com/vi/${yt.id}/hqdefault.jpg`);
@@ -169,8 +172,23 @@ describe('source-dispatched watch + thumbnail', () => {
 });
 
 describe('video card', () => {
+  it('shelves our own episodes above the catalogue, never inside it', () => {
+    // The library's job is to turn a visitor into a subscriber, so ours lead and
+    // the curated list stays external. A first-party entry appearing in the
+    // catalogue would double-render it and shift every count and facet the page
+    // derives from that list.
+    const root = mountAllLanguages();
+    const ours = root.querySelectorAll('.videos-ours-grid .videos-card');
+    expect(ours.length).toBe(FIRST_PARTY_VIDEOS.length);
+    expect(ours.length).toBeGreaterThan(0);
+    expect(root.querySelector('.videos-ours-grid .videos-source-badge')).not.toBeNull();
+    for (const video of VIDEOS) expect(video.firstParty).not.toBe(true);
+    const subscribe = root.querySelector<HTMLAnchorElement>('.videos-subscribe');
+    expect(subscribe?.href).toContain('youtube.com/@Mistboard');
+  });
+
   it('renders a YouTube card as an outbound new-tab link', () => {
-    const yt = VIDEOS.find((v) => v.source === 'youtube');
+    const yt = VIDEOS.find((v) => v.source === 'youtube' && v.firstParty !== true);
     if (!yt || yt.source !== 'youtube') throw new Error('expected a youtube video');
     const card = buildVideoCard(yt, 'en');
     const link = card.querySelector<HTMLAnchorElement>('.videos-card-link');
@@ -191,7 +209,7 @@ describe('video card', () => {
   });
 
   it('leads the badge row with the difficulty level', () => {
-    const yt = VIDEOS.find((v) => v.source === 'youtube');
+    const yt = VIDEOS.find((v) => v.source === 'youtube' && v.firstParty !== true);
     if (!yt) throw new Error('expected a video');
     const card = buildVideoCard(yt, 'en');
     expect(card.querySelector('.videos-card-tags .videos-card-tag')?.classList).toContain(
@@ -203,7 +221,9 @@ describe('video card', () => {
 describe('videos page', () => {
   it('renders every curated entry, newest first, once language is widened', () => {
     const root = mountAllLanguages();
-    const cards = root.querySelectorAll<HTMLAnchorElement>('.videos-card-link');
+    const cards = root.querySelectorAll<HTMLAnchorElement>(
+      '.videos-catalog-grid .videos-card-link',
+    );
     expect(cards.length).toBe(VIDEOS.length);
     expect(root.querySelector('.videos-count')?.textContent).toBe(`${VIDEOS.length} videos`);
     expect(visibleTitles(root)).toEqual(sortVideos(VIDEOS, 'newest').map((v) => v.title));
@@ -232,10 +252,14 @@ describe('videos page', () => {
     const openings = chip(root, 'Topic', 'openings');
     openings.click();
     const expected = VIDEOS.filter((v) => v.tags.includes('openings'));
-    expect(root.querySelectorAll('.videos-card-link').length).toBe(expected.length);
+    expect(root.querySelectorAll('.videos-catalog-grid .videos-card-link').length).toBe(
+      expected.length,
+    );
     expect(openings.getAttribute('aria-pressed')).toBe('true');
     openings.click();
-    expect(root.querySelectorAll('.videos-card-link').length).toBe(VIDEOS.length);
+    expect(root.querySelectorAll('.videos-catalog-grid .videos-card-link').length).toBe(
+      VIDEOS.length,
+    );
     expect(openings.getAttribute('aria-pressed')).toBe('false');
   });
 
@@ -245,15 +269,21 @@ describe('videos page', () => {
     chip(root, 'Level', 'advanced').click();
     const expected = VIDEOS.filter((v) => v.tags.includes('games') && v.level === 'advanced');
     expect(expected.length).toBeGreaterThan(0);
-    expect(root.querySelectorAll('.videos-card-link').length).toBe(expected.length);
+    expect(root.querySelectorAll('.videos-catalog-grid .videos-card-link').length).toBe(
+      expected.length,
+    );
   });
 
   it('resets a facet via its All chip', () => {
     const root = mountAllLanguages();
     chip(root, 'Level', 'intro').click();
-    expect(root.querySelectorAll('.videos-card-link').length).toBeLessThan(VIDEOS.length);
+    expect(root.querySelectorAll('.videos-catalog-grid .videos-card-link').length).toBeLessThan(
+      VIDEOS.length,
+    );
     chip(root, 'Level', 'all').click();
-    expect(root.querySelectorAll('.videos-card-link').length).toBe(VIDEOS.length);
+    expect(root.querySelectorAll('.videos-catalog-grid .videos-card-link').length).toBe(
+      VIDEOS.length,
+    );
   });
 
   it('narrows by text across title and author, case-insensitively', () => {
@@ -282,7 +312,7 @@ describe('videos page', () => {
     if (!search) throw new Error('missing search input');
     search.value = 'zzzz-no-match';
     search.dispatchEvent(new Event('input'));
-    expect(root.querySelectorAll('.videos-card-link').length).toBe(0);
+    expect(root.querySelectorAll('.videos-catalog-grid .videos-card-link').length).toBe(0);
     expect(root.querySelector('.videos-count')?.textContent).toBe('0 videos');
     expect(root.querySelector('.videos-empty')?.hasAttribute('hidden')).toBe(false);
     expect(root.querySelector('.videos-empty')?.textContent).toBe('No videos match your filters.');
@@ -316,7 +346,7 @@ describe('language facet', () => {
   }
 
   function cardCount(root: HTMLElement): number {
-    return root.querySelectorAll('.videos-card-link').length;
+    return root.querySelectorAll('.videos-catalog-grid .videos-card-link').length;
   }
 
   it("opens on the visitor's language instead of a mixed list", () => {
