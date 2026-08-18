@@ -73,6 +73,11 @@ interface VideoBase {
    *  entries lead the library, because a page that sends every visitor to
    *  someone else's channel is not promotion. */
   firstParty?: boolean;
+  /** Serve the card image from our own domain instead of deriving it. Our own
+   *  episodes use this: a YouTube-derived thumbnail is a third-party request
+   *  that ad and privacy blockers routinely drop, and our card is the one on
+   *  this page that must never fail to render. */
+  thumbnailUrl?: string;
 }
 
 /** An external YouTube video. Watch URL + thumbnail derive from `id`. */
@@ -746,6 +751,7 @@ const MISTBOARD_CHANNEL_VIDEOS: readonly YoutubeVideo[] = [
   {
     source: 'youtube',
     id: 'aWxafeWsncQ',
+    thumbnailUrl: '/video-thumbs/ep01-chess-players-guide.png',
     title: 'Chinese Chess (Xiangqi) for Chess Players: All the Rules in 6 Minutes',
     author: 'Mistboard',
     firstParty: true,

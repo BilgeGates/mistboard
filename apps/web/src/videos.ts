@@ -103,6 +103,9 @@ export function videoWatchUrl(video: VideoEntry): string {
 }
 
 export function videoThumbUrl(video: VideoEntry): string {
+  // An explicit thumbnail always wins: it is how our own episodes avoid a
+  // third-party image request that a blocker can drop.
+  if (video.thumbnailUrl) return video.thumbnailUrl;
   switch (video.source) {
     case 'youtube':
       // no-cors image load: fine under dev's COEP credentialless and in prod
@@ -553,9 +556,13 @@ export function buildVideoCard(video: VideoEntry, locale: Locale = currentLocale
 // so a new language fails the build here until it gets an arc of its own.
 const HOME_VIDEO_KEYS: Record<VideoLanguage, readonly string[]> = {
   en: [
+    // Ours leads. It also retires the slot that used to hold another channel's
+    // chess-player framing: that was the exact editorial role this episode was
+    // written for, and running both would promote a competitor for our own
+    // positioning while saying the same thing twice.
+    'yt:aWxafeWsncQ', // Mistboard — Chinese Chess for Chess Players, all the rules
     'yt:qbbFuWyx0XI', // 60-second hook — Sam Copeland (a name chess players know)
     'yt:kSL7JErRMx8', // Full rules primer — AncientChess
-    'yt:vklqOLf6mtU', // A Chess Player's Guide to Xiangqi — the conversion framing
     'yt:950nyyjOirU', // Basic checkmate strategies — the first step past the rules
     'yt:MyLXgkL4C5A', // The Most Popular Openings in Xiangqi
     'yt:dmSDt1VQNfs', // Endgame compositions — ties to the classical PD study corpus
@@ -585,7 +592,12 @@ export function buildHomeVideoCards(
   limit = 8,
   locale: Locale = currentLocale(),
 ): HTMLElement | null {
-  const byKey = new Map(VIDEOS.map((video) => [videoKey(video), video]));
+  // Ours resolve here too. They are not in VIDEOS (that list is the catalogue
+  // the /videos page filters), so without this the strip would silently drop the
+  // one entry it most wants to lead with.
+  const byKey = new Map(
+    [...FIRST_PARTY_VIDEOS, ...VIDEOS].map((video) => [videoKey(video), video]),
+  );
   const resolve = (keys: readonly string[]): VideoEntry[] =>
     keys.flatMap((key) => {
       const video = byKey.get(key);
