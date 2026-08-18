@@ -18,6 +18,7 @@ import {
   DEFAULT_STEP_HOLD_MS,
   type ScenePlan,
   type VideoArrowSpec,
+  type VideoMeasureSpec,
   type VideoRegion,
 } from './manifest.js';
 
@@ -26,9 +27,12 @@ export type OverlayState = {
   dimOthers: boolean;
   points: readonly XiangqiSquare[];
   pointsCapture: boolean;
+  pointsBlocked: boolean;
   raysFrom: XiangqiSquare | null;
   region: VideoRegion | null;
   arrows: readonly VideoArrowSpec[];
+  measures: readonly VideoMeasureSpec[];
+  measuresDim: boolean;
   flash: { from: XiangqiSquare; to: XiangqiSquare } | null;
 };
 
@@ -67,9 +71,12 @@ const EMPTY_OVERLAYS: OverlayState = {
   dimOthers: false,
   points: [],
   pointsCapture: false,
+  pointsBlocked: false,
   raysFrom: null,
   region: null,
   arrows: [],
+  measures: [],
+  measuresDim: true,
   flash: null,
 };
 
@@ -184,7 +191,12 @@ export function expandTimeline(plan: ScenePlan): Timeline {
           break;
         }
         case 'points': {
-          overlays = { ...overlays, points: step.squares, pointsCapture: step.capture ?? false };
+          overlays = {
+            ...overlays,
+            points: step.squares,
+            pointsCapture: step.capture ?? false,
+            pointsBlocked: step.blocked ?? false,
+          };
           still(step.holdMs ?? DEFAULT_STEP_HOLD_MS);
           break;
         }
@@ -195,6 +207,15 @@ export function expandTimeline(plan: ScenePlan): Timeline {
         }
         case 'arrows': {
           overlays = { ...overlays, arrows: step.arrows };
+          still(step.holdMs ?? DEFAULT_STEP_HOLD_MS);
+          break;
+        }
+        case 'measures': {
+          overlays = {
+            ...overlays,
+            measures: step.measures,
+            measuresDim: step.dim ?? true,
+          };
           still(step.holdMs ?? DEFAULT_STEP_HOLD_MS);
           break;
         }

@@ -7,12 +7,29 @@ import type { XiangqiPieceSet } from '../xiangqi-piece-sets.js';
 
 export const VIDEO_BACKGROUND = '#12161c';
 
+/** Section titles in the gutter. Off (Brian, 2026-08-16): chapter-length
+ *  sentences in an empty gutter read as a slide deck rather than a board, and
+ *  YouTube chapters already give the viewer the same map. The story's `chapter`
+ *  fields still drive chapter generation; this only hides them on screen. */
+export const SHOW_SECTION_LABEL = false;
+
+/** Dash pattern for the video's dashed board arrows. The product keeps its own
+ *  10/8 for engine PV lines; at broadcast scale that pattern reads as dots. */
+export const VIDEO_ARROW_DASH = '26 14';
+
 /** The frozen channel piece set. Every episode renders with this, so changing it
- *  re-skins the whole back catalog on the next recompile — a branding decision,
- *  not a preference. Traditional characters over the product's `international`
- *  default: the channel's premise is that this is Chinese chess, and the
- *  international general is a cross-topped Western king. */
-export const VIDEO_PIECE_SET: XiangqiPieceSet = 'traditional';
+ *  re-skins the whole back catalog on the next recompile: a branding decision,
+ *  not a preference.
+ *
+ *  `international` (Brian, 2026-08-15), matching the product default and the
+ *  channel's founding premise: the audience is people who bounced off the
+ *  characters, and xiangqi.com's own beginner help recommends graphical pieces
+ *  to Western learners. This reverses an earlier argument for traditional
+ *  characters (that the channel's premise is that this IS Chinese chess, and
+ *  that the international general reads as a cross-topped Western king). That
+ *  concern is real and survives here as a note: if a piece ever reads as the
+ *  wrong game, fix the glyph rather than the whole set. */
+export const VIDEO_PIECE_SET: XiangqiPieceSet = 'international';
 
 /** Board height as a fraction of the canvas. 1 = full bleed, the broadcast
  *  convention (ChessNetwork et al): make the board as large as the frame
@@ -56,6 +73,29 @@ export const VIDEO_BOARD_STYLE = `
   .xqv-region { fill: rgba(46, 134, 222, 0.22); stroke: rgba(46, 134, 222, 0.55); stroke-width: 2; }
   .xqv-flash-ring { fill: none; stroke: #d64545; stroke-width: 5; }
   .xqv-flash-arrow { stroke: #d64545; fill: #d64545; }
+  /* Dimension callout: board ink, not the move-arrow blue, so a measurement
+     never reads as a move. */
+  .xqv-measure-line,
+  .xqv-measure-tick {
+    stroke: #f5dca8;
+    stroke-width: 3.5;
+    stroke-linecap: round;
+  }
+  .xqv-measure-head { fill: #f5dca8; }
+  .xqv-blocked line {
+    stroke: #d64545;
+    stroke-width: 6;
+    stroke-linecap: round;
+  }
+  .xqv-blocked-disc { fill: rgba(18, 22, 28, 0.55); }
+  .xqv-measure-plate { fill: rgba(18, 22, 28, 0.92); }
+  .xqv-measure-label {
+    fill: #f5dca8;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
   .xqv-coord {
     fill: rgba(255, 255, 255, 0.34);
     font-family: Helvetica, Arial, sans-serif;

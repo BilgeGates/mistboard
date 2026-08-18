@@ -10,6 +10,8 @@ export type SvgBoardArrowStyle = {
   className?: string;
   color?: string;
   dashed?: boolean;
+  /** SVG stroke-dasharray, when dashed. Defaults to the product's 10 8. */
+  dashPattern?: string;
   opacity?: number;
   width?: number;
 };
@@ -70,7 +72,10 @@ export function svgBoardArrow(
   const color = arrow.color ?? options.color ?? DEFAULT_COLOR;
   const baseClassName = options.baseClassName ?? 'board-arrow';
   const className = arrow.className ? `${baseClassName} ${arrow.className}` : baseClassName;
-  const dash = arrow.dashed ? ' stroke-dasharray="10 8"' : '';
+  // Callers can widen the dash. The product default stays 10/8 (engine PV
+  // arrows); the video passes a longer pattern, because at broadcast scale with
+  // a round linecap 10/8 reads as a dotted line rather than a line of force.
+  const dash = arrow.dashed ? ` stroke-dasharray="${arrow.dashPattern ?? '10 8'}"` : '';
   const head =
     `${fmt(tipX)},${fmt(tipY)} ` +
     `${fmt(baseX + px * headHalfWidth)},${fmt(baseY + py * headHalfWidth)} ` +

@@ -56,9 +56,12 @@ export function writeFrameBundle(
   writeFileSync(concatPath, `${lines.join('\n')}\n`);
 
   const publicDir = path.resolve(import.meta.dirname, '../../public');
+  // The product's default wood set, so a video sounds like the board it is
+  // teaching. The piano set these used to point at is a theme the player has to
+  // opt into, which made every episode sound like a different site.
   const soundFiles = {
-    move: path.join(publicDir, 'sound/piano/Move.mp3'),
-    capture: path.join(publicDir, 'sound/piano/Capture.mp3'),
+    move: path.join(publicDir, 'sound/wood/move.mp3'),
+    capture: path.join(publicDir, 'sound/wood/capture.mp3'),
   };
   const soundsPath = path.join(outDir, 'sounds.json');
   writeFileSync(
