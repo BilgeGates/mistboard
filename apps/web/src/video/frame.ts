@@ -29,8 +29,8 @@ import {
 import type { ScenePlan, VideoMeasureSpec, VideoRegion } from './manifest.js';
 import {
   BOARD_HEIGHT_FILL,
-  VIDEO_ARROW_DASH,
   SHOW_SECTION_LABEL,
+  VIDEO_ARROW_DASH,
   VIDEO_BOARD_STYLE,
   VIDEO_PIECE_SET,
 } from './theme.js';

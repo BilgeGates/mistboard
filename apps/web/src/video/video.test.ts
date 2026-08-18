@@ -238,7 +238,10 @@ describe('renderShotSvg', () => {
       );
       // No other set may appear anywhere in the frame, which is what a fallback
       // to the product default would look like.
-      expect(svg.match(/\/piece-sets\/xiangqi\/([^/]+)\//g) ?? [], `${name} layer mixed sets`).toEqual(
+      expect(
+        svg.match(/\/piece-sets\/xiangqi\/([^/]+)\//g) ?? [],
+        `${name} layer mixed sets`,
+      ).toEqual(
         Array.from(
           { length: (svg.match(/\/piece-sets\/xiangqi\//g) ?? []).length },
           () => '/piece-sets/xiangqi/international/',
