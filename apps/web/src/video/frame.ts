@@ -29,6 +29,7 @@ import {
 import type { ScenePlan, VideoMeasureSpec, VideoRegion } from './manifest.js';
 import {
   BOARD_HEIGHT_FILL,
+  VIDEO_ARROW_DASH,
   SHOW_SECTION_LABEL,
   VIDEO_BOARD_STYLE,
   VIDEO_PIECE_SET,
@@ -63,7 +64,9 @@ export function renderShotSvg(plan: ScenePlan, shot: Shot): string {
     arrows: shot.overlays.arrows.map((arrow) => ({
       from: arrow.from,
       to: arrow.to,
-      ...(arrow.dashed !== undefined ? { dashed: arrow.dashed } : {}),
+      ...(arrow.dashed !== undefined
+        ? { dashed: arrow.dashed, dashPattern: VIDEO_ARROW_DASH }
+        : {}),
     })),
   });
 

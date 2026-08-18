@@ -13,6 +13,10 @@ export const VIDEO_BACKGROUND = '#12161c';
  *  fields still drive chapter generation; this only hides them on screen. */
 export const SHOW_SECTION_LABEL = false;
 
+/** Dash pattern for the video's dashed board arrows. The product keeps its own
+ *  10/8 for engine PV lines; at broadcast scale that pattern reads as dots. */
+export const VIDEO_ARROW_DASH = '26 14';
+
 /** The frozen channel piece set. Every episode renders with this, so changing it
  *  re-skins the whole back catalog on the next recompile: a branding decision,
  *  not a preference.
