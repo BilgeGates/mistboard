@@ -3,15 +3,22 @@
 [![CI](https://github.com/brianhliou/mistboard/actions/workflows/ci.yml/badge.svg)](https://github.com/brianhliou/mistboard/actions/workflows/ci.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-<img src="apps/web/public/screenshot-bicolor.png" alt="Mistboard screenshot showing the same Fog of War chess position from White and Black perspectives" title="The same game position seen from White (left) and Black (right) under fog of war." />
+<img src="assets/readme-hero-xiangqi.png" alt="A xiangqi position from the Central Cannon vs Screen Horses opening, beside the same moves in WXF notation and an English key for the piece characters" title="Central Cannon vs Screen Horses, with the move list in WXF and the piece characters named in English." />
 
-Mistboard is a free, open-source platform for **original strategy games, built
-for serious play**. It hosts server-enforced board games and variants across
-chess, xiangqi, shogi, Jungle, and related families, including both
-open-information games and hidden-information games such as dark chess.
+Mistboard is a free, open-source place to play xiangqi (Chinese chess) in
+English, built for serious play. Most sites that host it online assume you
+already read Chinese. Mistboard is built for the people that assumption leaves
+out: pieces render as icons you can identify before you can read 車 or 砲, the
+rules and articles are written in English rather than translated into it, and a
+beginner course starts from the first move.
 
-The project goal is to build the trustworthy open-source place to play, study,
-rank, and build engines for original strategy games.
+Standard xiangqi is the core. Around it sits a family of serious variants across
+xiangqi, chess, and Jungle. Some are open-information; others use fog, hidden
+identities, or flipped pieces. Each one gets a rules page and server-enforced
+play.
+
+The goal is a trustworthy open-source place to play, study, rank, and build
+engines for xiangqi and its variants.
 
 Mistboard is independent. It is not affiliated with lichess, chess.com, or any
 other chess platform.
@@ -19,16 +26,22 @@ other chess platform.
 ## Features
 
 - Low-friction [PvP rooms](https://mistboard.com) with shareable room links and
-  account-optional play.
-- Postgame replay from either player's perspective or full truth.
-- Public game links with PGN and JSON export.
-- Rules references and interactive examples for Mistboard games and their base
-  rulesets.
+  account-optional play, plus a lobby, engine opponents, and correspondence.
+- Tactics puzzles mined from real games, and an analysis board that runs the
+  engine in the browser.
+- Mistboard TV, tournament broadcasts, and a games database of finished games
+  from broadcasts, the archive, and play here.
+- Rules pages for every variant, a beginner xiangqi course, and studies.
+- Postgame replay from either player's perspective or full truth, with public
+  game links and PGN and JSON export.
+- Leaderboards, rating stats, a forum, a blog, and directories for coaches and
+  streamers.
 - A first-party engine track that uses the same redacted
   [`EngineTurnRequest`](docs/engine-protocol.md) boundary available to any
   third-party engine.
 
-Live games are playable at [mistboard.com](https://mistboard.com). For active
+Live games are playable at [mistboard.com](https://mistboard.com), and the
+video channel is [@Mistboard](https://www.youtube.com/@Mistboard). For active
 work and known issues, see the
 [GitHub issue tracker](https://github.com/brianhliou/mistboard/issues).
 
@@ -84,7 +97,9 @@ seat-scoped projection produced by the rules package. This is the core
 hidden-information boundary: hidden pieces, hidden opponent moves, and live truth
 state must never be sent to the wrong consumer.
 
-The browser client is a no-framework [Vite](https://vitejs.dev/) build using
+The browser client is a no-framework [Vite](https://vitejs.dev/) build. Xiangqi
+and the other intersection boards render through this repository's own SVG
+board code in `apps/web` and `packages/board-render`; the 8x8 chess family uses
 [chessground](https://github.com/lichess-org/chessground) for board interaction
 and [chessops](https://github.com/niklasf/chessops) for chess primitives. The
 server is a [Node.js](https://nodejs.org/) WebSocket process with
