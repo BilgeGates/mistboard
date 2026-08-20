@@ -52,6 +52,10 @@
   .site-nav {
     transition: none;
   }
+
+  .site-nav-menu-panel {
+    transition: none;
+  }
 }
 
 .site-nav-brand {
@@ -205,10 +209,12 @@ a.site-nav-link[hidden],
 }
 
 /* Donate = warm rose text with a crisp heart-and-fog mark, distinct from the
-   green accent and the amber admin menu so support reads as its own gesture. */
-.site-nav-links > .site-nav-link-donate {
+   green accent and the amber admin menu so support reads as its own gesture.
+   Sits outside the links row (bar-level, lichess .site-title-nav__donate). */
+.site-nav-donate {
   gap: 5px;
   color: #c04f6a;
+  margin-inline-start: clamp(6px, 1vw, 12px);
 }
 
 .site-nav-donate-icon {
@@ -218,17 +224,17 @@ a.site-nav-link[hidden],
   background: url("/icons/mist-heart.png") center / contain no-repeat;
 }
 
-.site-nav-links > .site-nav-link-donate:hover,
-.site-nav-links > .site-nav-link-donate:focus-visible {
+.site-nav-donate:hover,
+.site-nav-donate:focus-visible {
   color: #a23c55;
 }
 
-:root[data-effective-theme="dark"] .site-nav-link-donate {
+:root[data-effective-theme="dark"] .site-nav-donate {
   color: #e88aa0;
 }
 
-:root[data-effective-theme="dark"] .site-nav-links > .site-nav-link-donate:hover,
-:root[data-effective-theme="dark"] .site-nav-links > .site-nav-link-donate:focus-visible {
+:root[data-effective-theme="dark"] .site-nav-donate:hover,
+:root[data-effective-theme="dark"] .site-nav-donate:focus-visible {
   color: #f3a6b8;
 }
 
@@ -286,7 +292,10 @@ a.site-nav-link[hidden],
 
 /* Dropdown connected flush to the bar (lichess): no gap, connected top-left,
    accent line down the left edge that also runs behind the open toggle so bar
-   and panel read as one surface. */
+   and panel read as one surface. The panel is always in the grid layout and
+   toggles opacity/visibility instead of display, so both opening and closing
+   run the fixed 140ms fade at the same speed as every other nav hover — word
+   length or sweep direction never changes the effect's length. */
 .site-nav-menu-panel {
   position: absolute;
   top: 100%;
@@ -296,7 +305,8 @@ a.site-nav-link[hidden],
   --menu-top-right-radius: var(--site-radius-sm);
   --menu-bottom-right-radius: var(--site-radius-sm);
   --menu-bottom-left-radius: var(--site-radius-sm);
-  display: none;
+  display: grid;
+  gap: 0;
   width: max-content;
   min-width: 160px;
   padding: 0;
@@ -306,14 +316,27 @@ a.site-nav-link[hidden],
   box-shadow:
     inset 2px 0 0 var(--site-accent),
     2px 5px 6px var(--site-shadow);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    visibility 0s linear 140ms;
 }
 
 .site-nav-menu-open .site-nav-menu-panel {
-  display: grid;
-  gap: 0;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
 }
 
-@media (min-width: 601px) {
+@media (min-width: 1020px) {
   .site-nav-menu-open .site-nav-menu-toggle {
     color: var(--site-text);
     background: var(--site-panel);
@@ -325,11 +348,16 @@ a.site-nav-link[hidden],
    everywhere (mobile collapse keeps click-only). focus-within keeps the panel
    reachable by keyboard even when the title is a navigating link (Community):
    focusing the title reveals the panel so Tab can enter its items. */
-@media (hover: hover) and (min-width: 601px) {
+@media (hover: hover) and (min-width: 1020px) {
   .site-nav-menu:hover .site-nav-menu-panel,
   .site-nav-menu:focus-within .site-nav-menu-panel {
-    display: grid;
-    gap: 0;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+    transition:
+      opacity 140ms ease,
+      transform 140ms ease;
   }
 
   .site-nav-menu:hover .site-nav-menu-toggle,
@@ -452,98 +480,28 @@ a.site-nav-link[hidden],
   text-decoration: underline;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 1019px) {
+  /* Drawer-mode bar (lichess parity): one row — burger left of the brand, the
+     utilities (sign-in/theme/account) pinned right at every width. The nav
+     links live in the slide-in drawer; nothing ever wraps to a second line. */
   .site-nav {
-    padding: 10px 16px;
-  }
-
-  .site-nav-links,
-  .site-nav-utilities {
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-
-  .site-nav-links {
-    justify-content: flex-start;
-  }
-
-  .site-nav-utilities {
-    justify-content: flex-end;
+    padding: 8px 16px;
+    gap: 10px;
+    flex-wrap: nowrap;
+    align-items: center;
   }
 
   .landing-footer {
     padding: 18px 16px;
   }
 
-  .site-nav-auth {
-    gap: 12px;
-  }
-
-  .site-nav-auth .site-nav-link {
-    min-height: 36px;
-    padding: 0 13px;
-    font-size: 14px;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-
-  .site-nav-auth .site-nav-link-register {
-    min-height: 40px;
-    border-radius: 7px;
-    padding: 0 16px;
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, white 22%, transparent),
-      0 2px 4px color-mix(in srgb, var(--site-shadow) 34%, transparent);
-  }
-}
-
-@media (max-width: 600px) {
-  .site-nav {
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 8px 14px;
-  }
-
-  .site-nav-brand {
-    padding-block: 6px;
-  }
-
-  .site-nav-links,
-  .site-nav-utilities {
-    flex: 1 1 auto;
-    gap: 6px 14px;
-    justify-content: flex-start;
-  }
-
-  .site-nav-utilities {
-    margin-left: 0;
-  }
-
-  .site-nav-link {
-    padding: 6px 0;
-  }
-}
-
-/* Desktop: wrapper is transparent to layout (links + utilities stay flex
-   children of .site-nav exactly as before); toggle hidden. */
-.site-nav-toggle {
-  display: none;
-}
-
-.site-nav-collapse {
-  display: contents;
-}
-
-@media (max-width: 600px) {
-  .site-nav {
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 10px;
-  }
-
-  /* Logo-only brand on the bar. */
-  .site-nav-brand span {
-    display: none;
+  /* Wordmark tier in drawer mode: the wordmark text is already hidden below
+     1120px; at the very narrowest the whole brand (logo included) drops out,
+     leaving burger + utilities (lichess hides its title below $xx-small). */
+  @media (max-width: 379px) {
+    .site-nav-brand {
+      display: none;
+    }
   }
 
   .site-nav-toggle {
@@ -551,15 +509,108 @@ a.site-nav-link[hidden],
     flex-direction: column;
     justify-content: center;
     gap: 4px;
-    margin-left: auto;
-    /* 44px is the touch-target floor; the 11px padding keeps the drawn glyph at
-       the same 22px it had inside the old 40px box. */
+    flex: 0 0 auto;
+    /* 44px is the touch-target floor; the 8px padding keeps the drawn glyph at
+       the same 22px it had inside the old 40px box, and the bar at exactly
+       60px so the drawer's fixed top aligns with the bar's bottom. */
     width: 44px;
     height: 44px;
-    padding: 11px;
+    padding: 8px;
     border: 0;
     background: none;
     cursor: pointer;
+  }
+}
+
+@media (max-width: 339px) {
+  .site-nav {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .site-nav-auth {
+    gap: 8px;
+  }
+
+  .site-nav-auth .site-nav-link {
+    padding: 0 8px;
+    font-size: 12px;
+  }
+
+  .site-nav-auth .site-nav-link-register {
+    padding: 0 10px;
+  }
+}
+
+/* Desktop: wrapper is transparent to layout (links stay flex children of
+   .site-nav exactly as before); the burger is hidden above the breakpoint. */
+@media (min-width: 1020px) {
+  .site-nav-toggle {
+    display: none;
+  }
+}
+
+/* Tablet wordmark tier (lichess $large = 1120px): the wordmark text drops out
+   and only the logo remains next to the still-inline links. */
+@media (max-width: 1119px) {
+  .site-nav-brand span {
+    display: none;
+  }
+}
+
+/* Donate lives in the bar from $x-small up (lichess hides its donate below
+   650px); below that only burger + logo + utilities remain. */
+@media (max-width: 649px) {
+  .site-nav-donate {
+    display: none;
+  }
+}
+
+.site-nav-collapse {
+  display: contents;
+}
+
+/* Tight tier below the full desktop width (lichen-like): the menu row packs
+   tighter so the links still fit inline from the 1020px breakpoint up —
+   nothing drops to the drawer until the items genuinely run out of room. */
+@media (min-width: 1020px) and (max-width: 1279px) {
+  .site-nav {
+    gap: clamp(14px, 1.8vw, 20px);
+    padding-left: max(clamp(16px, 2.6vw, 40px), env(safe-area-inset-left));
+    padding-right: max(clamp(16px, 2.6vw, 40px), env(safe-area-inset-right));
+  }
+
+  .site-nav-brand {
+    gap: 8px;
+    font-size: 23px;
+  }
+
+  .site-nav-links > .site-nav-link,
+  .site-nav-menu-toggle {
+    padding: 0 7px;
+    font-size: 13px;
+  }
+
+  .site-nav-utilities {
+    gap: 8px;
+  }
+
+  .site-nav-link-signin {
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  .site-nav-link-register {
+    padding: 0 12px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 1019px) {
+  /* Keep the bar (and with it the toggle) in place while the drawer is open;
+     the drawer is a fixed child and a translated ancestor would misposition it. */
+  .site-nav.nav-open {
+    transform: none;
   }
 
   .site-nav-toggle span {
@@ -585,75 +636,106 @@ a.site-nav-link[hidden],
     transform: translateY(-6px) rotate(-45deg);
   }
 
-  /* Collapse becomes a dropdown panel below the bar. */
+  /* Lichess-style drawer: a fixed panel sliding in from the left, hanging just
+     below the bar, scrolling internally instead of wrapping links. Off-canvas
+     by transform (not display) so the slide is animated. Only the nav links
+     live here; the utilities stay pinned right in the bar. */
   .site-nav-collapse {
-    display: none;
-    position: absolute;
-    top: 100%;
+    display: block;
+    position: fixed;
+    top: 60px;
+    bottom: 0;
     left: 0;
-    right: 0;
-    flex-direction: column;
-    gap: 2px;
+    z-index: 40;
+    width: min(80vw, 400px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     margin: 0;
-    padding: 8px 16px 12px;
-    /* Opaque, not 98%: the drawer overlays page content, and a 2% bleed of
-       48px hero type reads as ghost text behind the menu labels. A backdrop
-       filter buys nothing under an opaque panel. */
+    padding: 12px 16px 16px;
     background: var(--site-panel);
-    border-bottom: 1px solid var(--site-border);
-    box-shadow: 0 10px 18px rgba(29, 37, 34, 0.1);
+    border-right: 1px solid var(--site-border);
+    box-shadow: 2px 5px 7px color-mix(in srgb, var(--site-shadow) 55%, transparent);
+    transform: translateX(-102%);
+    transition: transform 220ms ease-in-out;
   }
 
   .site-nav.nav-open .site-nav-collapse {
-    display: flex;
+    transform: translateX(0);
   }
 
-  .site-nav-collapse .site-nav-links,
-  .site-nav-collapse .site-nav-utilities {
+  @media (prefers-reduced-motion: reduce) {
+    .site-nav-collapse {
+      transition: none;
+    }
+  }
+
+  .site-nav-collapse .site-nav-links {
     display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    flex: 0 0 auto;
-    gap: 2px;
+    flex-flow: row wrap;
+    align-items: flex-start;
+    gap: 0;
     margin: 0;
     width: 100%;
   }
 
-  .site-nav-collapse .site-nav-link {
-    min-height: 0;
-    padding: 11px 8px;
+  /* Lichess drawer sections: every top-level item tiles at half width; the
+     submenu items are ALWAYS expanded beneath the bold title (no accordion),
+     indented one level. */
+  .site-nav-collapse .site-nav-links > .site-nav-link,
+  .site-nav-collapse .site-nav-menu {
+    flex: 1 0 50%;
+    margin-block-start: 1rem;
   }
 
   .site-nav-collapse .site-nav-links > .site-nav-link,
   .site-nav-collapse .site-nav-menu-toggle {
+    display: block;
     min-height: 0;
-    border-radius: var(--site-radius-sm);
-    font-size: 14px;
-    text-transform: none;
-  }
-
-  .site-nav-menu,
-  .site-nav-menu-toggle {
-    width: 100%;
-  }
-
-  .site-nav-menu-toggle {
-    justify-content: space-between;
+    padding: 0 8px 6px;
+    border-radius: 0;
+    border-inline-start: 2px solid transparent;
+    font-size: 1.2em;
+    font-weight: bold;
+    line-height: 1.25;
     text-align: left;
+    text-transform: none;
+    white-space: normal;
+  }
+
+  .site-nav-collapse .site-nav-menu-toggle {
+    justify-content: flex-start;
+    width: 100%;
   }
 
   .site-nav-menu-panel {
     position: static;
+    display: block;
     min-width: 0;
-    margin: -2px 0 4px;
-    padding: 0 0 0 14px;
+    margin: 0;
+    padding: 0;
     border: 0;
     border-radius: 0;
     box-shadow: none;
     background: transparent;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+    transition: none;
   }
 
   .site-nav-menu-panel .site-nav-link {
     white-space: normal;
+    min-height: 0;
+    padding: 7px 8px 7px 2.4rem;
+  }
+
+  /* Narrow drawers: sections fall to a single column once half-width is too
+     tight for the bold titles. */
+  @media (max-width: 419px) {
+    .site-nav-collapse .site-nav-links > .site-nav-link,
+    .site-nav-collapse .site-nav-menu {
+      flex: 1 0 100%;
+    }
   }
 }

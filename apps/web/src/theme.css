@@ -213,23 +213,6 @@
   display: none;
 }
 
-@media (max-width: 600px) {
-  .theme-control-trigger {
-    padding: 6px 0;
-  }
-
-  .theme-control-trigger-icon {
-    width: 36px;
-    min-height: 36px;
-    border-radius: var(--site-radius-sm);
-  }
-
-  .theme-control-panel {
-    left: 0;
-    right: auto;
-  }
-}
-
 /* Drill-in appearance menu (lichess-style): a list of category rows that each
    open a sub-panel. Shared by the signed-out gear and the signed-in dropdown. */
 .appearance-menu {
@@ -649,8 +632,8 @@
   align-items: center;
   justify-content: center;
   transition:
-    border-color 120ms ease,
-    transform 120ms ease;
+    border-color 140ms ease,
+    transform 140ms ease;
 }
 
 .theme-tile:hover {

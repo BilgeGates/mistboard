@@ -302,22 +302,3 @@
 .account-nav-status-bar.warn {
   background: #d98a2b;
 }
-
-@media (max-width: 600px) {
-  .account-nav-trigger {
-    padding: 6px 0;
-  }
-
-  .account-nav-panel {
-    left: 0;
-    right: auto;
-  }
-
-  .site-nav-collapse .site-nav-auth {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 2px;
-    width: 100%;
-  }
-}

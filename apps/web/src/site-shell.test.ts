@@ -19,13 +19,12 @@ describe('site shell nav', () => {
       ),
     ].map((link) => link.textContent);
     expect(primaryLabels).toEqual([
-      'Play',
+      'mistboard.com',
       'Puzzles',
       'Learn',
       'Watch',
       'Community',
       'Tools',
-      'Support',
     ]);
     const donate = nav.querySelector<HTMLAnchorElement>('.site-nav-link-donate');
     expect(donate?.getAttribute('href')).toBe('/patron');
@@ -48,7 +47,23 @@ describe('site shell nav', () => {
     expect(puzzleLink?.textContent).toBe('Puzzles');
     expect(puzzleLink?.classList.contains('active')).toBe(true);
     expect(puzzleLink?.getAttribute('aria-current')).toBe('page');
-    expect(nav.querySelector('.site-nav-menu-toggle')?.textContent).toBe('Learn');
+    // The Home section title is the brand word; its dropdown holds the play
+    // entry points: Play (the lobby), Lobby and Create a game (deep links into
+    // the play-setup modal), and Correspondence (the seek board).
+    expect(nav.querySelector('.site-nav-menu-toggle')?.textContent).toBe('mistboard.com');
+    expect(
+      nav.querySelector<HTMLAnchorElement>('.site-nav-menu-panel a[href="/"]')?.textContent,
+    ).toBe('Play');
+    expect(
+      nav.querySelector<HTMLAnchorElement>('.site-nav-menu-panel a[href="/?play=lobby"]')?.textContent,
+    ).toBe('Lobby');
+    expect(
+      nav.querySelector<HTMLAnchorElement>('.site-nav-menu-panel a[href="/?play=friend"]')?.textContent,
+    ).toBe('Create a game');
+    expect(
+      nav.querySelector<HTMLAnchorElement>('.site-nav-menu-panel a[href="/correspondence"]')
+        ?.textContent,
+    ).toBe('Correspondence');
     expect(nav.querySelector<HTMLAnchorElement>('a[href="/forum"]')?.textContent).toBe('Forum');
     // Community dropdown: Players (the leaderboard), Friends, Forum, Blog. The
     // title also links to /player, so scope item lookups to the panel.
@@ -135,7 +150,7 @@ describe('site shell nav', () => {
       ),
     ].map((link) => link.textContent);
 
-    expect(primaryLabels).toEqual(['對弈', '題目', '學習', '觀看', '社群', '工具', '支持']);
+    expect(primaryLabels).toEqual(['mistboard.com', '題目', '學習', '觀看', '社群', '工具']);
     expect(nav.getAttribute('aria-label')).toBe('主導覽');
     expect(nav.querySelector('.site-nav-language')).toBeNull();
     // The Learn dropdown's Rules item is the localized content link (規則).

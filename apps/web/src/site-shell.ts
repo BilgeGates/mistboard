@@ -6,9 +6,11 @@ import {
   adminNavItems,
   communityNavItems,
   donateNavItem,
+  homeNavItems,
   learnNavItems,
   type NavItem,
   primaryNavItems,
+  puzzlesNavItems,
   toolsNavItems,
   watchNavItems,
 } from './nav-items.js';
@@ -49,6 +51,22 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   nav.className = 'site-nav';
   nav.setAttribute('aria-label', t('nav.primary', {}, locale));
 
+  // Mobile menu toggle (lichess parity): the burger sits at the far LEFT of the
+  // bar, before the brand. On desktop `.site-nav-collapse` is `display: contents`,
+  // so links + utilities lay out exactly as before; below the breakpoint the
+  // toggle reveals the links drawer. The utilities (sign-in/theme/account) never
+  // enter the drawer — they stay pinned right, like lichess's .site-buttons.
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'site-nav-toggle';
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.setAttribute('aria-label', t('nav.menu', {}, locale));
+  for (let i = 0; i < 3; i++) toggle.append(document.createElement('span'));
+  toggle.addEventListener('click', () => {
+    const open = nav.classList.toggle('nav-open');
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+
   const brand = document.createElement('a');
   brand.className = 'site-nav-brand';
   brand.href = '/';
@@ -74,9 +92,12 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   const links = document.createElement('div');
   links.className = 'site-nav-links';
 
-  const [play, puzzles, watch] = primaryNavItems();
-  if (play) links.append(navLink(play, locale));
-  if (puzzles) links.append(navLink(puzzles, locale));
+  const [watch] = primaryNavItems();
+  // Home section: the title reads as the brand word (mistboard.com) and links
+  // the landing page; Play is its first item.
+  links.append(navMenu('nav.brand', homeNavItems(), locale, '/'));
+  // Puzzles section: title links to the index; every puzzle variant in the panel.
+  links.append(navMenu('nav.puzzles', puzzlesNavItems(), locale, '/puzzles'));
   // Rules are the Learn landing and lead its dropdown; the interactive xiangqi
   // course remains directly reachable as the second item.
   links.append(navMenu('nav.learn', learnNavItems(), locale, '/rules'));
@@ -90,14 +111,16 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
   const tools = toolsNavItems();
   if (tools.length > 0)
     links.append(navMenu('nav.tools', tools, locale, tools[0]?.href ?? '/analysis/xiangqi'));
-  // Donate is the rightmost public item, immediately left of the admin-only menu.
+  // Donate lives OUTSIDE the links grouping, like lichess's
+  // .site-title-nav__donate: on desktop it sits inline between the menu and the
+  // utilities; in drawer mode it stays pinned in the bar next to the brand
+  // while the rest of the links slide into the drawer.
   const donate = navLink(donateNavItem(), locale);
-  donate.classList.add('site-nav-link-donate');
+  donate.classList.add('site-nav-link-donate', 'site-nav-donate');
   const donateIcon = document.createElement('span');
   donateIcon.className = 'site-nav-donate-icon';
   donateIcon.setAttribute('aria-hidden', 'true');
   donate.prepend(donateIcon);
-  links.append(donate);
   // Consolidate internal tools under one admin-only menu. Initial visibility
   // comes from the persisted admin hint; account-nav reconciles it once auth
   // resolves. This is cosmetic only: both pages are admin-gated server-side.
@@ -112,28 +135,16 @@ export function buildNav(locale: Locale = currentLocale()): HTMLElement {
 
   utilities.append(buildSignedOutAccountLinks(locale));
 
-  // Mobile menu toggle. On desktop `.site-nav-collapse` is `display: contents`,
-  // so links + utilities lay out exactly as before; on mobile the toggle reveals
-  // them as a dropdown panel. theme.ts / account-nav.ts still find
-  // `.site-nav-utilities` via descendant query, so injection is unaffected.
-  const toggle = document.createElement('button');
-  toggle.type = 'button';
-  toggle.className = 'site-nav-toggle';
-  toggle.setAttribute('aria-expanded', 'false');
-  toggle.setAttribute('aria-label', t('nav.menu', {}, locale));
-  for (let i = 0; i < 3; i++) toggle.append(document.createElement('span'));
-  toggle.addEventListener('click', () => {
-    const open = nav.classList.toggle('nav-open');
-    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-  });
-
+  // Links-only collapse: on desktop it's `display: contents` (invisible to
+  // layout), below the breakpoint it becomes the left drawer. Utilities stay a
+  // direct bar child so they remain fixed right at every width.
   const collapse = document.createElement('div');
   collapse.className = 'site-nav-collapse';
-  collapse.append(links, utilities);
+  collapse.append(links);
 
   ensureNavDismiss();
   ensureNavAutoHide();
-  nav.append(brand, toggle, collapse);
+  nav.append(toggle, brand, collapse, donate, utilities);
   return nav;
 }
 
@@ -301,8 +312,13 @@ function navMenu(
     toggle.href = localizedHref(titleHref, locale);
     // Pointer devices open the panel on hover (CSS), so let the click navigate.
     // On touch/no-hover devices there is no hover, so intercept the first tap to
-    // reveal the panel instead of jumping away from the submenu items.
+    // reveal the panel instead of jumping away from the submenu items — EXCEPT
+    // in drawer mode, where the submenu is always expanded lichess-style, so
+    // the title just navigates.
     toggle.addEventListener('click', (event) => {
+      const drawerMode =
+        typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 1019px)').matches;
+      if (drawerMode) return;
       const canHover =
         typeof window.matchMedia === 'function' && window.matchMedia('(hover: hover)').matches;
       if (canHover) return;
@@ -322,8 +338,15 @@ function navMenu(
     panel.append(link);
   }
 
-  if (items.some((item) => pathMatchesNavItem(currentPath(), item.href))) {
+  // The title link itself also counts for the active state (e.g. the Puzzles
+  // title on any /puzzles/… route), not just the panel items.
+  const path = currentPath();
+  if (
+    (titleHref && pathMatchesNavItem(path, titleHref)) ||
+    items.some((item) => pathMatchesNavItem(path, item.href))
+  ) {
     toggle.classList.add('active');
+    toggle.setAttribute('aria-current', 'page');
   }
 
   menu.append(toggle, panel);

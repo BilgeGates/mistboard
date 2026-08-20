@@ -9,7 +9,9 @@ import type { ShellI18nKey } from './shell.js';
 export const ZH_HANS_SHELL = {
   'nav.primary': '主导航',
   'nav.menu': '菜单',
+  'nav.brand': 'mistboard.com',
   'nav.play': '对弈',
+  'nav.correspondence': '通信对局',
   'nav.puzzles': '题目',
   'nav.learn': '学习',
   'nav.learnXiangqi': '象棋入门',

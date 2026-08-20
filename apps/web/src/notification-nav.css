@@ -17,8 +17,8 @@
   color: var(--site-muted);
   cursor: pointer;
   transition:
-    color 120ms ease,
-    background 120ms ease;
+    color 140ms ease,
+    background 140ms ease;
 }
 
 .notif-nav-trigger:hover,

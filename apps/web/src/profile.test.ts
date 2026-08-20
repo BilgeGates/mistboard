@@ -541,9 +541,13 @@ describe('profile ratings rail', () => {
 
     expect(root.textContent).not.toContain('Crossroads Chess');
     // Xiangqi pivot: Drop Mini is off the grids; Fortress is an always-on ladder.
-    expect(root.textContent).not.toContain('Drop Mini Xiangqi');
-    expect(root.textContent).toContain('Fortress Xiangqi');
-    expect(root.textContent).toContain('Human blitz ladders');
+    // Scoped to the leaderboard shell: the nav (mounted alongside) legitimately
+    // lists Drop Mini Xiangqi in its Puzzles dropdown.
+    const shell = root.querySelector<HTMLElement>('.leaderboard-shell');
+    expect(shell).not.toBeNull();
+    expect(shell?.textContent).not.toContain('Drop Mini Xiangqi');
+    expect(shell?.textContent).toContain('Fortress Xiangqi');
+    expect(shell?.textContent).toContain('Human blitz ladders');
     // 4 rated ladders (Dark Chess + always-on Jungle, Flip Jungle, Fortress).
     expect(root.querySelectorAll('.leaderboard-panel')).toHaveLength(4);
     expect(root.textContent).not.toContain('Active players');

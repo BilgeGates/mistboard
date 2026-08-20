@@ -13,10 +13,40 @@ export interface NavItem {
 }
 
 export function primaryNavItems(): NavItem[] {
+  return [{ label: 'Watch', labelKey: 'nav.watch', href: '/watch' }];
+}
+
+// Home section: the title reads as the brand word and links to the landing
+// page; the panel holds the play entry points (lichess leads its topnav with
+// a Play section — here the brand word leads it). The landing page itself is
+// the lobby, so Play leads there; Lobby and Create a game deep-link into the
+// play-setup modal; Correspondence opens the seek board.
+export function homeNavItems(): NavItem[] {
   return [
     { label: 'Play', labelKey: 'nav.play', href: '/' },
-    { label: 'Puzzles', labelKey: 'nav.puzzles', href: '/puzzles' },
-    { label: 'Watch', labelKey: 'nav.watch', href: '/watch' },
+    { label: 'Lobby', labelKey: 'lobby.tabLobby', href: '/?play=lobby' },
+    { label: 'Create a game', labelKey: 'lobby.corrCreate', href: '/?play=friend' },
+    { label: 'Correspondence', labelKey: 'nav.correspondence', href: '/correspondence' },
+  ];
+}
+
+// Puzzles section: the title links to the puzzles index; the panel lists every
+// published puzzle variant (mirrors PUZZLE_VARIANT_IDS in puzzles/variant-ids).
+export function puzzlesNavItems(): NavItem[] {
+  return [
+    { label: 'Xiangqi', labelKey: 'variant.xiangqi.name', href: '/puzzles/xiangqi' },
+    { label: 'Mini Xiangqi', labelKey: 'variant.miniXiangqi.name', href: '/puzzles/mini-xiangqi' },
+    {
+      label: 'Drop Mini Xiangqi',
+      labelKey: 'variant.dropMiniXiangqi.name',
+      href: '/puzzles/drop-mini-xiangqi',
+    },
+    {
+      label: 'Fortress Xiangqi',
+      labelKey: 'variant.fortressXiangqi.name',
+      href: '/puzzles/fortress-xiangqi',
+    },
+    { label: 'Jungle', labelKey: 'variant.jungle.name', href: '/puzzles/jungle' },
   ];
 }
 

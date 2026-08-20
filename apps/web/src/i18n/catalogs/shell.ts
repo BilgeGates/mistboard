@@ -3,7 +3,11 @@
 export const EN_SHELL = {
   'nav.primary': 'Primary',
   'nav.menu': 'Menu',
+  // The first nav section reads as the home/brand title (lichess keeps its
+  // Play section as the entry point; here the brand word leads it).
+  'nav.brand': 'mistboard.com',
   'nav.play': 'Play',
+  'nav.correspondence': 'Correspondence',
   'nav.puzzles': 'Puzzles',
   'nav.learn': 'Learn',
   'nav.learnXiangqi': 'Xiangqi Basics',
@@ -133,7 +137,9 @@ export type ShellI18nKey = keyof typeof EN_SHELL;
 export const CRITICAL_SHELL_I18N_KEYS = [
   'nav.primary',
   'nav.menu',
+  'nav.brand',
   'nav.play',
+  'nav.correspondence',
   'nav.puzzles',
   'nav.learn',
   'nav.rules',
